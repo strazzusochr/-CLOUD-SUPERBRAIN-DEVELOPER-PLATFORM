@@ -332,37 +332,58 @@ jobs:
 
       - name: Project progress delta-ledger replay regression
         env:
+          CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}
+          CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-project-progress
           SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
         run: |
           set -euo pipefail
+          cleanup() {
+            git worktree remove --force "$CONTROL_TRUTH_DIR" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
           python -m unittest scripts.tests.test_verify_project_progress_manifest -v
-          if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then
-            expected_progress_drift=$'[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
-            set +e
-            progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"
-            progress_exit=$?
-            set -e
-            case "$progress_exit" in
-              0)
-                printf '%s\n' "$progress_output"
-                echo '[project-progress] source_prequalification=true source_truth_clean=true'
-                ;;
-              1)
-                if [[ "$progress_output" != "$expected_progress_drift" ]]; then
-                  printf 'source prequalification received unexpected project-progress output:\n%s\n' "$progress_output" >&2
+          case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in
+            true:true)
+              expected_progress_drift=$'[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+              set +e
+              progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"
+              progress_exit=$?
+              set -e
+              case "$progress_exit" in
+                0)
+                  printf '%s\n' "$progress_output"
+                  echo '[project-progress] source_prequalification=true source_truth_clean=true'
+                  ;;
+                1)
+                  if [[ "$progress_output" != "$expected_progress_drift" ]]; then
+                    printf 'source prequalification received unexpected project-progress output:\n%s\n' "$progress_output" >&2
+                    exit 1
+                  fi
+                  printf '%s\n' "$progress_output"
+                  echo '[project-progress] source_prequalification=true expected_post_rc22_runtime_source_drift=true'
+                  ;;
+                *)
+                  printf 'source prequalification received unexpected project-progress exit: %s\n' "$progress_exit" >&2
                   exit 1
-                fi
-                printf '%s\n' "$progress_output"
-                echo '[project-progress] source_prequalification=true expected_post_rc22_runtime_source_drift=true'
-                ;;
-              *)
-                printf 'source prequalification received unexpected project-progress exit: %s\n' "$progress_exit" >&2
-                exit 1
-                ;;
-            esac
-          else
-            python scripts/verify_project_progress_manifest.py
-          fi
+                  ;;
+              esac
+              ;;
+            false:true)
+              git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"
+              (
+                cd "$CONTROL_TRUTH_DIR"
+                python scripts/verify_project_progress_manifest.py
+              )
+              echo '[project-progress] reusable_candidate=true control_truth_verified=true'
+              ;;
+            false:false)
+              python scripts/verify_project_progress_manifest.py
+              ;;
+            *)
+              printf 'unexpected source/candidate binding mode: %s:%s\n' "$SOURCE_PREQUALIFICATION" "$CANDIDATE_DIFFERS" >&2
+              exit 1
+              ;;
+          esac
           node --test scripts/tests/endpoint-snapshot-metadata.test.mjs
 
       - name: Phase 3 and Phase 6 draft credit rubric integrity
@@ -372,12 +393,18 @@ jobs:
 
       - name: Five-axis delta-ledger integration
         env:
+          CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}
+          CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-five-axis
           FIVE_AXIS_LEDGER_ONLY: "1"
           SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
         run: |
           set -euo pipefail
-          case "$SOURCE_PREQUALIFICATION" in
-            true)
+          cleanup() {
+            git worktree remove --force "$CONTROL_TRUTH_DIR" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in
+            true:true)
               expected_five_axis_drift=$'[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
               set +e
               five_axis_output="$(node --input-type=module --eval 'try { await import("./scripts/verify-five-axis-substance-audit.mjs"); } catch (error) { console.error(error.message); process.exitCode = 1; }' 2>&1)"
@@ -404,12 +431,21 @@ jobs:
                   ;;
               esac
               ;;
-            false)
+            false:true)
+              node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs
+              git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"
+              (
+                cd "$CONTROL_TRUTH_DIR"
+                node scripts/verify-five-axis-substance-audit.mjs
+              )
+              echo '[five-axis-audit] reusable_candidate=true control_truth_verified=true'
+              ;;
+            false:false)
               node --test scripts/tests/five-axis-delta-ledger-regression.test.mjs
               node scripts/verify-five-axis-substance-audit.mjs
               ;;
             *)
-              printf 'unexpected SOURCE_PREQUALIFICATION value: %s\n' "$SOURCE_PREQUALIFICATION" >&2
+              printf 'unexpected source/candidate binding mode: %s:%s\n' "$SOURCE_PREQUALIFICATION" "$CANDIDATE_DIFFERS" >&2
               exit 1
               ;;
           esac

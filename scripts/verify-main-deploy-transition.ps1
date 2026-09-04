@@ -159,9 +159,15 @@ $projectProgressStep = $projectProgressStepMatch.Value
 Assert-Contains "project-progress source prequalification env is bound" `
   $projectProgressStep `
   'SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}'
+Assert-Contains "project-progress reusable candidate env is bound" `
+  $projectProgressStep `
+  'CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}'
+Assert-Contains "project-progress control truth directory is runner-temp bounded" `
+  $projectProgressStep `
+  'CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-project-progress'
 Assert-Contains "project-progress prequalification remains explicit" `
   $projectProgressStep `
-  'if [[ "$SOURCE_PREQUALIFICATION" == "true" ]]; then'
+  'case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in'
 Assert-Contains "project-progress prequalification accepts verifier-clean truth" `
   $projectProgressStep `
   '[project-progress] source_prequalification=true source_truth_clean=true'
@@ -174,16 +180,19 @@ Assert-Contains "project-progress prequalification requires exact drift output" 
 Assert-Contains "project-progress prequalification pins runtime-source drift" `
   $projectProgressStep `
   '[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Regex "project-progress reusable candidate validates control truth" `
+  $projectProgressStep `
+  '(?ms)^\s{12}false:true\)\s*\r?\n.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?python scripts/verify_project_progress_manifest\.py.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'
 Assert-Regex "project-progress normal validation is retained" `
   $projectProgressStep `
-  '(?ms)^\s{10}else\s*\r?\n\s{12}python scripts/verify_project_progress_manifest\.py\s*\r?\n\s{10}fi\s*$'
+  '(?ms)^\s{12}false:false\)\s*\r?\n\s{14}python scripts/verify_project_progress_manifest\.py\s*\r?\n\s{14};;'
 Assert-Regex "project-progress unit and endpoint tests remain outside conditional" `
   $projectProgressStep `
-  '(?ms)python -m unittest scripts\.tests\.test_verify_project_progress_manifest -v.*?^\s{10}if \[\[.*?^\s{10}fi\s*\r?\n\s{10}node --test scripts/tests/endpoint-snapshot-metadata\.test\.mjs'
-Assert-Count "project-progress manifest executes in both explicit modes" `
+  '(?ms)python -m unittest scripts\.tests\.test_verify_project_progress_manifest -v.*?^\s{10}case .*?^\s{10}esac\s*\r?\n\s{10}node --test scripts/tests/endpoint-snapshot-metadata\.test\.mjs'
+Assert-Count "project-progress manifest executes in all explicit modes" `
   $projectProgressStep `
   '(?m)python scripts/verify_project_progress_manifest\.py' `
-  2
+  3
 Assert-NotRegex "project-progress manifest has no blanket bypass" `
   $projectProgressStep `
   'python scripts/verify_project_progress_manifest\.py[^\r\n]*\|\|\s*true'
@@ -196,9 +205,15 @@ $fiveAxisStep = $fiveAxisStepMatch.Value
 Assert-Contains "five-axis source prequalification env is bound" `
   $fiveAxisStep `
   'SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}'
+Assert-Contains "five-axis reusable candidate env is bound" `
+  $fiveAxisStep `
+  'CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}'
+Assert-Contains "five-axis control truth directory is runner-temp bounded" `
+  $fiveAxisStep `
+  'CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-five-axis'
 Assert-Contains "five-axis prequalification remains explicit" `
   $fiveAxisStep `
-  'case "$SOURCE_PREQUALIFICATION" in'
+  'case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in'
 Assert-Contains "five-axis prequalification keeps negative ledger regressions" `
   $fiveAxisStep `
   "--test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$'"
@@ -214,12 +229,15 @@ Assert-Contains "five-axis prequalification requires exact drift output" `
 Assert-Contains "five-axis prequalification pins runtime-source drift" `
   $fiveAxisStep `
   '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Regex "five-axis reusable candidate validates control truth" `
+  $fiveAxisStep `
+  '(?ms)^\s{12}false:true\)\s*\r?\n.*?node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?node scripts/verify-five-axis-substance-audit\.mjs.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'
 Assert-Regex "five-axis normal validation is retained" `
   $fiveAxisStep `
-  '(?ms)^\s{12}false\)\s*\r?\n\s{14}node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs\s*\r?\n\s{14}node scripts/verify-five-axis-substance-audit\.mjs\s*\r?\n\s{14};;'
-Assert-Contains "five-axis prequalification rejects unexpected mode values" `
+  '(?ms)^\s{12}false:false\)\s*\r?\n\s{14}node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs\s*\r?\n\s{14}node scripts/verify-five-axis-substance-audit\.mjs\s*\r?\n\s{14};;'
+Assert-Contains "five-axis rejects unexpected binding mode values" `
   $fiveAxisStep `
-  'unexpected SOURCE_PREQUALIFICATION value'
+  'unexpected source/candidate binding mode'
 Assert-NotRegex "five-axis audit has no blanket bypass" `
   $fiveAxisStep `
   '(?m)(node --test|node scripts/verify-five-axis-substance-audit\.mjs)[^\r\n]*\|\|\s*true'
