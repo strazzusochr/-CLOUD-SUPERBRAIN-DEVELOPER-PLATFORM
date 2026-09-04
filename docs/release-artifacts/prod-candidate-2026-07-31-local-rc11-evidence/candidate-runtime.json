@@ -1,0 +1,21 @@
+{
+  "contract_version": "phase5-production-candidate-local-verification-v1",
+  "evidence_ref": "phase5_local_production_candidate_verified",
+  "status": "verified",
+  "verification_scope": "full_with_browser",
+  "generated_at": "2026-08-01T08:41:48.4904174Z",
+  "release_id": "prod-candidate-2026-07-31-local-rc11",
+  "source_commit_sha": "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+  "service_count": 6,
+  "api_contract_verified": true,
+  "local_image_identity_verified": true,
+  "embedded_source_hash_parity_verified": true,
+  "candidate_runtime_source_parity_verified": true,
+  "rollback_target": "2ae4c61aa876759abcaa83c36c0a3379206b91a4",
+  "browser_click_verified": true,
+  "registry_publish": false,
+  "hosted_staging_parity": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "secret_output": false
+}

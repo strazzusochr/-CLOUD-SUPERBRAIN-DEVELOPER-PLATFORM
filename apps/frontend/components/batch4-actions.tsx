@@ -38,82 +38,20 @@ export function HomeCortexHero() {
         interactive={false}
         showRegions={false}
         nodeCount={520}
-        sourceLabel="DEV-ONLY · HOME CORTEX HERO"
+        sourceLabel="CLIENT-3D · CORTEX HERO"
         className="home-cortex-canvas"
       />
       <div className="home-cortex-footer">
-        <span className="badge badge-cyan">glowing 3D cortex</span>
-        <span className="badge badge-amber">DEV-ONLY</span>
-        <span className="badge badge-green">fake_stats=false</span>
+        <span className="badge badge-cyan">leuchtender 3D-Cortex</span>
+        <span className="badge badge-amber">client-lokal</span>
+        <span className="badge badge-green">keine Fake-Daten</span>
       </div>
-    </div>
-  );
-}
-
-export function HomeHeroProofPanel() {
-  const [result, setResult] = useState("waiting_for_home_hero_check");
-
-  function checkHero() {
-    setResult([
-      "PASS home_hero_check",
-      "visual=glowing_3d_cortex",
-      "source=DEV-ONLY",
-      "fake_stats=false",
-      "live_provider_calls=false",
-      "provider_writes=false",
-      "production_deploy=false",
-    ].join("\n"));
-  }
-
-  return (
-    <div className="goalb-action-panel" data-testid="goal-b-home-panel">
-      <div className="goalb-row">
-        <button
-          aria-label="Check DEV-only cortex hero"
-          className="btn btn-sm btn-primary"
-          type="button"
-          data-testid="goal-b-home-hero-proof"
-          onClick={checkHero}
-        >
-          Cortex proof
-        </button>
-        <span className="badge badge-cyan">local visual contract</span>
-      </div>
-      <ActionResult state={result} testId="goal-b-home-result" />
-    </div>
-  );
-}
-
-export function LoginDryRunPanel() {
-  const [result, setResult] = useState("waiting_for_login_dry_run");
-
-  function choose(provider: "github" | "google" | "email" | "guest") {
-    setResult([
-      "PASS login_dry_run",
-      `provider=${provider}`,
-      "session_state=dry_run",
-      "live_oauth=false",
-      "provider_writes=false",
-      "secret_output=false",
-      "redirect_allowed=/workbench",
-    ].join("\n"));
-  }
-
-  return (
-    <div className="goalb-action-panel" data-testid="goal-b-login-panel">
-      <div className="goalb-row">
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-github" onClick={() => choose("github")}>GitHub dry-run</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-google" onClick={() => choose("google")}>Google dry-run</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-login-email" onClick={() => choose("email")}>Email dry-run</button>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-login-guest" onClick={() => choose("guest")}>Guest dry-run</button>
-      </div>
-      <ActionResult state={result} testId="goal-b-login-result" />
     </div>
   );
 }
 
 export function ObserveRuntimeProbe() {
-  const [result, setResult] = useState("waiting_for_observe_probe");
+  const [result, setResult] = useState("Bereit — noch keine Messung abgerufen.");
   const [busy, setBusy] = useState(false);
 
   async function probe() {
@@ -140,10 +78,10 @@ export function ObserveRuntimeProbe() {
     <div className="goalb-action-panel" data-testid="goal-b-observe-panel">
       <div className="goalb-row">
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-observe-refresh" onClick={probe} disabled={busy}>
-          Verify metrics contract
+          Metrikvertrag prüfen
         </button>
-        <span className="badge badge-cyan">read-only</span>
-        <span className="badge badge-amber">traffic chart spec-only</span>
+        <span className="badge badge-cyan">nur lesend</span>
+        <span className="badge badge-amber">Datenverkehrsdiagramm als Spezifikation</span>
       </div>
       <ActionResult state={result} testId="goal-b-observe-result" />
     </div>
@@ -151,7 +89,7 @@ export function ObserveRuntimeProbe() {
 }
 
 export function EvidenceVerifierProbe() {
-  const [result, setResult] = useState("waiting_for_evidence_probe");
+  const [result, setResult] = useState("Bereit — noch kein Verifier-Status gelesen.");
   const [busy, setBusy] = useState(false);
 
   async function probe() {
@@ -183,9 +121,9 @@ export function EvidenceVerifierProbe() {
     <div className="goalb-action-panel" data-testid="goal-b-evidence-panel">
       <div className="goalb-row">
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-evidence-verify" onClick={probe} disabled={busy}>
-          Read verifier status
+          Verifier-Status lesen
         </button>
-        <span className="badge badge-cyan">read-only evidence</span>
+        <span className="badge badge-cyan">nur lesender Nachweis</span>
       </div>
       <ActionResult state={result} testId="goal-b-evidence-result" />
     </div>

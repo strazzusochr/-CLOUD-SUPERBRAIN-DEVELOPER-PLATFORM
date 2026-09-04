@@ -1,0 +1,8 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=candidate-images
+[phase5-evidence] release_id=prod-candidate-2026-08-28-local-rc21
+[phase5-evidence] source_commit_sha=c1b022a884eb16939fe0542b2eb9056b60706b20
+[phase5-evidence] evidence_run_id=191a709f-0304-4921-bbcd-ec95e2f72b14
+[phase5-evidence] command=pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 -SourceSha c1b022a884eb16939fe0542b2eb9056b60706b20 -ReleaseId prod-candidate-2026-08-28-local-rc21 -RollbackTarget c29c738b82e4e35cc1288bc603319cba60d167d2 -OutputDir .codex\runs\CURRENT\master-goal\phase5\production-candidate-local -EvidenceRunId 191a709f-0304-4921-bbcd-ec95e2f72b14
+[phase5-candidate-local] status=verified service_count=6
+[phase5-evidence] exit_code=0

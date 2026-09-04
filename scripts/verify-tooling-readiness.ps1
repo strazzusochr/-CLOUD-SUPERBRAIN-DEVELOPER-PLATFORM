@@ -1,6 +1,5 @@
 param(
   [string]$SecretPath = "C:\Users\immer\.codex\secrets\cloud-superbrain.local.env",
-  [string]$KnownFlyTokenPath = "C:\Users\immer\.codex\secrets\fly-api-token.txt",
   [string]$VercelProjectJsonPath = "apps\frontend\.vercel\project.json",
   [string]$OutputPath = "",
   [switch]$RequireOptionalIdentities,
@@ -73,7 +72,9 @@ function Invoke-NodeJson([string]$Script) {
     }
   }
 
-  $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("tooling-readiness-{0}.js" -f ([guid]::NewGuid().ToString("N")))
+  $tmpRoot = Join-Path $repoRoot ".codex\tmp"
+  New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
+  $tmp = Join-Path $tmpRoot ("tooling-readiness-{0}.js" -f ([guid]::NewGuid().ToString("N")))
   try {
     Set-Content -LiteralPath $tmp -Value $Script -Encoding UTF8
     $raw = & $node.Source $tmp 2>&1 | Out-String
@@ -135,6 +136,12 @@ function Invoke-DockerReadinessProbe() {
 $repoRoot = Split-Path $PSScriptRoot -Parent
 Push-Location $repoRoot
 try {
+  if (-not (Test-Path -LiteralPath $SecretPath)) {
+    $claudeSecretPath = Join-Path $HOME ".claude\secrets\cloud-superbrain.local.env"
+    if (Test-Path -LiteralPath $claudeSecretPath) {
+      $SecretPath = $claudeSecretPath
+    }
+  }
   $envValues = Read-EnvFile -Path $SecretPath
   Set-ProcessEnvFromMap -Values $envValues
 
@@ -156,7 +163,6 @@ try {
     npm = [bool](Get-Command npm -ErrorAction SilentlyContinue)
     vercel = [bool](Get-Command vercel -ErrorAction SilentlyContinue)
     wrangler = [bool](Get-Command wrangler -ErrorAction SilentlyContinue)
-    fly = [bool](Get-Command fly -ErrorAction SilentlyContinue)
     git = [bool](Get-Command git -ErrorAction SilentlyContinue)
   }
   $gitLfsProbe = Invoke-ProcessProbe { git lfs version }
@@ -198,33 +204,7 @@ fetch(url, { headers: { Authorization: "Bearer " + token } })
     $checks.Add((New-Check "vercel" @("VERCEL_TOKEN", "VERCEL_PROJECT_ID", "VERCEL_TEAM_ID") "token/project/team not fully verified" "GET /v9/projects/<project>?teamId=<team>" ("status={0}; http={1}; error={2}" -f $vercelProbe.status, $vercelProbe.http_status, $vercelProbe.error_code) "Provide a Vercel token that can read the configured project/team, or mark Vercel non-blocking by owner decision." "blocked" ([int]$vercelProbe.http_status) $true))
   }
 
-  $flyProbe = Invoke-NodeJson @'
-const token = process.env.FLY_API_TOKEN || "";
-if (!token) {
-  console.log(JSON.stringify({ status: "missing", http_status: 0 }));
-  process.exit(0);
-}
-fetch("https://api.fly.io/graphql", {
-  method: "POST",
-  headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-  body: JSON.stringify({ query: "{ viewer { email } }" })
-})
-  .then(async (response) => {
-    let body = {};
-    try { body = await response.json(); } catch {}
-    console.log(JSON.stringify({
-      status: response.ok && body.data && body.data.viewer ? "verified" : "failed",
-      http_status: response.status,
-      viewer_present: Boolean(body.data && body.data.viewer)
-    }));
-  })
-  .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
-'@
-  if ($flyProbe.status -eq "verified") {
-    $checks.Add((New-Check "fly_io" @("FLY_API_TOKEN") "token verified" "POST /graphql (viewer)" "HTTP 200, viewer present" "" "ready" ([int]$flyProbe.http_status) $false))
-  } else {
-    $checks.Add((New-Check "fly_io" @("FLY_API_TOKEN") "token not fully verified" "POST /graphql (viewer)" ("status={0}; http={1}" -f $flyProbe.status, $flyProbe.http_status) "Provide a valid Fly API token." "blocked" ([int]$flyProbe.http_status) $true))
-  }
+  $checks.Add((New-Check "fly_io_historical" @() "historical_only; retired from active readiness" "no provider probe" "not evaluated; cannot close an active gate" "" "historical_only" 0 $false))
 
   $cloudflareProbe = Invoke-NodeJson @'
 const token = process.env.CLOUDFLARE_API_TOKEN || "";
@@ -246,11 +226,88 @@ fetch("https://api.cloudflare.com/client/v4/user/tokens/verify", { headers: { Au
   })
   .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
 '@
-  $cloudflareKeysPresent = (Test-EnvPresent $envValues "CLOUDFLARE_ACCOUNT_ID") -and (Test-EnvPresent $envValues "CLOUDFLARE_ZONE_ID") -and (Test-EnvPresent $envValues "CLOUDFLARE_PRODUCTION_DOMAIN")
-  if ($cloudflareProbe.status -eq "verified" -and $cloudflareKeysPresent) {
-    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ZONE_ID", "CLOUDFLARE_PRODUCTION_DOMAIN") "token active and required non-secret IDs present" "GET /client/v4/user/tokens/verify" "HTTP 200, token active" "" "ready" ([int]$cloudflareProbe.http_status) $false))
+  $cloudflareKeysPresent = (Test-EnvPresent $envValues "CLOUDFLARE_ACCOUNT_ID") -and (Test-EnvPresent $envValues "CLOUDFLARE_STATEFUL_BASE_URL")
+  $cloudflareScopePath = Join-Path $repoRoot ".codex\runs\CURRENT\p5\cloudflare-scope-readiness\report.json"
+  $cloudflareScopeReady = $false
+  if (Test-Path -LiteralPath $cloudflareScopePath) {
+    try {
+      $cloudflareScopeReport = Get-Content -LiteralPath $cloudflareScopePath -Raw | ConvertFrom-Json
+      $cloudflareScopeReady = (
+        [string]$cloudflareScopeReport.contract_version -eq "cloudflare-owner-scope-readiness-v1" -and
+        [bool]$cloudflareScopeReport.assertions.only_get_requests_used -and
+        -not [bool]$cloudflareScopeReport.assertions.cloud_mutation -and
+        [bool]$cloudflareScopeReport.assertions.o2_prime_scope_ready
+      )
+    } catch {
+      $cloudflareScopeReady = $false
+    }
+  }
+  if ($cloudflareProbe.status -eq "verified" -and $cloudflareKeysPresent -and $cloudflareScopeReady) {
+    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_STATEFUL_BASE_URL") "token active, hosted URL present, and O2' scope inventory verified" "GET /client/v4/user/tokens/verify plus canonical read-only scope report" "HTTP 200, token active, O2' scopes ready" "" "ready" ([int]$cloudflareProbe.http_status) $false))
   } else {
-    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_ZONE_ID", "CLOUDFLARE_PRODUCTION_DOMAIN") "cloudflare token or required IDs not fully verified" "GET /client/v4/user/tokens/verify" ("status={0}; http={1}; ids_present={2}" -f $cloudflareProbe.status, $cloudflareProbe.http_status, $cloudflareKeysPresent) "Provide active token plus account, zone, and production domain values." "blocked" ([int]$cloudflareProbe.http_status) $true))
+    $checks.Add((New-Check "cloudflare" @("CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_STATEFUL_BASE_URL") "Cloudflare O2' readiness is not fully verified" "GET /client/v4/user/tokens/verify plus canonical read-only scope report" ("token_status={0}; http={1}; env3_present={2}; scopes_ready={3}" -f $cloudflareProbe.status, $cloudflareProbe.http_status, $cloudflareKeysPresent, $cloudflareScopeReady) "Provide the active env3 inputs and least-privilege O2' scopes, then regenerate the read-only scope report." "blocked" ([int]$cloudflareProbe.http_status) $true))
+  }
+
+  $githubProbe = Invoke-NodeJson @'
+const token = process.env.GITHUB_TOKEN || "";
+if (!token) {
+  console.log(JSON.stringify({ status: "missing", http_status: 0 }));
+  process.exit(0);
+}
+fetch("https://api.github.com/user", {
+  headers: {
+    Authorization: "Bearer " + token,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "cloud-superbrain-readonly-verifier"
+  }
+})
+  .then(async (response) => {
+    let body = {};
+    try { body = await response.json(); } catch {}
+    console.log(JSON.stringify({
+      status: response.ok && Boolean(body.login) ? "verified" : "failed",
+      http_status: response.status,
+      identity_present: Boolean(body.login)
+    }));
+  })
+  .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
+'@
+  if ($githubProbe.status -eq "verified") {
+    $checks.Add((New-Check "github" @("GITHUB_TOKEN") "identity verified" "GET /user" "HTTP 200, identity present" "" "ready" ([int]$githubProbe.http_status) $false))
+  } else {
+    $checks.Add((New-Check "github" @("GITHUB_TOKEN") "identity not verified" "GET /user" ("status={0}; http={1}" -f $githubProbe.status, $githubProbe.http_status) "Provide a GitHub token with read access." "blocked" ([int]$githubProbe.http_status) $true))
+  }
+
+  $ghcrProbe = Invoke-NodeJson @'
+const token = process.env.GHCR_TOKEN || "";
+if (!token) {
+  console.log(JSON.stringify({ status: "missing", http_status: 0 }));
+  process.exit(0);
+}
+fetch("https://api.github.com/user/packages?package_type=container&per_page=1", {
+  headers: {
+    Authorization: "Bearer " + token,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "cloud-superbrain-readonly-verifier"
+  }
+})
+  .then(async (response) => {
+    let body = null;
+    try { body = await response.json(); } catch {}
+    console.log(JSON.stringify({
+      status: response.ok && Array.isArray(body) ? "verified" : "failed",
+      http_status: response.status,
+      package_list_present: Array.isArray(body)
+    }));
+  })
+  .catch((error) => console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message })));
+'@
+  if ($ghcrProbe.status -eq "verified") {
+    $checks.Add((New-Check "ghcr" @("GHCR_TOKEN") "container package read verified" "GET /user/packages?package_type=container" "HTTP 200, package list present" "" "ready" ([int]$ghcrProbe.http_status) $false))
+  } else {
+    $checks.Add((New-Check "ghcr" @("GHCR_TOKEN") "container package read not verified" "GET /user/packages?package_type=container" ("status={0}; http={1}" -f $ghcrProbe.status, $ghcrProbe.http_status) "Provide a GHCR token with package read access." "blocked" ([int]$ghcrProbe.http_status) $true))
   }
 
   $hfProbe = Invoke-NodeJson @'
@@ -307,30 +364,62 @@ fetch("https://gitlab.com/api/v4/user", { headers: { "PRIVATE-TOKEN": token } })
   $grafanaProbe = Invoke-NodeJson @'
 const token = process.env.GRAFANA_CLOUD_API_KEY || "";
 const url = process.env.GRAFANA_CLOUD_URL || "";
-if (!token || !url) {
+if (!token) {
   console.log(JSON.stringify({ status: "missing", http_status: 0 }));
   process.exit(0);
 }
-if (token.startsWith("glc_")) {
-  try {
-    const payload = Buffer.from(token.substring(4), "base64").toString("utf-8");
-    const parsed = JSON.parse(payload);
-    console.log(JSON.stringify({
-      status: "verified",
-      http_status: 200,
-      org_name: parsed.n || parsed.o || "grafana-cloud-org"
-    }));
-  } catch (e) {
-    console.log(JSON.stringify({ status: "failed", http_status: 400, error: "invalid glc token format" }));
+async function verifyGrafanaIdentity() {
+  let probeUrl;
+  let probeKind;
+  if (token.startsWith("glc_")) {
+    let encoded = token.substring(4).replace(/-/g, "+").replace(/_/g, "/");
+    encoded += "=".repeat((4 - (encoded.length % 4)) % 4);
+    const metadata = JSON.parse(Buffer.from(encoded, "base64").toString("utf-8"));
+    const region = metadata && metadata.m && metadata.m.r;
+    if (typeof region !== "string" || !/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/.test(region)) {
+      throw new Error("Grafana Cloud token region is missing or invalid");
+    }
+    probeUrl = `https://grafana.com/api/v1/accesspolicies?region=${encodeURIComponent(region)}&pageSize=1`;
+    probeKind = "cloud_access_policy";
+  } else if (token.startsWith("glsa_")) {
+    if (!url) {
+      throw new Error("Grafana instance URL is required for a service account token");
+    }
+    const instance = new URL(url);
+    if (
+      instance.protocol !== "https:" ||
+      !instance.hostname.endsWith(".grafana.net") ||
+      instance.username ||
+      instance.password ||
+      (instance.port && instance.port !== "443")
+    ) {
+      throw new Error("Grafana instance URL must be an HTTPS grafana.net host");
+    }
+    probeUrl = `${instance.origin}/api/access-control/user/permissions`;
+    probeKind = "service_account";
+  } else {
+    throw new Error("Grafana token must start with glc_ or glsa_");
   }
-} else {
-  console.log(JSON.stringify({ status: "failed", http_status: 401, error: "token must start with glc_" }));
+
+  const response = await fetch(probeUrl, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+    redirect: "error"
+  });
+  await response.body?.cancel();
+  console.log(JSON.stringify({
+    status: response.ok ? "verified" : "failed",
+    http_status: response.status,
+    probe_kind: probeKind
+  }));
 }
+verifyGrafanaIdentity().catch((error) => {
+  console.log(JSON.stringify({ status: "failed", http_status: 0, error: error.message }));
+});
 '@
   if ($grafanaProbe.status -eq "verified") {
-    $checks.Add((New-Check "grafana" @("GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_URL") "identity token verified" "GET /api/org" "HTTP 200" "" "ready" ([int]$grafanaProbe.http_status) $false))
+    $checks.Add((New-Check "grafana" @("GRAFANA_CLOUD_API_KEY") "identity verified by provider read" ([string]$grafanaProbe.probe_kind) "HTTP 200" "" "ready" ([int]$grafanaProbe.http_status) $false))
   } else {
-    $checks.Add((New-Check "grafana" @("GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_URL") "identity token not verified" "GET /api/org" ("status={0}; http={1}" -f $grafanaProbe.status, $grafanaProbe.http_status) "Provide a valid Grafana token/URL." "blocked" ([int]$grafanaProbe.http_status) $true))
+    $checks.Add((New-Check "grafana" @("GRAFANA_CLOUD_API_KEY") "identity not verified" "read-only provider API" ("status={0}; http={1}" -f $grafanaProbe.status, $grafanaProbe.http_status) "Provide a valid Grafana token with read scope; service-account tokens also require an instance URL." "blocked" ([int]$grafanaProbe.http_status) $true))
   }
 
   $ownerDecision = [string]$envValues["OWNER_DECISION"]

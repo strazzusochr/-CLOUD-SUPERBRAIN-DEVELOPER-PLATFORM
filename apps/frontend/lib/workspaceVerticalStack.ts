@@ -66,7 +66,12 @@ export function workspaceVerticalStackContract() {
       },
       deploy: {
         frontendTarget: "vercel",
-        backendTargets: ["fly-agent-api", "fly-mcp-gateway", "fly-llm-gateway"],
+        backendTargets: [
+          "cloudflare-stateful-runtime",
+          "cloudflare-llm-gateway",
+          "vercel-hosted-backend-origin-contracts",
+        ],
+        backendTargetMode: "contract_targets_only",
         registry: "ghcr",
         hostedProofStatus: "blocked_external_gates",
       },
@@ -93,7 +98,7 @@ export function workspaceVerticalStackContract() {
     required_stage_keys: ["ui", "api", "data", "verification", "deploy", "safety"],
     policy_checks: [
       "Every canonical page must expose UI, API, data, verification, deploy, and safety stages.",
-      "Every page remains local-proof-only until hosted Vercel/Fly/GHCR/Grafana gates pass.",
+      "Every page remains local-proof-only until hosted Vercel/Cloudflare-native/GHCR/Grafana gates pass.",
       "No stack entry may enable provider bypass, secret output, production deploy, or live MCP writes.",
       "Budget UI remains hidden unless a paid/metered capability is selected or explicitly available.",
     ],

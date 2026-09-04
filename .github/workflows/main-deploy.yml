@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Exact active release-candidate source SHA from tracked Phase-5 truth
+        description: Exact runtime candidate SHA from tracked source qualification truth
         required: true
         type: string
 
@@ -14,6 +14,10 @@ permissions:
 
 env:
   IMAGE_NAMESPACE: ghcr.io/${{ github.repository_owner }}/cloud-superbrain-developer-platform
+  TRIVY_VERSION: "0.72.0"
+  TRIVY_LINUX_AMD64_SHA256: bbb64b9695866ce4a7a8f5c9592002c5961cab378577fa3f8a040df362b9b2ea
+  TRIVY_LINUX_AMD64_BINARY_SHA256: 0e69edd134a3c338baa1a6806920773615d682b18cbc6a0cba2a3b658ef9b63e
+  TRIVY_DOWNLOAD_URL: https://github.com/aquasecurity/trivy/releases/download/v0.72.0/trivy_0.72.0_Linux-64bit.tar.gz
 
 concurrency:
   group: ghcr-candidate-${{ inputs.candidate_sha }}
@@ -43,6 +47,7 @@ jobs:
           CONTROL_SHA: ${{ github.sha }}
           CONTROL_REF: ${{ github.ref }}
         run: |
+          import hashlib
           import json
           import os
           import pathlib
@@ -52,7 +57,7 @@ jobs:
           candidate_sha = os.environ["CANDIDATE_SHA"]
           control_sha = os.environ["CONTROL_SHA"]
           control_ref = os.environ["CONTROL_REF"]
-          truth_path = pathlib.Path("docs/runtime-state/phase5-credit-itemization.json")
+          truth_path = pathlib.Path("docs/runtime-state/source-qualification-control.json")
           capability_path = pathlib.Path("docs/runtime-state/capability-gates.json")
 
           if control_ref != "refs/heads/chore/repo-bootstrap":
@@ -70,9 +75,50 @@ jobs:
               stdout=subprocess.DEVNULL,
           )
           truth = json.loads(truth_path.read_text(encoding="utf-8"))
-          active_source_sha = truth.get("active_source_commit_sha")
+          expected_truth_keys = {
+              "$schema",
+              "contract_version",
+              "release_id",
+              "runtime_candidate_sha",
+              "source_archive_sha256",
+              "production_rollout_claimed",
+              "percentage_credit_awarded",
+              "secret_output",
+          }
+          if set(truth) != expected_truth_keys:
+              raise SystemExit("source qualification control fields are not exact")
+          if truth.get("$schema") != "../runtime-contracts/source-qualification-control.schema.json":
+              raise SystemExit("source qualification control schema mismatch")
+          if truth.get("contract_version") != "source-qualification-control-v1":
+              raise SystemExit("source qualification control contract mismatch")
+          active_source_sha = truth.get("runtime_candidate_sha")
           if active_source_sha != candidate_sha:
-              raise SystemExit("candidate_sha does not equal tracked active_source_commit_sha")
+              raise SystemExit("candidate_sha does not equal qualified runtime_candidate_sha")
+          if re.fullmatch(
+              r"prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-local-rc[0-9]+",
+              str(truth.get("release_id", "")),
+          ) is None:
+              raise SystemExit("source qualification release ID is invalid")
+          if truth.get("production_rollout_claimed") is not False:
+              raise SystemExit("source qualification may not claim rollout")
+          if truth.get("percentage_credit_awarded") != 0:
+              raise SystemExit("source qualification may not award credit")
+          if truth.get("secret_output") is not False:
+              raise SystemExit("source qualification may not report secret output")
+          qualified_archive_sha256 = truth.get("source_archive_sha256")
+          if re.fullmatch(r"[0-9a-f]{64}", str(qualified_archive_sha256)) is None:
+              raise SystemExit("source qualification archive SHA-256 is invalid")
+          archive_process = subprocess.Popen(
+              ["git", "archive", "--format=tar", candidate_sha],
+              stdout=subprocess.PIPE,
+          )
+          archive_hasher = hashlib.sha256()
+          assert archive_process.stdout is not None
+          for archive_chunk in iter(lambda: archive_process.stdout.read(1024 * 1024), b""):
+              archive_hasher.update(archive_chunk)
+          archive_process.stdout.close()
+          if archive_process.wait() != 0 or archive_hasher.hexdigest() != qualified_archive_sha256:
+              raise SystemExit("source qualification archive SHA-256 mismatch")
 
           subprocess.run(
               ["git", "ls-files", "--error-unmatch", capability_path.as_posix()],
@@ -232,6 +278,9 @@ jobs:
     permissions:
       contents: read
       packages: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
     steps:
       - name: Checkout control verifier
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -268,6 +317,40 @@ jobs:
           GHCR_RELEASE_MANIFEST: ${{ runner.temp }}/ghcr-candidate-manifest/ghcr-candidate-manifest.json
         run: python scripts/verify_ghcr_candidate.py
 
+      - name: Install checksum-pinned Trivy
+        shell: bash
+        env:
+          TRIVY_BIN_DIR: ${{ runner.temp }}/trivy-bin
+          TRIVY_ARCHIVE: ${{ runner.temp }}/trivy_${{ env.TRIVY_VERSION }}_Linux-64bit.tar.gz
+        run: |
+          set -euo pipefail
+          test ! -e "${TRIVY_BIN_DIR}"
+          mkdir "${TRIVY_BIN_DIR}"
+          curl --fail --silent --show-error --location \
+            --output "${TRIVY_ARCHIVE}" \
+            "${TRIVY_DOWNLOAD_URL}"
+          printf '%s  %s\n' "${TRIVY_LINUX_AMD64_SHA256}" "${TRIVY_ARCHIVE}" | sha256sum --check --strict
+          tar --extract --gzip --file "${TRIVY_ARCHIVE}" --directory "${TRIVY_BIN_DIR}" trivy
+          test "$(sha256sum "${TRIVY_BIN_DIR}/trivy" | cut -d ' ' -f 1)" = "${TRIVY_LINUX_AMD64_BINARY_SHA256}"
+          "${TRIVY_BIN_DIR}/trivy" --version | grep -Fx "Version: ${TRIVY_VERSION}"
+
+      - name: Scan all twelve immutable platform digests with pinned Trivy
+        env:
+          GHCR_RELEASE_MANIFEST: ${{ runner.temp }}/ghcr-candidate-manifest/ghcr-candidate-manifest.json
+          TRIVY_BINARY: ${{ runner.temp }}/trivy-bin/trivy
+          TRIVY_REPORTS_DIR: ${{ runner.temp }}/ghcr-candidate-manifest/trivy-reports
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+          TRIVY_DB_METADATA: ${{ runner.temp }}/ghcr-candidate-manifest/trivy-db-metadata.json
+          GHCR_REMOTE_SCAN_EVIDENCE: ${{ runner.temp }}/ghcr-candidate-manifest/remote-image-scan.json
+        run: >-
+          python scripts/verify_ghcr_remote_scan.py
+          --manifest "${GHCR_RELEASE_MANIFEST}"
+          --trivy-binary "${TRIVY_BINARY}"
+          --reports-dir "${TRIVY_REPORTS_DIR}"
+          --cache-dir "${TRIVY_CACHE_DIR}"
+          --db-metadata-output "${TRIVY_DB_METADATA}"
+          --output "${GHCR_REMOTE_SCAN_EVIDENCE}"
+
       - name: Upload immutable candidate manifest
         id: upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -289,3 +372,98 @@ jobs:
           test "${ARTIFACT_DIGEST}" != ""
           printf 'Candidate manifest Actions artifact digest: %s' "${ARTIFACT_DIGEST}" >> "${GITHUB_STEP_SUMMARY}"
           echo >> "${GITHUB_STEP_SUMMARY}"
+
+  collect-publication-evidence:
+    name: Collect protected registry publication review
+    needs: [candidate-preflight, publish-candidate, verify-candidate-manifest]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout control collector
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ needs.candidate-preflight.outputs.control_sha }}
+          fetch-depth: 1
+
+      - name: Prepare exclusive collector directories
+        shell: bash
+        env:
+          COLLECTOR_ROOT: ${{ runner.temp }}/ghcr-publication-collector
+        run: |
+          set -euo pipefail
+          test ! -e "${COLLECTOR_ROOT}"
+          mkdir "${COLLECTOR_ROOT}"
+          mkdir "${COLLECTOR_ROOT}/raw"
+          mkdir "${COLLECTOR_ROOT}/download"
+          mkdir "${COLLECTOR_ROOT}/receipt"
+
+      - name: Read back run, jobs, review, environment, and artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COLLECTOR_ROOT: ${{ runner.temp }}/ghcr-publication-collector
+          ARTIFACT_ID: ${{ needs.verify-candidate-manifest.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.verify-candidate-manifest.outputs.artifact_digest }}
+        run: |
+          set -euo pipefail
+          test -n "${ARTIFACT_ID}"
+          test -n "${ARTIFACT_DIGEST}"
+          api_header='X-GitHub-Api-Version: 2022-11-28'
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}" \
+            > "${COLLECTOR_ROOT}/raw/run.json"
+          gh api -H "${api_header}" --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/attempts/${GITHUB_RUN_ATTEMPT}/jobs?per_page=100" \
+            > "${COLLECTOR_ROOT}/raw/jobs.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/approvals" \
+            > "${COLLECTOR_ROOT}/raw/approvals.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/environments/registry-publication" \
+            > "${COLLECTOR_ROOT}/raw/environment.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}" \
+            > "${COLLECTOR_ROOT}/raw/artifact.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            > "${COLLECTOR_ROOT}/candidate-artifact.zip"
+          expected_zip_sha="${ARTIFACT_DIGEST#sha256:}"
+          test "${expected_zip_sha}" != "${ARTIFACT_DIGEST}"
+          printf '%s  %s\n' "${expected_zip_sha}" "${COLLECTOR_ROOT}/candidate-artifact.zip" | sha256sum --check --strict
+          python -m zipfile -e \
+            "${COLLECTOR_ROOT}/candidate-artifact.zip" \
+            "${COLLECTOR_ROOT}/download"
+
+      - name: Verify protected review and emit registry digest contract
+        env:
+          COLLECTOR_ROOT: ${{ runner.temp }}/ghcr-publication-collector
+          ARTIFACT_ID: ${{ needs.verify-candidate-manifest.outputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.verify-candidate-manifest.outputs.artifact_digest }}
+        run: >-
+          python scripts/collect_ghcr_publication_evidence.py
+          --manifest "${COLLECTOR_ROOT}/download/ghcr-candidate-manifest.json"
+          --remote-scan "${COLLECTOR_ROOT}/download/remote-image-scan.json"
+          --run "${COLLECTOR_ROOT}/raw/run.json"
+          --jobs "${COLLECTOR_ROOT}/raw/jobs.json"
+          --approvals "${COLLECTOR_ROOT}/raw/approvals.json"
+          --environment "${COLLECTOR_ROOT}/raw/environment.json"
+          --artifact "${COLLECTOR_ROOT}/raw/artifact.json"
+          --capability-gates "docs/runtime-state/capability-gates.json"
+          --workflow ".github/workflows/main-deploy.yml"
+          --expected-artifact-id "${ARTIFACT_ID}"
+          --expected-artifact-digest "${ARTIFACT_DIGEST}"
+          --publication-output "${COLLECTOR_ROOT}/receipt/registry-publication-review.json"
+          --registry-output "${COLLECTOR_ROOT}/receipt/candidate-registry-digests.json"
+
+      - name: Upload immutable protected publication receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ghcr-publication-receipt-${{ needs.candidate-preflight.outputs.candidate_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ghcr-publication-collector/receipt/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+          overwrite: false
+          include-hidden-files: false

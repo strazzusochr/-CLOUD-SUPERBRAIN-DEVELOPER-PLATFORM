@@ -185,15 +185,25 @@
   },
   {
     "id": "observability",
-    "description": "Observability and evidence-oriented hosted verification.",
+    "description": "Current observability and evidence-oriented hosted verification.",
     "patterns": [
-      "verify-phase4-observability-hosted.ps1",
-      "verify-phase5-observability-*.ps1"
+      "verify-phase4-observability-hosted.ps1"
     ]
   },
   {
     "id": "phase5",
-    "description": "Phase 5 candidate, rollback, and release-readiness suite.",
+    "description": "CURRENT Phase 5 source, evidence, and 19-item readiness verification.",
+    "parameter_overrides": {
+      "StaticOnly": true
+    },
+    "patterns": [
+      "verify-phase5-release-readiness.ps1",
+      "verify-phase5-production-candidate-local.ps1"
+    ]
+  },
+  {
+    "id": "phase5-historical-rc1",
+    "description": "HISTORICAL RC1 verifier sweep; explicit opt-in only and not a current release gate.",
     "parameter_overrides": {
       "ReleaseId": "prod-candidate-2026-05-05-rc1"
     },
@@ -251,7 +261,7 @@
   },
   {
     "id": "all",
-    "description": "All registered verification suites.",
+    "description": "All current verification suites; historical and owner-gated opt-ins are excluded.",
     "suites": [
       "security",
       "phase1",

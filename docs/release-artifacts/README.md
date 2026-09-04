@@ -3,6 +3,10 @@
 Stand: 2026-05-05
 Status: Active baseline for Phase 5
 
+Current candidate: `prod-candidate-2026-07-21-local-rc3`, source
+`90b57ecaa54e0ab750a57d0e1acfb33779675f5a`. It is a local clean-archive candidate with
+runtime-source parity and unpublished GHCR tags; it is not a hosted release.
+
 ## Zweck
 
 Dieses Verzeichnis enthaelt ausgefuellte Release-Kandidaten-Artefakte.

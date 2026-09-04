@@ -10,6 +10,43 @@ function Assert-True($label, $condition) {
   }
 }
 
+function Get-HtmlElementsByTestId($html, $testId) {
+  $pattern = '(?is)<[^>]*\bdata-testid\s*=\s*["'']' + [Regex]::Escape([string]$testId) + '["''][^>]*>'
+  return @([Regex]::Matches([string]$html, $pattern) | ForEach-Object { $_.Value })
+}
+
+function Get-HtmlElementByTestId($html, $testId) {
+  $elements = @(Get-HtmlElementsByTestId -html $html -testId $testId)
+  Assert-True "agents page element $testId visible exactly once" ($elements.Count -eq 1)
+  return $elements[0]
+}
+
+function Test-HtmlAttribute($element, $name, $expected) {
+  $pattern = '(?is)\b' + [Regex]::Escape([string]$name) + '\s*=\s*["'']' + [Regex]::Escape([string]$expected) + '["'']'
+  return [Regex]::IsMatch([string]$element, $pattern)
+}
+
+function Assert-HtmlAttribute($label, $element, $name, $expected) {
+  Assert-True $label (Test-HtmlAttribute -element $element -name $name -expected $expected)
+}
+
+function Assert-HtmlAttributePresent($label, $element, $name) {
+  $pattern = '(?is)\b' + [Regex]::Escape([string]$name) + '\s*=\s*["''][^"'']+["'']'
+  Assert-True $label ([Regex]::IsMatch([string]$element, $pattern))
+}
+
+function Assert-DevOnlyUiBoundaries($html) {
+  foreach ($required in @(
+    "DEV-ONLY; hosted proof still blocked",
+    "live_provider_calls=false",
+    "live_mcp_writes=false",
+    "production_deploy=false",
+    "secret_output=false"
+  )) {
+    Assert-True "agents page boundary $required visible" ([string]$html).Contains($required)
+  }
+}
+
 function Invoke-WebResponse($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $contentType = $null, $timeoutSeconds = 30) {
   $bodyBase64 = $null
   if ($null -ne $body) {
@@ -77,6 +114,9 @@ if (-not $BaseUrl) {
 }
 
 $BaseUrl = $BaseUrl.TrimEnd("/")
+$isLocalhost = $BaseUrl -match "^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::|/|$)"
+Assert-True "dispatch proof is restricted to DEV-ONLY localhost" $isLocalhost
+
 $teamContract = Invoke-JsonApi -url "$BaseUrl/api/v1/team/status/contract" -method "GET" -contentType $null -timeoutSeconds 20
 Assert-True "team contract version" ($teamContract.contract_version -eq "autonomous-coding-team-v1")
 Assert-True "team mode" ($teamContract.mode -eq "logical_five_role_overlay_on_runtime_pool")
@@ -92,10 +132,6 @@ Assert-True "dispatch roles" (@($dispatchContract.required_logical_roles) -join 
 Assert-True "supervisor maps to planner" ($dispatchContract.logical_to_execution_map.supervisor -eq "planner")
 Assert-True "coder maps to coder" ($dispatchContract.logical_to_execution_map.coder -eq "coder")
 Assert-True "tester maps to tester" ($dispatchContract.logical_to_execution_map.tester -eq "tester")
-
-$homepage = Invoke-WebResponse -url "$BaseUrl/" -method "GET" -contentType $null -timeoutSeconds 20
-Assert-True "homepage returns 200" ($homepage.StatusCode -eq 200)
-Assert-True "homepage autonomous coding team marker" ($homepage.Content.Contains("Autonomous Coding Team"))
 
 $projectId = "autonomous-team-" + [Guid]::NewGuid().ToString("N")
 $sessionId = [Guid]::NewGuid().ToString()
@@ -130,7 +166,8 @@ foreach ($assignment in @($dispatch.assignments)) {
   Assert-True "assignment evidence ref for $($assignment.logical_role)" ($assignment.evidence_ref -eq "autonomous_team_dispatch_visible")
 }
 
-$teamStatus = Invoke-JsonApi -url "$BaseUrl/api/v1/team/status?dispatch_id=$($dispatch.dispatch_id)" -method "GET" -contentType $null -timeoutSeconds 20
+$escapedDispatchId = [Uri]::EscapeDataString([string]$dispatch.dispatch_id)
+$teamStatus = Invoke-JsonApi -url "$BaseUrl/api/v1/team/status?dispatch_id=$escapedDispatchId" -method "GET" -contentType $null -timeoutSeconds 20
 Assert-True "team status dispatch id parity" ($teamStatus.dispatch_id -eq $dispatch.dispatch_id)
 Assert-True "team status mode" ($teamStatus.team_mode -eq "logical_five_role_overlay_on_runtime_pool")
 Assert-True "team status runtime source visible" (-not [string]::IsNullOrWhiteSpace([string]$teamStatus.runtime_source))
@@ -152,6 +189,28 @@ Assert-True "coder execution type" ($coderMember.execution_agent_type -eq "coder
 Assert-True "supervisor execution type" ($supervisorMember.execution_agent_type -eq "planner")
 Assert-True "coder write scope visible" (@($coderMember.write_scope).Count -ge 1)
 
+$agentsPage = Invoke-WebResponse -url "$BaseUrl/agents?dispatch_id=$escapedDispatchId" -method "GET" -contentType $null -timeoutSeconds 20
+Assert-True "agents page returns 200 after dispatch" ($agentsPage.StatusCode -eq 200)
+$codingTeamElement = Get-HtmlElementByTestId -html $agentsPage.Content -testId "autonomous-coding-team"
+Assert-HtmlAttribute "agents page coding-team contract parity" $codingTeamElement "data-contract-version" $teamStatus.contract_version
+Assert-HtmlAttributePresent "agents page coding-team status visible" $codingTeamElement "data-status"
+Assert-HtmlAttribute "agents page coding-team mode parity" $codingTeamElement "data-team-mode" $teamStatus.team_mode
+Assert-HtmlAttribute "agents page coding-team dispatch parity" $codingTeamElement "data-dispatch-id" $dispatch.dispatch_id
+Assert-HtmlAttribute "agents page coding-team member-count parity" $codingTeamElement "data-member-count" ([string](@($teamStatus.members).Count))
+Assert-HtmlAttribute "agents page coding-team runtime-source parity" $codingTeamElement "data-runtime-source" $teamStatus.runtime_source
+
+$memberElements = @(Get-HtmlElementsByTestId -html $agentsPage.Content -testId "autonomous-coding-team-member")
+Assert-True "agents page renders exactly five coding-team members" ($memberElements.Count -eq 5)
+foreach ($member in @($teamStatus.members)) {
+  $matchingMembers = @($memberElements | Where-Object {
+    (Test-HtmlAttribute -element $_ -name "data-logical-role" -expected $member.logical_role) -and
+    (Test-HtmlAttribute -element $_ -name "data-execution-agent-type" -expected $member.execution_agent_type)
+  })
+  Assert-True "agents page member parity for $($member.logical_role)" ($matchingMembers.Count -eq 1)
+  Assert-HtmlAttributePresent "agents page member status visible for $($member.logical_role)" $matchingMembers[0] "data-status"
+}
+Assert-DevOnlyUiBoundaries $agentsPage.Content
+
 foreach ($assignment in @($dispatch.assignments)) {
   $taskState = Invoke-JsonApi -url "$BaseUrl/api/v1/internal/tasks/$($assignment.task_id)" -method "GET" -contentType $null -timeoutSeconds 20
   Assert-True "task status visible for $($assignment.logical_role)" (@("queued", "running", "completed", "failed", "escalated", "abandoned_after_queue_drain") -contains [string]$taskState.task.status)
@@ -164,4 +223,8 @@ Assert-True "recent task visibility for dispatched session" (@($recentForSession
 
 Write-Host "[autonomous-coding-team] base_url=$BaseUrl"
 Write-Host "[autonomous-coding-team] dispatch_id=$($dispatch.dispatch_id)"
+Write-Host "[autonomous-coding-team] member_count=$(@($teamStatus.members).Count)"
+Write-Host "[autonomous-coding-team] evidence_scope=DEV-ONLY"
+Write-Host "[autonomous-coding-team] hosted_proof=false"
+Write-Host "[autonomous-coding-team] production_deploy=false"
 Write-Host "[autonomous-coding-team] result=verified"

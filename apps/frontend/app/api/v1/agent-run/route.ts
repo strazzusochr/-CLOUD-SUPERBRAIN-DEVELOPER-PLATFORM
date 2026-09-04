@@ -1,35 +1,99 @@
-import { runDeepResearch } from "../../../../lib/agentChain";
+import { randomUUID } from "node:crypto";
+import {
+  authorizeBoundaryWrite,
+  boundaryUnavailable,
+  proxyToBoundary,
+} from "../../../../lib/frontendBoundary";
+import {
+  buildHostedAgentResearchRun,
+  isNativeRuntimeRun,
+  nativeRuntimePrompt,
+  readBoundedJsonRequest,
+  readBoundedJsonResponse,
+  safeBoundedText,
+  sha256Text,
+} from "../../../../lib/hostedO2Actions";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 export async function POST(req: Request): Promise<Response> {
-  let goal = "";
+  const writeBlock = await authorizeBoundaryWrite(req);
+  if (writeBlock) return writeBlock;
+
+  let goal: string;
   try {
-    const body = (await req.json()) as { goal?: unknown };
-    goal = typeof body.goal === "string" ? body.goal.trim() : "";
+    const body = await readBoundedJsonRequest(req);
+    goal = safeBoundedText(body.goal, "goal", 1, 500);
   } catch {
-    /* empty body */
-  }
-  if (!goal) {
-    return Response.json({ status: "bad_request", note: "Feld 'goal' (string) erforderlich." }, { status: 400 });
-  }
-  if (goal.length > 500) goal = goal.slice(0, 500);
-  try {
-    const run = await runDeepResearch(goal);
-    return Response.json(run, { headers: { "x-superbrain-source": "multi-agent-deep-research" } });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const noKey = /not configured/i.test(msg);
     return Response.json(
       {
-        status: noKey ? "no_live_backend" : "agent_run_error",
-        live_backend: false,
-        note: noKey
-          ? "Multi-Agent benötigt einen Live-LLM (CF_WORKERS_AI_TOKEN + CLOUDFLARE_ACCOUNT_ID). Nicht konfiguriert in dieser Deployment-Umgebung."
-          : msg,
+        contract_version: "agent-research-run-v3",
+        status: "blocked",
+        error: "invalid_agent_research_request",
+        accepted: false,
+        persisted: false,
+        direct_provider_calls: false,
+        live_provider_calls: false,
+        live_mcp_writes: false,
+        production_deploy: false,
+        secret_output: false,
       },
-      { status: noKey ? 503 : 502, headers: { "x-superbrain-source": "multi-agent-deep-research" } },
+      { status: 400, headers: { "cache-control": "no-store", "x-superbrain-source": "frontend-agent-run-guard" } },
+    );
+  }
+
+  const requestId = randomUUID();
+  const prompt = nativeRuntimePrompt(goal);
+  const runtimeRequest = new Request(req.url, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+      "x-request-id": requestId,
+    },
+    body: JSON.stringify({
+      project_id: "hosted-agent-research",
+      prompt,
+      session_id: `agent-research-${randomUUID()}`,
+    }),
+  });
+  const response = await proxyToBoundary(
+    runtimeRequest,
+    "agent-api",
+    "/api/v1/phase2/runtime/start",
+    30_000,
+    { serviceAuth: true },
+  );
+  if (!response || response.status !== 201) {
+    return boundaryUnavailable(
+      "POST /api/v1/phase2/runtime/start",
+      "agent-api",
+      "The hosted deterministic four-role runtime did not complete; no frontend provider call was attempted.",
+    );
+  }
+
+  try {
+    const nativeRun = await readBoundedJsonResponse(response);
+    if (!isNativeRuntimeRun(nativeRun) || nativeRun.prompt_sha256 !== sha256Text(prompt)) {
+      throw new Error("invalid_native_runtime_response");
+    }
+    return Response.json(
+      buildHostedAgentResearchRun(goal, nativeRun, requestId),
+      {
+        status: 200,
+        headers: {
+          "cache-control": "no-store",
+          "x-superbrain-boundary": "agent-api-boundary",
+          "x-superbrain-source": "cloudflare-d1-langgraph-agent-run",
+        },
+      },
+    );
+  } catch {
+    return boundaryUnavailable(
+      "POST /api/v1/phase2/runtime/start",
+      "agent-api",
+      "The hosted deterministic runtime response failed bounded contract validation; no result was accepted.",
     );
   }
 }

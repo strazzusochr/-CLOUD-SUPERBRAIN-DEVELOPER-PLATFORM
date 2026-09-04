@@ -235,7 +235,7 @@ export function RealGame() {
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [guard.sample]);
 
   const start = () => {
     guard.reset();

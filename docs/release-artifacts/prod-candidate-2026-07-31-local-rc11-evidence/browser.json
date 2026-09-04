@@ -1,0 +1,25 @@
+{
+  "contract_version": "phase5-local-verification-summary-v1",
+  "chain": "browser",
+  "release_id": "prod-candidate-2026-07-31-local-rc11",
+  "source_commit_sha": "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+  "generated_at_utc": "2026-08-01T08:19:11Z",
+  "command": "npm run verify:browser",
+  "status": "passed",
+  "exit_code": 0,
+  "dev_only": true,
+  "hosted_proof": false,
+  "secret_output": false,
+  "raw_log_sha256": "69DF6E288303FBDFCB4671CD7A006145A5737C1653F82B6E95A0BB519D1E9A30",
+  "observed_success_anchors": [
+    "[browser-contract] checks completed",
+    "[product-acceptance] PASS DEV-ONLY; hosted proof still blocked",
+    "[22-page-actions] PASS DEV-ONLY; hosted proof still blocked",
+    "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes",
+    "BROWSER_EXIT=0"
+  ],
+  "non_claims": [
+    "DEV-ONLY; hosted proof still blocked.",
+    "The approved live-provider acceptance call is not a production rollout or release promotion."
+  ]
+}

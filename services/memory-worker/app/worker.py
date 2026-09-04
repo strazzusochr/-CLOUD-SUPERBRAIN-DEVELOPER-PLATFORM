@@ -16,9 +16,30 @@ from psycopg.types.json import Json
 
 
 SECRET_PATTERNS = [
-    re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
-    re.compile(r"(?i)(api[_-]?key|secret|token)\s*[:=]\s*['\"][^'\"]{8,}['\"]"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
+    re.compile(r"\bghp_[A-Za-z0-9_]{16,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{16,}\b"),
+    re.compile(r"\bE2B_[A-Za-z0-9_-]{16,}\b"),
+    re.compile(r"\bcfat_[A-Za-z0-9_-]{24,}\b"),
+    re.compile(r"\bvck_[A-Za-z0-9_-]{24,}\b"),
+    re.compile(r"\bhf_[A-Za-z0-9_-]{24,}\b"),
+    re.compile(r"\bglpat-[A-Za-z0-9_.-]{20,}\b"),
+    re.compile(r"(?i)\b(?:cloud|provider)\s+token\s+[A-Za-z0-9_-]{32,}\b"),
+    re.compile(r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*[^\s,;]{8,}"),
 ]
+
+SENSITIVE_FIELD_NAMES = {
+    "apikey",
+    "authorization",
+    "authtoken",
+    "accesstoken",
+    "clientsecret",
+    "password",
+    "privatekey",
+    "secret",
+    "secrettoken",
+    "token",
+}
 
 
 @dataclass(frozen=True)
@@ -76,8 +97,21 @@ def write_heartbeat(redis_client: redis.Redis, status: str, stats: dict[str, int
     redis_client.set(heartbeat_key(), json.dumps(payload, sort_keys=True), ex=heartbeat_ttl_seconds())
 
 
-def contains_secret(text: str) -> bool:
-    return any(pattern.search(text) for pattern in SECRET_PATTERNS)
+def contains_secret(value: object, field_name: str | None = None) -> bool:
+    if isinstance(value, str):
+        if field_name:
+            normalized_field = re.sub(r"[^a-z0-9]", "", field_name.lower())
+            if normalized_field in SENSITIVE_FIELD_NAMES and len(value.strip()) >= 8:
+                return True
+        return any(pattern.search(value) for pattern in SECRET_PATTERNS)
+    if isinstance(value, dict):
+        return any(
+            contains_secret(str(key)) or contains_secret(item, str(key))
+            for key, item in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(contains_secret(item, field_name) for item in value)
+    return False
 
 
 def parse_working_memory(redis_key: str, raw_value: bytes) -> WorkingMemory | None:
@@ -160,7 +194,12 @@ def audit_event(
 
 def consolidate_one(conn: psycopg.Connection, memory: WorkingMemory, ttl: int) -> str:
     transaction_id = f"memory-tx:{uuid4()}"
+    secret_scope = None
     if contains_secret(memory.content_text):
+        secret_scope = "content_text"
+    elif contains_secret(memory.metadata):
+        secret_scope = "metadata"
+    if secret_scope:
         audit_event(
             conn,
             "memory_consolidation_blocked",
@@ -170,6 +209,7 @@ def consolidate_one(conn: psycopg.Connection, memory: WorkingMemory, ttl: int) -
                 "redis_key": memory.redis_key,
                 "idempotency_key": memory.idempotency_key,
                 "reason": "secret_pattern_detected",
+                "secret_scope": secret_scope,
                 "ttl_seconds": ttl,
                 "memory_transaction_id": transaction_id,
             },

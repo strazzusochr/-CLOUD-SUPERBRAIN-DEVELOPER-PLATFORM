@@ -1,19 +1,564 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-06-11 04:00 Uhr
+## AKTIVER CHECKPOINT 2026-09-04 — RC38 DUAL-BINDING / LOKALE QUALIFIKATION
+
+Dieser Abschnitt ersetzt die untenstehenden Prefreeze-WIP-Aussagen.
+Matrixpunkte: **1264/1400 erfuellt, 136 offen**; neu kreditiert **0/136**;
+Overall **89**, `MARKET_READY:false`.
+
+- RC38 friert Produktquelle `5668e7cb89eac03a929853f004204b56bd171cb9` ein.
+  Der direkte Q-Kindcommit `bbdf952eb369f2ae00310d797333e3e08960a668` aendert
+  ausschliesslich die Source-Qualification-Control. GitHub Actions `33817644414`
+  ist erfolgreich (29/29 beobachtete Schritte, failed=0, skipped=0); die
+  `exact-head-ci-attestation-v2` bindet Q als Run-Head und S als unveraenderten
+  Source-Checkout. Der RC37-Owner-Request bleibt ausdruecklich zurueckgezogen.
+- Die RC38-Auswahl ist ein **no-credit**-Uebergang: Matrixpunkte bleiben
+  **1264/1400 erfuellt, 136 offen**. I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` bleiben blockiert; `live_verified` wird nicht manuell
+  gesetzt. Die unabhaengigen RC38-Local-Chains (Runtime, Candidate, Security und
+  Browser) sind unter `docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-evidence/`
+  mit `status=passed|verified` gebunden. `npm run verify:browser` hat den DEV-ONLY-
+  Browservertrag, Product Acceptance, alle 22 Routen/161 Aktionen und O4-Live-Writes
+  bestanden; Hosted-Proof, GHCR-Publikation, Cloud-Deploy, P6-Dispatch und Production-
+  OAuth bleiben ungeoeffnet.
+
+- Produkt-Slice `8b29aca5c0e1feff6e49c63802610bfc081502fd` (114 Pfade) und
+  Q `50b5ec9534b9188756a3b3bd4a154c0317223995` wurden auf den Feature-Branch
+  gepusht. Alle sechs fremden Dirty-Dateien blieben bytegleich; nur O1/O3-Grant-Hunks
+  der Capability-Datei wurden committed, keine Live-Verification oder Punkte.
+- CI `33795228836` hat S/Q-, Ledger-, Rubrik-, P6- und Phase-5-Bindungspruefungen
+  bestanden. Im neuen 106-Test-Block: 103 PASS, zwei Windows-Temppfad-Fehler und ein
+  ErrorView-Zeilenumbruch im negativen Docker-Shadow-Test. Der Docker-Guard selbst
+  wies korrekt ab. Der Gesamtlauf ist **failure**, keine CI-Freigabe.
+- Die Korrektur nutzt das Betriebssystem-Tempverzeichnis (lokal weiterhin
+  `TEMP/TMP=D:\_sb_tmp`), plattformneutrales `git` und die unverkuerzte Exception
+  fuer den negativen Test. Keine Schutzpruefung wird entfernt; zwei neue
+  Portabilitaetsregressionen kommen hinzu.
+- Der vorige S/Q-Versuch ist nicht release-qualifiziert. Nach fokussierten Tests
+  folgt ein neuer Produkt-Freeze, dann ein direkter Q-Kindcommit mit Source-/Archivhash;
+  erst danach CI mit exakt ausgechecktem S. Q muss vor dieser Source-Prequalification
+  existieren: der alte RC33-Full-Credit-Verifier darf neuen Produktcode nicht krediteren.
+- RC35: S `4b46f9e486fc8c98894a78ff6e72c4ba66024416`, Q
+  `6538acee50edd922f3491e590dbfc871b64dee98`, CI `33796055412`:
+  Portabilitaetskorrekturen bestanden; 108/108 Python- und 13/13 L4-Tests gruen.
+  Der anschliessende Frontend-Audit fand genau eine moderate fflate-Luecke
+  (GHSA-px8p-9vwx-vf98; Advisory am 2026-09-03 aktualisiert).
+  Gezielt nur das transitive Lockfile-Paket `0.6.10 -> 0.6.11` aktualisiert;
+  erneuter npm-Audit: 0 Schwachstellen. Lint und Produktionsbuild mit Node 24 bestanden.
+  Browser DEV-ONLY: Cortex-Start und drei Kaltstarts bestanden; Accessibility meldete
+  zuerst Screenshot-ausgeloeste Next-Prefetches (Header und Trace-Zeitfolge nachgewiesen).
+  Screenshot hinter die vollstaendigen, ungefilterten Netzwerk-Assertions verschoben;
+  isolierte Accessibility-Gegenprobe danach PASS. Alle drei fokussierten Browserfaelle
+  damit abgedeckt; neuer statischer Regressionstest plus bestehende zwei Tests 3/3 PASS.
+  Zusaetzlicher Runtime-Fund: dem Production-Image fehlte `public/` (Red-Probe
+  `GLB_MISSING`). Docker-COPY plus Supply-Chain-Guard ergaenzt, Production-Image
+  neu gebaut. Echte Container-Probe danach: Login HTTP 200, core.glb HTTP 200,
+  93112 Bytes, SHA-256 identisch zur Quelle. Trivy HIGH/CRITICAL=0, Secrets=0.
+  Alles DEV-ONLY; kein Hosted-Kredit. Der kurzlebige Testcontainer wurde entfernt.
+  RC36-CI `33800701350`: 26 Schritte bis einschliesslich Frontend-Audit, OAuth,
+  Stateful-/LLM-Tests und Gitleaks-Positivkontrolle PASS; History-Secret-Scan meldete
+  drei alte `generic-api-key`-Heuristiktreffer, deshalb Gesamtlauf FAIL und RC36 nicht
+  freigegeben. Redigierte Pruefung ordnete alle drei historischer Prosa bzw. einem
+  verbotenen Authorization-Header-Canary zu, nicht providerspezifischen Credentials.
+  Exakte Fingerprints in `.gitleaksignore`; neuer fail-closed Verifier bindet Commit,
+  Pfad, Regel, Zeile und Hash des redigierten Kontexts und beweist zusaetzlich, dass
+  drei frische synthetische PATs in denselben Pfaden 3/3 geblockt werden. Voller lokaler
+  History-Scan danach: 777 Commits, 0 Funde. Keine breite Pfad-/Regelausnahme.
+  Vorbeugender Dual-Binding-Fund: der Exact-Head-CI-Evidence-Writer verglich bisher
+  GitHub `run.head_sha` direkt mit S. Im Source-Prequalification-Modus ist der Run-Head
+  absichtlich Q, waehrend der Checkout-Artefakt exakt S belegt. Der Builder verlangt nun
+  beide SHAs in `exact-head-ci-attestation-v2`, bindet Q an Run-Head und S an das unveraenderliche, vom Lauf hochgeladene
+  `pr-check-source-checkout-attestation-v1`; Control-Delta muss exakt nur die
+  Qualification-Control sein. Run-ID/-Versuch/-URL, Ref, Non-Claims und False-Claims
+  werden ebenfalls fail-closed verglichen. RC37-CI `33813714772` ist 29/29 gruen;
+  der neue Writer wurde erfolgreich gegen dessen echtes Actions-Artefakt erprobt.
+  Die Production-Auth-Evidence traegt jetzt CI-Dateireferenz, CI-SHA-256 und Q weiter;
+  der unabhaengige Verifier wiederholt Q-Direktkind-, Control-Delta-, v2-Feld-,
+  False-Claim- und Hashpruefung fail-closed. RC37 bleibt wegen dieses anschliessenden
+  Produktfixes ein Zwischenkandidat; als Naechstes folgt genau ein neu gebundenes S/Q.
+  RC35 ist wegen des fehlgeschlagenen Gesamtlaufs nicht freigegeben; sein Owner-Paket
+  ist ueberholt und darf nicht zur Ausfuehrung verwendet werden.
+- Kein Cloud-/Registry-Deploy, kein P6-Live-Dispatch, kein Provideraufruf, keine
+  Production-Promotion. Owner-Paket erst mit den neu gebundenen SHAs ausgeben.
+
+
+
+Letzte Aktualisierung: 2026-09-03
 ══════════════════════════════════════════════════════════════════
 
+## WIP-CHECKPOINT 2026-09-03 — PRODUKT-FREEZE S WIRD QUALIFIZIERT
+
+- **Kreditstand unveraendert:** Overall `89`; neu kreditiert `0/136`, offen `136`:
+  P3 `+56`, P5 `+11`, P6 `+10`, L4 `+45`, L5 `+14`. Vorbereitungsarbeit ist kein
+  Prozentbeweis und `MARKET_READY:false` bleibt verbindlich.
+- **S/Q-Kette geschlossen:** GHCR, I1 und `main-deploy` binden die Runtime-Source kuenftig
+  an `source-qualification-control-v1`: exakte Release-ID, `runtime_candidate_sha=S` und
+  SHA-256 des exakten `git archive`. Die alte RC33-Phase-5-Zeile ist nicht mehr die
+  Publikationsquelle. Q darf nur die Qualification-Control tragen und vergibt `0` Credit.
+- **Owner-Urkunde vorbereitet:** O1 `production_auth_identity` und O3
+  `docker_registry_publish` sind im lokalen Kandidaten nur als `owner_granted=true` plus
+  exakter Referenz auf `OWNER_GRANTS_2026-09-02.json` eingetragen. `live_verified=false`;
+  keine Evidence, kein Dispatch, kein Push, kein Deploy und kein Kredit. Die fremden
+  O4-Artefakt-Hunks derselben Arbeitsdatei bleiben vom S-Commit ausgeschlossen.
+- **Sechs lokale Images gruen:** alle sechs Builds erfolgreich; HTTP-200-Smokes fuer
+  agent-api, MCP, LLM und Frontend, beide Worker importierbar. Alle sechs lokalen Images
+  wurden mit aktueller Trivy-DB auf `HIGH,CRITICAL` plus Secrets gescannt: jeweils `0/0`.
+  Sechs CycloneDX-SBOMs wurden erfolgreich erzeugt und nach Pruefung aus dem Temp-Bereich
+  entfernt. Die fuenf Python-Runtimes nutzen die immutable Alpine-Basis plus Security-
+  Upgrade; der Frontend-Production-Runner entfernt die nicht benoetigte npm-CLI und startet
+  Next direkt mit Node. Keine Registry- oder Cloud-Schreibaktion.
+- **Aktuelle Verifikation:** Market-Ready-Unit `119/119`; Progress/Phase-5-Unit `60/60`;
+  Rubrik `15/15`; OAuth `36/36`; Stateful Worker `69/69`; P6-Static beide PASS;
+  Supply-Chain-Pins PASS; PowerShell-Parser PASS; lokaler Next/Docker-Build PASS.
+- **Naechster sicherer Schritt:** Security-Scan und exaktes Pfadinventar abschliessen,
+  ausschliesslich den Produkt-Slice stagen, `S` committen/pushen und Exact-Head-CI abwarten;
+  danach direkten Kindcommit `Q` mit neuer Qualification-Control erzeugen. Bis dahin ist
+  weder S noch Q behauptet.
+
 ## AKTUELLER PROJEKTANKER
+
+### Session 2026-09-04 — RC38 Local Qualification
+
+- **RC38 Source / Control:** Release `prod-candidate-2026-09-04-local-rc38`,
+  Produktquelle `5668e7cb89eac03a929853f004204b56bd171cb9`, direkter
+  Qualification-Control-Kindcommit `bbdf952eb369f2ae00310d797333e3e08960a668`.
+  Der CI-Lauf `33817644414` hat die Source-Prequalification mit `failed=0` und
+  `skipped=0` abgeschlossen; der v2-Receipt liegt release-scoped vor.
+- **Kreditstand bleibt unveraendert:** Overall `89%`, `1264/1400` erfuellt,
+  `136` offen. Horizontal P3 `44`, P5 `89`, P6 `90`; vertikal L4 `55`, L5
+  `86`. `MARKET_READY:false` bleibt die einzige gueltige Marktbehauptung.
+- **Owner-Blocker bleiben sichtbar:** I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` sind nicht gutgeschrieben. Die RC37-MR1–MR8-
+  Entscheidungen sind withdrawn/denied und geben keine externe Aktion frei.
+- **Non-Claims:** Kein Registry-Push, kein Production-Deploy, keine Promotion,
+  kein P6-Scale-Dispatch, kein Live-Provider-Aufruf und keine manuelle
+  `live_verified`-Promotion. `DEV-ONLY; hosted proof still blocked.`
+
+### Session 2026-09-02 — Phase-6 Pre-Run Hardening / Owner Grant Recorded
+
+- **Aktiver qualifizierter Kandidat unveraendert:**
+  `prod-candidate-2026-09-02-local-rc33`, eingefrorene Source
+  `a632372863a39faa0e53d780c1942938a2b3241c`. Der Grant-/Hardening-Slice vergibt keinen
+  Candidate-Credit und ersetzt diese Qualification-Source nicht.
+- **Owner-Urkunde jetzt eng eingetragen:** `phase6_scale_runtime.owner_granted=true` mit
+  der kontraktgueltigen Referenz
+  `OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime`; `live_verified=false` und alle
+  Evidence-/Provider-Felder bleiben leer. Das zusaetzliche leere `evidence_sha256` ist nur
+  die vom Deep-Verifier verlangte Pre-Promotion-Schemakomplettierung. Kein Workflow wurde
+  dispatcht und kein Gate kreditiert.
+- **Grant ist CI-attestiert:** Grant-Commit `638ba0a9`, RC33-Ankerkorrektur
+  `664968f08a2b392463165118b77887cc21781a98`; `pr-check` `33610385136` checkte exakt
+  `664968f0` aus und bestand `31/31` Schritte, `0` skipped, `0` failed. Damit ist der
+  gemeldete Phase-5-Fehler `no-credit requalification project anchor must name the exact
+  release and source` behoben; Phase 5 bleibt korrekt `17/19`, I1/I5 blockiert.
+- **Hardened Code-Control:** `bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0` ist auf
+  `origin/codex/organism-visual-v2` gepusht. `pr-check` `33605838142` bestand exakt diesen
+  Head mit `31/31` gruenen Schritten, `0` skipped und `0` failed.
+- **Rubrik-Invariante repariert:** `63983d6b` beweist den Null-Credit-Zustand am
+  B1-Approval-Commit `e87c28a7` per Git-Historie, statt aktuelle Owner-Gates dauerhaft
+  auf `false` festzunageln. Der Schutz wurde nicht entfernt; 15/15 fokussierte Tests und
+  der Rubrik-Verifier sind gruen.
+- **Quota-Wurzel gehaertet, aber nicht deployed:** `c24b7bfd` blockiert eine moegliche
+  Worker-zu-Vercel-zu-Worker-Rekursion mit einem internen Hop-Marker und fail-closed HTTP
+  `508`. Worker-Tests `68/68`, Check und Root-Verifier sind gruen. Der oeffentliche Worker
+  laeuft weiterhin auf dem alten Deployment und liefert aktuell `429/1027`.
+- **Cloudflare-Dashboard-Messung, 24 Stunden:** Der Production-Stateful-Worker zeigt
+  `159` Invocations und `0` Errors. Der isolierte Stateful-Preview-Worker zeigt dagegen
+  `868.21k` Invocations und `0` Errors; davon werden `868k` der aktuellen Preview-Version
+  `fc27406d` zugeordnet. Damit ist Preview der dominante gemessene Invocation-Verbraucher.
+  Dass diese Last der primaere Beitrag zur kontoweiten Ausschoepfung war, ist stark
+  gestuetzt, aber eine alleinige Verursachung ist nicht bewiesen; dass exakt
+  die offene Cross-Origin-Bounce-Schleife diese Last erzeugt hat, bleibt eine begruendete
+  Hypothese und ist ohne Requestpfad-Analytics nicht als Kausalbeweis behauptet. Deshalb
+  muss der Loop-Guard vor dem Quota-Reset-Lauf auch Preview erreichen; kein weiterer
+  Worker-GET vor dem Reset. Vor dem Dispatch muss anschliessend der kanonische
+  `verify-cloudflare-stateful-runtime.ps1` die O2Core-Write/Read/Delete-Evidence und
+  `cloudflare-native-hosted-current.json` frisch (<24 h) an dieselbe Source binden; der
+  separate P6-Deployment-Preflight bindet Preview=`0` und Production=`1` Worker-Request
+  innerhalb zehn Minuten. Preview-, Deployment- und O2Core-Evidence muessen beim Dispatch
+  getrackt und <24 h alt sein. Ab dem Evidence-Control `C` gilt bis Verifikation/Promotion
+  ein Branch-Commit-Freeze; exakt ein Dispatch, kein Rerun. Der GitHub-Readback der
+  P6-Evidence muss innerhalb 24 Stunden erfolgen; der menschliche Environment-Review wird
+  separat per GitHub-API/UI belegt.
+- **Phase-6-Kriterium exakt umgesetzt:** `bc2d4c8e` behandelt `/cdn-cgi/trace` wie im
+  eingefrorenen Kriterium vorgeschrieben nur als Attribution-Control. Fehlversuche bleiben
+  im Evidence-Feld sichtbar, entscheiden aber nicht den Worker-Pass. Die unveraenderten
+  Worker-Anforderungen — exakt 900 Requests, Read-/Write-/Delete-Readback, p95, 5xx,
+  Verlust, Duplikate, Cleanup und Audit — bleiben fail-closed. Static-Verifier gruen.
+- **Agent-API lokal neu gebaut:**
+  `cloud-superbrain-local/agent-api:bc2d4c8e82e08e4d3e3d29a26e61e2fb30d03eb0`, Image
+  `sha256:b4943bfdac4aa1970ce6d3297d4ef0eb9763c0f52aa5c9b516f1d86b4b7d9b17`.
+  OCI-/Source-Bindung `4/4`, eingebettete committed Dateien `6/6`, User `appuser`;
+  isolierter read-only/no-network Smoke `GET /api/v1/health = 200`, erwartungsgemaess
+  `degraded` ohne DB/Redis. Der volle Health-Contract ist ohne `DATABASE_URL` nicht als
+  bestanden behauptet. Kein Registry-Login und kein Push.
+- **Phase-6-Ausfuehrung bleibt geparkt:** Der einzig gueltige Scale-Origin ist
+  `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev`; der bestaetigte
+  OAuth-Frontend-Alias `frontend-seven-psi-78` ersetzt ihn nicht. Vor Dispatch sind der
+  autorisierte Production-Worker-Rebind/Deploy mit dem Loop-Guard und danach genau eine
+  `200`-Neumessung erforderlich. Der letzte Hosted-
+  Stand war rund 157 Stunden alt und hatte 687 nicht allowlistete Sourcepfade zum aktuellen
+  Head; der 900er GitHub-Actions-Lauf waere davor garantiert ungueltig.
+- **Fortschritt unveraendert:** Overall `89%`; P0-P6
+  `100/100/100/44/100/89/90`; L1-L7 `100/100/100/55/86/100/100`;
+  `MARKET_READY:false`. Die Phase-5-Owner-Blocker `I1` und `I5` bleiben unveraendert.
+  Keine GHCR-Publikation, kein Production-Deploy, keine Promotion, kein Secret-Output.
+  `DEV-ONLY; hosted proof still blocked.`
+
+### Session 2026-09-02 — RC33 Final-Head Qualification / Preview Quota Block
+
+- **Aktiver lokal qualifizierter Kandidat:** `prod-candidate-2026-09-02-local-rc33`,
+  eingefrorene Source `a632372863a39faa0e53d780c1942938a2b3241c`, Control
+  `5aad04d47375490dfbd8765d6e9e3f77241f3fdf`. GitHub-Actions-Lauf `33589444701`
+  attestiert den exakten Source-Checkout mit `31/31` gruenen Schritten und `0` skipped.
+- **Lokal qualifiziert:** Alle fuenf unabhaengigen Ketten sind source-bound gruen und im
+  exakten 27-Dateien-Evidence-Set unter Run-ID `7bbc2310-0bb3-42e5-8484-819c37d93431`
+  gebunden: sechs Clean-Archive-Images, Runtime `10/10 healthy`, Candidate-Archiv-Audit
+  `0` Schwachstellen plus kanonisches gitleaks `no leaks`, kompletter realer Chromium-Lauf
+  mit `22/22` Routen, `29/29` Aktionsfamilien und `161/161` Mitgliedern sowie Candidate-
+  Runtime-Paritaet mit echter Playwright-Auswahl und Klick. RC31-Source
+  `94cee68508196195454139a7c4a432b024f91869` bleibt Rollback.
+- **Produktdelta:** Hosted Next-API-Sicherheitsheader, fehlende Read-only-Projektionen,
+  fail-closed Gateway-Read-Fallback, JSON-Sanitisierung fuer Provider-Plattformfehler und
+  die vollstaendige Gameplay-Transition-Projektion sowie ein byte-/EOL-sicherer Git-Blob-
+  Vergleich im Candidate-Verifier sind im eingefrorenen Source enthalten. Der echte Vercel-
+  Preview-Browservertrag der runtime-identischen Frontend-Source `50a591d4` lief mit
+  `22 x 2` Routen und `44` Klicks gruen; er ist noch kein exakter RC33-Hosted-Beweis.
+- **Qualification-Freeze abgeschlossen:** Selection-Commit `34d00d533c262d57cd515f5b63f7916e98181413`
+  und Qualification-/Evidence-/Truth-Commit
+  `d9dbf8b3e7bd4deb5e20a029d88219f3c8b98810` sind exakt auf
+  `origin/codex/organism-visual-v2` gepusht. Final-head `pr-check` `33597146482` bestand
+  diesen exakten Head mit `31/31` gruenen Schritten, `0` skipped und `0` failed.
+- **Preview-Neumessung:** Die Cloudflare-Control-Plane ist erreichbar und bestaetigt
+  aktive Preview-Deployments; Stateful ist an RC31-Source `94cee685` und LLM an
+  `87a2b17e` gebunden, also noch nicht an RC33 `a6323728`. Die oeffentlichen
+  Stateful-/LLM-Preview-Endpunkte liefern
+  jedoch HTTP `429` mit Cloudflare-Fehler `1027` (accountweiter Free-Plan-Tagesrequest-
+  Grenzwert; Reset `00:00 UTC`). Das exakte Vercel-Preview-Deployment
+  `dpl_CJzQ2YBuEzTpLS9KiFgvUSowo5MT` ist `Ready`; `/api/v1/health` liefert `200`, waehrend
+  `/mcp/api/v1/health` und `/llm/api/v1/health` korrekt `degraded` und
+  `live_backend=false` melden, weil die Cloudflare-Upstreams nicht erreichbar sind.
+- **Historischer RC33-Folgepunkt, inzwischen ersetzt:** Nicht vor dem Rebind messen. Die
+  aktuelle Reihenfolge steht im Phase-6-Pre-Run-Checkpoint oben: nach Reset Preview-Guard,
+  enger autorisierter Production-Rebind, ein eigenstaendiger Health-Read, frische canonical
+  O2Core-Evidence, ein P6-Dispatch und Readback <24 h. B2/I5 sowie B4/I1/GHCR bleiben
+  separat Owner-gegatet; kein Quota-/Payment-Upgrade.
+- **Letzter Verifier-Befund:** `verify:phase5-credit` gruen (`17/19`, exakt I1/I5
+  blockiert), Manifest gruen (`overall=89`, `deltas=1`, `freshness=verified`) und RC33-
+  Candidate-Runtime gruen (`service_count=6`, Source-Paritaet, echter Playwright-Klick).
+  `verify:current-release-candidate` bestand die lokalen Credit-/Immutable-Paritaetsstufen
+  und stoppte korrekt am kanonischen Hosted-Read: `GET
+  https://cloud-superbrain-developer-platform.vercel.app/api/v1/health` liefert `404`.
+  Der volle `npm run verify`-Stack bestand alle lokalen statischen, Regression-, Audit-
+  (`0` Schwachstellen), Manifest- und Gate-Pruefungen und stoppte danach exakt bei
+  `current Cloudflare-native hosted Worker source parity`. Das sind die aktuellen
+  I1/Hosted-Blocker, keine lokalen Qualification-Fehler.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
+  L6 `100`, L7 `100`. `MARKET_READY:false`. I1 und I5 bleiben blockiert.
+- **Non-Claims:** DEV-ONLY; hosted proof still blocked. Kein Main-/Default-Branch-Write,
+  GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
+
+### Session 2026-09-02 — RC31 Local Qualification
+
+- **Aktiver lokal qualifizierter Kandidat:** `prod-candidate-2026-09-02-local-rc31`,
+  eingefrorene Source `94cee68508196195454139a7c4a432b024f91869`, Control
+  `7e99d6c815015ac792864700b2cf57ea8c042fe0`. GitHub-Actions-Lauf `33566857871`
+  attestiert den exakten Source-Checkout mit `31/31` gruenen Schritten und `0` skipped.
+- **Lokal qualifiziert:** Alle fuenf unabhaengigen Ketten sind source-bound gruen und im
+  exakten 27-Dateien-Evidence-Set gebunden: sechs Clean-Archive-Images, Runtime `10/10
+  healthy`, Candidate-Archiv-npm-audit plus kanonisches gitleaks, kompletter realer
+  Chromium-Lauf mit `22/22` Routen, `29/29` Aktionsfamilien und `161/161` Mitgliedern sowie
+  Candidate-Runtime-Paritaet mit echter Playwright-Auswahl und Klick. Gemeinsame Evidence-
+  Run-ID: `1d69dcc1-8383-4447-8158-912e98b9f8fe`. RC30-Source
+  `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68` bleibt Rollback.
+- **Produktdelta:** Native `GET /mcp/api/v1/health` im Cloudflare-Stateful-Preview ist
+  fail-closed an Source, Archiv, Bundle und D1-Read gebunden; der Preview-Deploy-Wrapper
+  prueft die Route nach dem Deploy. Die eingefrorenen Workflow-Action-Pins bleiben
+  unveraendert bis zum naechsten Freeze.
+- **Naechster sicherer Schritt:** Qualifikations- und Truth-Commit auf den Feature-Branch
+  pushen, danach nur die isolierte Cloudflare Preview auf RC31 rebind-en, nur die Vercel-
+  Preview-Variable `MCP_GATEWAY_BASE_URL` auf diesen Preview-Pfad setzen und den Unified-
+  HTTPS-/Browserbeweis neu fahren. Kein Production-Alias.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
+  L6 `100`, L7 `100`. `MARKET_READY:false`. I1 und I5 bleiben blockiert.
+- **Non-Claims:** DEV-ONLY; hosted proof still blocked. Kein Main-/Default-Branch-Write,
+  GHCR-Push, Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
+
+### Session 2026-09-02 — Current RC30 Handoff
+
+- **Aktiver Prequalification-Kandidat:** `prod-candidate-2026-09-01-local-rc30`,
+  eingefrorene Source `9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68`, Hosted-Evidence-Commit
+  `532a3c8cfff201f09617c6eb46d0111d56a9dcba`. Truth-Control
+  `80c42c048a251e9eecdc63afed10a107c76ae1a2` ist gepusht; GitHub-Actions-Lauf
+  `33563519174` attestierte exakt diesen Head. `31/31` beobachtete Schritte waren gruen,
+  `0` skipped, und der Frontend-Audit meldete `0` Schwachstellen. RC27-Source
+  `0ca71d1c6168d64360a7764b725b2b673af00afe` bleibt der
+  immutable lokale Rollback-Anker.
+- **RC30 lokal qualifiziert:** Alle fuenf unabhaengigen Ketten sind source-bound gruen und
+  im exakten 27-Dateien-Evidence-Set gebunden: sechs Clean-Archive-Images, Runtime `10/10
+  healthy`, Candidate-Archiv-npm-audit plus kanonisches gitleaks, kompletter realer
+  Chromium-Lauf mit `22/22` Routen, `29/29` Aktionsfamilien und `161/161` Mitgliedern sowie
+  Candidate-Runtime-Paritaet mit echter Playwright-Auswahl und Klick.
+- **RC30-Sicherheitsfix gebunden:** RC29s finaler Head-CI-Lauf `33540131151` fiel an zwei
+  neu veroeffentlichten HIGH-Advisories fuer `browserslist <=4.28.6` aus. RC30 pinnt
+  `browserslist` `4.28.8`; sauberer `npm ci` und `npm audit --audit-level=moderate` sind
+  mit `0` Schwachstellen belegt. Produktlogik und RC29-Three.js-Reparatur bleiben gleich;
+  die RC30-Evidence-Neubindung ist mit fuenf unabhaengigen Hash-Ketten abgeschlossen.
+- **B1 gebunden, ohne Kredit:** Die drei genehmigten Rubriken sind durch Owner-Commit
+  `e87c28a7c6cf32982caa849794042daa53ef022a` und den fail-closed Rubrik-Verifier gebunden.
+  Aus der Freigabe allein folgt weder Prozentcredit noch Hosted-/Release-Status.
+- **Hosted Preview source-bound:** Der Cloudflare-Stateful-Worker und der LLM-Gateway-
+  Worker laufen ausschliesslich als Preview auf der eingefrorenen RC30-Source. Health
+  bindet Source, Archiv und Bundle; kein Production-Alias, Rollout oder Release wurde
+  veraendert. Der read-only LLM-Hosted-Check ist gruen; die fuenf generativen L4-Live-
+  Verifier warten weiter fail-closed auf das lokale Verifier-Credential.
+- **L5 Hosted-MCP-Credit:** Vier getrennte HTTPS-Verifier belegen bounded Write mit
+  Readback/Audit, exakte Auth-Scope-Grenzen, Timeout ohne Aftereffect plus Idempotenz und
+  Audit-Readback/Rollback. Die unveraenderlichen Rohreports und der 30-Punkte-Aggregat-
+  Beweis liegen unter `docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/`;
+  der statisch zugelassene read-only Scorer akzeptiert exakt L5 `56 -> 86`. Der erste
+  echte v2-Delta-Ledger-Eintrag ist damit evidence-, source- und hash-gebunden. Registry-
+  Digest, Remote-Scan, Candidate-SBOM-Credit und Protected-Publish bleiben uncreditiert.
+- **Fortschritt:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `86`,
+  L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
+- **Naechster sicherer Schritt:** Den I1-`404` im Unified-Vercel-Pfad ohne Production-
+  Mutation schliessen. Nachgemessene Ursache: Preview-`MCP_GATEWAY_BASE_URL` zeigt auf
+  den toten Production-Backend-Alias `/mcp`; der RC30-Stateful-Preview besitzt zwar die
+  vier nativen Hosted-MCP-Proberouten, aber noch keinen nativen
+  `/mcp/api/v1/health`-Handler. Danach source-bound Preview neu qualifizieren. Fuer L5
+  bleiben exakt 14 Punkte hinter B4/GHCR; L4 bleibt bis zu einer expliziten
+  Credential-/Secret-Rotationsentscheidung bei `55`.
+- **Wartung nach dem naechsten Freeze, nicht in RC30:** `actions/upload-artifact` v4.6.2
+  in `pr-check.yml`, `main-deploy.yml` und `phase6-scale-runtime.yml` sowie
+  `checkout`/`setup-node` v4 in `autonomous-fullstack.yml` separat aktualisieren. Die
+  RC30-gepinnten Workflow-Dateien bleiben bis dahin unveraendert.
+- **Non-Claims:** Hosted MCP ist nur fuer die vier genannten Preview-Kriterien verifiziert;
+  Markt-/Release-Readiness bleibt blockiert. Kein Main-/Default-Branch-Write, GHCR-Push,
+  Production-Deploy, Release-Promotion, Production-Rollout oder Secret-Output.
+
+### Session 2026-08-29 — RC23 lokal qualifiziert und ausgewaehlt
+
+- **Aktiv qualifiziert ist RC23:** `prod-candidate-2026-08-29-local-rc23`, eingefrorene
+  Source `7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927`, Kontroll-Commit
+  `5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1`, source-attestierter GitHub-Actions-Lauf
+  `33273326919` (`25/25` beobachtete Schritte gruen, `0` skipped) und exakt 27 immutable
+  Evidence-Dateien. RC22-Source `28727b198b057a6bdef6b5f34e9aa946fb2757a0` ist der
+  immutable lokale Rollback-Anker.
+- **Selection gepusht und CI-gruen:** Commit
+  `67cd698c6cff4f4230283bc5d2f91c3170f41485` liegt auf
+  `origin/codex/organism-visual-v2`; `pr-check` `33282524897` attestierte genau diesen SHA
+  und bestand `29/29` Schritte bei `0` skipped und `0` failed. Der nachfolgende reine
+  Doku-Freeze ist nur nach eigenem gruenem final-head Lauf gueltig; die Run-ID wird nicht
+  selbstreferenziell in denselben Commit geschrieben.
+- **Dynamische Truth-Sync-Regel:** der erste Doku-Freeze `6a62e28a` bestand `pr-check`
+  `33282746874` mit `29/29`, `0` skipped, `0` failed. Spaetere reine Doku-Syncs gelten
+  genau dann als gruen, wenn der Remote-Feature-Head exakt dem `headSha` des neuesten
+  erfolgreichen `pr-check` entspricht und dort `skipped=0`, `failed=0` gilt; die Run-ID
+  wird nicht selbstreferenziell in denselben Commit geschrieben. Mess-Ref `f6822d44`
+  bestand danach `pr-check` `33283986186` ebenfalls mit `29/29`, `0` skipped, `0` failed.
+- **Alle fuenf unabhaengigen Ketten bestanden:** sechs Clean-Archive-Images, Runtime
+  `10/10 healthy`, kompletter realer Chromium-Browser, Candidate-Runtime-Identitaet mit
+  echter Auswahl/Klick und Candidate-Archiv npm-audit plus canonical gitleaks. Browser-Pass
+  eins bestand `22/22` Routen, `29/29` Familien und `161/161` Aktionen (`160` direkt,
+  `1` exakt vorverifiziert) ohne unerwartete Provideraufrufe, Mocks, Interceptions,
+  Console-/Page-Fehler oder Secret-Output.
+- **A1–A6 und Generated-Game-Guard gebunden:** Delta-Ledger, Zero-Credit-Rubriken,
+  Team-Status, Production-Auth-Evidence, Go-Live-Gate-Ableitung, Snapshot-Freshness und
+  Runtime-Source-Paritaet sind fail-closed. Der zusaetzliche Runnability-Guard verschiebt
+  einen eindeutigen vorzeitigen Animationsstart hinter die Keyboard-State-Initialisierung
+  und lehnt mehrdeutige Artefakte vor Persistenz ab; CI-Regression `20/20` ist gruen.
+- **Post-Selection fokussiert gruen:** Phase-5-Credit `17/19` mit exakt I1/I5 blockiert,
+  Current-Candidate `candidate_technical=true`, `runtime_source_parity=true`,
+  `no_credit_requalification=true`, `promotion_eligible=false`, canonical `blocked`;
+  Manifest `overall=89`, `deltas=0`, `mirrors=2`, `freshness=verified`. Der volle lokale
+  `npm run verify`-Sweep bestand alle internen Gates und stoppte erwartungsgemaess erst bei
+  `current Cloudflare-native hosted Worker source parity`.
+- **Browser-Pass zwei nur protokolliert:** fuer den wiederholten monolithischen Lauf werden
+  `39,1` Minuten, `22/22`, `29/29`, `161/161` und Report-Hash `4E844972…` berichtet. Die
+  exakten Reportbytes sind aber weder als immutable Artefakt committet noch im aktuellen
+  fremden Working-Report vorhanden. Pass 2 erhaelt deshalb keinen Evidenzclaim; der
+  committete Pass 1 bleibt kanonisch. Die In-App-Browser-Steuerung bleibt am lokalen
+  `kernel-assets`-Transport blockiert und wird nicht als sichtbarer In-App-Beweis umetikettiert.
+- **Aktueller read-only External-Gate-Stand:** Hosted I1 bleibt ohne source-gebundene
+  sechs-Service-Paritaet geschlossen; Production-Auth I5 bleibt ohne Owner-OAuth-IDs und
+  Hosted-Fail-Closed-Evidence geschlossen. GHCR ist unveroeffentlicht,
+  `production_deploy_claim_allowed=false`, Promotion und Rollout bleiben false. Kanonische
+  externe Wahrheit bleibt `docs/runtime-state/external-gate-audit-v2.json` ueber
+  `external-gate-summary-v2`; der aktuelle Zielbezeichner lautet exakt
+  `cloudflare_native_zero_card_hosted_runtime`.
+- **Gate-/Hosted-Reaudit 2026-08-30:** `B1=F | B2=F | B3=F | B4=F | B5=F`.
+  Worker `d0674bfc` ist `108` Commits hinter Candidate `7db18d90` und `112` hinter
+  Mess-Ref `f6822d44`; Progress bleibt `84`, Team `500`, Auth alter Dry-run und OAuth
+  nicht konfiguriert. Worker-Rebind allein reicht fuer C2 nicht: `CONTRACT_ORIGIN` zeigt
+  weiter auf Backend `21913f8c`, daher braucht Progress `89` einen source-bound Origin-
+  Rebind/Deploy oder eine verifizierte native Projektion. B3-Environment/Default-Workflow
+  fehlen; B4-Environment ist nur konfiguriert, waehrend Default noch den alten
+  `main-deploy`-Blob traegt. Keine dieser Tatsachen ist eine Owner-Freigabe.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
+  L6 `100`, L7 `100`. `MARKET_READY:false`. I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` bleiben die einzigen Phase-5-Nullcredit-Items.
+- **Non-Claims:** Der qualifizierte Browserlauf enthielt ausschliesslich die explizit
+  genehmigten Gateway-Buildaktionen; keine direkten Provider-Bypaesse. Kein Main-/Default-
+  Branch-Write, GHCR-Push, Hosted-Deploy, OAuth-Aktivierung, Secret-Output,
+  Release-Promotion oder Production-Rollout. Lokale Runtime-/Browserbeweise bleiben
+  `DEV-ONLY; hosted proof still blocked`.
+- **Naechster sicherer Schritt:** diese korrigierte Master-/Truth-Synchronisierung exakt
+  begrenzt committen, auf den Feature-Branch pushen und per dynamischer Head-CI-Regel
+  attestieren; danach explizite B1-B5-Entscheidungen. Vor diesen Gates ist kein
+  Implementierungsitem sicher autonom ausfuehrbar; zehn Hosted-Verifier bleiben spaeterer Neubau.
+
+### Session 2026-08-28 — RC20 qualifiziert, RC21 in Bindung
+
+- **Zuletzt qualifizierter Kandidat: RC20** `prod-candidate-2026-08-28-local-rc20`,
+  eingefrorene Source `c29c738b82e4e35cc1288bc603319cba60d167d2`, Kontroll-Commit
+  `6f9387c6d492151b9195e3afcbf5a031b094dd67`, source-attestierter GitHub-Actions-Lauf
+  `33200830176`, Evidenzsatz 27 Dateien. Rollback-Anker ist RC19
+  `5062de35a5c033354ba81a988d699aad418347c3`.
+- **RC20 ist inzwischen ueberholt.** Seit `c29c738b` haben sich Pfade in
+  `RUNTIME_SOURCE_PATHS` geaendert, deshalb ist eine Neubindung als **RC21** noetig; ein
+  Rueckfall auf RC20 ist nicht moeglich. Solange RC21 nicht gebunden ist, meldet
+  `verify:phase5-credit` korrekt rot.
+- **Generierungs-Deckel behoben (Produktkern):** Die Workbench erzeugte nur Spielzeug, weil
+  vier stille Deckel uebereinanderlagen — `CF_WORKERS_AI_MAX_TOKENS` war im Container
+  ungesetzt (Default 2048, Route bat um 5200), `docker-compose.dev.yml` deklarierte die
+  Variable nie, der Systemprompt forderte „~300 lines", und das Zeitbudget war invertiert
+  (Route 50 s < Provider 90 s). Jetzt: Ceiling 8192, Budget monoton
+  `90 s < 100 s < 115 s < 120 s`, Prompt fordert eine beleuchtete, vollstaendige 3D-Szene.
+  Belegt DEV-ONLY durch ein echtes, spielbares 3D-Spiel (7953 Bytes / 232 Zeilen, WebGL 2.0,
+  0 Console-Errors) — Artefakte unter `docs/audit/workbench-3d-game-2026-08-28/`.
+- **Zwei Produkt-Bugs behoben:** Der Marktplatz zeigte den stillgelegten Provider Fly.io als
+  gruen „verified", weil `/verified|live/` den Teilstring in `historical_read_verified`
+  traf — jetzt exakte Klassifikation in `apps/frontend/lib/providerStatus.ts`. Und der
+  Fuenf-Achsen-Audit war rot (unklassifizierter `/llm/v1`-Namespace plus ein literaler
+  Unfinished-Marker in der Generierungs-Prompt-Zeile); beides behoben, Auditor `PASS`.
+- **Aktiver Entwicklungsbranch:** `codex/organism-visual-v2`. Die neuesten gebundenen Slices
+  beheben Browser-Hydration/-Retry-Rennen, klassifizieren den Fuenf-Achsen-Audit aus echter
+  Evidenz und fuegen den neuen Coder `qwen3.7-plus` ueber den L3→L4-LLM-Gatewaypfad ein.
+  Red-first Testcommit: `b586d309`; Implementierung: `16052d72`; additiver Runtime-
+  Vertragsfix fuer die bestehende Open-Source-First-Routing-Notiz: `f6a20a1`; DEV-LIVE-
+  Rehydrate-Fix fuer den Owner-Master-Gate: `46cefe4`.
+- **Qwen Code:** Standalone-Client `0.22.2` ist user-scope installiert. Seine lokale
+  Providerkonfiguration zeigt auf `http://localhost:8081/llm/v1`, nicht direkt auf Alibaba.
+  Ein echter CLI→Gateway-Lauf bestand im deterministischen DEV-ONLY-Modus ohne Tool- oder
+  Dateiausfuehrung. `qwen3.7-plus` ist im Agent-Profil und in der Modellmatrix der neue
+  `coder_primary`; `gateway_only=true`, `configured_only=true`.
+- **Fail-closed LLM-Wahrheit:** Der workspace-spezifische Model-Studio-Endpoint ist nur als
+  Umgebungskonfiguration vorhanden. `DASHSCOPE_API_KEY` fehlt, der Owner-Live-Master-Gate ist
+  aus, direkte Providerpfade werden abgelehnt, `max_tokens` ist auf `8192` begrenzt,
+  Tool-Calling-Felder werden OpenAI-kompatibel erhalten und Live-Antworten verlangen ein
+  persistiertes Preflight- und Completion-Audit. Es wurde **kein** authentifizierter Alibaba-
+  Providercall ausgefuehrt.
+- **Fokussierte Verifikation:** LLM-Gateway `23/23`, Agent API `78/78`, Python-Compile,
+  TypeScript, fokussiertes ESLint, beide Compose-Konfigurationen, Responses-SSE-Runtime,
+  Organismus-Topologie `246` Knoten/`500` Kanten und der Qwen-CLI-Gateway-Smoke sind gruen.
+  Runtime-Probe: HTTP `200`, `qwen3.7-plus`, Endpoint gueltig, Key absent, Owner-Gate false,
+  Live-Versuch `403`, Oversize `422`, Direct-Provider-Entscheid `deny_direct_provider`,
+  `secret_output=false`.
+- **Vollkettenstatus vor finalem Lauf:** `npm run verify` lief auf Source `16052d72` bis zum
+  ersten erwarteten roten Gate: O4-Evidence war nach den neuen Commits source-stale. Das ist
+  kein Produktfehler; O4 muss gemaess R-SELF/O4-Regel nach dem letzten Source-/Truth-Commit
+  als letzter Browser-/Write-Beweis neu erzeugt werden. Ein anschliessender Runtime-Lauf fand,
+  dass die neue Qwen-Notiz den bestehenden Open-Source-First-Satz ersetzt hatte; `f6a20a1`
+  fuehrt beide Wahrheiten additiv zusammen und der fokussierte Runtime-/Snapshot-Readback ist
+  gruen. Danach folgen Build, Runtime, Browser/22-Seiten/O4, Static und Release-/Market-Ready-
+  Auswertung erneut auf exakt derselben finalen Source.
+- **DEV-LIVE-Rehydrate korrigiert:** Der erste Browser-Umbrella bestand Browser-Contract und
+  `22x2` responsive Navigation mit `44` echten Klicks, stoppte aber im Produktflow bei einem
+  maskierten Build-`503`. Ursache war der nach dem Qwen-Security-Slice neue Owner-Master-Gate,
+  den `start-dev-live.ps1` noch nicht setzte. Commit `46cefe4` setzt ihn nur im expliziten
+  Live-Lauf auf `true` und im Dry-Run auf `false`, prueft den effektiven Containerwert und
+  fuegt Static- sowie Product-Preflight-Guards hinzu. Dry/Live-Rehydrate waren danach jeweils
+  `10/10` healthy; der fokussierte echte Cloudflare-Produktlauf mit Build, 3D-Interaktion und
+  Reload bestand (Report-SHA-256 `92CE7E2523BCBC83927AD60EF4117EF1D4D0111EBFAB59B89F18F866A2BE508F`).
+  Alibaba blieb deaktiviert; DEV-ONLY; hosted proof still blocked.
+- **Fortschritt unveraendert:** Overall `89%`; P0 `100`, P1 `100`, P2 `100`, P3 `44`,
+  P4 `100`, P5 `89`, P6 `90`; L1 `100`, L2 `100`, L3 `100`, L4 `55`, L5 `56`,
+  L6 `100`, L7 `100`. Keine Rubrik- oder Prozentanhebung durch den Qwen-Slice.
+- **Offene harte Gates:** `production_auth_identity`, `docker_registry_publish` und
+  `phase6_scale_runtime`; Kandidaten-paritaet fuer die aktuelle neue Source ist ebenfalls
+  unbewiesen. Kein GHCR-Push, kein Default-Branch-Push, keine Promotion und kein Production-
+  Rollout. `DEV-ONLY; hosted proof still blocked` fuer alle neuen lokalen Belege.
 
 - **Anchor ID:** `project-anchor-2026-04-30T00-49-26+02-00`
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues. Aktive Cloud-/Tool-Defaults sind Vercel, Fly.io, GHCR und Grafana Cloud; Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert. Am 2026-06-11 wurden lokale Topology-, Browser-, Manifest- und Diff-Guards erneut gruen verifiziert. Die kanonischen 22 Workbench-Seiten sind als `workspace-surface-wiring-v1` zwischen Frontend, Agent API, Organism Contract und Organism Topology verdrahtet. `workspace-vertical-stack-v1` legt jetzt fuer jede der 22 Seiten die UI-, API-, Data-, Verification-, Deploy- und Safety-Stufe fest und ist im Frontend, Agent API, Browser-Contract und Phase-1-Guard gespiegelt. `scripts/verify-organism-topology.ps1` beweist jetzt die Organism-Topologie mit `151` Nodes, `308` Edges, 22 Workspace-Pages, 7 Architektur-Layern, 10 Brain-Regions, Agent-/Tool-/LLM-/Skill-/Provider-/Gate-Knoten, Edge-Referenzintegritaet, Retired-Provider-Ausschluss und geschlossenem Secret-/Write-/Production-Claim; der Frontend-Manifest-Spiegel nutzt wieder `P4=99` statt eines falschen `100%`-Snapshots. `scripts/verify-workspace-pages-browser.ps1` erzeugt jetzt DEV-ONLY Screenshots fuer alle 22 kanonischen Seiten und prueft Browser-DOM, aktive Rail, Design-Tokens, Panel-Radius, No-Fake-Live-Flags, Retired-Provider-Ausblendung und unbezahlte Budget-Ausblendung (`workspace-pages-browser-proof-v1`). `GET /api/v1/organism/events` und `GET /api/v1/organism/replay` koennen jetzt fuer echte lokale Phase-2-Runtime-Runs redaktierte `audit_log`-Projektionen liefern: nur `event_type`, `severity` und `created_at` werden auf Organism-Hubs/Brain-Regions gemappt; `details`, `user_id`, `session_id` und Prompts werden nicht ausgegeben. Die Organism-UI reicht `run_id` aus `/organism?run_id=...` und `/organism/replay?run_id=...` an beide Projektionen durch. Die Workbench zeigt `Metered Budget` jetzt nur noch bei expliziter paid/metered Auswahl oder expliziter paid Capability/Gateway-Konfiguration; rohe Provider-Key-Umgebungsvariablen allein schalten den Budgetbereich nicht mehr frei. `GET /api/v1/clouds/go-live-readiness` fuehrt Project Completion, External Gates, Cloud Layer Readiness, Deployment Preflight, 22-Seiten-Wiring und Owner-Activation-Plan read-only zusammen; `scripts/verify-go-live-readiness.ps1` prueft zusaetzlich das aktuelle External-Gate-Audit `.phase1-artifacts/external-gate-audit-20260615-092312.json`. `GET /api/v1/platform/verify` ist jetzt auch im Agent API gespiegelt, damit die Shell-7-Layer-Pill hinter nginx keinen Frontend-only-404 erzeugt. `scripts/verify-reference-design-browser.ps1` erzeugt DEV-ONLY Workbench-/Organism-Screenshots, prueft die Industrial-Workbench-DOM-Regeln, WebGL, Runtime-Feed und PNG-Pixelvarianz (`reference-design-browser-proof-v1`). Fly-Origin-Configs fuer `cloud-superbrain-agent-api`, `cloud-superbrain-mcp-gateway` und `cloud-superbrain-llm-gateway` sind repo-seitig vorbereitet; die Next.js/Vercel-Rewrites leiten fehlende Origin-URLs nur im expliziten Cloud-Rewrite-Modus oder bei expliziten `FLY_APP_*`-Origins auf Fly um, damit lokale E2E-Routen nicht von Backend-Origin-Proxies ueberschattet werden. Die 3D-Organismus-Hydration startet deterministisch und schaltet erst nach Client-Mount auf GPU-Erkennung. Nginx leitet WebSocket-Upgrades fuer die Frontend-Route weiter, damit Next/HMR-Hydration im lokalen DEV-Proof nicht durch Proxy-404s gestoert wird. External Gates bleiben repo-ehrlich `blocked`: `.phase1-artifacts/external-gate-audit-20260615-092312.json` ist der aktuelle Token-Run und meldet `hosted_agent_api_contracts` und `vercel_backend_origin_health` als offen; `canonical_gitleaks_scan` und `ghcr_image_digest_verify` sind verified. GitLab, Hugging Face und Grafana sind im Basislauf ohne Token fail-closed `missing_secret_or_token`. Hosted-/Production-Claims sind ohne echte Vercel-HTTPS-`STAGING_BASE_URL` und live erreichbare Backend-Origins fail-closed. Production bleibt weiterhin nicht ausgerollt.
+- **Session-13 O4 Agent-/MCP-Write-Abschluss (2026-07-31):** Der verifiergebundene DEV-ONLY-Lauf auf Source `d314e9969ca93b243e147bb10236a813cae6d355` beweist exakt die freigegebene Agent→MCP-Dateisystemschreibkette innerhalb des Projektroots und aktiven Branches: Branchschutz gelesen, Audit vor und nach dem Write persistiert, Readback geprüft und Rollback bei Auditfehler erzwungen. `npm run verify:runtime` und der vollständige Browserlauf bestanden; Produktakzeptanz nutzte den freigegebenen Cloudflare-Workers-AI-Gatewaypfad, die 22-Seiten-Matrix bestand `22/22`, `29/29` Familien und `161/161` Aktionen. `live_agent_tool_writes` und `live_mcp_writes` sind verifier-geöffnet; O4 ist `resolved_verified`. Evidence `.phase1-artifacts/o4-live-writes/proof.json`, SHA-256 `15D802A79ABCCA5B2425A19B15329A22DEAB5AB67D0F6853167D007CC1157269`. Der Marker `bounded_live_agent_mcp_write_audit_verified` kreditiert ausschliesslich Agent Pool `69% -> 100%`; MCP Gateway und P6 erhalten keinen Doppelcredit. Overall bleibt `86%`. Kein Main-, GHCR-, Provider-, Release-, Production-, Secret- oder Payment-Write.
+- **Session-13 Hosted Source-Rebind + O5-Abschluss (2026-07-31):** Der Cloudflare-Worker meldet nach dem sicheren `plain_text`-Rebind in `/api/v1/health` exakt Source `af61146e22d1a56e9d62232c159ea7b352405ba9` und Archiv-SHA-256 `1d85f2cd6c948a43e0f79fb17d1f02706687d5857d80f4096780692d094b63fc`; deployte Version `757cf74c-7988-4790-ae03-ff51534ccea4`. Die frühere `wrangler secret put`-Anweisung war falsch: beide Source-Bindings sind Remote-`plain_text`, und `secret put` scheitert fail-closed mit Code `10053`. Der erneut geprüfte O5-Report `.phase1-artifacts/live-vector-memory-search-proof.json` stimmt per SHA-256 `18C3E1B54E547207FFD43B3E80FCAF5C0BCC31084A5392D53B5BAE35C205A831` mit dem verifier-geöffneten Gate überein und beweist hosted semantische Vectorize-Suche mit Top-Score `0.7428076`, Ziel auf Rang 1 und `0` gemeinsamen Inhaltswörtern. Der neue Marker `hosted_semantic_vector_search_cloudflare_vectorize_roundtrip_verified` kreditiert ausschliesslich die letzten `10%`; D1-Lexik wird nicht doppelt gezählt. Memory `90% -> 100%`, Overall bleibt `86%`. R2 bleibt ungebunden; kein Paid-, Secret-, GHCR-, Release- oder Production-Claim.
+- **Session-13 Phase-5-Itemisierung / RC11 (qualifiziert 2026-08-01):** Die verbindliche Release-Checkliste besitzt exakt `19` gleichgewichtete JA/NEIN-Items. Der eingefrorene Altstand bleibt reproduzierbar: `13/19 = 68%`, sechs benannte Luecken = gerundet `32%`. Nach E3 gilt die lokale content-addressed Verifizierbarkeit der sechs Kandidaten-Images als Release-Candidate-Readiness; GHCR-Publikation bleibt Post-Market und oeffnet keinen Gate. Die sechs eingefrorenen RC1/sslip.io-Marker sind keine Kriterien. RC11 `prod-candidate-2026-07-31-local-rc11` ist an Source `bae3cdc1692e1e99e7f546f72664a3c747958b8c` gebunden; die fuenf unabhaengigen Qualifikationsketten `runtime`, `browser`, `candidate_images`, `candidate_runtime` und `security` sind mit echten SHA-256-Werten bestanden. Damit gilt `mode=fully_itemized`, `credit_blocked_until_candidate_qualified=false`: `17/19 = 89%` ist gutgeschrieben, P5 steigt `68% -> 89%`, Overall `86% -> 89%`. Nullcredit und Owner-blockiert bleiben exakt I1 `hosted_candidate_parity` und I5 `production_auth_identity`. `scripts/verify_phase5_credit_itemization.py` erzwingt Rubrik, aktiven Candidate, Source-Paritaet, Non-Claims und Manifestwert. DEV-ONLY; hosted proof still blocked. Kein GHCR-Push, keine Promotion, kein Rollout und kein Production-Claim.
+- **Session-12 Hosted Produkt-/22-Seiten-Abschlussbeweis (2026-07-30):** Der source-gebundene Hosted-Produktlauf `product-acceptance-3d-game-v1` bestand auf Vercel-Preview `dpl_HPGS3ojG7cJbpCmhN8Q4VKPg3Bpp` gegen Source `893d102020b7bcb267ebc01d3a77e94366e4dced`: exakt ein Gateway-Build `41d5e2e1-57f3-4292-bbf5-51c0251bd11d` wurde über Cloudflare Workers AI persistiert und auditiert, ohne Direct-Provider-Bypass, MCP-Write, Mock, Interception oder Secret-Output. Report `.codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json`, SHA-256 `24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F`. Der nachfolgende exakte O2-Aktions-Smoke bestand `1/1` auf Preview `dpl_G3ZgkPsZQND5yWJpFe5tpNLHTX8h`; danach bestand `22-page-action-acceptance-v2` gegen Source `0bb1c326c01e988a153cf12cde36d2108a2ff8c5` alle `22/22` Routen, `29/29` Familien und `161/161` Member (`160` direkte Effekte + exakt ein source-gebundener P0-Beweis), mit `0` toten oder unregistrierten Aktionen, `0` Click-only/Non-direct-Pässen, `2/2` erlaubten Gateway-Buildantworten, `0` unerwarteten Provideraufrufen, `0` Konsolenfehlern und `0` Seitenfehlern. Report `.codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json`, SHA-256 `7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E`. `docs/runtime-state/cloudflare-native-hosted-current.json` bindet beide Hosted-Belege und hält R2 false/historical-only. Kein Prozentcredit: Overall `86%`, `MARKET_READY:false`; offen bleiben die expliziten Owner-/Release-Gates, insbesondere Production OAuth, Phase-6-Scale, Vectorize-Semantik, Branch Protection/Write-Verifier und GHCR/Release.
+- **Session-12 O2Core Hosted-Zero-Card-Beweis (2026-07-30):** Der source-gebundene Cloudflare-Worker `https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev` ist gegen Commit `826a78b29a4dbf82a7115ecdd5562b238ade3594` und Archiv-SHA-256 `f3d86b36883d743713c1c7e86477776dc575b87b9e941af849dfd2c4f94e325b` verifiziert. Der echte Hosted-Lauf bewies D1-Write/Read/Delete, Queue-Zustellung, SQLite-Durable-Object-Koordination, Replay-/Konflikt-, Auth-, Secret- und Oversize-Guards sowie LangGraph-/Build-/Workspace-Artefakt-Persistenz. R2 blieb ungebunden und `historical_only`; kein Paid-Fallback. Report `.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-hosted-v2/report.json`, SHA-256 `FEEE5D40E14E547C9B8EB5903B993E61BC324E2C2CAD64ECF8C7DF3BA9049D0B`; verifier-generierte Wahrheit `docs/runtime-state/cloudflare-native-hosted-current.json`. Das Capability-Gate ist verifier-geöffnet, der qualifizierte Token atomar aktiviert und der kanonische externe Audit erneut gelaufen: Hosted Staging, Vercel-Origins, Gitleaks und O2Core sind grün; Branch Protection und GHCR bleiben offen, `production_deploy_claim_allowed=false`. Der nachfolgende Produkt- und 22-Seiten-Hosted-Beweis steht im vorherigen Absatz. Kein Prozentcredit: Overall `86%`, `MARKET_READY:false`.
+- **Session-12 aktuelle 22-Seiten-Abnahme (2026-07-30):** Die beiden gemessenen P1-Blocker des ersten Nachlaufs sind ursächlich geschlossen. Der registrierte Selektor `map-topology-node-select` umfasst sowohl die datengetriebene Knotenliste als auch die angrenzenden Knotenbuttons; es gibt keine stille Ausnahme von der Registrierungspflicht, und der fokussierte Chromium-Test beweist Filter, direkte Auswahl und Adjazenzauswahl. Der einmalige HTTP-503 stammte laut Frontend-Log nicht vom gerade erzeugten Games-Build, sondern von einem einzelnen transienten GET des bereits persistierten P0-Builds zwischen erfolgreichen Reads. Der idempotente öffentliche Build-Read führt deshalb zwei begrenzte 15-Sekunden-Versuche innerhalb des bisherigen 30-Sekunden-Budgets aus; die Browser-Whitelist wurde nicht um 503 erweitert. TypeScript, ESLint, der statische Cloudflare-Runtime-Verifier, ein 40/40-Read-Stresstest und der fokussierte Map-Test bestanden. Der vollständige aktuelle Real-Chromium-Lauf bestand danach `22/22` Routen, `29/29` aktivierte Familien und `161/161` aktivierte Member (`160` direkte Effekte + exakt ein source-gebundener P0-Beweis), mit `0` toten, unregistrierten, Click-only oder Non-direct-Pässen, `2/2` erlaubten Live-Provider-Buildantworten, `0` unerwarteten Provideraufrufen, `0` unerwarteten Konsolenfehlern und `0` Seitenfehlern. Zwei erwartete 403-Einträge blieben exakt mit den gegateten Games-/Apps-DELETEs korreliert. Report `.codex/runs/CURRENT/22-page-actions/report.json`, SHA-256 `399F310FBDA0D4D584C6847F6462D1B1CF4895037FAB9FAFF90D123E7C183F6F`, Source-Binding `0f5899a3a7d551504fd7c7a47404c32b5814555a95ca6bd0bc3d065787b5e366`. Die frühere Zählung `184/184` bleibt historische Session-10-Evidenz; die heutige dedizierte Topologiekarte besitzt sieben statt der früher wiederverwendeten 33 Phase-6-Member. Kein Prozentcredit: Overall `86%`, `MARKET_READY:false`; DEV-ONLY, hosted proof still blocked.
+- **Session-12 Zero-Card-D1-Artefaktadapter (2026-07-30):** ADR-010 und der Cloudflare-native Worker stehen jetzt auf `cloudflare-native-runtime-candidate-v2`: begrenzte UTF-8-Artefakte bis `32768` Bytes werden mit Inhalts-Hash in D1 geschrieben, über Queue und SQLite Durable Object koordiniert, vor Abschluss aus D1 zurückgelesen und beim Delete zusammen mit dem Audit atomar entfernt. Migration `0003_zero_card_d1_artifacts.sql` ergänzt die dedizierte Tabelle und den Lookup-Index. R2 ist im Wrangler-Vertrag nicht mehr gebunden und nur noch als inaktiver, ungebundener `historical_only`-Adapter sichtbar; es gibt keinen Spillover. `17/17` Unit-Tests, statischer Verifier und ein echter lokaler Wrangler-Create→Queue→DO→D1-Read/Delete-Lauf bestanden einschließlich Auth-, Secret-, Oversize-, Replay- und Konfliktpfaden. Evidence `.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json`, SHA-256 `CB108383C338E41C47440FA2618009DC174053E08E6401CAD7255AD333A65F43`; getrackte historische Lokalwahrheit `docs/runtime-state/cloudflare-native-local-candidate.json`. Der nachfolgende Hosted-Beweis steht im vorherigen Absatz. Kein Prozentcredit: Overall `86%`, `MARKET_READY:false`.
+- **Session-11 P3 Vier-Rollen-Quellenanalyse (2026-07-27):** `agent-research-run-v3` erweitert die feste Repository-Quellenbindung auf exakt Planner→Coder→Tester→DevOps. `/api/v1/agent-run` liest vor dem ersten Gateway-Aufruf weiterhin fail-closed exakt drei feste, gebackene bzw. read-only gemountete Projektwahrheiten (`PROJECT_STATE.md`, Fortschrittsmanifest, Agent-Roster), akzeptiert keinen Benutzerpfad, kein externes Netzwerk und keine Writes und bindet ein bis drei lexikalisch gewählte, sanitisierte Exzerpte mit Roh-/Sanitisiert-/Exzerpt-SHA-256 in alle vier Rollenaufrufe. `agent-research-four-role-v1` bindet die vier kanonischen Profil-IDs ohne Alias, Rolle, Reihenfolge und Quellen-IDs. Jede Gateway-Antwort muss Adaptervertrag, Evidence-Ref, Trace-ID und fünf echte Boolean-Flags exakt liefern; fehlende oder string-koerzierte Flags stoppen den Lauf. Jede redigierte Rollenausgabe ist auf 2.000 Unicode-Zeichen begrenzt; `analysis_only=true`, Tool-/Datei-/Test-/Deploy-Ausführung sowie autonome Softwarelieferung bleiben false. Vollständige Exzerpte werden nach dem Hashen nicht abgeschnitten; die UI prüft die Wahrheitsfelder streng und zeigt vier Rollen, DevOps-Synthese und Inline-Quellen ohne Readback-URL. `source_retrieval_audit_persisted=false` und `file_wide_secret_absence_certified=false` bleiben ehrlich. Kein Prozentcredit: Overall `86%`, P3 `44%`, `MARKET_READY:false`; DEV-ONLY, Hosted-Proof bleibt blockiert.
+- **Session-11 P3 Verifikation (2026-07-27):** Dedizierter Quellenverifier `23/23`, Frontend-TypeScript, fokussiertes ESLint, Python-Compile für Agent API und LLM Gateway, Next.js-Produktionsbuild `21/21`, Fortschrittsmanifest und `scripts/verify-phase1.ps1` inklusive kanonischem Gitleaks-Mirror (`3720` Repo-Dateien, `no leaks found`) bestanden. Docker Desktop ist aus; deshalb kein neuer Runtime-/Browser-Beweis. Die Session-10-22-Seiten-Evidenz bleibt historisch grün, ist nach der bedingten UI-Aktion `agents-source-link`→`agents-source-detail` aber nicht mehr an den aktuellen Source-Hash gebunden. DEV-ONLY; hosted proof still blocked.
+- **Session-11 Organismus-Topologiekarte (2026-07-27):** `/organism/map` verwendet nicht mehr die Phase-6-`OrganismView`, sondern liest denselben Origin `GET /api/v1/organism/topology` und zeigt den read-only Vertrag `organism-topology-v1` als filterbare Knotenliste mit echter Auswahl sowie gerichteter eingehender/ausgehender Nachbarschaft. Die UI akzeptiert nur `source_kind=contract`, `live=false`, eindeutige und referenziell geschlossene Knoten/Kanten, echte Boolean-Sicherheitsflags und feste Mengen-/Stringgrenzen. Sie begrenzt den Response-Stream vor JSON-Parsing auf `524288` Bytes und übernimmt danach nur normalisierte Anzeigeattribute; ein ansonsten gültiger 600-KiB-Fremdfeld-Payload wird blockiert. Fehlgeschlagene Requests werden nicht dauerhaft gecacht; ein sichtbarer Retry wurde mit `503 -> erfolgreicher Vertrag` bewiesen. Frontend- und Agent-API-Mirror besitzen `245` Knoten und `494` Kanten; der Static-Verifier vergleicht Contract-ID, Node-ID/Kind/Sicherheitsflags, aufgelöste UI-Labels, alle Edge-Tripel und Non-Claims normalisiert und exakt. Der Action-Matrix-Runner verlangt für den Kind-Filter ausdrücklich ein Delta der echten Knotenliste. Produktionsbuild `21/21`, vier fokussierte reale Chromium-Tests `4/4`, TypeScript, ESLint, Python-/PowerShell-Syntax und `scripts/verify-phase1.ps1` inklusive npm audit `0` und Gitleaks über `3723` Dateien bestanden; abschließende Re-Review: `0 P1 / 0 P2`. Die Karte bleibt bewusst `NUR CONTRACT`, weil `live=false` und keine echte Agenten-/Tool-/Cloud-Telemetrie gebunden ist; der 22-Seiten-Audit steht nach der nachfolgenden Technologie-Bindung bei `9 ECHT NUTZBAR`, `11 NUR CONTRACT`, `2 STUB/MOCK`, `0 FEHLT/BROKEN`. Kein Prozentcredit: Overall `86%`, P3 `44%`, `MARKET_READY:false`; DEV-ONLY, hosted proof still blocked.
+- **Session-11 Technologie-Runtime-Bindung (2026-07-27):** `/technology` war die letzte Seite, die Fly/Postgres/Redis als aktuelle Laufzeit behauptete und damit ADR-010 widersprach. `TechnologyRuntimeView` ersetzt die statische Ansicht und liest read-only exakt drei kanonische Verträge: `GET /api/v1/clouds` (`cloud-provider-inventory-v1`), `GET /api/v1/clouds/layers` (`cloud-layer-readiness-v1`) und `GET /api/v1/clouds/deployment-preflight`. Alle drei werden gemeinsam schema-validiert und zusätzlich über `areContractsConsistent` quergeprüft: Layer-Label und `required_providers` müssen der `seven_layer_mapping` entsprechen, `configured`/`live_verified` müssen Teilmengen der Zuordnung sein, Fly muss `historical_only` und in keiner Layer-Zuordnung enthalten sein, die Cloudflare-Layermenge muss exakt stimmen, und eine Live-Behauptung ist nur zulässig, wenn `cloudflare_native_zero_card_hosted_runtime` nicht als blockiert gemeldet wird. Der Response-Stream ist vor dem JSON-Parsing hart begrenzt. Die Quellenechtheit ist an der Proxy-Grenze erzwungen: `infrastructure/nginx/dev.conf` und `cloud.conf` löschen einen eingehenden `X-Superbrain-Source`, verstecken einen Upstream-Wert und stempeln autoritativ `agent-api-boundary`; nur wenn alle drei Antworten diese Quelle tragen, gilt `current_live_proof=true`, andernfalls zeigt die UI `projection_not_current` und „Projizierter Live-Vertragswert" statt eines Live-Status. `/api/v1/clouds/layers` ist beidseitig gespiegelt in `ORGANISM_PAGE_WIRING` und `WORKSPACE_WIRING` ergänzt. Nachweise: `scripts/verify-technology-runtime-view.ps1` statisch und gegen die laufende Runtime (`providers=8`, `layers=7`, `missing_gates=1`, `sources=agent-api-boundary,agent-api-boundary,agent-api-boundary`, `current_live_proof=true`), Next.js-Produktionsbuild `exit 0`, sechs reale Chromium-Tests `6/6` inklusive Fail-closed-Beweisen für Schemaverstoß, Querverweis-Bruch, Übergrößen-Payload, `503`-Retry über alle drei GETs und unmögliche Live-Behauptung an der Agent-Boundary, dazu TypeScript, ESLint, Python-Compile und `scripts/verify-phase1.ps1` inklusive Gitleaks über `3726` Dateien (`no leaks found`). Kein Prozentcredit: Overall `86%`, P3 `44%`, `MARKET_READY:false`; DEV-ONLY, hosted proof still blocked.
+- **Session-10 Produkt-/22-Seiten-Abnahme (2026-07-26; historischer Agentenstand):** `product-acceptance-3d-game-v1` bestand einen echten lokalen Prompt -> Agent-API -> LLM-Gateway -> Cloudflare Workers AI -> HTML -> PostgreSQL/Audit -> WebGL-Run -> Reload-Fluss. Build `8e51a068-8faa-4ff4-805a-accf91e1c145` ist persistiert, `direct_provider_calls=false`, Canvas nichtleer, Klick veraendert Pixel/DOM und Reload liefert denselben HTML-Hash; Report `.codex/runs/CURRENT/product-acceptance/report.json`, SHA-256 `1BC71C8D3C76C9CD68E67398A23FB573CA44E2F952643F5646BE6835C805AB7D`. `workspace-action-matrix-v2` besuchte danach alle `22/22` kanonischen Routen und verifizierte `28/28` aktivierte Familien sowie `184/184` aktivierte Member: `183` direkte Effekte plus exakt ein aktueller P0-Beweis, `0` tote, unregistrierte, Click-only oder Non-direct-Paesse, `2/2` erlaubte Builds mit Live-Providerantwort, keine unerwarteten Provider-, Konsolen- oder Seitenfehler. Zwei HTTP-403-Konsoleneintraege waren exakt mit den absichtlich gesperrten Games-/Apps-DELETE-Pfaden korreliert. Report `.codex/runs/CURRENT/22-page-actions/report.json`, SHA-256 `EBA64E765F9429A29D35092D0D2D357585812BBB5750B0122B6150811AB4BB3F`. `/agents` besass damals einen gateway-only Planner -> Researcher -> Writer Endpoint ohne Fake-Quellen; der aktuelle Vier-Rollen-Stand steht oben. `/tools` bindet `memory_read` und `task_router` schemaidentisch read-only mit Audit-ID. Der aktuelle strenge Audit `docs/audit/vision-vs-reality-2026-07-25.md` bewertet die 22 Hauptflaechen nach dem Topologie-Slice mit `9 ECHT NUTZBAR`, `10 NUR CONTRACT`, `3 STUB/MOCK`, `0 FEHLT/BROKEN`. Beide Browserreports sind `DEV-ONLY; hosted proof still blocked`. Kein Prozentcredit: Overall `86%`, `MARKET_READY:false`. RC10 bleibt der aktive lokale Kandidat; Session 10 ist keine neue Release-Candidate-Qualifizierung.
+- **Session-10 Endverifikation (2026-07-26):** Backend-Fokustests bestanden `13/13`; TypeScript und fokussiertes ESLint bestanden. `scripts/verify-phase1.ps1` endete inklusive gitleaks mit `no leaks found`, `scripts/verify-phase1-runtime.ps1` mit `phase1 runtime checks completed` und `scripts/verify-browser-contract.ps1` mit `checks completed`; Docker war `10/10 healthy`, Responsive-Proof `22x2=44`. Der Entwicklungsverifier kennzeichnet RC10 explizit als aelter als den aktuellen HEAD; der dedizierte Kandidatenverifier bleibt ohne DEV-Schalter fail-closed. DEV-ONLY; hosted proof still blocked.
+- **Historischer P5 Cloudflare-Rebase / Scope-Audit (2026-07-31):** Der damalige
+  Readback und seine Hashes bleiben Provenienz. Er ist durch den A6-Readback vom 2026-08-29
+  superseded: aktuelle v2-Wahrheit ist `blocked`, Branch Protection und GHCR fehlen,
+  `active_release_candidate_sha` ist leer und Production bleibt false. Kein P5-Credit oder
+  Production-Gate-Flip; Fly/RC10-v1 bleibt `historical_only`.
+- **P5 Cloudflare-Rebase / Integrationsbeweis (2026-07-26):** Static-Verifier inklusive gitleaks, Frontend-Lint, Next.js-Production-Build, Runtime-Verifier und der vollstaendige Browser-Vertrag sind gruen. Der Browserlauf deckte alle sieben Phase-6-Kontrollen sowie `22x2=44` responsive Klicks ab. Ein dabei gefundener realer Mobile-Overflow auf `/tools` wurde durch ein begrenztes Readiness-Grid behoben und mit `44/44` Klicks ohne Overflow erneut belegt. DEV-ONLY; hosted proof still blocked. Overall bleibt `86%`, `MARKET_READY:false`.
+- **Session-9 Cloudflare-native Ziel / lokaler Adapterbeweis (2026-07-25):** Architektur A ist gewaehlt; Fly.io ist fuer neue Arbeit OUT. LangGraph.js bleibt der Orchestrator, D1 ist `custom persistence` und kein offizieller LangGraph-Checkpointer, SQLite Durable Objects koordinieren, Queues dispatchen und R2 ist nur als privater lokaler Artefaktadapter aktiv. `cloudflare-native-runtime-candidate-v1` bestand 16/16 Unit-Tests, Wrangler-Preview-Dry-run sowie den echten lokalen Create -> Queue -> DO -> R2-Put/Get/Delete-Fluss mit Effektzaehler `1`, Replay-/Konflikt-Guard, Auth-, Oversize- und Secret-Sentinel-Negativpfaden. Evidence: `.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local/report.json`, SHA-256 `FFB9693896C26B7831BE60E2A2DE323B7B1243F7DACDDE91727706BAF3E06F80`; getrackte Wahrheit: `docs/runtime-state/cloudflare-native-local-candidate.json`. O2' ist das aktive Hosted-Zielgate `cloudflare_native_zero_card_hosted_runtime`; es bleibt geschlossen. R2-Free-Quota ist kein Zero-Card-Beweis, weil die dokumentierte Aktivierung eine Subscription/Checkout verlangt. Die neue v2-Wahrheit ersetzt den aktiven Fly-Gate-Pfad; spaetere Fly-Passagen in diesem Langzeitprotokoll sind historische Provenienz. Kein Prozentcredit: Overall `86%`, `MARKET_READY:false`. DEV-ONLY; hosted proof still blocked.
+- **Session-9 Abschlussbeweis (2026-07-25):** Die neue `brace-expansion`-Advisory ist ueber fixed upstream `5.0.8` mit CommonJS-Kompatibilitaetsadapter fuer den ESLint-9-/Next.js-Regelstack geschlossen. Clean-`npm ci`, Adapter-Smoke, Lint, Next.js-Production-Build (`21/21`) und npm audit (`0 vulnerabilities`) bestanden. `npm run verify` inklusive gitleaks (`no leaks found`), `npm run verify:runtime` und der vollstaendige Browservertrag (`22x2`, alle sieben Phase-6-Kontrollen, `checks completed`) bestanden seriell im aktuellen Session-9-Arbeitsstand.
+- **Kernstand:** Localhost `8081` bleibt ausschliesslich `DEV-ONLY` Control-Plane;
+  Gesamtfortschritt `89%`. Horizontal P0/P1/P2/P4 `100`, P3 `44`, P5 `89`, P6 `90`;
+  vertikal L1/L2/L3/L6/L7 `100`, L4 `55`, L5 `56`. Die aktuelle v2-Gate-Wahrheit
+  ist wegen Branch Protection und GHCR `blocked`; Production ist false. I1 und I5 bleiben
+  Phase-5-Ownerblocks; Scale, GHCR-Publikation und Promotion sind unbewiesen.
+- Hetzner, GitKraken und Oracle sind aus dem aktiven Pfad entfernt oder als historische Altlast markiert.
+- **Master Goal External-Gate-Spiegel (v2 = BLOCKED):** Summary und getrackter Audit
+  melden `production_deploy_claim_allowed=false`, `branch_protection_claim_allowed=false`,
+  `ghcr_image_digest_claim_allowed=false` und exakt diese zwei Missing-Gates. Der
+  owner-assistierte Audit `20260713-125413` und RC10/Fly-v1 bleiben historische Provenienz.
+- **Runtime-Truth-Bindung (2026-07-30 v2):** Agent API, External-Gate-Mirror, Deployment-Preflight, Completion, Infra-Budget und Go-live-Readiness leiten ihre Claims aus der v2-Summary und dem verifier-geöffneten CF-Capability-Gate ab. Der lokale DEV-Stack bleibt wegen der verbleibenden Release-Gates `blocked_external_gates`; Target-Key ist `cloudflare_native_runtime`, Budgetquelle `cloudflare_zero_card_projection`, Produktionsclaim false. Fly und R2 sind `historical_only` und können keine aktive Schicht oder Gate schliessen. Keine Prozentsteigerung oder Production-Freigabe.
+- **Session-8 Free-Haertung / RC10 (2026-07-24; historische Kandidatenbasis):** Alle `17` externen GitHub-Action-Verwendungen sind auf `11` verifizierte 40-stellige Commit-SHAs fixiert. Alle `18` getrackten externen Image-Vorkommen sind als `tag@sha256` auf `9` Registry-Manifest-Digests gebunden; der fail-closed Verifier entdeckt alle getrackten `.github`-YAMLs, Dockerfiles und Root-Compose-Dateien dynamisch und prueft zusaetzlich exakt `6` interne variable GHCR-Service-Referenzen. Die manuelle Triage der `12` High/Medium-Scannerkandidaten schloss `11` als False Positives; ein echter `CWE-209`-Fund am Prompt-Persistenzfehler wurde auf eine generische 503-Antwort reduziert und mit einem Sentinel-Regressionstest belegt (`20/20` Backend-Security-Tests). Die neu publizierte PostCSS-Path-Traversal-Advisory wurde durch den exakten Override `8.5.23` geschlossen; `npm audit` meldet `0 vulnerabilities`. Der fokussierte Pin-Verifier, beide Compose-Konfigurationen, `npm run verify`, `npm run verify:runtime` und `npm run verify:browser` bestanden seriell auf dem gepushten Source-Commit `2ae4c61aa876759abcaa83c36c0a3379206b91a4`; Docker `10/10 healthy`, Browser `22x2=44`. Responsive-Report SHA-256 `BADE51DD5E640085106D8F173A67B725789EE996C2644AB9554C59BA759C2CEE`; Reference-Design-Report SHA-256 `E66F3CAEC041787834A33D6428F1511916B806C4576BCE20FC12D98FCE513C3A`. RC10 `prod-candidate-2026-07-24-local-rc10` wurde aus dessen Clean-Archive gebaut und voll verifiziert: Archiv SHA-256 `ACDDF0E7BACD117E4796D618722A4DAEDE9ED84F5813045C2C58AFD727F1EBD1`, Candidate-Report `F6DB74228773767857E301FE7A7E90C4B0D8FA5FA12E395C506EA6EE778C0078`, Verification `75B226536EDCDB8DB68E4B4B036E6B6BDF4BA73DBC0796F273F86C078725691B`, Rollback RC9-Source `0cbe644c84812bbe72811516d58a70be8c27ffa5`. `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`; GHCR bleibt unveroeffentlicht. Kein neuer autonomer Rubrikmarker: Overall `86%`. Die damalige O1-O6-Matrix ist durch die aktuelle Owner-Matrix unten ersetzt. DEV-ONLY; hosted proof still blocked.
+- **Agent-Pool UI-/Verifier-Paritaet S1 (2026-07-23):** `/agents` rendert die drei fail-closed gebundenen Runtime-Vertraege `autonomous-agent-roster-v1`, `autonomous-master-plan-v1` und `autonomous-coding-team-v1` mit Endpoint, Contract-Version, Evidence-Referenz und Guard-Markern. Der persistierte Roster weist exakt `14` Rollen aus; der Masterplan zeigt `7` Phasen, `7` Schichten, `5` Operating-Core-Rollen und `3` Dispatch-Endpunkte; der Coding-Team-Beweis bindet denselben UUIDv4-Dispatch an `5` logische Mitglieder, deren Runtime-Rollen, Queue-Status und Prioritaeten. Die drei fokussierten Verifier pruefen API-gegen-SSR-Paritaet; der Team-Verifier erzeugt zuerst den Dispatch und liest anschliessend exakt dessen Status. `autonomous_release_workflow_verified` bedeutet hier ausschliesslich Parser-/PlanOnly-Vertrag, nicht Workflow-Ausfuehrung, Push oder Release. Frontend-Lint, Next.js-Production-Build (`21/21`), `npm run verify`, `npm run verify:runtime` und `npm run verify:browser` bestanden seriell; Responsive-Proof `22` Routen x `2` Viewports = `44` Klicks. Runtime-Log SHA-256 `B2C239B91BB9C41852A862EBEB3D8BAF12353E98330BA424A68A06EF8FE40541`, Browser-Log SHA-256 `CB720B156EB6248BB448181458CF569A1AA9D1A14013AE939275906BD5D644A5`; Docker `10/10 healthy`. Der damals exakte PostCSS-Override `8.5.12` wurde spaeter durch die sichere Version `8.5.23` ersetzt; der aktuelle npm audit meldet `0 vulnerabilities`. Der frische Runtime-Cloud-Read blieb ohne Owner-Inputs ehrlich bei `5/8` Providern und `4/7` Schichten. Agent Pool bleibt `69%`, Overall `86%`; kein Doppelcredit. Persistierter Roster ist keine Codex-Desktop-Task-Persistenz; lokaler Dispatch ist kein hosted Rollout. DEV-ONLY; hosted proof still blocked. `live_provider_calls=false`, `live_mcp_writes=false`, `model_downloads=false`, `production_deploy=false`, `production_rollout_claimed=false`, `secret_output=false`.
+- **Historische RC9-Requalifizierung (2026-07-24; durch RC10 superseded):** `prod-candidate-2026-07-24-local-rc9` band sechs Clean-Archive-Images an den Free-Hardening-Commit `0cbe644c84812bbe72811516d58a70be8c27ffa5` und den Rollback auf RC8-Source `3bd216f0296afb3bd7ad94e44b6540c6201ab845`. RC9 ist jetzt der lokale Rollback-Ursprung fuer RC10; es ist nicht mehr der aktive Kandidat. P5 blieb `68%`; kein Prozentcredit. DEV-ONLY; hosted proof still blocked. GHCR blieb unveroeffentlicht; keine Owner-Freigabe, Promotion oder Production-Ausrollung.
+- **Historische RC8-Requalifizierung (2026-07-23; durch RC9 superseded):** `prod-candidate-2026-07-23-local-rc8` band sechs Clean-Archive-Images an den gepushten S1-Commit `3bd216f0296afb3bd7ad94e44b6540c6201ab845` und den Rollback auf RC7 `6c344b37f2cef21d952c1f2b5235ae6c4c36dbf9`. RC8 bleibt der lokale Rollback-Ursprung fuer RC9; es ist nicht mehr der aktive Kandidat. P5 blieb `68%`; kein Prozentcredit. DEV-ONLY; hosted proof still blocked. GHCR blieb unveroeffentlicht; keine Owner-Freigabe, Promotion oder Production-Ausrollung.
+- **MARKET_READY Abschluss-Audit / Owner-Paket (2026-07-30 v3):** `docs/runtime-state/owner-input-manifest.json` ordnet die sieben unter `100%` liegenden Zellen den Owner-Aktionen O1-O5 zu; O6 ist `resolved_verified` mit `percentage_credit=0` und darf nicht als Owner-Blocker erscheinen. Der Aggregate-Verifier bindet jetzt zusätzlich die exakten Hosted-Produkt-/22-Seiten-Pfade und SHA-256-Werte aus `docs/runtime-state/cloudflare-native-hosted-current.json`. `verify-market-ready.ps1 -StaticOnly` bestaetigt Hosted Acceptance, Owner-Matrix, Manifest, Proof-Ledger und Lint; `OFFEN (Spur A - autonom fixbar): keine`. Report SHA-256 `E3429B1A170EF4173D8FFC82B9E2BF565AFDF6B2B55D8BC5E0B8563001530268`. Ergebnis bleibt ehrlich `MARKET_READY:false`, weil die Matrix nicht 100 ist und O1-O5/externe Gates Owner-blockiert sind. Keine Prozentsteigerung oder Gate-Freigabe.
+- **Phase-3 Auth Credential-Issuance Fail-Closed (2026-07-22):** `phase3-auth-credential-issuance-fail-closed-v1` ersetzt die sicherheitsinvaliden RC1-Dry-run-Issuance-Claims. Credential-Ausgabe verlangt nun einmaligen Redis-State, exakte `__Host-`-Cookie-Bindung, festen GitHub-Providerpfad, positive numerische GitHub-ID, exakt `read:user`, ein starkes base64url-256-Bit-Signing-Secret und einen persistierten PostgreSQL-Audit-Write vor dem Setzen erfolgreicher Callback-/Refresh-Cookies. Unbekannte, wiederholte, Body- oder unvollstaendig konfigurierte Refresh-Werte bleiben fail-closed; Logout unterscheidet echte Revocation von reinem Cookie-Clear; Uvicorn-/Nginx-Access-Logs geben keine Callback-Query aus. 19 Unit-Tests, echte Redis-Konkurrenz, lokale HTTP-Negativpfade sowie `npm run verify:runtime`, `npm run verify:browser` und `npm run verify` bestanden seriell. Evidence: `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`, SHA-256 `FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1`. Der dabei neu gemeldete `sharp <0.35.0`-Befund wurde mit Override `0.35.3` geschlossen; npm audit meldet `0 vulnerabilities`. Die Aenderung ist als Commit `255e328a76b3f84bf74358bc7258b9ffb797b339` auf dem Arbeitsbranch gepusht und durch RC5 clean-archive requalifiziert. Kein Doppelcredit: P3 bleibt `44%`, Overall `86%`. DEV-ONLY; hosted proof still blocked.
+- **Phase-2 PostgreSQL-Checkpoint-Restart-Beweis (2026-07-21):** `npm run verify:runtime` erzeugte einen abgeschlossenen deterministischen LangGraph-Lauf, las dessen PostgreSQL-Checkpoint, recreatete `agent-api` und `nginx` und las danach denselben `thread_id` erneut mit `checkpointing=postgres` und `node_name=completed`. Der zuvor zu knappe Compose-Healthcheck wurde auf die reale aggregierte Health-Latenz gehaertet; ein fokussierter Recreate-Probe und der anschliessende Vollverifier bestanden. Evidence: `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`. Damit sind alle sieben Pflichtbeweise aus `docs/PHASE_2_IMPLEMENTATION_PLAN.md` gutgeschrieben: Phase 2 steigt `86% -> 100%`, Overall `84% -> 86%`. DEV-ONLY; kein Hosted-, Live-Provider-, Live-MCP-Write-, Deploy-, Release- oder Production-Claim.
+- **Hosted Agent-Pool Read-only Readback (2026-07-21):** `scripts/verify-agent-pool-hosted-readonly.ps1` liest ohne Token und ohne Mutation den aktuellen Cloudflare-D1-Runtime-Contract, die persistierte Run-Liste und einen konkreten terminalen Run zurueck. Der HTTPS-Beweis bestaetigt exakt `planner`, `coder`, `tester`, `devops`, vier abgeschlossene D1-Task-Zeilen, D1-Checkpointing und fail-closed `live_provider_calls=false`, `live_mcp_writes=false`, `production_deploy=false`, `secret_output=false`. Evidence: `.codex/runs/CURRENT/master-goal/t3/agent-pool-hosted-readonly/report-20260721-102425.json`, SHA-256 `1631A518300AA53A8CC0A302A1A0E6C82B64D3367C1644DCBF749454F1859C73`. Die bereits kreditierten lokalen Vier-Rollen-, Worker-Status- und Priority-Queue-Marker wurden nicht doppelt gezaehlt; nur der neue aktuelle Hosted-D1-Readback-Marker hebt Agent Pool `68% -> 69%`. Kein neuer Run, kein Token, kein Provider-Write, kein Redis-Worker-Scale-, Priority-Queue-, Live-LLM-, Live-MCP-, Release- oder Production-Claim.
+- **Current Hosted MCP Read-only Contract Parity (2026-07-21):** `scripts/verify-mcp-hosted-current-readonly.ps1` prueft den source-gebundenen Vercel Contract Origin ausschliesslich per oeffentlichem HTTPS GET. Health, alle fuenf Dry-run-Vertraege, exakte Dependency-/Tool-Pins und der MCP-Audit-Vertrag antworten mit HTTP `200`; die sieben deployten MCP-Quellpfade sind zwischen Source `21913f8c3ef13949ca962980c143e757ca87a7cc` und aktuellem HEAD blob-identisch. Evidence: `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json`, SHA-256 `67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`. Der einmalige Marker `mcp_current_hosted_readonly_contract_parity_verified` hebt MCP Gateway `55% -> 56%`; Overall bleibt gerundet `86%`. Kein Token, Tool-Execute, Audit-Write, Provider-Write, stateful Backend-, Release- oder Production-Claim.
+- **Cloudflare LLM Preview Read-only Source Parity (2026-07-21):** `scripts/verify-cloudflare-llm-gateway-hosted-readonly.ps1` bindet den oeffentlichen Preview Worker per exakt zwei tokenfreien HTTPS-GETs an Source `67f41cecf38de109e762632ed971c9a7fdaff6ba` und den blob-identischen aktuellen `services/cloudflare-llm-gateway`-Tree. Health meldet AI-Binding und Gateway-Auth gesund; die Modellliste entspricht exakt der Zwei-Modell-Allowlist. Alle Live-/Direktprovider- und Secret-Claims bleiben false. Evidence: `.codex/runs/CURRENT/llm-gateway/cloudflare-hosted-readonly/report.json`, SHA-256 `D9DE8F7C46309F1FDA1EED43D4C2F14A65D99A2D77D60B01AAC449A1CAB83D71`. Nur der neue Marker `cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified` hebt LLM Gateway `54% -> 55%`; Overall bleibt `86%`. Kein Token, keine Inferenz, kein Provider-Write, kein Production-Worker-, Release- oder Production-Claim.
+- **Live-LLM Evidence-Chain Integrity (2026-07-22):** `scripts/verify-live-llm-evidence-chain.ps1` bindet den T2-Hosted-Einzelcall ueber den exakten HTML-Hash an die lokale D1-Audit-Persistenz und den Desktop-/Mobil-Browserbeweis, ohne einen neuen Provider-Call auszufuehren. Der separate Free-Provider-Report und T2 sind wahrheitsgemaess zwei eigenstaendige Proof-Ausfuehrungen (`known_proof_call_upper_bound_sum=2`) und werden nicht zu einem Call verschmolzen. Der Preview-Worker-Source-Parity-Beweis bleibt eigenstaendig gueltig; da T2 weder Gateway-Origin noch Source-Commit nennt, bleiben historische T2-Source-Attribution und die volle source-bound Live-Call-Kette `false`. Der Live-Provider-Verifier schliesst eine Hosted-Revalidierung jetzt vor dem Request fail-closed und verlangt explizit Gateway-Grenze, `live_provider_calls=true`, keinen Direktpfad und keinen Secret-Output. Evidence: `.codex/runs/CURRENT/llm-gateway/evidence-chain/report.json`, SHA-256 `C23DB4DB827C945738E7F5AD72B4482A8FA3312ABF89D80EA34ACA877DAD86D3`. Kein Prozentcredit: LLM Gateway bleibt `55%`, Overall `86%`. DEV-ONLY; hosted proof still blocked.
+- **Memory Vector-Search Gate Fail-Closed (2026-07-22):** D1 bleibt korrekt als verifizierte hosted lexikalische Persistenz getrennt; es beweist weder Embeddings noch Vektorsuche. Das neue Capability-Gate `live_vector_memory_search` bleibt geschlossen, bis Owner-Scope, Architekturfreigabe, freier `cloudflare_vectorize`-Provider und hosted semantischer Suchbeweis gemeinsam vorliegen. Layer 6 zeigt bis dahin exakt `live_vector_memory_search_requires_owner_vectorize_scope_architecture_approval_and_hosted_proof`. Der fokussierte Verifier prueft fehlende, unlesbare, bezahlte, falsch typisierte und unvollstaendige Gate-Zustaende sowie den positiven Delta-Fall, in dem nur dieser Blocker verschwindet. Evidence: `.phase1-artifacts/vector-memory-gate-proof.json`, SHA-256 `C3E2ED1F11FE6E19068AA986528CBC1762470EFE3F65CF75D8DCB71F8531BD35`. Kein Prozentcredit: Memory bleibt `90%`, Overall `86%`. DEV-ONLY; hosted proof still blocked.
+- **Hosted Workbench LLM-503-Reparatur (2026-07-21):** Der gemeldete Fehler wurde auf dem unveraenderlichen Preview-Deployment `dpl_5myh9Wmi2RYtJtZH9Te5x18MqDzr` als HTTP `503` reproduziert. Cloudflare-Preview- und Vercel-Auth/Origin-Konfiguration wurden ohne Secret-Ausgabe angeglichen und Source `67f41cecf38de109e762632ed971c9a7fdaff6ba` neu ausgerollt. Preview und Production-Alias liefern bei einem echten Mini-Build jetzt HTTP `200` ueber Cloudflare Workers AI; Real-Chrome bestand danach auf beiden Deployments je 22 Routen x 2 Viewports (`44/44`) ohne Console-, Overflow- oder Overlay-Fehler. Evidence: `.codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json`, SHA-256 `B66A02387CD5CCA631947DAC7E6A99BF9B1E0BC5A498F6828437018794F42F0A`. Operationaler Fix ohne Prozentcredit; der Frontend-Alias nutzt derzeit den Cloudflare Preview Worker, daher kein Full-Platform-Production-Readiness- oder Release-Promotion-Claim.
+- **T3 Read-only Cloud-Live-Beweis (2026-07-20):** Der Grafana-Pfad akzeptiert Token-Decodierung nicht mehr als Live-Nachweis. `glc_` wird durch einen echten read-only Grafana-Cloud-API-Read verifiziert; Cloudflare, GitHub und GHCR besitzen ebenfalls eigene HTTP-200-Reads. `npm run verify:cloud-provider-live-read` und der integrierte Runtime-Lauf belegen lokal `8/8` Provider und `7/7` Layer als `live_verified`; `.phase1-artifacts/cloud-provider-live-read-20260720-032243.json` ist `DEV-ONLY`. Der owner-assistierte externe Audit `.phase1-artifacts/external-gate-audit-20260720-060043.json` bleibt `blocked` mit `production_deploy_claim_allowed=false` und wird nur durch `docs/runtime-state/external-gate-summary.candidate-20260720-060043.json` gespiegelt; er hat den kanonischen tokenfreien Standard nicht ersetzt. Zum damaligen Zeitpunkt blieb Observability `99%`, weil nur ein read-only Identity-Read vorlag. Am 2026-07-21 wurde Observability auf `100%` angehoben: `scripts/verify-grafana-cloud-ingestion.ps1` beweist echte hosted Telemetrie-Ingestion (OTLP Log HTTP 204 + Metric HTTP 200 in Grafana Cloud, freier Tier), inklusive Negativ-Kontrolle (falsche Tenant-Credential → HTTP 401), und oeffnet damit das Capability-Gate `hosted_observability_endpoint`. Evidence: `.codex/runs/CURRENT/capability/hosted-observability/`.
+- **T4 Frontend-Providergrenze (2026-07-20):** Alle direkten Frontend-Pfade zu Neon, Cloudflare Workers AI/D1/Vectorize und dem GitHub-Store wurden entfernt. Mutierende und persistenzabhaengige Routen laufen jetzt ausschliesslich ueber die konfigurierten Agent-API-, LLM-Gateway- oder MCP-Gateway-Grenzen und antworten ohne erreichbare Grenze fail-closed mit `accepted=false`, `persisted=false`, `direct_provider_calls=false`, `live_provider_calls=false` und `production_deploy=false`. Read-Projektionen degradieren bei nicht erreichbarer Hosted-State-Grenze auf ehrlich gelabelte Frontend-Projektionen; die Artifact Library besitzt stabile Effekt-Abhaengigkeiten. Der lokale Vollbeweis und der spaetere T1 Production-Betriebsbeweis sind gruen. Evidence: `.codex/runs/CURRENT/master-goal/t4/frontend-provider-boundary/report.json` und `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`. Overall und alle Manifest-Prozente bleiben unveraendert; keine Release-Candidate-Promotion oder Live-Write-Aktivierung.
+- **Aktueller gehosteter Phase-6-Basisbeweis:** `scripts/verify-phase6-frontend.mjs` bestand lokal und gegen `https://frontend-seven-psi-78.vercel.app` mit 7/7 Slice-Markern, sichtbarem nichtleerem WebGL-Canvas, Kamera-/Tastatursteuerung, Frame-Budget-HUD, Reduced-Motion-zu-2D-Umschaltung, zwei PNG-Beweisen und null Console-Fehlern. Evidence liegt unter `.codex/runs/CURRENT/phase6/frontend-local` und `.codex/runs/CURRENT/phase6/frontend-hosted`; diese Basis kreditiert die ersten vier Rubrikbloecke bis `32%`.
+- **T1 Production-Betriebsreparatur (2026-07-20):** Das vollstaendig gruene Preview-Gate auf Source `21913f8c3ef13949ca962980c143e757ca87a7cc` und Archiv-SHA-256 `314bd1d9c7830dc5ac9077398025fed4ab48041b31fefae491916e838d5f7080` erlaubte den freigegebenen Aliaswechsel. Preview bestand 44/44 Chrome-Klicks, acht ehemalige 500er mit HTTP `200`, `npm run verify`, `npm run verify:runtime` und exakte Vercel-Metadaten. Production wurde danach erneut gemessen: 32/32 Read-Endpunkte HTTP `200`, 44/44 Chrome-Klicks, Overflow/Overlay/Console jeweils `0`. Evidence: `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`. Dies war ein Betriebs-Deploy zur Fehlerbehebung, keine Release-Candidate-Promotion; Manifest bleibt `84%` und `MARKET_READY:false`.
+- **Aktueller gehosteter Frontend-Abschlussbeweis (Read-only-Refresh 2026-08-01):** `frontend-hosted-current-proof-v1` bindet den aktuellen Production Alias an READY Deployment `dpl_5uLu9a2BpEBb5BDPiuqRtyfkSFY1` und die von Vercel attestierte Git-Source `67f41cecf38de109e762632ed971c9a7fdaff6ba`; fuer diesen Git-integrierten Redeploy ist kein Archivhash attestiert und keiner wird erfunden. Echtes Google Chrome `148.0.7778.96` oeffnete alle 22 kanonischen Routen durch 44 Command-Palette-Klicks bei `1440x960` und `390x844`; alle Layout-/Console-Zaehler blieben null. READY/Target, immutable Host, Alias-Zuordnung, uebereinstimmende Git-SHA-Felder sowie bytegleiche Root-/Wiring-Inhalte sind verifiziert; der dauerhafte Sweep umfasst 32 HTTP-200-Reads inklusive aller acht ehemaligen 500er. Frontend bleibt `100%`; Overall bleibt `89%`. Dies war nur eine Read-only-Neubindung an den bereits aktiven Alias, kein Deploy und keine RC11-Hosted-Paritaet.
+- **Aktueller gehosteter Backend-Contract-Origin-Beweis:** `backend-hosted-current-proof-v1` bindet Production Deployment `dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2` explizit an die historische T1-Source `21913f8c3ef13949ca962980c143e757ca87a7cc` und Archiv-SHA-256 `314bd1d9c7830dc5ac9077398025fed4ab48041b31fefae491916e838d5f7080`. Authentifizierte Vercel-Metadaten belegen `READY`, Target `production`, Alias-Zuordnung und exakte Source-/Archivwerte. Die immutable URL bleibt deployment-geschuetzt; der Production Alias belegt External Gates `5/6 action_required`, Summary `blocked`, Blocker `fly_cloud_stack`, MCP/LLM `healthy`, Agent API erwartungsgemaess `degraded` sowie POST `503 stateless_contract_origin_read_only`. Dies ist kein stateful Docker-Backend und kein Gesamtplattform-Release.
+- **Aktueller lokaler Phase-6-Kamera-/Licht-Beweis:** `phase6-3d-camera-lighting-runtime-v1` bindet drei angewendete Kamera-Presets, FOV 38/45/58, Studio/Nacht/Morgen-Lichtprofile, Exposure 0.72..1.18, Reset und Runtime-State-Overlay. Der Chromium-Beweis klickt alle Zustandsklassen, prueft echte Three.js-Datenattribute, beide Exposure-Grenzen, ein nichtleeres PNG, keine XHR/fetch-Aufrufe waehrend der Steuerung und null Console-Fehler. Evidence: `.codex/runs/CURRENT/phase6/camera-lighting-local`. Dies erhoeht Phase 6 von `32%` auf `40%` und Overall auf `76%`. DEV-ONLY; kein Shader-Hotload, Asset-Fetch, Provider-Write, Deploy oder Production-Claim.
+- **Aktueller lokaler Phase-6-Gameplay-State-Beweis:** `phase6-3d-gameplay-state-runtime-v1` bindet `collect -> checkpoint -> survive -> collect`, Score-Schritte, Checkpoint-Zaehler, Completion-/Input-Zaehler, einen pausensicheren Sekundentakt, Button-/`G`-Paritaet, Reset und angewendete Three.js-Datenattribute. Der Chromium-Beweis klickt und tippt den ganzen Zyklus, friert den Tick waehrend Pause ein, prueft Resume und stabilen Reset, ein nichtleeres PNG, keine XHR/fetch-Aufrufe und null Console-Fehler. Evidence: `.codex/runs/CURRENT/phase6/gameplay-state-local`. Dies erhoeht Phase 6 von `40%` auf `48%` und Overall auf `77%`. DEV-ONLY; kein Multiplayer, Server-Sync, Physics-Engine, Provider-Write, Deploy oder Production-Claim.
+- **Aktueller lokaler Phase-6-Asset-Policy-Beweis:** `phase6-3d-asset-policy-runtime-v1` bindet drei allowlist-basierte prozedurale Three.js-Primitive (`cube`, `beacon`, `ring`), drei lokale Materialvarianten, Reset, sichtbares Manifest und angewendete Runtime-Datenattribute. Der Chromium-Beweis schaltet alle Profile und Materialien, prueft den Reset, ein nichtleeres PNG, null XHR/fetch und null Console-Fehler. Evidence: `.codex/runs/CURRENT/phase6/asset-policy-local`. Dies erhoeht Phase 6 von `48%` auf `56%` und Overall auf `78%`. DEV-ONLY; kein externer Asset-Fetch, Upload, CDN, Asset-Pipeline-Service, Provider-Write, Deploy oder Production-Claim.
+- **Aktueller lokaler Phase-6-Save/Load-Beweis:** `phase6-3d-save-load-runtime-v1` erfasst exakt 15 allowlist-basierte Kamera-, Licht-, Gameplay- und Asset-Felder in einem fluechtigen React-State-Slot. Der Chromium-Beweis prueft Load-disabled, Save, Zustandsmutation, vollstaendigen Restore in UI und Three.js, Clear, Reload-Verlust, ein nichtleeres PNG, null XHR/fetch und null Console-Fehler. Evidence: `.codex/runs/CURRENT/phase6/save-load-local`. Dies erhoeht Phase 6 von `56%` auf `64%` und Overall auf `80%`. DEV-ONLY; kein LocalStorage, IndexedDB, Cookie, Cache, Cloud-Sync, Upload, Server-Write, Deploy oder Production-Claim.
+- **Aktueller lokaler Phase-6-Netcode-Loopback-Beweis:** `phase6-3d-netcode-loopback-runtime-v1` bindet eine fluechtige Zwei-Peer-Session, Host-/Guest-Ready-Barriere, manuelle deterministische Lockstep-Ticks, monotone Paketfolge, sofortiges Disconnect-Fail-Closed und einen prozeduralen Three.js-Guest-Marker. Der Chromium-Beweis prueft Create, Join, Ready, Start, zwei Ticks (`ticks=2`, `packets=5`, `sequence=5`), Disconnect, Close, ein nichtleeres PNG, null Fetch/XHR/WebSocket und null Console-Fehler. Evidence: `.codex/runs/CURRENT/phase6/netcode-local`. Dies erhoeht Phase 6 von `72%` auf `80%` und Overall auf `82%`. DEV-ONLY; kein Remote-Transport, WebSocket, WebRTC, Matchmaking, Public Lobby, Server-Sync, Deploy oder Production-Claim.
+- **Aktueller lokaler Phase-6-Scoreboard-/Performance-Beweis:** `phase6-local-scoreboard-performance-runtime-v1` bindet ein fluechtiges Top-3 aus echten Gameplay-Snapshots und eine gebundene 12-Sample-Klassifikation der vorhandenen Renderer-Statistik. Chromium belegte `L003,L004,L002`, Reset und Reload-Verlust, zwoelf positive Samples, neu berechnete Mittelwerte, 1024 sichtbare Pixelproben, 118 Farbbuckets sowie null Netzwerk-, Storage-, IndexedDB-, Cache-, Service-Worker-, Beacon-, WebSocket-, WebRTC-, Cookie- und Console-Zugriffe. Der beobachtete DEV-Container-Wert klassifizierte ehrlich `fail` (`3.4 FPS`, `298.6 ms` abgeleitetes Frame-Intervall); dies ist kein GPU-Benchmark oder Performance-Erfolgsclaim. Evidence: `.codex/runs/CURRENT/phase6/scoreboard-performance-local`. Dies erhoeht Phase 6 von `80%` auf `90%` und Overall von `82%` auf `84%`; Frontend bleibt `99%`. DEV-ONLY; kein Sync, persistenter Speicher, Telemetry-, Scale-, Capacity-, Deploy- oder Production-Claim.
+- **Aktueller lokaler Orchestrator-Completion-Beweis:** `orchestrator-completion-evidence-v1` bindet drei frische LangGraph-Runs: einen vollstaendigen Planner/Coder/Tester/DevOps-Erfolg mit Aggregation und dry-run LLM-Streaming, einen Policy-Hard-Stop fuer `production deploy` plus `merge main` ohne Task-/MCP-Ausfuehrung und einen kontrollierten Tester-MCP-Timeout als terminale Partial-Failure. PostgreSQL-Checkpoints und korrelierte Audit-Events wurden fuer die Runs gelesen; Chromium lud den Read-only-Contract durch einen echten Klick in `/diagnostics`. Evidence: `.codex/runs/CURRENT/orchestrator/completion-local`, Screenshot 164195 Bytes. Dies erhoeht Orchestrator / LangGraph von `99%` auf `100%`; Overall und horizontale Phasen bleiben unveraendert. DEV-ONLY; keine Live-Provider-Calls, Live-MCP-Writes, Provider-Writes, Secrets oder Production-Aktion.
+- **Aktueller lokaler Phase-5-Production-Candidate-Beweis:** `phase5-production-candidate-local-v1` requalifiziert RC11 `prod-candidate-2026-07-31-local-rc11` aus dem Git-Archiv von `bae3cdc1692e1e99e7f546f72664a3c747958b8c`; Rollback-Ziel bleibt der letzte verifizierte RC10-Source-Stand. Frontend, Agent API, Agent Worker, Memory Worker, MCP Gateway und LLM Gateway bestanden lokale Image-ID-, OCI-Revision-, eingebettete Source-Hash-, Next.js-`BUILD_ID`- und read-only API-Pruefungen sowie einen echten Diagnostics-Chromium-Klick. Die getrennten Runtime-, Browser-, Candidate-Image-, Candidate-Runtime- und Security-Ketten sind mit echten SHA-256-Werten belegt. Ergebnis: `candidate_technical=true`, `runtime_source_parity=true`, `promotion_eligible=false`, kanonisch `blocked`. Phase 5 und Overall stehen evidenzbasiert bei `89%`; I1 `hosted_candidate_parity` und I5 `production_auth_identity` bleiben Owner-blockiert. DEV-ONLY; hosted proof still blocked. GHCR-Tags sind unveroeffentlicht; Owner-Freigabe, Deploy und Promotion bleiben false.
+- **Aktueller lokaler Phase-3-CSP-Beweis:** `csp-report-contract-v1` exponiert den same-origin Sink `POST /api/v1/security/csp/report` mit 16-KB-Grenze, Content-Type-Guard, allowlist-basierter Redaktion, Query-/Fragment-Entfernung und fail-closed Audit-Persistenz. `scripts/verify-phase3-csp-report-contract.ps1` bestand inklusive 413/415/422-Negativpfaden; `apps/frontend/e2e/phase3-csp-report.spec.ts` klickte auf `/diagnostics` den CSP-Vertrag und belegte sichtbar HTTP `200`. Screenshot: `.codex/runs/CURRENT/phase3/csp-report-contract/diagnostics-csp-report-contract.png`. Dies erhoeht Phase 3 auf `41%`. DEV-ONLY; kein Hosted-, Provider-, MCP-, Deploy- oder Production-Claim.
+- **Aktueller lokaler Phase-3-CSRF-Beweis:** `csrf-origin-guard-v1` schützt unsichere `/api/`-Methoden mit Fetch Metadata und exaktem Origin-Abgleich. Ein echter Chromium-POST gleicher Herkunft liefert `200`; Cross-Site, Origin-Mismatch und `Origin: null` liefern jeweils `403`, werden redigiert auditiert und persistieren weder Raw-Origin noch Credentials. Evidence: `.codex/runs/CURRENT/phase3/csrf-origin-guard`. Dies erhoeht Phase 3 von `41%` auf `42%`; Overall bleibt gerundet `82%`. DEV-ONLY; kein Hosted-OAuth-, Provider-, Deploy- oder Production-Claim.
+- **Aktueller lokaler 22x2-Responsive-Beweis:** `npm run verify:responsive` navigiert per echter Command-Palette durch alle 22 kanonischen Routen bei Desktop `1440x960` und Mobile `390x844`. Der Nachweis umfasst 44 Routenklicks, vier PNGs, `overflow_failures=0`, `console_errors=0`, eine mobile Command-Palette, einspaltige Organismus-/Datei-Grids, begrenzte Tabellen und aspect-ratio-sensitives 3D-Framing. Evidence: `.codex/runs/CURRENT/frontend/responsive-22/report.json`. Dies erhoeht Frontend von `97%` auf `99%`; Overall bleibt `82%`. DEV-ONLY; kein Hosted-, Deploy-, Release- oder Production-Claim.
+- **Aktueller lokaler Cross-Origin-Response-Beweis:** `cross-origin-response-guard-v1` erzwingt `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin` und `X-Permitted-Cross-Domain-Policies: none` auch auf Fehlerantworten. Ein untrusted `Origin` wird nicht als CORS-Freigabe reflektiert; Diagnostics lädt den Vertrag per echtem Chromium-Klick. Evidence: `.codex/runs/CURRENT/phase3/cross-origin-response-guard`. Dies erhoeht Phase 3 von `42%` auf `43%`; Overall bleibt `82%`. DEV-ONLY; kein Provider-, MCP-, State-, Deploy- oder Production-Write.
+- **Aktueller lokaler Auth-Session-Integrity-Beweis:** `auth-session-integrity-v1` ersetzt den frei akzeptierten Session-Cookie und den optionalen GitHub-Schreibpfad durch eine HMAC-SHA256-signierte, ablaufende `__Host-`-Session. Konstante Signaturpruefung, kanonische Base64url-Darstellung, Expiry/Future-IAT, Provider-Allowlist, Cookie-Loeschung und externe Write-Sperre sind durch vier Node-Faelle, tokenfreien HTTP-Prober und echten Chromium-Login/Tamper-Test belegt. Evidence: `.codex/runs/CURRENT/phase3/auth-session-integrity`, Screenshot 79434 Bytes. Dies erhoeht Phase 3 von `43%` auf `44%`; Overall bleibt `84%`. DEV-ONLY; keine OAuth-Identitaet, kein Provider-, Datenbank-, MCP-, Deploy- oder Production-Write.
+- **Aktueller lokaler Memory-Worker-Secret-Guard-Beweis:** `memory-worker-secret-guard-v1` prueft Working-Memory-Text sowie Schluessel und Werte verschachtelter Metadaten rekursiv vor jeder Persistenz. Ein nur in tiefen Metadaten erzeugter Credential-Testwert wurde ohne Memory-Row und ohne Rohwert im Audit blockiert; der Redis-Key wurde konsumiert, ein redigiertes `memory_consolidation_blocked`-Audit persistiert und sichere Nested-Metadaten weiterhin konsolidiert. Evidence: `.codex/runs/CURRENT/memory/worker-secret-guard/report.json`. Dies erhoeht Memory von `72%` auf `73%`; Overall bleibt `84%`. DEV-ONLY; kein Live-Embedding-, Provider-, MCP-, Deploy- oder Production-Claim.
 - **Aktueller lokaler Zusatzbeweis:** `workspace-data-sources-v1` ist jetzt als Guard in `scripts/verify-workspace-data-sources.ps1`, `scripts/verify-browser-contract.ps1` und `scripts/verify-phase1.ps1` eingebunden. Die falschen Singular-Refs `/api/v1/model-capabilities` wurden in Frontend-Wiring und Agent-API-Mirror auf `/api/v1/models/capabilities` korrigiert. `GET /api/v1/files/local/contract` existiert jetzt als read-only Agent-API-Contract ohne Host-Filesystem-Mount, ohne Live-Filesystem-Reads, ohne Writes und ohne Secret Output. DEV-ONLY Runtime-Proof: `api_refs=32`, Browser-Contract gruen.
 - **Aktueller lokaler Boundary-Beweis:** `scripts/verify-platform-ui-status-boundary.ps1` trennt Produkt-/Workbench-Flächen von Projektstatus-/Gate-/Manifest-Oberflächen. Home, Workbench, Games, Apps, Media, Docs-Output und AppShell duerfen keine `fetchProgress`, `fetchMasterPlan`, `fetchCompletionGate`, `MANIFEST`, `/api/v1/project/progress`, `overall_percent`, `Project Progress`, `Projektstand`, `Completion-Gate`, `Workspace-Surfaces`, `Gate-Matrix`, `Recovery-Historie` oder Go-Live-/External-Gate-Audit-Marker rendern/importieren. Runtime-Proof: `product_surfaces=7`, `routes=6`, Browser-Contract gruen.
-- **Aktueller lokaler LLM-Beweis:** `GET /llm/api/v1/responses/contract` liefert jetzt `llm-responses-adapter-contract-v1` mit `llm_responses_adapter_contract_visible`. `POST /llm/v1/responses` gibt Responses-kompatibel `output`, `output_text`, `trace_id`, `live_provider_calls=false`, `model_downloads=false` und `audit_persisted=true` zurueck; `stream=true` fail-closed mit HTTP `501`, nicht-strukturierte `metadata` mit HTTP `422`. `scripts/verify-llm-responses-contract.ps1` ist in `npm run verify:browser` und `scripts/verify-phase1.ps1` eingebunden. DEV-ONLY; kein Live-Provider-Call, kein lokaler Model-Download, kein Hosted-Proof, keine Prozentsteigerung.
-- **Aktueller lokaler Live-Agent-Beweis:** `GET /api/v1/live-agents/contract`, `POST /api/v1/live-agents/steer`, `POST /api/steer-agent`, `GET /api/v1/live-agents/status` und `POST /api/v1/live-agents/{agent_id}/reset` sind jetzt ueber `live-agent-steering-v1` abgesichert. Steering-Antworten spiegeln `trace_id`, `llm_gateway_contract_version=llm-responses-adapter-contract-v1`, `live_provider_calls=false`, `model_downloads=false`, `audit_persisted=true` und `secret_output=false`. `scripts/verify-live-agent-steering-contract.ps1` prueft Runtime, Session-State, Kompatibilitaetsroute, Audit-Trace, `unknown agent -> 404` und `empty message -> 422`; der Guard ist in Browser-Contract und Phase1 eingebunden. DEV-ONLY; kein Live-Provider-Call, kein Hosted-Proof, keine Prozentsteigerung.
+- **Aktueller lokaler LLM-Beweis:** `GET /llm/api/v1/responses/contract` liefert `llm-responses-adapter-contract-v2` mit `openai-responses-sse-v1`. `POST /llm/v1/responses` emittiert bei `stream=true` geordnete Responses-native Events mit monotonichem `sequence_number`, mindestens zwei Text-Deltas, exakter Rekonstruktion und terminalem `response.completed` ohne Chat-Completions-`[DONE]`. Audit wird vor SSE persistiert; Fehler liefern HTTP `503` ohne Completion. Instructions werden als Systemkontext genutzt, `previous_response_id` wird in einem auf 64 Eintraege/1800 Sekunden begrenzten Prozessspeicher wirklich aufgeloest, und Eingabe/Metadaten/Output-Tokens/Output-Text bleiben bounded. Unit 9/9 und `scripts/verify-llm-responses-contract.ps1` inklusive Runtime-Kontinuitaet sind gruen (Trace `llm-responses-contract-6414d2cef5034562bccaee730feb964f`). DEV-ONLY; hosted proof still blocked; kein Live-Provider-Call, Model-Download, Deploy oder Prozentanstieg.
+- **Aktueller lokaler Live-Agent-Beweis:** `live-agent-steering-v1` bindet an `llm-responses-adapter-contract-v2`. Request-Metadaten koennen weder `trace_id`, Rollen-/Projektkorrelation, Gateway-Routing noch `live_provider_calls_allowed` setzen; diese Faelle liefern HTTP `422`. Ein nach Gateway-Neustart abgelaufener Kontext loescht den stale Redis-Pointer, wird exakt einmal ohne `previous_response_id` wiederholt und meldet `continuity_reset=true`. Agent-API-Unitfaelle 26/26 und der fokussierte Runtime-Verifier bestanden inklusive Session, Kompatibilitaetsroute, Audit-Trace und Negativfaellen (Trace `trace-b531e01f-bdab-4ddb-ab25-9a357aee9abe`). DEV-ONLY; hosted proof still blocked; kein Live-Provider-Call, Deploy oder Prozentanstieg.
+- **Aktueller lokaler L5-Dateilesebeweis:** `filesystem-project-progress-read-v1` fuehrt exakt einen festen DEV-ONLY Read der read-only ins MCP-Image kopierten `docs/project-progress.manifest.json` aus. Caller-Pfade/Dateinamen/Operationen sind nicht Teil des Vertrags; ein einzelner `O_NOFOLLOW`-Descriptor, 65536-Byte-Grenze, striktes UTF-8/JSON/Schema, exakte `phase_0..6`-/`layer_1..7`-IDs und die Ausgabe-Allowlist `{id,percent}` blockieren Drift. MCP-Audit vor/nach dem Read teilt Trace/Tool-Request/Run/Session; die Agent API liest beide Events und den Source-Hash vor ihrem eigenen Audit zurueck. Nginx und Vercel-ASGI liefern fuer `/mcp/internal/` `404`; I/O-, Audit-, Trace-, Identity-, Symlink-, Write-Bit-, Oversize- und Schemafehler liefern kein Ergebnis. Fokussiert gruen: MCP `11` Tests (ein Windows-Symlink-Skip), Agent `8/8`, `10/10` Container, Runtime-Verifier und echter Chromium-Klick `1/1`. DEV-ONLY; hosted proof still blocked; kein allgemeiner Filesystem-Zugriff, MCP-Write, Direct-/Live-Provider-Call, Secret-, Deploy- oder Prozentclaim. Overall bleibt `89%`, MCP Gateway `56%`.
+- **Aktueller serieller Browser-/O4-Nachlauf:** Nach `scripts/start-dev-live.ps1` bestanden der Browser-Contract, `product-acceptance-3d-game-v1` und `22-page-action-acceptance-v2` in echter Chromium-Ausfuehrung. Der Produktlauf erzeugte exakt einen persistierten/auditierten Cloudflare-Workers-AI-Build und bestand WebGL-, Tastatur- und Reload-Beweis ohne Mock, Interception, Direct-Provider-Bypass, MCP-Write, Konsolen- oder Seitenfehler (Report `.codex/runs/CURRENT/product-acceptance/report.json`, SHA-256 `660A722E6DFF8D7C00B1952CABF3555175C6E7A6259CBE8B9388D65CFA1788BE`). Die Aktionsmatrix bestand `22/22` Routen, `29/29` Familien und `161/161` Member (`160` direkte Effekte + exakt ein P0-Beweis), mit `0` toten/unregistrierten/Click-only/Non-direct-Paessen, `2/2` erlaubten Live-Provider-Buildantworten sowie `0` unerwarteten Provider-, Konsolen- oder Seitenfehlern (Report `.codex/runs/CURRENT/22-page-actions/report.json`, SHA-256 `C6DBEB3561294FE4DE68FF5AAA3DDC2F7E223C4E2DBEFC263856753BA8C29AEA`). Der aufrufende Tool-Wrapper erreichte nach 30 Minuten sein eigenes Zeitlimit, waehrend der Kindprozess kontrolliert bis zu diesen gruenen Reports weiterlief; deshalb ist dies kein Claim fuer den Exitcode des gesamten `npm run verify:browser`. Nach dem L5-Slice wurden der echte O4-Browserkanal, der Runtimekanal und die kombinierte Promotion erneut source-gebunden an `1e15b308b59ecf4f541891587cddc71b21916f55`; Audit-before/after/readback sowie Audit-Failure-Rollback waren gruen, Secret-/Main-/Provider-/Production-Write blieben false (Evidence `.phase1-artifacts/o4-live-writes/proof.json`, SHA-256 `91D1653F14A0CD072EAA67A7D3BD8349E300A11E8ACFBB5E3A78FD28D2F2FFA0`). DEV-ONLY; hosted proof still blocked; keine Prozentsteigerung.
 
 ## PROJEKT-IDENTITÄT
 
@@ -34,7 +579,7 @@ Letzte Aktualisierung: 2026-06-11 04:00 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 70%
+## AKTUELLER FORTSCHRITT: 89%
 
 ### Horizontal (nach Priorität)
 
@@ -42,23 +587,23 @@ Letzte Aktualisierung: 2026-06-11 04:00 Uhr
 |------|--------|
 | P0   | 100%   |
 | P1   | 100%   |
-| P2   | 86%    |
-| P3   | 40%    |
-| P4   | 99%    |
-| P5   | 67%    |
-| P6   | 0%     |
+| P2   | 100%   |
+| P3   | 44%    |
+| P4   | 100%   |
+| P5   | 89%    |
+| P6   | 90%    |
 
 ### Vertikal (nach Modul)
 
 | Modul         | Status |
 |---------------|--------|
-| Frontend      | 97%    |
-| Orchestrator  | 99%    |
-| Agent Pool    | 68%    |
-| LLM Gateway   | 54%    |
-| MCP Gateway   | 55%    |
-| Memory        | 72%    |
-| Observability | 99%    |
+| Frontend      | 100%   |
+| Orchestrator  | 100%   |
+| Agent Pool    | 100%   |
+| LLM Gateway   | 55%    |
+| MCP Gateway   | 56%    |
+| Memory        | 100%   |
+| Observability | 100%   |
 
 ## LAUFENDE DOCKER-CONTAINER (cloud-superbrain-phase1-dev)
 
@@ -68,34 +613,115 @@ Letzte Aktualisierung: 2026-06-11 04:00 Uhr
 - frontend (healthy)
 - mcp-gateway (healthy)
 - llm-gateway (healthy)
+- local-llm (healthy)
 - agent-worker (healthy)
 - memory-worker (healthy)
 - postgres (healthy)
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Cloud-Gates echt oeffnen** — echte HTTPS-`STAGING_BASE_URL` bereitstellen, die drei Fly-Origin-Apps erreichbar machen oder explizite `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, `LLM_GATEWAY_BASE_URL` setzen, dann `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-all-gates-with-tokens.ps1` erneut laufen lassen.
-- Danach weitere `P5`-Slices statt Rollout; `production_deploy_claim_allowed=true` ist weiterhin kein Deployment-Nachweis.
-- Localhost bleibt nur `DEV-ONLY`; Hosted-Proof muss HTTPS und non-localhost sein.
+- **A1–A5:** abgeschlossen; keine Prozent- oder Gate-Aenderung.
+- **A6:** Gate-Derivation, Candidate-/Manifest-Freshness und atomare Endpoint-Snapshot-
+  Metadaten sind lokal implementiert und fokussiert gruen. Der echte Manifest-Guard bleibt
+  bis zum neuen Kandidatenfreeze absichtlich rot.
+- **Jetzt:** exakte A6-Pfade ohne das fremde
+  `.codex/runs/CURRENT/product-acceptance/report.json` committen, Feature-Branch pushen und
+  Branch-CI lesen. Danach RC23 aus der finalen Source qualifizieren: Candidate-Images,
+  Runtime, Browser mit 22 Seiten/O4, Candidate-Runtime und Security; anschliessend
+  Source-Attestation und separater Selection-Commit.
+- **Grenze:** Localhost bleibt `DEV-ONLY`; weder `main`, GHCR, Production, OAuth,
+  Live-Provider, Release-Promotion noch Secret-/Permission-Aenderungen ohne Owner-Gate.
 
 ## ZULETZT ABGESCHLOSSEN
 
+**Fixed DEV-ONLY Filesystem Project Progress Read** - Der Agent-Pfad `POST /api/v1/tools/read-only/execute` akzeptiert fuer diesen Adapter nur `tool_id=filesystem_project_progress` und `query=canonical-project-progress`. Das MCP-Gateway liest ausschliesslich die image-baked, nicht schreibbare Projektfortschrittsdatei, persistiert korrelierte Audit-Events vor und nach dem Read und gibt nur Prozentprojektion, Datum, Source-Hash und Bytezahl frei. Agent-Audit-Readback, Nginx-/Vercel-`404`, I/O-Fail-Closed und ein echter `/tools`-Chromium-Klick sind fokussiert gruen. Vertrag: `docs/runtime-contracts/mcp-filesystem-project-progress-contract.md`; Verifier: `scripts/verify-mcp-filesystem-project-progress.ps1`. L5 bleibt `56%`, Overall `89%`; DEV-ONLY; hosted proof still blocked.
+
+**Phase 5 RC11 Five-Chain Qualification** - RC11 `prod-candidate-2026-07-31-local-rc11` ist an Source `bae3cdc1692e1e99e7f546f72664a3c747958b8c` gebunden. Die getrennten Ketten `runtime`, `browser`, `candidate_images`, `candidate_runtime` und `security` bestanden mit echten SHA-256-Bindungen; sechs Clean-Archive-Images, Runtime-Source-Paritaet, echter Diagnostics-Chromium-Klick, voller Browservertrag, npm audit und kanonischer Gitleaks-Pfad sind belegt. Die 19er-Rubrik schreibt `17 JA / 2 NEIN = 89%` gut; P5 steigt `68% -> 89%`, Overall `86% -> 89%`. Exakt I1 `hosted_candidate_parity` und I5 `production_auth_identity` bleiben Nullcredit/Owner-blockiert. DEV-ONLY; hosted proof still blocked. Kein Registry-Push, keine Owner-Freigabe, kein Deploy und keine Release-Promotion.
+
+**Hosted Semantic Vector Memory O5** - D1-Lexik und echte Vektorsuche bleiben getrennte Capability-Slices. Das Gate ist durch den freien hosted `cloudflare_vectorize`-Roundtrip verifier-geöffnet; der statische Guard bindet Evidence-SHA, positive Hosted-Felder und alle fail-closed Negativfälle. Evidence: `.phase1-artifacts/live-vector-memory-search-proof.json` und `.phase1-artifacts/vector-memory-gate-proof.json`. Memory `90% -> 100%`, Overall bleibt `86%`; kein D1-Doppelcredit, kein R2/Paid/Production-Claim.
+
+**Phase-3 Auth Credential-Issuance Fail-Closed** - Der lokale Ersatzbeweis bestand 19 Unit-Tests, echte Redis-Konkurrenz, HTTP-Negativpfade sowie die drei seriellen Gesamt-Gates. Alte RC1-Issuance-Claims sind sicherheitsinvalidiert und superseded; P3 bleibt ohne Doppelcredit `44%`. Evidence: `.codex/runs/CURRENT/phase3/auth-fail-closed/report.json`. DEV-ONLY; hosted proof still blocked.
+
+**Phase 2 PostgreSQL Checkpoint Restart Recovery** - Der Vollverifier belegte einen abgeschlossenen LangGraph-Checkpoint vor und nach einer echten `agent-api`-/`nginx`-Recreation mit identischem `thread_id`, PostgreSQL-Backend und terminalem Zustand. Der Compose-Healthcheck wurde fuer die reale aggregierte Health-Latenz gehaertet; fokussierter Recreate-Probe und `npm run verify:runtime` sind gruen. Evidence: `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`. Fortschritt: Phase 2 `86% -> 100%`, Overall `84% -> 86%`. DEV-ONLY; kein Hosted-, Provider-, MCP-Write-, Deploy-, Release- oder Production-Claim.
+
+**T1 Production Operational Repair** - Clean-Archive-Previews aus Source `21913f8c3ef13949ca962980c143e757ca87a7cc` bestanden das vierteilige Gruen-Gate. Danach wurden Frontend und read-only Backend Contract Origin auf Production promoviert. Production belegte 32/32 HTTP-200-Reads, alle acht ehemaligen HTTP-500-Routen, 44/44 Chrome-Klicks bei zwei Viewports sowie null Overflow-, Overlay- und Console-Fehler. Vercel-Metadaten und Archivhash stimmen exakt; alte Deployments bleiben dokumentierte Rollback-Ziele. Evidence: `.codex/runs/CURRENT/master-goal/production/t1-21913f8c`. Overall bleibt `84%`; Betriebs-Deploy, keine Release-Candidate-Promotion und kein stateful Full-Platform-Release.
+
+**Current Hosted Frontend 22x2 Google Chrome Proof** - Der Production Alias ist unter `frontend-hosted-current-proof-v1` an READY Deployment `dpl_5uLu9a2BpEBb5BDPiuqRtyfkSFY1` und Vercel-Git-Source `67f41cecf38de109e762632ed971c9a7fdaff6ba` gebunden; kein nicht attestierter Archivhash wird behauptet. Google Chrome `148.0.7778.96` bestand 22 Desktop- und 22 Mobile-Routen mit 44 echten Command-Palette-Klicks, vier PNGs und allen Fehlerzaehlern null; immutable Deployment und Production Alias sind fuer Root und Workspace-Wiring bytegleich. Der integrierte 32-Read-Sweep umfasst alle acht ehemaligen 500er. Evidence: `.codex/runs/CURRENT/master-goal/production/t1-67f41cec`. Frontend bleibt `100%`; Overall bleibt `89%`; Read-only-Refresh, kein Deploy, keine RC11-Hosted-Paritaet und kein Release-Claim.
+
+**Phase 5 Current Candidate Requalification (Detail)** - RC11 baut sechs Produktionsziele ausschliesslich aus seinem gebundenen Git-Archiv. `npm run verify:phase5-candidate-local` revalidiert lokale Image-IDs, OCI-Labels, eingebettete Source-Hashes, Frontend-`BUILD_ID`, Runtime-Source-Paritaet, RC10 als Rollbackziel, den read-only API-Vertrag und einen echten Diagnostics-Chromium-Klick. Die getrackte Readiness-Evidenz bindet CI-, Static-, Runtime-, Browser-, Security- und Image-Nachweise per SHA-256. Die 19er-Rubrik schreibt `17 JA / 2 NEIN = 89%` gut; P5 und Overall stehen bei `89%`. I1/I5 bleiben Owner-blockiert. DEV-ONLY; hosted proof still blocked. Kein Registry-Push, keine Owner-Freigabe, kein Deploy und keine Release-Promotion.
+
+**Phase 5 Candidate Boundary Hardening** - Der technische Current-Candidate-Verifier ist nicht mehr von einer geerbten historischen `sslip.io`-Umgebung abhaengig. Ohne explizite gueltige Staging-URL nutzt er ausschliesslich den verifizierten read-only Backend-Contract-Origin aus `docs/runtime-state/backend-hosted-current.json`; dessen `read_only_contract_origin=true`, `stateful_backend_verified=false` und `production_release_claimed=false` werden vor jedem HTTP-Read erzwungen. Der immutable PlanOnly-Check setzt isolierte synthetische Hostwerte und kann nicht mehr durch alte Provider-Variablen verfaelscht werden. Der fokussierte Lauf bestand ohne `STAGING_BASE_URL` sowie mit geerbter retired URL; eine explizite retired URL blieb hart blockiert. Ergebnis: `candidate_technical=true`, `promotion_eligible=false`, kanonisch `blocked`. Phase 5 und Overall bleiben unveraendert; kein Deploy, Registry-Push oder Provider-Write.
+
+**Orchestrator / LangGraph Completion Evidence** - `npm run verify:orchestrator-completion` bestand gegen die neu gebauten DEV-Container. Der Gate fuehrte einen vierrolligen Erfolgsgraphen, einen Policy-Hard-Stop und einen kontrollierten MCP-Timeout frisch aus, korrelierte PostgreSQL-Checkpoints und Audits und bestand den echten Diagnostics-Chromium-Klick (`1 passed`, PNG 164195 Bytes). Der integrierte Abschluss bestand zusaetzlich `npm run verify`, `npm run verify:runtime`, `npm run verify:browser`, Frontend-Lint und einen isolierten Production-Build mit TypeScript plus 21/21 statischen Seiten. Der Browserlauf umfasste 22 Routen, zwei Viewports und 44 Klicks; ein timing-abhaengiger Scoreboard-Test wurde auf die erlaubten manuellen und terminalen Timeout-Pfade gehaertet. Evidence: `.codex/runs/CURRENT/orchestrator/completion-local/report.json`. Fortschritt: Orchestrator `99% -> 100%`; Overall bleibt `84%`, horizontale Phasen bleiben unveraendert. `verify:market-ready:static` endet weiterhin ehrlich mit `MARKET_READY: false`. DEV-ONLY; kein Hosted-, Live-Provider-, Live-MCP-Write-, Deploy-, Release- oder Production-Claim.
+
+**Phase 6 Local Scoreboard And Performance Classification** - vier reale Gameplay-Snapshots wurden deterministisch auf Top 3 begrenzt; Reset und Reload-Verlust beweisen fluechtigen Zustand. Eine echte 12-Sample-Stichprobe klassifizierte den headless DEV-Container ehrlich als `fail` bei `3.4 FPS` und `298.6 ms` abgeleitetem Frame-Intervall. Der Beweis enthaelt rekalkulierte Mittelwerte, 1024 sichtbare Pixelproben, 118 Farbbuckets und ausschliesslich Nullwerte fuer Netzwerk-/Persistenz-Guards. Evidence: `.codex/runs/CURRENT/phase6/scoreboard-performance-local`. Fortschritt: Phase 6 `80% -> 90%`, Overall `82% -> 84%`; Frontend bleibt `99%`. DEV-ONLY; kein GPU-Benchmark-, Capacity-, Scale-, Sync-, Deploy- oder Production-Claim.
+
+**Phase 3 Cross-Origin Response Guard** — COOP/CORP und die Cross-Domain-Policy werden auf Erfolg und Fehlerantworten erzwungen; ein fremder Origin wird nicht als CORS-Freigabe reflektiert. Der Diagnostics-Vertrag wird per echtem Chromium-Klick mit PNG/JSON belegt. Fortschritt: Phase 3 `42% -> 43%`, Overall bleibt `82%`. DEV-ONLY; kein Provider-, MCP-, State-, Deploy- oder Production-Write.
+
+**Frontend 22x2 Responsive Click Proof** — alle 22 kanonischen Routen wurden bei `1440x960` und `390x844` durch echte Command-Palette-Klicks geoeffnet. Mobile Navigation, Organismus-Framing, Datei-Grids und Tabellen-Scrollgrenzen wurden dabei real repariert. Report: `.codex/runs/CURRENT/frontend/responsive-22/report.json`; 44 Klicks, Overflow 0, Console Errors 0, vier PNGs. Fortschritt: Frontend `97% -> 99%`, Overall bleibt `82%`. DEV-ONLY; Hosted-Proof bleibt separat blockiert.
+
+**Phase 3 CSRF Origin Guard** — Fetch-Metadata- und Origin-basierte Browsergrenze, redigierter Reject-Audit, schreibfreier Probe-Endpunkt und echter Diagnostics-Klick sind verifiziert. `npm run verify`, `npm run verify:runtime`, `npm run verify:browser`, Frontend-Lint und der Produktionsbuild mit 21/21 statischen Seiten sind gruen; gitleaks meldet keinen Fund. Evidence: `.codex/runs/CURRENT/phase3/csrf-origin-guard`. Fortschritt: Phase 3 `41% -> 42%`, Overall bleibt `82%`. DEV-ONLY; kein Hosted-OAuth-, Provider-, Deploy- oder Production-Claim.
+
+**Phase 6 3D Netcode Loopback Runtime** — eine deterministische Zwei-Peer-Browser-Session mit Ready-Barriere, manuellen Lockstep-Ticks, monotoner Paketfolge, Disconnect-Fail-Closed und Three.js-Guest-Marker ist verifiziert. Evidence: `.codex/runs/CURRENT/phase6/netcode-local`. `npm run verify`, `npm run verify:runtime`, `npm run verify:browser`, Frontend-Lint, Produktionsbuild mit 21/21 statischen Seiten, Manifest-Integritaet und gitleaks sind gruen; Lint meldet nur vier bereits bestehende Warnungen. Fortschritt: Phase 6 `72% -> 80%`, Overall `81% -> 82%`. DEV-ONLY; kein WebSocket, WebRTC, Matchmaking, Public Lobby, Server-Sync, Provider-, Deploy- oder Production-Claim.
+
+**Phase 6 3D Accessibility Runtime** — manueller und systemseitiger Reduced-Motion-Modus, semantischer 2D-Fallback, zehn Fokusziele, Pfeil-/Home-/End-/Enter-Navigation, Szenenfokus und Live-Status sind browserlokal verifiziert. Evidence: `.codex/runs/CURRENT/phase6/accessibility-local`. Fortschritt: Phase 6 `64% -> 72%`, Overall `80% -> 81%`. DEV-ONLY; kein Speech-, Telemetry-, Persistenz-, Provider-, Deploy- oder Production-Claim.
+
+**Phase 6 3D Save And Load Runtime** — der achte Phase-6-Rubrikblock ist als fluechtiger, browserlokaler Snapshot geschlossen:
+
+- `services/agent-api/app/main.py` exponiert `GET /api/v1/phase6/3d-save-load/contract` als `phase6-3d-save-load-runtime-v1` mit acht fail-closed Szenarien und 15 allowlist-basierten Feldern.
+- `OrganismView` setzt Save, Load, Clear, Disabled-State, Revision, sichtbaren Speicherstatus und vollstaendigen Restore der Kamera-, Licht-, Gameplay- und Asset-Zustaende um.
+- `apps/frontend/e2e/organism.spec.ts` prueft leeren Load-Pfad, Save, Mutation, Restore in UI/Three.js, Clear, Reload-Verlust, ein nichtleeres Canvas sowie null control-triggered XHR/fetch und null Console-Fehler.
+- `scripts/verify-phase6-3d-save-load-runtime.ps1` bindet Contract, Source, Manifest, Chromium und PNG zusammen; Static-, Runtime- und Browser-Verifier enthalten den Guard.
+- Fortschritt: Phase 6 `56% -> 64%`, Overall `78% -> 80%`; vertikale Werte bleiben unveraendert. DEV-ONLY; kein persistenter Browser-Speicher, Cloud-Sync, Upload, Server-, Provider-, MCP-, Deploy-, Release- oder Production-Claim.
+
+**Phase 6 3D Asset Policy Runtime** — der siebte Phase-6-Rubrikblock ist als prozedurale, browserlokale Allowlist geschlossen:
+
+- `services/agent-api/app/main.py` exponiert `GET /api/v1/phase6/3d-asset-policy/contract` als `phase6-3d-asset-policy-runtime-v1` mit acht fail-closed Szenarien und allen Non-Claims.
+- `OrganismView`, `CortexLive` und `CortexCanvas3D` setzen drei lokale Primitive, drei Materialvarianten, Reset, sichtbares Manifest und angewendete Runtime-Datenattribute um.
+- `apps/frontend/e2e/organism.spec.ts` schaltet alle Profile und Materialien, prueft Reset, ein nichtleeres Canvas sowie null control-triggered XHR/fetch und null Console-Fehler.
+- `scripts/verify-phase6-3d-asset-policy-runtime.ps1` bindet Contract, Source, Manifest, Chromium und PNG zusammen; Static-, Runtime- und Browser-Verifier enthalten den Guard.
+- Fortschritt: Phase 6 `48% -> 56%`, Overall `77% -> 78%`; vertikale Werte bleiben unveraendert. DEV-ONLY; kein externer Asset-Fetch, Upload, CDN, Pipeline-Service, Provider-, MCP-, Deploy-, Release- oder Production-Claim.
+
+**Phase 6 3D Gameplay State Runtime** — der sechste Phase-6-Rubrikblock ist als deterministische, browserlokale Zustandsmaschine geschlossen:
+
+- `services/agent-api/app/main.py` exponiert `GET /api/v1/phase6/3d-gameplay-state/contract` als `phase6-3d-gameplay-state-runtime-v1` mit acht fail-closed Szenarien und allen Non-Claims.
+- `OrganismView`, `CortexLive` und `CortexCanvas3D` setzen Objective-, Score-, Checkpoint-, Completion-, Input- und Tick-State, Pause/Resume/Reset, Button-/Tastatur-Paritaet, Runtime-Datenattribute und einen prozeduralen Ziel-Beacon um.
+- `apps/frontend/e2e/organism.spec.ts` klickt und tippt alle drei Uebergaenge, prueft den eingefrorenen Tick waehrend Pause, Resume, stabilen Reset, ein nichtleeres Canvas sowie null control-triggered XHR/fetch und null Console-Fehler.
+- `scripts/verify-phase6-3d-gameplay-state-runtime.ps1` bindet Contract, Source, Manifest, Chromium und PNG zusammen; Static-, Runtime- und Browser-Verifier enthalten den Guard.
+- Fortschritt: Phase 6 `40% -> 48%`, Overall `76% -> 77%`; vertikale Werte bleiben unveraendert. DEV-ONLY; kein Multiplayer, Server-Sync, Physics-Engine, Asset-Fetch, Provider-, MCP-, Deploy-, Release- oder Production-Claim.
+
+**Phase 6 3D Camera And Lighting Runtime** — die zuvor nur partielle Kamera-/A11y-Markierung wurde in einen echten, voll kreditierten Kamera-/Licht-Rubrikblock getrennt:
+
+- `services/agent-api/app/main.py` exponiert `GET /api/v1/phase6/3d-camera-lighting/contract` als `phase6-3d-camera-lighting-runtime-v1` mit acht fail-closed Szenarien und allen Non-Claims.
+- `OrganismView`, `CortexLive` und `CortexCanvas3D` setzen drei Kamera-Presets, sichere FOV-Schritte, drei gebundene Lichtprofile, Exposure 0.72..1.18, ACES-Tone-Mapping, Reset und angewendete Runtime-Datenattribute um.
+- `apps/frontend/e2e/organism.spec.ts` klickt die Presets und Lichtprofile, waehlt FOV, erreicht beide Exposure-Grenzen, prueft den Reset sowie angewendete Kamera-/Rendererwerte und verifiziert null control-triggered XHR/fetch sowie null Console-Fehler.
+- `scripts/verify-phase6-3d-camera-lighting-runtime.ps1` bindet Contract, Source, Manifest, Chromium und PNG zusammen; `scripts/verify-browser-contract.ps1`, `scripts/verify-phase1-runtime.ps1` und `scripts/verify-phase1.ps1` enthalten den Guard.
+- Fortschritt: Phase 6 `32% -> 40%`, Overall `75% -> 76%`; vertikale Werte bleiben unveraendert. DEV-ONLY; kein Hosted-Staging-, Shader-Hotload-, Asset-Fetch-, Provider-, MCP-, Deploy-, Release- oder Production-Claim.
+
+**Phase 3 CSP Report Audit Contract** — CSP-Verletzungsberichte sind jetzt same-origin, groessenbegrenzt, redigiert und erst nach Audit-Persistenz akzeptiert:
+
+- `services/agent-api/app/main.py` exponiert `GET /api/v1/security/csp/contract` und `POST /api/v1/security/csp/report`, setzt `report-uri /api/v1/security/csp/report` und speichert ausschliesslich allowlist-basierte Felder.
+- URI-Querystrings und Fragmente, User-Agent, Cookies/Credentials, unbekannte Felder und der Raw-Body werden nicht persistiert; Body > 16384 Byte, ungueltige Shapes und nicht erlaubte Content Types scheitern mit 413/422/415.
+- `scripts/verify-phase3-csp-report-contract.ps1` prueft Contract, Header, echten lokalen Audit-Write, Redaktion, Fail-closed-Grenzen und Non-Claims; `scripts/verify-browser-contract.ps1` bindet den Guard ein.
+- `apps/frontend/app/diagnostics/page.tsx` bietet den sichtbaren CSP-Vertrag im LiveConsole-Select; `apps/frontend/e2e/phase3-csp-report.spec.ts` belegt Auswahl, Klick, GET 200 und sichtbare Evidence-Felder in Chromium.
+- Fortschritt: Phase 3 `40% -> 41%`; gerundetes Overall bleibt `75%`. Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Nutzung.
+
 **Live Agent Steering Contract Guard** — der L3/L4 Live-Agent-Steering-Pfad ist jetzt explizit gegen den Responses-Adapter und Runtime-Session-State abgesichert:
 
-- `services/agent-api/app/main.py` importiert den bestehenden `llm_gateway_url`-Helper, nutzt `httpx` explizit und gibt Steering-Antworten mit `trace_id`, `evidence_ref`, `llm_gateway_contract_version`, `llm_gateway_evidence_ref`, `live_provider_calls`, `model_downloads`, `audit_persisted` und `secret_output` aus.
-- `scripts/verify-live-agent-steering-contract.ps1` prueft Source-Guards, Contract, LLM-Gateway-Contract, Reset, Steering, Redis-Session-State, Audit-Trace, ZIP-Kompatibilitaetsroute, `unknown agent -> 404` und `empty message -> 422`.
+- `services/agent-api/app/main.py` haelt Trace/Rollen/Projekt-/Provider-Gate-Metadaten server-owned, begrenzt Client-Metadaten auf 8192 Bytes und gibt `continuity_reset` neben den Responses-Evidencefeldern aus.
+- `scripts/verify-live-agent-steering-contract.ps1` prueft Source-Guards, Contract, LLM-Gateway-Contract, Reset, Steering, Redis-Session-State, Audit-Trace, Kompatibilitaetsroute sowie unbekannte/leere/gespoofte Negativfaelle.
 - `scripts/verify-browser-contract.ps1` ruft den Guard im Browserlauf auf; `scripts/verify-phase1.ps1` prueft Parser und Pflichtmarker statisch.
 - `docs/runtime-contracts/live-agent-steering-contract.md` dokumentiert die Boundary und Non-Claims.
-- Verifiziert mit `py -3 -m py_compile services\agent-api\app\main.py`, Docker DEV rebuild/restart, `scripts\verify-live-agent-steering-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser` und `scripts\verify-phase1.ps1` inklusive gitleaks ohne Leaks.
+- Aktuell fokussiert verifiziert mit Python-Compile, Agent-API-Unitfaellen im Service-Container und `scripts\verify-live-agent-steering-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
 - Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
 
 **LLM Responses Adapter Contract Guard** — der L3/L4 Responses-Pfad ist jetzt explizit vertraglich und per Runtime-Negativtest abgesichert:
 
-- `services/llm-gateway/app/main.py` exponiert `GET /api/v1/responses/contract` als `llm-responses-adapter-contract-v1` und markiert `POST /v1/responses` mit `llm_responses_adapter_contract_visible`.
+- `services/llm-gateway/app/main.py` exponiert `llm-responses-adapter-contract-v2`, Responses-native SSE, Audit-before-emit, bounded Instructions/Output sowie echte bounded `previous_response_id`-Kontinuitaet.
 - `services/agent-api/app/main.py` verlinkt den Contract im Live-Agent-Steering-Vertrag ueber `GET /llm/api/v1/responses/contract` und verlangt die Responses-Felder `output_text`, `trace_id`, `live_provider_calls`, `model_downloads` und `audit_persisted`.
-- `scripts/verify-llm-responses-contract.ps1` prueft Source-Guards, Contract, Live-Agent-Vertrag, dry-run Runtime-Call, Audit-Trace, `stream=true -> 501` und `metadata`-Shape `422`.
+- `scripts/verify-llm-responses-contract.ps1` prueft Contract, non-stream Form, Audit-Trace, bounded Kontext-Kontinuitaet, exakte SSE-Rekonstruktion/Event-Reihenfolge sowie Stream-/Metadaten-/Live-/Input-/Token-/Instruction-/Kontext-ID-Negativfaelle.
 - `scripts/verify-browser-contract.ps1` ruft den Guard im Browserlauf auf; `scripts/verify-phase1.ps1` prueft Parser und Pflichtmarker statisch.
-- Verifiziert mit `py -3 -m py_compile services\llm-gateway\app\main.py services\agent-api\app\main.py`, Docker DEV rebuild/restart, `scripts\verify-llm-responses-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser` und `scripts\verify-phase1.ps1`.
+- Aktuell fokussiert verifiziert mit Python-Compile, 9/9 LLM-Gateway-Unitfaellen, 10/10 gesunden DEV-Containern und `scripts\verify-llm-responses-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
 - Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
 
 **Platform UI Status Boundary Guard** — Entwicklerplattform und Projektstatus bleiben getrennte, aber verdrahtete Flächen:
@@ -119,8 +745,8 @@ Letzte Aktualisierung: 2026-06-11 04:00 Uhr
 
 - `scripts/verify-organism-topology.ps1` prueft `GET /api/v1/organism/topology`, `GET /api/v1/organism/contract`, `GET /api/v1/workspace/wiring` und `GET /api/v1/workspace/vertical-stack` gegen konsistente Versionen, Node-Arten, Edge-Arten, 22 Workbench-Seiten und geschlossene Non-Claims.
 - Der Guard beweist aktuell `151` Nodes und `308` Edges mit referenziell gueltigen Kanten fuer Brain-Regions, Architektur-Layer, Agenten, MCP-Tools, LLM-Modelle, Skills, Cloud-Provider, Safety-Gates, Workspace-Pages, Data-Sources und Verifier.
-- `scripts/verify-browser-contract.ps1` ruft den Topology-Guard im Browser-Contract auf; `scripts/verify-phase1.ps1` prueft Parser, Frontend-Route, Organism-Contract-Route, Agent-API-Mirror und den `P4=99`-Manifest-Spiegel in `apps/frontend/lib/platform.ts`.
-- `apps/frontend/lib/platform.ts` spiegelt Phase `P4` wieder mit `99%` und vermeidet damit einen falschen `100%`-Snapshot im Frontend-Diagnosevertrag.
+- `scripts/verify-browser-contract.ps1` ruft den Topology-Guard im Browser-Contract auf; `scripts/verify-phase1.ps1` prueft Parser, Frontend-Route, Organism-Contract-Route, Agent-API-Mirror und den jeweils manifestgleichen P4-Spiegel in `apps/frontend/lib/platform.ts`.
+- Der historische Topology-Slice korrigierte den damaligen Spiegel auf `P4=99`; nach den owner-assistierten Kandidat-Laeufen `122705` und `125413` (der reproduzierbare Gate-Standard bleibt `blocked`) spiegeln Manifest, Frontend und Verifier den belegten Abschlussstand `P4=100`.
 - Verifiziert mit `scripts\verify-organism-topology.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `npm run verify:browser`, `py -3 scripts\verify_project_progress_manifest.py` und `git diff --check`.
 - Localhost bleibt `DEV-ONLY`; kein Hosted-Proof, keine Cloud-Mutation, kein Deploy, kein Production-Claim, kein Live-Provider-Call, kein Live-MCP-Write, keine Secret-Nutzung und keine Prozentsteigerung.
 
@@ -1181,8 +1807,8 @@ Letzte Aktualisierung: 2026-06-11 04:00 Uhr
 - Hosted Dry-run bleibt an Manifest-Werte `engine=langgraph`, `checkpointing=postgres`, `live_provider_calls=false` gebunden.
 - Proof: `.phase1-artifacts/phase4-orchestrator-manifest-contract-runtime-hosted-proof-20260507.md`
 
-**Aktueller verifizierter Stand**
+**Historischer verifizierter Stand (2026-05-07; aktuelle Werte stehen am Dokumentanfang)**
 
 - Gesamt `63%`
 - Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
-- Vertikal `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+- Vertikal `Frontend 99 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`

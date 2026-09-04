@@ -202,7 +202,7 @@ async function main() {
 
   try {
     await gotoWithRetry(page, `${baseUrl}/workbench`, "Workbench page");
-    for (const requiredText of ["Main Workbench", "Preview / Assets", "Game View", "App Preview", "Video Preview", "Doc Preview", "RUN BINDING"]) {
+    for (const requiredText of ["Dateien", "Vorschau", "Code", "Build-Protokoll", "Bauen"]) {
       await waitForBodyText(page, requiredText);
     }
     for (const forbiddenText of ["Workspace-Surfaces", "Completion-Gate", "Gate-Matrix", "Recovery-Historie", "Metered Budget"]) {
@@ -210,8 +210,8 @@ async function main() {
     }
 
     const workbenchProbe = await page.evaluate(() => {
-      const shell = document.querySelector(".workbench-blueprint");
-      const panes = Array.from(document.querySelectorAll(".workbench-blueprint .wb-pane, .workbench-blueprint .panel, .workbench-blueprint .wb-layer-board"));
+      const shell = document.querySelector(".workbench-studio");
+      const panes = Array.from(document.querySelectorAll(".workbench-studio .wb-pane, .workbench-studio .panel"));
       const radii = panes.map((element) => Number.parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0);
       const root = getComputedStyle(document.documentElement);
       const text = document.body.innerText;
@@ -232,7 +232,7 @@ async function main() {
     assert(workbenchProbe.surface1.toLowerCase() === "#0b1020", `Unexpected surface token: ${workbenchProbe.surface1}`);
     assert(workbenchProbe.cyan.toLowerCase() === "#00e5ff", `Unexpected cyan token: ${workbenchProbe.cyan}`);
     assert(!workbenchProbe.hasStatusWall, "Workbench status wall markers are visible.");
-    await page.screenshot({ path: workbenchPath, fullPage: true });
+    await page.screenshot({ path: workbenchPath, fullPage: true, caret: "initial" });
     assert(fs.statSync(workbenchPath).size > 25000, "Workbench screenshot is too small to be a useful proof artifact.");
 
     await gotoWithRetry(page, `${baseUrl}/organism`, "Organism page");
@@ -240,11 +240,24 @@ async function main() {
     await page.waitForFunction(() => {
       const feed = document.querySelector('[data-testid="organism-runtime-feed"]');
       const sourceKind = feed?.getAttribute("data-source-kind") || "";
-      return /spec_only|agent_api_redacted/.test(sourceKind);
+      return /spec_only|agent_api_redacted|platform_audit/.test(sourceKind);
     }, undefined, { timeout: 15000 });
-    for (const requiredText of ["Kollektiver Organismus", "Live", "Replay", "Karte"]) {
+    for (const requiredText of ["Kollektiver Organismus", "Live", "Wiedergabe", "Karte"]) {
       await waitForBodyText(page, requiredText);
     }
+    // CortexLive briefly renders a dynamic-import placeholder while switching
+    // from its initial 2D state to the WebGL surface under sustained test load.
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector(".cortex-wrap canvas");
+      if (!(canvas instanceof HTMLCanvasElement)) return false;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width < 500 || rect.height < 400) return false;
+      try {
+        return Boolean(canvas.getContext("webgl2") || canvas.getContext("webgl"));
+      } catch {
+        return false;
+      }
+    }, undefined, { timeout: 120000, polling: 500 });
     const organismProbe = await page.evaluate(() => {
       const canvas = document.querySelector(".cortex-wrap canvas") || document.querySelector("canvas");
       const rect = canvas ? canvas.getBoundingClientRect() : null;
@@ -297,8 +310,8 @@ async function main() {
     assert(organismProbe.height >= 400, `Organism canvas height too small: ${organismProbe.height}`);
     assert(organismProbe.webgl, "Organism canvas does not expose a WebGL context.");
     assert(organismProbe.runtimeFeedVisible, "Organism runtime feed missing.");
-    assert(/spec_only|agent_api_redacted/.test(organismProbe.runtimeSourceKind), `Unexpected runtime source kind: ${organismProbe.runtimeSourceKind}`);
-    await page.screenshot({ path: organismPath, fullPage: true });
+    assert(/spec_only|agent_api_redacted|platform_audit/.test(organismProbe.runtimeSourceKind), `Unexpected runtime source kind: ${organismProbe.runtimeSourceKind}`);
+    await page.screenshot({ path: organismPath, fullPage: true, caret: "initial" });
     assert(fs.statSync(organismPath).size > 25000, "Organism screenshot is too small to be a useful proof artifact.");
     const organismPngStats = pngVisualStats(organismPath);
     assert(organismPngStats.uniqueColorBuckets >= 18, `Organism screenshot lacks visual color variance: ${organismPngStats.uniqueColorBuckets}`);

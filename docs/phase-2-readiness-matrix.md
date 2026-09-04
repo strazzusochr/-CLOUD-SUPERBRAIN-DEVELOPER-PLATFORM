@@ -1,7 +1,7 @@
 # Phase 2 Readiness Matrix
 
-Status: prepared, phase1-runtime-ready
-Date: 2026-04-26
+Status: deterministic-local-runtime-verified
+Date: 2026-07-21
 Scope: Phase 2 contract readiness for orchestration, agents, LLM gateway, MCP tools, memory, budget control, and verification.
 
 This matrix is the control artifact for moving from prepared contracts to runtime implementation without fake completeness. It maps every Phase 2 work package to the seven-layer architecture, required proof, active blockers, and stop-gates.
@@ -43,7 +43,7 @@ This matrix is the control artifact for moving from prepared contracts to runtim
 | P2-RT-001 | Budget alert triggers at 80 percent of configured limit. | Test log plus cost event sample with secrets redacted. | verified for Phase 1: runtime verifier inserts a temporary 16000-cent cost row, verifies `level=warning`, permits calls, verifies metrics, deletes the row, and confirms `level=ok`; hard-stop at 100 percent is also proven. |
 | P2-RT-002 | Every orchestration node has retry counter and bounded failure state. | Unit or integration test output plus graph manifest. | verified for deterministic local runtime: `force_langgraph_node_failure:<node>` probes cover `intent_parser`, `budget_guard`, `task_router`, `agent_executor`, `result_aggregator`, and `memory_updater`; each probe reaches `node_name=hard_stop`, records `<node>_retry_limit_reached`, sets `retry_counters.<node>=5` and `retry_counters.global=5`, persists PostgreSQL checkpoint evidence, and writes audit evidence `langgraph_node_failure_bounded`. |
 | P2-RT-003 | Global retry loop stops after max 5 cycles. | Failure-path test output with max-iteration proof. | verified for deterministic local runtime: `force_langgraph_global_retry_limit` stops in `error_handler` with `hard_stop_reason=global_retry_limit_reached`, `retry_counters.global=5`, checkpoint evidence, and audit evidence `langgraph_global_retry_limit_enforced`; worker-level bounded retry escalation is also verified. |
-| P2-RT-004 | Checkpointer survives restart and recovers state. | Restart simulation log and recovered task state. | verified for Phase 1 dry-run: Runtime verifier restarts `agent-api` and recovers `node_name=completed` by `thread_id`. |
+| P2-RT-004 | Checkpointer survives restart and recovers state. | Restart simulation log and recovered task state. | verified: Runtime verifier restarts `agent-api` and recovers `checkpointing=postgres`, `node_name=completed`, and the original `thread_id`; evidence `phase2-postgres-checkpoint-restart-recovery-v1`. |
 | P2-RT-005 | Fallback routing logs provider, reason, and cost event. | Gateway test log plus observability event sample. | partially verified: structured rotation event audit is proven; live provider fallback remains blocked by Gate D. |
 | P2-RT-006 | Tool timeout aborts safely with audit entry. | MCP timeout test log plus audit event sample. | verified for Phase 1 safe envelope: runtime and hosted verifiers call `POST /mcp/api/v1/tools/execute` with `simulate_timeout` and receive `status=timeout`; GitHub-main scope returns `blocked`; missing E2B credentials return `degraded`; all three responses carry `audit_persisted=true` and are visible as `mcp_tool_executed` records in `/api/v1/audit/recent`. |
 
@@ -56,6 +56,7 @@ Current evidence:
 - Verification register records Phase 1 runtime proof in `docs/verification-register.md`.
 - `scripts/verify-phase1.ps1`, `scripts/verify-phase1-runtime.ps1`, and `scripts/verify-hosted-staging.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` are green.
 - `scripts/verify-phase1-runtime.ps1` now waits cleanly through Docker/Nginx recreate windows, retries Session-SSE stream/replay reads through `Wait-SseContains`, and ends with a post-recreate steady-state proof for health, project progress integrity, MCP version pinning, and `/favicon.ico`, so a green local run cannot leave an unverified proxy, empty SSE read, or browser asset regression behind. `scripts/verify-hosted-staging.ps1` uses the same retry-safe Session-SSE probe for the local hosted mirror.
+- `phase2-postgres-checkpoint-restart-recovery-v1` under `.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md` records the final mandatory local proof and its hashed full-runtime logs. Phase 2 is therefore `100%` for deterministic local scope.
 - `GET /api/v1/metrics` exposes live budget, queue, service health, memory, and audit counters.
 - `GET /api/v1/orchestrator/manifest`, `POST /api/v1/orchestrator/dry-run`, `POST /api/v1/orchestrator/dry-run/stream`, and `GET /api/v1/orchestrator/checkpoints/{thread_id}` prove the Phase 1 LangGraph skeleton, SSE node progress, and PostgreSQL checkpoint recovery without live provider calls; the frontend exposes this as `LangGraph Progress`.
 - `GET /api/v1/phase2/runtime/contract` and `POST /api/v1/phase2/runtime/start` prove the deterministic local Phase 2 runtime graph start with `phase2-runtime-v1`, `phase2_runtime_graph_started`, PostgreSQL checkpoint recovery, audit visibility, Agent Activity per-role feed visibility, and frontend `Start Phase 2 Runtime` controls while keeping live-provider, live-MCP-write, and production-deploy gates closed. The runtime now executes all four core agent roles: `planner`, `coder`, `tester`, and `devops`, then aggregates `result.per_role_results[]` with `partial_failure=false` and evidence `agent_result_aggregation_complete`.
@@ -95,7 +96,7 @@ The following actions require an explicit review gate before execution:
 
 ## Non-Claims
 
-- This document does not claim that Phase 2 is implemented.
-- This document does not claim that runtime integration works.
+- This document claims the deterministic local Phase 2 runtime is implemented and verified.
+- This document does not claim hosted stateful parity or live provider/tool integration.
 - This document does not claim release readiness.
 - This document does not authorize secret usage, Docker push, production deployment, or main-branch writes.

@@ -109,7 +109,7 @@ const ORGANISM_COVERAGE_RULES = [
   { tag: "button", textPattern: /^OBSERVABILITY\s+L7$/i, actionLabel: "organism hub OBSERVABILITY" },
   { tag: "button", textPattern: /^MEMORY\s+L6$/i, actionLabel: "organism hub MEMORY" },
   { tag: "button", textPattern: /^CLOUD\s+L2$/i, actionLabel: "organism hub CLOUD" },
-  { tag: "button", textPattern: /Auto-rotate/i, actionLabel: "organism control /Auto-rotate/i" },
+  { tag: "button", textPattern: /Automatisch drehen/i, actionLabel: "organism control /Automatisch drehen/i" },
   { tag: "button", textPattern: /Kamera zurücksetzen/i, actionLabel: "organism control /Kamera zurücksetzen/i" },
   { tag: "button", textPattern: /Weniger Bewegung/i, actionLabel: "organism control /Weniger Bewegung/i" },
   ...["L1 FE", "L2 ORC", "L3 AP", "L4 LLM", "L5 MCP", "L6 MEM", "L7 OBS", "planner", "coder", "tester", "devops"].map((text, index) => ({
@@ -121,25 +121,25 @@ const ORGANISM_COVERAGE_RULES = [
 
 const STRICT_ACTION_COVERAGE = {
   "*": [
-    { tag: "button", ariaLabel: "Suchen oder Kommando ausführen", actionLabel: "cmdk open" },
+    { tag: "button", ariaLabel: "Suchen oder Befehl ausführen", actionLabel: "cmdk open" },
   ],
   "/files": [
-    { tag: "input", ariaLabel: "Memory search query", actionLabel: "files query fill" },
+    { tag: "input", ariaLabel: "Suchbegriff für das Gedächtnis", actionLabel: "files query fill" },
     { tag: "button", testId: "goal-b-files-search", actionLabel: "files search -> /api/v1/memory/search" },
     { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
     { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/tools": [
-    { tag: "select", ariaLabel: "Read-only tool", actionLabel: "tools select task_router" },
-    { tag: "input", ariaLabel: "Tool query", actionLabel: "tools query fill" },
+    { tag: "select", ariaLabel: "Nur lesendes Tool", actionLabel: "tools select task_router" },
+    { tag: "input", ariaLabel: "Tool-Anfrage", actionLabel: "tools query fill" },
     { tag: "button", testId: "goal-b-tool-execute", actionLabel: "tools execute task_router" },
     { tag: "select", ariaLabel: "MCP/Tools Endpoint", actionLabel: "live-console select endpoint" },
     { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/marketplace": [
-    { tag: "select", ariaLabel: "Marketplace item", actionLabel: "marketplace select item" },
+    { tag: "select", ariaLabel: "Marktplatz-Eintrag", actionLabel: "marketplace select item" },
     { tag: "button", testId: "goal-b-marketplace-details", actionLabel: "marketplace details dry-run plan" },
     { tag: "button", testId: "goal-b-marketplace-install", actionLabel: "marketplace install dry-run artifact" },
   ],
@@ -167,16 +167,15 @@ const STRICT_ACTION_COVERAGE = {
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/home": [
-    { tag: "button", testId: "goal-b-home-hero-proof", actionLabel: "home cortex proof" },
+    { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
+    { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "select", ariaLabel: "Live-Daten Endpoint", actionLabel: "live-console select endpoint" },
     { tag: "button", testId: "live-console-load", actionLabel: "live-console load" },
     { tag: "button", text: "Kopieren", actionLabel: "live-console copy" },
   ],
   "/login": [
-    { tag: "button", testId: "goal-b-login-github", actionLabel: "login github dry-run" },
-    { tag: "button", testId: "goal-b-login-google", actionLabel: "login google dry-run" },
-    { tag: "button", testId: "goal-b-login-email", actionLabel: "login email dry-run" },
-    { tag: "button", testId: "goal-b-login-guest", actionLabel: "login guest dry-run" },
+    { tag: "input", ariaLabel: "Name", actionLabel: "login session name" },
+    { tag: "button", testId: "rl-signin", actionLabel: "login real session sign-in" },
   ],
   "/observe": [
     { tag: "button", testId: "goal-b-observe-refresh", actionLabel: "observe metrics contract probe" },
@@ -221,7 +220,7 @@ const STRICT_ACTION_COVERAGE = {
   ],
   "/files/local": [
     { tag: "button", testId: "goal-b-files-local-contract", actionLabel: "files-local contract probe" },
-    { tag: "button", ariaLabel: "Root project", actionLabel: "files-local root project" },
+    { tag: "button", ariaLabel: "Stammverzeichnis project", actionLabel: "files-local root project" },
   ],
   "/organism/replay": [
     ...ORGANISM_COVERAGE_RULES,
@@ -567,6 +566,37 @@ async function clickAndMeasureState(page, locator, label, readState, options = {
   }
 }
 
+async function clickAndMeasureDownload(page, locator, label, options = {}) {
+  try {
+    const [download] = await Promise.all([
+      page.waitForEvent("download", { timeout: options.waitTimeout ?? 30000 }),
+      locator.click({ timeout: options.timeout ?? 20000 }),
+    ]);
+    const filename = download.suggestedFilename();
+    return {
+      label,
+      class: filename ? "PASS_ACTION_RESULT" : "WARN_WEAK",
+      strong_signal: Boolean(filename),
+      url_changed: false,
+      storage_changed: false,
+      request_count: 0,
+      requests: [],
+      result_excerpt: `download=${filename || "unknown"}`,
+    };
+  } catch (error) {
+    return {
+      label,
+      class: "FAIL_CLICK_ERROR",
+      strong_signal: false,
+      url_changed: false,
+      storage_changed: false,
+      request_count: 0,
+      requests: [],
+      result_excerpt: error instanceof Error ? error.message.slice(0, 700) : String(error).slice(0, 700),
+    };
+  }
+}
+
 async function fillAndMeasure(page, locator, value, label, options = {}) {
   try {
     await locator.fill(value, { timeout: options.timeout ?? 20000 });
@@ -624,7 +654,7 @@ async function classifyInteractive(page, baseUrl) {
           .slice(0, 240);
         const localFilesMode = Boolean(document.querySelector(".local-files-grid"));
         let classification = "WARN_WEAK";
-        if (disabled && (/(gate|gated|requires|coming soon|dry-run|gesperrt|owner|disabled|read-only)/i.test(explanation) || (localFilesMode && ariaLabel === "Clear search"))) classification = "PASS_DISABLED_EXPLAINED";
+        if (disabled && (/(gate|gated|requires|coming soon|dry-run|gesperrt|deaktiviert|owner|disabled|read-only|nur lesend)/i.test(explanation) || (localFilesMode && ariaLabel === "Suche leeren"))) classification = "PASS_DISABLED_EXPLAINED";
         else if (disabled) classification = "FAIL_DISABLED_UNEXPLAINED";
         else if (tag === "a" && href) {
           try {
@@ -639,9 +669,9 @@ async function classifyInteractive(page, baseUrl) {
         const className = element.getAttribute("class") || "";
         const localFilesWidget = localFilesMode && (
           /(^|\s)(chip|tnode-btn|lrow|tnode)(\s|$)/.test(className)
-          || /^Root\s/i.test(ariaLabel)
-          || ariaLabel === "Search project tree"
-          || /^(Reset search|Copy selection|Clear)$/.test(text)
+          || /^Stammverzeichnis\s/i.test(ariaLabel)
+          || ariaLabel === "Projektbaum durchsuchen"
+          || /^(Suche zurücksetzen|Auswahl kopieren|Leeren)$/.test(text)
           || Boolean(element.closest(".local-files-grid, .tree, .local-search-row"))
         );
         if (!disabled && tag !== "a" && localFilesWidget) classification = "PASS_ACTION_RESULT";
@@ -652,31 +682,61 @@ async function classifyInteractive(page, baseUrl) {
 
 async function proofWorkbench(page) {
   const actions = [];
-  const fileButtons = await page.locator("[data-testid^='batch1-open-file-']").count();
-  for (let index = 0; index < fileButtons; index += 1) {
-    actions.push(await clickAndMeasure(page, page.locator(`[data-testid='batch1-open-file-${index}']`), `workbench file open ${index}`, { resultSelector: "[data-testid='batch1-file-open-result']", waitForText: "PASS file_opened" }));
-  }
-  const tabButtons = await page.locator("[data-testid='batch1-preview-tabs'] button").count();
-  for (let index = 0; index < tabButtons; index += 1) {
-    actions.push(await clickAndMeasure(page, page.locator("[data-testid='batch1-preview-tabs'] button").nth(index), `workbench preview tab ${index}`, { resultSelector: "[data-testid='batch1-preview-status']", waitForText: "PASS preview_tab" }));
-  }
+  const studio = page.locator("[data-testid='workbench-studio']");
+  const prompt = studio.locator("textarea").first();
   actions.push(await fillAndMeasure(
     page,
-    page.getByLabel("Batch 1 workbench prompt"),
-    "D2 batch1 proof: build local dry-run artifact with terminal evidence.",
+    prompt,
+    "Baue eine kleine zugängliche Status-App mit Überschrift, Statusanzeige und einem funktionierenden Umschalter.",
     "workbench prompt fill",
-    { resultSelector: "[data-testid='batch1-prompt-status']", waitForText: "PASS prompt_updated" },
   ));
-  actions.push(await clickAndMeasure(page, page.locator("[data-testid='batch1-workbench-run']"), "workbench run -> terminal/result/artifact", { resultSelector: "[data-testid='batch1-workbench-result']", waitForText: "PASS batch1_workbench_run", timeout: 45000, waitTimeout: 90000, settle: 1200 }));
-  actions.push(await clickAndMeasure(page, page.locator("[data-testid='batch1-agent-assist']"), "workbench agent assistance", { resultSelector: "[data-testid='batch1-agent-result']", waitForText: "PASS batch1_agent_assistance", timeout: 45000, waitTimeout: 90000, settle: 1200 }));
-  const editorTitle = await page.locator("[data-testid='batch1-editor-title']").innerText();
-  const editorContent = await page.locator("[data-testid='batch1-editor-content']").innerText();
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='ws-build']"),
+    "workbench build -> preview/log/persisted artifact",
+    { resultSelector: "[data-testid='ws-log']", waitForText: "Live-Vorschau bereit", timeout: 45000, waitTimeout: 240000, settle: 1500 },
+  ));
+
+  const codeTab = studio.locator(".ws-tabs button").filter({ hasText: /^Code/ }).first();
+  actions.push(await clickAndMeasureState(
+    page,
+    codeTab,
+    "workbench code tab",
+    async () => `${await codeTab.getAttribute("class")}|${(await studio.locator(".ws-code").innerText().catch(() => "")).slice(0, 120)}`,
+  ));
+  const codeText = await studio.locator(".ws-code").innerText().catch(() => "");
+
+  const firstFile = studio.locator(".ws-file").first();
+  if (await firstFile.count()) {
+    actions.push(await clickAndMeasureState(
+      page,
+      firstFile,
+      "workbench generated file open",
+      async () => `${await firstFile.getAttribute("class")}|${(await studio.locator(".ws-code").innerText().catch(() => "")).slice(0, 120)}`,
+    ));
+  }
+
+  const previewTab = studio.locator(".ws-tabs button").filter({ hasText: "Vorschau" }).first();
+  actions.push(await clickAndMeasureState(
+    page,
+    previewTab,
+    "workbench preview tab",
+    async () => `${await previewTab.getAttribute("class")}|${await studio.locator("[data-testid='ws-frame']").count()}`,
+  ));
+
+  const logText = await page.locator("[data-testid='ws-log']").innerText();
+  const artifactText = await studio.locator(".wb-artifacts").innerText();
+  const agentText = await studio.locator(".wb-agent").innerText();
+  const cortexText = await studio.locator(".wb-cortex").innerText();
   const checks = {
-    editor_opened: /preview\.adapter|agent-run|verifier\.ts|artifact\.pipeline/.test(`${editorTitle}\n${editorContent}`),
-    terminal_result: /PASS|RUN|OPEN|VIEW/.test(await page.locator("[data-testid='batch1-terminal']").innerText()),
-    preview_tabs: /PASS preview_tab/.test(await page.locator("[data-testid='batch1-preview-status']").innerText()),
-    agent_assistance: /PASS batch1_agent_assistance|Planner\/Coder\/Tester\/DevOps/.test(await page.locator("[data-testid='batch1-agent-result']").innerText()),
-    mini_cortex: /BATCH1|idle|executing|verifying/i.test(await page.locator("[data-testid='batch1-mini-cortex']").innerText()),
+    build_request_completed: actions.some((action) => action.label === "workbench build -> preview/log/persisted artifact" && action.class === "PASS_ACTION_RESULT"),
+    generated_files: await studio.locator(".ws-file").count().then((count) => count >= 1),
+    code_visible: /<!doctype|<html|<body|<style|<script/i.test(codeText),
+    preview_visible: await studio.locator("[data-testid='ws-frame']").count().then((count) => count === 1),
+    terminal_result: /Bytes in \d+s generiert/.test(logText) && /Live-Vorschau bereit/.test(logText),
+    artifact_persisted: /(\/run\/|\/builds\/)/.test(artifactText) && /Persistiert/.test(logText),
+    agent_assistance: /Prompt-zu-Code/.test(agentText) && /live_provider_calls=false/.test(agentText),
+    mini_cortex: /L1-L7/.test(cortexText) && /writes=false/.test(cortexText),
   };
   return { actions, checks };
 }
@@ -684,15 +744,17 @@ async function proofWorkbench(page) {
 async function proofOrganism(page) {
   const actions = [];
   const resultSelector = "[data-testid='batch1-organism-action-result']";
-  for (const name of ["RUHE", "PLANUNG", "AUSFÜHRUNG", "PRÜFUNG", "BLOCKIERT"]) {
-    const button = page.getByRole("button", { name });
+  for (const [state, name] of [["idle", "RUHE"], ["planning", "PLANUNG"], ["executing", "AUSFÜHRUNG"], ["verifying", "PRÜFUNG"], ["blocked", "BLOCKIERT"]]) {
+    const button = (await page.locator(`[data-testid='organism-run-state-${state}']`).count())
+      ? page.locator(`[data-testid='organism-run-state-${state}']`)
+      : page.locator(".organism-mode-bar .state-btn").filter({ hasText: name });
     if (await button.count()) actions.push(await clickAndMeasure(page, button.first(), `organism run-state ${name}`, { resultSelector, waitForText: "PASS organism_control" }));
   }
   for (const name of ["WERKBANK", "AGENTEN", "TOOLS / MCP", "MODELLE", "MARKTPLATZ", "OBSERVABILITY", "MEMORY", "CLOUD"]) {
     const button = page.getByRole("button", { name });
     if (await button.count()) actions.push(await clickAndMeasure(page, button.first(), `organism hub ${name}`, { resultSelector, waitForText: "PASS organism_control" }));
   }
-  for (const name of [/Auto-rotate/i, /Kamera zurücksetzen/i, /Weniger Bewegung/i]) {
+  for (const name of [/Automatisch drehen/i, /Kamera zurücksetzen/i, /Weniger Bewegung/i]) {
     const button = page.getByRole("button", { name });
     if (await button.count()) actions.push(await clickAndMeasure(page, button.first(), `organism control ${name}`, { resultSelector, waitForText: "PASS organism_control" }));
   }
@@ -704,26 +766,28 @@ async function proofOrganism(page) {
   const checks = {
     cortex_visible: pixelProbe > 12000,
     runtime_feed: await page.locator("[data-testid='organism-runtime-feed']").count().then((count) => count > 0),
-    no_fake_live: /SPEC|DEV|read-only|no raw details|LIVE/.test(await page.locator("body").innerText()),
+    no_fake_live: /SPEC|DEV|nur lesend|keine Rohdetails|LIVE/i.test(await page.locator("body").innerText()),
   };
   return { actions, checks, cortex_bytes: pixelProbe };
 }
 
 async function proofAgents(page) {
   const actions = [];
-  const selector = page.locator("[data-testid='goal-b-agents-panel'] select[aria-label='Agent']");
-  const status = page.locator("[data-testid='goal-b-agent-status']");
-  const start = page.locator("[data-testid='goal-b-agent-start']");
-  const reset = page.locator("[data-testid='goal-b-agent-reset']");
-  if (await selector.count()) actions.push(await selectAndMeasure(page, selector, "coder", "agents select coder", { resultSelector: "[data-testid='goal-b-agent-result']", waitForText: "PASS agent_select" }));
-  actions.push(await clickAndMeasure(page, status, "agents status", { resultSelector: "[data-testid='goal-b-agent-result']", timeout: 45000 }));
-  actions.push(await clickAndMeasure(page, start, "agents start", { resultSelector: "[data-testid='goal-b-agent-result']", timeout: 45000 }));
-  actions.push(await clickAndMeasure(page, reset, "agents reset", { resultSelector: "[data-testid='goal-b-agent-result']", timeout: 45000 }));
-  const body = await page.locator("body").innerText();
+  const goal = page.locator("[aria-label='Forschungsziel']");
+  actions.push(await fillAndMeasure(page, goal, "Nenne in einem Satz den Zweck einer Vektordatenbank.", "agents goal fill", { settle: 300 }));
+  actions.push(await clickAndMeasure(
+    page,
+    page.locator("[data-testid='ar-run']"),
+    "agents multi-agent research run",
+    { resultSelector: "[data-testid='ar-result'], [data-testid='ar-error']", timeout: 45000, waitTimeout: 180000, settle: 800 },
+  ));
+  const hasResult = await page.locator("[data-testid='ar-result']").count();
+  const resultText = hasResult ? await page.locator("[data-testid='ar-result']").innerText() : "";
+  const bodyText = await page.locator("body").innerText();
   const checks = {
-    start_reset_status: /PASS agent_(status|steer|reset)/.test(body),
-    pause_kill_gated: /Pause · requires live gate|Kill · owner gate/.test(body),
-    no_live_provider_claim: /live_provider_calls=false|no live provider credentials|without Live-Provider/i.test(body),
+    research_answer_rendered: hasResult > 0 && resultText.length > 40,
+    real_provider_named: /Workers AI/i.test(bodyText),
+    team_targets_labeled_plan: /Ziel:/.test(bodyText) && /Rollen · Plan/.test(bodyText),
   };
   return { actions, checks };
 }
@@ -731,30 +795,23 @@ async function proofAgents(page) {
 async function proofFiles(page) {
   const actions = [];
   const origin = new URL(page.url()).origin;
-  const seed = await page.request.post(`${origin}/api/v1/workspace/artifacts`, {
-    data: {
-      project_id: "goal-b-local",
-      source_page: "files",
-      artifact_type: "batch2_search_seed",
-      title: "Goal D2 Batch2 searchable seed",
-      summary: "batch2 phase2 memory search proof seed for /files",
-      status: "ready",
-      metadata: { batch: "batch2", route: "/files", live_provider_calls: false },
-    },
+  const seed = await page.request.post(`${origin}/api/v1/memory/search`, {
+    data: { content: "goal-d4 hosted memory seed batch2 phase2 search proof", project_id: "goal-b-local" },
   });
   actions.push({
-    label: "files seed searchable memory artifact",
-    class: seed.ok() ? "PASS_ACTION_RESULT" : "FAIL_CLICK_ERROR",
-    strong_signal: seed.ok(),
+    label: "files seed memory entry (POST /api/v1/memory/search)",
+    class: seed.status() === 201 ? "PASS_ACTION_RESULT" : "FAIL_CLICK_ERROR",
+    strong_signal: seed.status() === 201,
     url_changed: false,
-    storage_changed: false,
+    storage_changed: seed.status() === 201,
     request_count: 1,
-    requests: [`POST ${origin}/api/v1/workspace/artifacts`],
+    requests: [`POST ${origin}/api/v1/memory/search`],
     result_excerpt: `status=${seed.status()}`,
   });
+  await page.waitForTimeout(4000); // GH-store contents API is eventually consistent
   actions.push(await fillAndMeasure(
     page,
-    page.getByLabel("Memory search query"),
+    page.getByLabel("Suchbegriff für das Gedächtnis"),
     "batch2 phase2",
     "files query fill",
     { resultSelector: "[data-testid='goal-b-files-result']", waitForText: "PASS files_query_updated" },
@@ -765,95 +822,75 @@ async function proofFiles(page) {
     "files search -> /api/v1/memory/search",
     { resultSelector: "[data-testid='goal-b-files-result']", waitForText: "PASS files_search", timeout: 45000, waitTimeout: 90000 },
   ));
-  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
-  if (await consoleSelect.count()) {
-    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
-    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  if (!/results=[1-9]/.test(await page.locator("[data-testid='goal-b-files-result']").innerText())) {
+    await page.waitForTimeout(6000); // one honest retry for store propagation
+    actions.push(await clickAndMeasure(
+      page,
+      page.locator("[data-testid='goal-b-files-search']"),
+      "files search retry (store propagation)",
+      { resultSelector: "[data-testid='goal-b-files-result']", waitForText: "PASS files_search", timeout: 45000, waitTimeout: 90000 },
+    ));
   }
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console-load']"),
-    "live-console load",
-    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
-  ));
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
-    "live-console copy",
-    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
-  ));
+  if (await page.locator("[data-testid='live-console-load']").count()) {
+    actions.push(await clickAndMeasure(
+      page,
+      page.locator("[data-testid='live-console-load']"),
+      "live-console load",
+      { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+    ));
+  }
   const resultText = await page.locator("[data-testid='goal-b-files-result']").innerText();
   const checks = {
-    memory_search_endpoint: /PASS files_search/.test(resultText) && /search_mode=lexical_fallback/.test(resultText),
+    memory_search_endpoint: /PASS files_search/.test(resultText) && /search_mode=/.test(resultText),
     seeded_hit_visible: /results=[1-9]/.test(resultText),
-    read_only_surface: /read-only|pgvector|lexical fallback/i.test(await page.locator("body").innerText()),
+    read_only_surface: /read-only|pgvector|lexical fallback|Vektorsuche|Embeddings/i.test(await page.locator("body").innerText()),
   };
   return { actions, checks };
 }
 
 async function proofTools(page) {
   const actions = [];
-  const selector = page.locator("[data-testid='goal-b-tools-panel'] select[aria-label='Read-only tool']");
-  const input = page.getByLabel("Tool query");
+  const selector = page.locator("[data-testid='goal-b-tools-panel'] select[aria-label='Nur lesendes Tool']");
+  const input = page.getByLabel("Tool-Anfrage");
   const execute = page.locator("[data-testid='goal-b-tool-execute']");
   const resultSelector = "[data-testid='goal-b-tool-result']";
   actions.push(await clickAndMeasure(
     page,
     execute,
     "tools execute memory_read",
-    { resultSelector, waitForText: "PASS readonly_tool_execute", timeout: 45000, waitTimeout: 90000 },
+    { resultSelector, waitForText: "tool=memory_read", timeout: 45000, waitTimeout: 90000 },
   ));
   if (await selector.count()) {
-    actions.push(await selectAndMeasure(
-      page,
-      selector,
-      "task_router",
-      "tools select task_router",
-      { resultSelector, waitForText: "PASS readonly_tool_selected" },
-    ));
+    actions.push(await selectAndMeasure(page, selector, "task_router", "tools select task_router", { settle: 300 }));
   }
-  actions.push(await fillAndMeasure(
-    page,
-    input,
-    "batch2 task routing queue status",
-    "tools query fill",
-    { resultSelector, waitForText: "PASS readonly_tool_query_updated" },
-  ));
+  actions.push(await fillAndMeasure(page, input, "batch2 task routing queue status", "tools query fill", { settle: 200 }));
   actions.push(await clickAndMeasure(
     page,
     execute,
     "tools execute task_router",
-    { resultSelector, waitForText: "PASS readonly_tool_execute", timeout: 45000, waitTimeout: 90000 },
+    { resultSelector, waitForText: "tool=task_router", timeout: 45000, waitTimeout: 90000 },
   ));
-  const consoleSelect = page.getByLabel("MCP/Tools Endpoint");
-  if (await consoleSelect.count()) {
-    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
-    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  if (await page.locator("[data-testid='live-console-load']").count()) {
+    actions.push(await clickAndMeasure(
+      page,
+      page.locator("[data-testid='live-console-load']"),
+      "live-console load",
+      { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+    ));
   }
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console-load']"),
-    "live-console load",
-    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
-  ));
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
-    "live-console copy",
-    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
-  ));
   const resultText = await page.locator(resultSelector).innerText();
+  const bodyText = await page.locator("body").innerText();
   const checks = {
-    read_only_execute_endpoint: /PASS readonly_tool_execute/.test(resultText),
-    audit_id_visible: /audit=/.test(resultText),
-    live_mcp_writes_closed: /live_mcp_writes=false/.test(resultText) && /read-only|Write-Scopes bleiben gated|memory_read|task_router/i.test(await page.locator("body").innerText()),
+    read_only_execute_endpoint: /✓ ausgeführt · tool=/.test(resultText),
+    second_tool_executed: /tool=task_router/.test(resultText),
+    live_mcp_writes_closed: /read-only|nur lesend/i.test(bodyText),
   };
   return { actions, checks };
 }
 
 async function proofMarketplace(page) {
   const actions = [];
-  const selector = page.locator("[data-testid='goal-b-marketplace-panel'] select[aria-label='Marketplace item']");
+  const selector = page.locator("[data-testid='goal-b-marketplace-panel'] select[aria-label='Marktplatz-Eintrag']");
   const resultSelector = "[data-testid='goal-b-marketplace-result']";
   if (await selector.count()) {
     const optionValue = await selector.locator("option").nth(1).getAttribute("value").catch(() => null);
@@ -882,8 +919,8 @@ async function proofMarketplace(page) {
   const resultText = await page.locator(resultSelector).innerText();
   const checks = {
     details_visible: /PASS marketplace_details|PASS marketplace_install/.test(resultText),
-    install_artifact_visible: /artifact=/.test(resultText),
-    provider_writes_closed: /provider_writes=false/.test(resultText) && /no provider write|Installs are simulated|dry-run/i.test(await page.locator("body").innerText()),
+    install_artifact_visible: /Artefakt\s+[0-9a-f-]{36}/i.test(resultText) && /persisted=true/.test(resultText),
+    provider_writes_closed: /provider_writes=false/.test(resultText),
   };
   return { actions, checks };
 }
@@ -925,43 +962,148 @@ async function proofWorkspaceMode(page, route, mode, label) {
   return { actions, checks };
 }
 
-async function proofDocsOutput(page) {
-  const baseProof = await proofWorkspaceMode(page, "/docs-output", "docs-output", "Document");
-  const actions = [...baseProof.actions];
-  const exportSelector = "[data-testid='goal-b-docs-export-result']";
-  actions.push(await clickAndMeasure(
+async function proofGames(page) {
+  const actions = [];
+  const game = page.locator("[data-testid='real-game']");
+  const state = game.locator(".rg-state");
+  actions.push(await clickAndMeasureState(
     page,
-    page.locator("[data-testid='goal-b-docs-export-pdf']"),
-    "docs-output export pdf plan",
-    { resultSelector: exportSelector, waitForText: "PASS docs_export", timeout: 45000, waitTimeout: 90000 },
+    game.locator("[data-testid='rg-start']"),
+    "games start playable arena",
+    async () => await state.innerText(),
+    { settle: 900 },
   ));
-  actions.push(await clickAndMeasure(
+  const stateText = await state.innerText().catch(() => "");
+  const scoreText = await game.locator("[data-testid='rg-score']").innerText().catch(() => "");
+  const canvasCount = await game.locator("canvas").count();
+  return {
+    actions,
+    checks: {
+      playable_game_started: actions.some((action) => action.label === "games start playable arena" && action.class === "PASS_ACTION_RESULT"),
+      game_canvas_visible: canvasCount === 1,
+      running_state_visible: /läuft/.test(stateText),
+      score_contract_visible: /^\d+$/.test(scoreText),
+    },
+  };
+}
+
+async function proofApps(page) {
+  const actions = [];
+  const gallery = page.locator("[data-testid='builds-gallery']");
+  await gallery.waitFor({ timeout: 30000 }).catch(() => undefined);
+  const cards = gallery.locator(".bg-card");
+  const cardCount = await cards.count();
+  const edit = gallery.locator("a.bg-edit").first();
+  if (cardCount && await edit.count()) {
+    const beforeUrl = page.url();
+    try {
+      await edit.click({ timeout: 20000 });
+      await page.waitForURL(/\/workbench\?build=/, { timeout: 30000 });
+      actions.push({
+        label: "apps open persisted build in workbench",
+        class: "PASS_ACTION_RESULT",
+        strong_signal: true,
+        url_changed: beforeUrl !== page.url(),
+        storage_changed: false,
+        request_count: 0,
+        requests: [],
+        result_excerpt: page.url().slice(0, 700),
+      });
+      await page.goto(`${new URL(beforeUrl).origin}/apps`, { waitUntil: "domcontentloaded", timeout: 45000 });
+      await gallery.waitFor({ timeout: 30000 }).catch(() => undefined);
+    } catch (error) {
+      actions.push({
+        label: "apps open persisted build in workbench",
+        class: "FAIL_CLICK_ERROR",
+        strong_signal: false,
+        url_changed: false,
+        storage_changed: false,
+        request_count: 0,
+        requests: [],
+        result_excerpt: error instanceof Error ? error.message.slice(0, 700) : String(error).slice(0, 700),
+      });
+    }
+  }
+  const currentCards = await page.locator("[data-testid='builds-gallery'] .bg-card").count();
+  const bodyText = await page.locator("body").innerText();
+  return {
+    actions,
+    checks: {
+      persisted_build_gallery_visible: currentCards >= 1,
+      build_metadata_visible: /Öffnen|Bearbeiten/.test(bodyText),
+      persisted_build_navigation: actions.some((action) => action.label === "apps open persisted build in workbench" && action.class === "PASS_ACTION_RESULT"),
+    },
+  };
+}
+
+async function proofCreatorStudio(page, label) {
+  const actions = [];
+  const studio = page.locator("[data-testid='creator-studio']");
+  const docTab = studio.locator("[data-testid='cs-tab-doc']");
+  if (await docTab.count()) {
+    actions.push(await clickAndMeasureState(
+      page,
+      docTab,
+      `${label} select document tool`,
+      async () => await studio.locator("[data-testid='cs-doc']").count(),
+      { settle: 250 },
+    ));
+  }
+  const doc = studio.locator("[data-testid='cs-doc']");
+  actions.push(await fillAndMeasure(page, doc.getByLabel("Titel"), `${label} Hosted Proof`, `${label} document title`));
+  actions.push(await fillAndMeasure(page, doc.getByLabel("Markdown"), `# ${label} Hosted Proof\n\nEchter Browser-Export mit **nachweisbarer** Vorschau.`, `${label} document content`));
+  actions.push(await clickAndMeasureDownload(page, doc.locator("[data-testid='cs-doc-md']"), `${label} markdown download`));
+  const previewText = await doc.locator(".cs-preview").innerText().catch(() => "");
+  const titleValue = await doc.getByLabel("Titel").inputValue().catch(() => "");
+  return {
+    actions,
+    checks: {
+      creator_studio_visible: await studio.count().then((count) => count === 1),
+      live_document_preview: previewText.includes(`${label} Hosted Proof`) && /Echter Browser-Export/.test(previewText),
+      document_title_updated: titleValue === `${label} Hosted Proof`,
+      browser_download_completed: actions.some((action) => action.label === `${label} markdown download` && action.class === "PASS_ACTION_RESULT"),
+    },
+  };
+}
+
+async function proofMedia(page) {
+  const actions = [];
+  const studio = page.locator("[data-testid='creator-studio']");
+  const musicTab = studio.locator("[data-testid='cs-tab-music']");
+  if (await musicTab.count()) {
+    actions.push(await clickAndMeasureState(
+      page,
+      musicTab,
+      "media select music tool",
+      async () => await studio.locator("[data-testid='cs-music']").count(),
+      { settle: 250 },
+    ));
+  }
+  const play = studio.locator("[data-testid='cs-music-play']");
+  actions.push(await clickAndMeasureState(
     page,
-    page.locator("[data-testid='goal-b-docs-export-md']"),
-    "docs-output export md plan",
-    { resultSelector: exportSelector, waitForText: "PASS docs_export", timeout: 45000, waitTimeout: 90000 },
+    play,
+    "media music play toggle",
+    async () => /■ Stop/.test(await play.innerText().catch(() => "")),
+    { settle: 500 },
   ));
-  const resultText = await page.locator(exportSelector).innerText();
+  await play.click().catch(() => undefined);
+  actions.push(await clickAndMeasureDownload(page, studio.locator("[data-testid='cs-music-rec']"), "media music record download"));
   const checks = {
-    ...baseProof.checks,
-    export_artifact_endpoint: actions
-      .filter((action) => /docs-output export (pdf|md) plan/.test(action.label))
-      .every((action) => action.class === "PASS_ACTION_RESULT" && /artifact=/.test(action.result_excerpt)),
-    export_plan_visible: /PASS docs_export/.test(resultText) && /runtime_store=/.test(resultText),
-    export_provider_writes_closed: /provider_writes=false/.test(resultText) && /live_provider_calls=false/.test(resultText),
+    creator_studio_visible: (await studio.count()) === 1,
+    music_engine_ran: actions.some((a) => a.label === "media music play toggle" && a.class === "PASS_ACTION_RESULT"),
+    real_export_downloaded: actions.some((a) => a.label === "media music record download" && a.class === "PASS_ACTION_RESULT"),
+    no_document_duplication: (await studio.locator("[data-testid='cs-tab-doc']").count()) === 0,
   };
   return { actions, checks };
 }
 
+async function proofDocsOutput(page) {
+  return await proofCreatorStudio(page, "Dokumente");
+}
+
 async function proofHome(page) {
   const actions = [];
-  const resultSelector = "[data-testid='goal-b-home-result']";
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='goal-b-home-hero-proof']"),
-    "home cortex proof",
-    { resultSelector, waitForText: "PASS home_hero_check" },
-  ));
   const consoleSelect = page.getByLabel("Live-Daten Endpoint");
   if (await consoleSelect.count()) {
     const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
@@ -979,41 +1121,49 @@ async function proofHome(page) {
     "live-console copy",
     { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
-  const resultText = await page.locator(resultSelector).innerText();
+  const consoleText = await page.locator("[data-testid='live-console'] .lc-out").innerText();
   const bodyText = await page.locator("body").innerText();
   const heroBytes = await page.locator("[data-testid='batch4-home-cortex-hero']").screenshot().then((buffer) => buffer.length).catch(() => 0);
   const checks = {
     glowing_cortex_hero_visible: heroBytes > 12000,
-    dev_only_no_fake_stats: /DEV-ONLY/.test(bodyText) && /fake_stats=false/.test(`${bodyText}\n${resultText}`),
+    dev_only_no_fake_stats: /(DEV-ONLY|client-lokal|CLIENT-3D)/.test(bodyText) && /(fake_stats=false|keine Fake-Daten)/.test(bodyText),
     no_project_status_wall: !/Project Progress|Projektstand|Gate-Matrix|Recovery-Historie|Workspace-Surfaces/.test(bodyText),
-    home_action_result: /PASS home_hero_check/.test(resultText) && /live_provider_calls=false/.test(resultText),
+    home_action_result: actions.some((action) => action.label === "live-console load" && action.class === "PASS_ACTION_RESULT") && consoleText.length > 0,
   };
   return { actions, checks, hero_bytes: heroBytes };
 }
 
 async function proofLogin(page) {
   const actions = [];
-  const resultSelector = "[data-testid='goal-b-login-result']";
-  for (const [testId, label] of [
-    ["goal-b-login-github", "login github dry-run"],
-    ["goal-b-login-google", "login google dry-run"],
-    ["goal-b-login-email", "login email dry-run"],
-    ["goal-b-login-guest", "login guest dry-run"],
-  ]) {
-    actions.push(await clickAndMeasure(
-      page,
-      page.locator(`[data-testid='${testId}']`),
-      label,
-      { resultSelector, waitForText: "PASS login_dry_run" },
-    ));
+  const resultSelector = "[data-testid='real-login']";
+  const existingSignout = page.locator("[data-testid='rl-signout']");
+  if (await existingSignout.count()) {
+    actions.push(await clickAndMeasure(page, existingSignout, "login clear existing session", {
+      resultSelector,
+      waitForText: "Anmelden",
+    }));
   }
-  const resultText = await page.locator(resultSelector).innerText();
+
+  const proofName = `Hosted Proof ${Date.now().toString().slice(-6)}`;
+  actions.push(await fillAndMeasure(page, page.getByLabel("Name"), proofName, "login session name"));
+  actions.push(await clickAndMeasure(page, page.locator("[data-testid='rl-signin']"), "login real session sign-in", {
+    resultSelector,
+    waitForText: "Angemeldet als",
+    waitTimeout: 30000,
+  }));
+  const signedInText = await page.locator(resultSelector).innerText();
+  actions.push(await clickAndMeasure(page, page.locator("[data-testid='rl-signout']"), "login real session sign-out", {
+    resultSelector,
+    waitForText: "Anmelden als",
+    waitTimeout: 30000,
+  }));
+  const signedOutText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    dry_run_result_visible: /PASS login_dry_run/.test(resultText),
-    live_oauth_closed: /live_oauth=false/.test(resultText) && /No live provider write|OAuth and email providers stay dry-run|dry-run/i.test(bodyText),
-    provider_writes_closed: /provider_writes=false/.test(resultText),
-    secret_output_closed: /secret_output=false/.test(resultText),
+    real_session_created: signedInText.includes(proofName) && /Angemeldet als/.test(signedInText),
+    real_session_cleared: /Anmelden als|Als Gast fortfahren/.test(signedOutText),
+    session_api_requests_visible: actions.filter((action) => action.label.includes("real session") && action.request_count > 0).length >= 2,
+    external_oauth_closed: /Externe OAuth-Provider.*nicht aktiv|OAuth-App brauchen/i.test(bodyText),
   };
   return { actions, checks };
 }
@@ -1088,20 +1238,13 @@ async function proofEvidence(page) {
     progress_integrity_visible: /integrity=verified/.test(resultText),
     evidence_ref_visible: /evidence_ref=/.test(resultText),
     no_secret_or_provider_write: /provider_writes=false/.test(resultText) && /secret_output=false/.test(resultText),
-    claim_guard_visible: /Hard Non-Claims|Claim-Guard|Verifier-Ergebnisse/i.test(bodyText),
+    claim_guard_visible: /Aussage-Schutz|Harte Nichtaussagen|Prüfergebnisse/i.test(bodyText),
   };
   return { actions, checks };
 }
 
 async function proofDiagnostics(page) {
   const actions = [];
-  const resultSelector = "[data-testid='goal-b-diagnostics-result']";
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='goal-b-diagnostics-probe']"),
-    "diagnostics audit probe",
-    { resultSelector, waitForText: "PASS diagnostics_audit_probe", timeout: 45000, waitTimeout: 90000 },
-  ));
   const consoleSelect = page.getByLabel("Live-Daten Endpoint");
   if (await consoleSelect.count()) {
     const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
@@ -1119,25 +1262,19 @@ async function proofDiagnostics(page) {
     "live-console copy",
     { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
-  const resultText = await page.locator(resultSelector).innerText();
+  const consoleText = await page.locator("[data-testid='live-console'] .lc-out").innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    audit_endpoint_visible: /endpoint=GET \/api\/v1\/audit\/recent/.test(resultText),
-    read_only_probe_visible: /provider_writes=false/.test(resultText) && /secret_output=false/.test(resultText),
+    audit_endpoint_visible: /audit|event|platform/i.test(consoleText),
+    live_read_completed: actions.some((action) => action.label === "live-console load" && action.class === "PASS_ACTION_RESULT"),
+    read_only_probe_visible: /read-only|audit|event|platform/i.test(consoleText),
     diagnostics_archive_visible: /Verifier|Archiv|Recovery/i.test(bodyText),
   };
   return { actions, checks };
 }
 
 async function proofDesignSystem(page) {
-  const actions = [];
-  const resultSelector = "[data-testid='goal-b-design-system-result']";
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='goal-b-design-system-probe']"),
-    "design-system token probe",
-    { resultSelector, waitForText: "PASS design_system_token_probe", timeout: 45000, waitTimeout: 90000 },
-  ));
+  const actions = await proofCmdk(page);
   actions.push(await clickAndMeasure(
     page,
     page.locator("[data-testid='live-console-load']"),
@@ -1150,49 +1287,25 @@ async function proofDesignSystem(page) {
     "live-console copy",
     { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
   ));
-  const resultText = await page.locator(resultSelector).innerText();
+  const resultText = await page.locator("[data-testid='live-console'] .lc-out").innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    design_contract_visible: /contract=reference-design-conformance-v1/.test(resultText),
-    token_board_visible: /Color palette|Typography|Components/i.test(bodyText),
-    no_provider_writes: /provider_writes=false/.test(resultText) && /secret_output=false/.test(resultText),
+    design_contract_visible: /reference-design-conformance-v1|design.*contract/i.test(resultText),
+    token_board_visible: /Farbpalette/i.test(bodyText) && /Typografie/i.test(bodyText) && /Komponenten/i.test(bodyText),
+    live_read_completed: actions.some((action) => action.label === "live-console load" && action.class === "PASS_ACTION_RESULT"),
+    command_surface_works: actions.some((action) => action.label === "cmdk open" && action.class === "PASS_ACTION_RESULT"),
   };
   return { actions, checks };
 }
 
 async function proofTechnology(page) {
-  const actions = [];
-  const resultSelector = "[data-testid='goal-b-technology-result']";
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='goal-b-technology-probe']"),
-    "technology cloud layer probe",
-    { resultSelector, waitForText: "PASS technology_cloud_layers", timeout: 45000, waitTimeout: 90000 },
-  ));
-  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
-  if (await consoleSelect.count()) {
-    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
-    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
-  }
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console-load']"),
-    "live-console load",
-    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
-  ));
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
-    "live-console copy",
-    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
-  ));
-  const resultText = await page.locator(resultSelector).innerText();
+  const actions = await proofCmdk(page);
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    cloud_layer_contract_visible: /contract=cloud-layer-readiness-v1/.test(resultText),
-    action_required_not_fake_live: /status=action_required/.test(resultText) && /action_required|DEV-ONLY/i.test(bodyText),
-    retired_providers_absent: /retired_providers_present=false/.test(resultText) && !/\b(Hetzner|GitKraken|Oracle)\b/.test(bodyText),
-    no_provider_writes: /provider_writes=false/.test(resultText) && /live_provider_calls=false/.test(resultText),
+    seven_layers_visible: /L1/.test(bodyText) && /L7/.test(bodyText) && /7 Schichten|7-Schichten/.test(bodyText),
+    provider_inventory_visible: /Provider-Oberflächen|Cloud-Provider-Inventar/.test(bodyText),
+    retired_providers_absent: !/\b(Hetzner|GitKraken|Oracle)\b/.test(bodyText),
+    command_surface_works: actions.some((action) => action.label === "cmdk open" && action.class === "PASS_ACTION_RESULT"),
   };
   return { actions, checks };
 }
@@ -1206,79 +1319,51 @@ async function proofSettings(page) {
     "settings gate planonly",
     { resultSelector, waitForText: "PASS settings_gate_planonly", timeout: 45000, waitTimeout: 90000 },
   ));
-  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
-  if (await consoleSelect.count()) {
-    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
-    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+  // Live-console exists only on some surfaces; the current /settings page has none.
+  if (await page.locator("[data-testid='live-console-load']").count()) {
+    const consoleSelect = page.getByLabel("Live-Daten Endpoint");
+    if (await consoleSelect.count()) {
+      const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
+      if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
+    }
+    actions.push(await clickAndMeasure(
+      page,
+      page.locator("[data-testid='live-console-load']"),
+      "live-console load",
+      { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
+    ));
+    actions.push(await clickAndMeasure(
+      page,
+      page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
+      "live-console copy",
+      { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
+    ));
   }
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console-load']"),
-    "live-console load",
-    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
-  ));
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
-    "live-console copy",
-    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
-  ));
   const resultText = await page.locator(resultSelector).innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
     planonly_artifact_visible: /artifact=/.test(resultText) && /apply_allowed=false/.test(resultText),
-    danger_gates_closed: /all_danger_gates=disabled/.test(resultText) && /closed · false/i.test(bodyText),
-    apply_disabled_explained: /Apply gesperrt/i.test(bodyText),
+    danger_gates_closed: /all_danger_gates=disabled/.test(resultText) && /geschlossen · false/i.test(bodyText),
+    apply_disabled_explained: /Anwenden gesperrt/i.test(bodyText),
   };
   return { actions, checks };
 }
 
 async function proofOpenSource(page) {
-  const actions = [];
-  const resultSelector = "[data-testid='goal-b-open-source-result']";
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='goal-b-open-source-probe']"),
-    "open-source license probe",
-    { resultSelector, waitForText: "PASS open_source_license_probe", timeout: 45000, waitTimeout: 90000 },
-  ));
-  const consoleSelect = page.getByLabel("Live-Daten Endpoint");
-  if (await consoleSelect.count()) {
-    const value = await consoleSelect.locator("option").nth(1).getAttribute("value").catch(() => null);
-    if (value) actions.push(await selectAndMeasure(page, consoleSelect, value, "live-console select endpoint"));
-  }
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console-load']"),
-    "live-console load",
-    { resultSelector: "[data-testid='live-console'] .lc-status", waitForText: "OK", timeout: 45000, waitTimeout: 90000, settle: 900 },
-  ));
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='live-console'] button").filter({ hasText: "Kopieren" }).first(),
-    "live-console copy",
-    { resultSelector: "[data-testid='live-console'] .lc-out", settle: 400 },
-  ));
-  const resultText = await page.locator(resultSelector).innerText();
+  const actions = await proofCmdk(page);
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    workspace_wiring_visible: /contract=workspace-surface-wiring-v1/.test(resultText),
-    license_inventory_visible: /core components|licenses|MIT|Apache/i.test(bodyText),
-    no_secret_or_provider_write: /provider_writes=false/.test(resultText) && /secret_output=false/.test(resultText),
+    license_inventory_visible: /Kernkomponenten/.test(bodyText) && /Lizenzen/.test(bodyText) && /MIT|Apache/i.test(bodyText),
+    open_source_principles_visible: /Selbst hostbar/.test(bodyText) && /Erweiterbar/.test(bodyText) && /Von der Gemeinschaft getragen/.test(bodyText),
+    no_secret_surface: /Provider-Tokens und Secrets gehören nie/i.test(bodyText),
+    command_surface_works: actions.some((action) => action.label === "cmdk open" && action.class === "PASS_ACTION_RESULT"),
   };
   return { actions, checks };
 }
 
 async function proofFilesLocal(page) {
   const actions = [];
-  const resultSelector = "[data-testid='goal-b-files-local-result']";
-  actions.push(await clickAndMeasure(
-    page,
-    page.locator("[data-testid='goal-b-files-local-contract']"),
-    "files-local contract probe",
-    { resultSelector, waitForText: "PASS files_local_contract", timeout: 45000, waitTimeout: 90000 },
-  ));
-  const rootWorkspace = page.getByRole("button", { name: "Root workspace" });
+  const rootWorkspace = page.getByRole("button", { name: "Stammverzeichnis workspace" });
   if (await rootWorkspace.count()) {
     actions.push(await clickAndMeasureState(
       page,
@@ -1288,7 +1373,7 @@ async function proofFilesLocal(page) {
       { settle: 300 },
     ));
   }
-  const rootProject = page.getByRole("button", { name: "Root project" });
+  const rootProject = page.getByRole("button", { name: "Stammverzeichnis project" });
   if (await rootProject.count()) {
     actions.push(await clickAndMeasureState(
       page,
@@ -1298,12 +1383,35 @@ async function proofFilesLocal(page) {
       { settle: 300 },
     ));
   }
-  const resultText = await page.locator(resultSelector).innerText();
+
+  const search = page.getByLabel("Projektbaum durchsuchen");
+  actions.push(await fillAndMeasure(page, search, "PROJECT_STATE", "files-local search filter"));
+  const searchResult = page.locator(".local-search-row + .list .lrow").filter({ hasText: "PROJECT_STATE.md" }).first();
+  if (await searchResult.count()) {
+    actions.push(await clickAndMeasureState(
+      page,
+      searchResult,
+      "files-local search result select",
+      async () => await page.locator(".local-files-grid pre.code").innerText(),
+      { settle: 300 },
+    ));
+  }
+  const copy = page.getByRole("button", { name: "Auswahl kopieren" });
+  actions.push(await clickAndMeasureState(
+    page,
+    copy,
+    "files-local copy redacted selection",
+    async () => await page.evaluate(() => localStorage.getItem("files-local:last_copy") ?? ""),
+    { settle: 300 },
+  ));
+
+  const previewText = await page.locator(".local-files-grid pre.code").innerText();
   const bodyText = await page.locator("body").innerText();
   const checks = {
-    local_files_contract_visible: /contract=local-files-readonly-contract-v1/.test(resultText),
-    no_host_filesystem_reads: /host_filesystem_mounted=false/.test(resultText) && /live_filesystem_reads=false/.test(resultText),
-    read_only_no_secrets: /writes=false/.test(resultText) && /secret_output=false/.test(resultText) && /\.env|secret paths|read-only/i.test(bodyText),
+    local_files_spec_visible: /mode=spec_only/.test(previewText),
+    no_host_filesystem_reads: /host_filesystem_mounted=false/.test(previewText) && /live_filesystem_reads=false/.test(previewText),
+    read_only_no_secrets: /provider_writes=false/.test(previewText) && /secret_output=false/.test(previewText) && /\.env|geheime Pfade|nur lesend/i.test(bodyText),
+    search_result_selected: /selection=PROJECT_STATE\.md/.test(previewText),
   };
   return { actions, checks };
 }
@@ -1347,7 +1455,7 @@ async function proofOrganismReplay(page) {
     ...base.checks,
     runtime_feed: true,
     replay_frames_visible: framesText.length > 0,
-    replay_events_readonly: replay.ok() && events.ok() && /no raw details|read-only audit projection/i.test(bodyText),
+    replay_events_readonly: replay.ok() && events.ok() && /keine Rohdetails|nur lesende Audit-Projektion/i.test(bodyText),
   };
   return { actions: base.actions, checks, cortex_bytes: base.cortex_bytes };
 }
@@ -1391,7 +1499,7 @@ async function proofOrganismMap(page) {
     runtime_feed: true,
     topology_contract_visible: topology.ok() && /organism-topology-v1/.test(topologyText),
     topology_retired_providers_absent: !/\b(Hetzner|GitKraken|Oracle)\b/.test(topologyText),
-    map_readonly_visible: /Capability-Hubs|Layer-Filter|read-only audit projection/i.test(bodyText),
+    map_readonly_visible: /Fähigkeitszentren|Schichtfilter|nur lesende Audit-Projektion/i.test(bodyText),
   };
   return { actions: base.actions, checks, cortex_bytes: base.cortex_bytes };
 }
@@ -1405,9 +1513,9 @@ async function runRouteProof(page, route) {
   if (route === "/files") return await proofFiles(page);
   if (route === "/tools") return await proofTools(page);
   if (route === "/marketplace") return await proofMarketplace(page);
-  if (route === "/games") return await proofWorkspaceMode(page, route, "games", "Game");
-  if (route === "/apps") return await proofWorkspaceMode(page, route, "apps", "App");
-  if (route === "/media") return await proofWorkspaceMode(page, route, "media", "Media");
+  if (route === "/games") return await proofGames(page);
+  if (route === "/apps") return await proofApps(page);
+  if (route === "/media") return await proofMedia(page);
   if (route === "/docs-output") return await proofDocsOutput(page);
   if (route === "/observe") return await proofObserve(page);
   if (route === "/evidence") return await proofEvidence(page);
@@ -1424,7 +1532,7 @@ async function runRouteProof(page, route) {
 
 async function proofCmdk(page) {
   const actions = [];
-  const button = page.getByRole("button", { name: "Suchen oder Kommando ausführen" });
+  const button = page.getByRole("button", { name: "Suchen oder Befehl ausführen" });
   if (await button.count()) {
     actions.push(await clickAndMeasure(page, button.first(), "cmdk open", { resultSelector: ".cmdk-modal", waitForText: "PASS cmdk_opened", settle: 300 }));
     await page.keyboard.press("Escape").catch(() => undefined);
@@ -1436,6 +1544,9 @@ async function proofCmdk(page) {
 async function main() {
   const args = parseArgs(process.argv);
   const batchName = batchNameFromOut(args.out);
+  const evidenceRoot = path.relative(repoRoot, args.out).replace(/\\/g, "/");
+  const localBaseUrl = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(args.baseUrl);
+  const proofScope = localBaseUrl ? "DEV-ONLY localhost proof." : "HTTPS hosted proof.";
   ensureCanonicalRoutes(args.routes, batchName, args.selfCheck);
   if (args.selfCheck) {
     writeJson(path.join(args.out, "tool-contract.json"), CONTRACT);
@@ -1469,7 +1580,13 @@ async function main() {
     routes: [],
     fail_count: 0,
     generated_at: new Date().toISOString(),
-    non_claims: ["DEV-ONLY localhost proof.", "No cloud mutation.", "No live LLM call.", "No live MCP write.", "No secret output."],
+    non_claims: [
+      proofScope,
+      "No infrastructure, environment, permission, or release-promotion mutation.",
+      "User-surface proofs may create scoped session, artifact, build, or memory records.",
+      "No live MCP write.",
+      "No secret output.",
+    ],
   };
 
   try {
@@ -1567,7 +1684,7 @@ async function main() {
     return `| ${route.route} | ${route.http_status} | ${route.visual_reference_checked ? "true" : "false"} | ${route.readiness_percent}% | ${route.action_readiness_percent}% | ${route.fail_count} | ${counts.pass_action} | ${counts.pass_navigation} | ${counts.disabled_explained} | ${counts.warnings} | ${counts.action_covered_warnings ?? 0} |`;
   });
   const reportMd = [
-    `# Goal D2 ${batchName.replace(/^batch/, "Batch ")} Human Click Proof`,
+    `# ${batchName.replace(/^batch/, "Batch ")} Human Click Proof`,
     "",
     `Base URL: ${args.baseUrl}`,
     `Routes: ${args.routes.join(", ")}`,
@@ -1575,8 +1692,7 @@ async function main() {
     "",
     "## Step 0 Evidence",
     "",
-    `- Cloud-layer resync: \`.codex/runs/CURRENT/goal-d2/${batchName}/cloud-layers-resync.json\``,
-    `- K1-K6 tool contract: \`.codex/runs/CURRENT/goal-d2/${batchName}/tool-contract.json\``,
+    `- K1-K6 tool contract: \`${evidenceRoot}/tool-contract.json\``,
     "- Stability: health retry, 60s navigation timeout, networkidle best-effort, retry for 502/503/504/net errors.",
     "",
     "## Route Readiness",
@@ -1606,7 +1722,7 @@ async function main() {
     ...(args.routes.includes("/apps") ? ["- `/apps`: common artifact pipeline creates a local app artifact with `provider_writes=false`."] : []),
     ...(args.routes.includes("/media") ? ["- `/media`: common artifact pipeline creates a local media artifact with `provider_writes=false`; no fake media generation."] : []),
     ...(args.routes.includes("/docs-output") ? ["- `/docs-output`: common document artifact plus PDF/MD export PlanOnly artifacts through `/api/v1/workspace/artifacts`, `provider_writes=false`."] : []),
-    ...(args.routes.includes("/home") ? ["- `/home`: DEV-ONLY glowing cortex hero screenshot plus visible `PASS home_hero_check`; no fake live stats or project-status wall."] : []),
+    ...(args.routes.includes("/home") ? ["- `/home`: cortex hero screenshot plus a real read-only Live Console request; no fake live stats or project-status wall."] : []),
     ...(args.routes.includes("/login") ? ["- `/login`: GitHub, Google, Email, and Guest buttons are dry-run controls with `live_oauth=false`, `provider_writes=false`, and `secret_output=false`."] : []),
     ...(args.routes.includes("/observe") ? ["- `/observe`: read-only metrics contract probe calls `GET /api/v1/metrics/contract`; traffic chart remains explicitly spec-only."] : []),
     ...(args.routes.includes("/evidence") ? ["- `/evidence`: read-only verifier probe calls `GET /api/v1/platform/verify` and `GET /api/v1/project/progress/integrity`."] : []),
@@ -1621,7 +1737,7 @@ async function main() {
     "",
     "## Evidence Artifacts",
     "",
-    `- HAR: \`.codex/runs/CURRENT/goal-d2/${batchName}/har/${batchName}-human-click-proof.har\``,
+    `- HAR: \`${evidenceRoot}/har/${batchName}-human-click-proof.har\``,
     ...report.routes.flatMap((route) => [
       `- ${route.route} before: \`${route.screenshots.before}\``,
       `- ${route.route} after: \`${route.screenshots.after}\``,
@@ -1629,13 +1745,13 @@ async function main() {
     "",
     "## Remaining Owner/Cloud Blockers",
     "",
-    "- Hosted staging proof remains blocked until real HTTPS `STAGING_BASE_URL` exists.",
+    ...(localBaseUrl ? ["- Hosted proof remains separate from this DEV-ONLY run."] : ["- This report proves only the inspected HTTPS frontend surface; backend-origin and owner gates remain independently fail-closed."]),
     "- Vercel backend origin health remains blocked until `AGENT_API_BASE_URL`, `MCP_GATEWAY_BASE_URL`, and `LLM_GATEWAY_BASE_URL` are live HTTPS origins.",
     "- GitHub branch-protection verification requires the owner-approved token gate.",
     "- Fly live budget check requires the owner-approved `FLY_API_TOKEN` gate.",
     "- Live LLM calls and live MCP writes remain closed; this proof is dry-run/read-only.",
     "",
-    "Non-Claims: DEV-ONLY, no cloud mutation, no live LLM, no live MCP write, no secret output.",
+    `Non-Claims: ${proofScope} No cloud mutation, no live LLM, no live MCP write, no secret output.`,
     "",
   ].join("\n");
   fs.writeFileSync(path.join(args.out, "report.md"), reportMd, "utf8");

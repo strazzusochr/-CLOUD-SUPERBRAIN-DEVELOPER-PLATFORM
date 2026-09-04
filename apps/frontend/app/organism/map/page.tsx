@@ -1,40 +1,40 @@
 import Link from "next/link";
 import AppShell from "../../../components/shell/AppShell";
 import { LiveConsole } from "../../../components/live-console";
-import OrganismView from "../../../components/organism/OrganismView";
+import OrganismTopologyMap from "../../../components/organism/OrganismTopologyMap";
 import { PageHeader, Panel, Badge } from "../../../components/ui";
 
-export const metadata = { title: "Organism · Map — Cloud Superbrain" };
+export const metadata = { title: "Organismus · Karte — Cloud Superbrain" };
 
 export default function OrganismMapPage() {
   return (
-    <AppShell crumb="Organism · Map" runState="idle">
+    <AppShell crumb="Organismus · Karte" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Organism"
-          title="Cortex Map"
-          subtitle="Interaktive Topologie-Ansicht des Organism. Buttons und Live-Endpoints sind read-only."
+          eyebrow="Organismus"
+          title="Cortex-Karte"
+          subtitle="Vertragsgebundene Topologie mit Knotenfiltern und gerichteter Nachbarschaft. Alle Endpunkte sind nur lesend."
           actions={
             <>
               <Link href="/organism" className="btn btn-sm btn-ghost">Live</Link>
-              <Link href="/organism/replay" className="btn btn-sm btn-ghost">Replay</Link>
+              <Link href="/organism/replay" className="btn btn-sm btn-ghost">Wiedergabe</Link>
             </>
           }
         />
-        <Panel title="Live endpoints" className="mb-16" actions={<Badge tone="cyan">interaktiv · read-only</Badge>}>
+        <OrganismTopologyMap />
+        <Panel title="Live-Endpunkte" className="mb-16" actions={<Badge tone="cyan">interaktiv · nur lesend</Badge>}>
           <div className="wb-pad">
             <LiveConsole
-              label="Organism map"
+              label="Organismus-Karte"
               endpoints={[
-                { label: "Live state", path: "/api/v1/organism/live-state" },
-                { label: "Map events", path: "/api/v1/organism/events" },
-                { label: "Health", path: "/api/v1/health" },
+                { label: "Regionen", path: "/api/v1/organism/regions" },
+                { label: "Sicherheit", path: "/api/v1/organism/safety" },
+                { label: "Topologie", path: "/api/v1/organism/topology" },
               ]}
             />
           </div>
         </Panel>
       </div>
-      <OrganismView mode="map" />
     </AppShell>
   );
 }

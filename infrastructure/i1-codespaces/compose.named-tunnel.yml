@@ -1,0 +1,31 @@
+services:
+  cloudflared:
+    image: "cloudflare/cloudflared@sha256:${I1_CLOUDFLARED_DIGEST_HEX:?required for explicitly selected named-tunnel fallback}"
+    pull_policy: always
+    profiles:
+      - named-tunnel
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token-file
+      - /run/secrets/cloudflare_named_tunnel_token
+    secrets:
+      - source: cloudflare_named_tunnel_token
+        target: cloudflare_named_tunnel_token
+        mode: 0400
+    depends_on:
+      ingress:
+        condition: service_healthy
+    networks:
+      - candidate
+
+secrets:
+  cloudflare_named_tunnel_token:
+    file: "${I1_CLOUDFLARE_TUNNEL_TOKEN_FILE:?owner-provided file required only for named-tunnel fallback}"

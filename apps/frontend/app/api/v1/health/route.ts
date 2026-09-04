@@ -1,27 +1,23 @@
-// Real liveness/health for the deployed frontend. Always 200 (the frontend IS up
-// if this responds). Honestly reports which optional backends are wired, without
-// ever exposing secret values — just booleans. Overrides the catch-all 503.
+import { proxyReadToBoundary } from "../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
-export function GET(): Response {
-  const llm = !!((process.env.CF_WORKERS_AI_TOKEN || process.env.CF_BACKEND_TOKEN || process.env.CLOUDFLARE_API_TOKEN) && process.env.CLOUDFLARE_ACCOUNT_ID);
-  const d1 = !!(process.env.CF_BACKEND_TOKEN && process.env.CF_D1_DATABASE_ID && process.env.CLOUDFLARE_ACCOUNT_ID);
-  const ghStore = !!((process.env.GH_STORE_TOKEN || process.env.GITHUB_TOKEN) && process.env.GH_STORE_REPO);
-  const agentApi = !!(process.env.AGENT_API_BASE_URL || process.env.AGENT_API_INTERNAL_URL);
+export async function GET(req: Request): Promise<Response> {
+  const response = await proxyReadToBoundary(req, "agent-api", "/api/v1/health");
+  if (response) return response;
   return Response.json(
     {
       status: "ok",
       service: "cloud-superbrain-frontend",
       mode: "frontend-projection",
       time: new Date().toISOString(),
-      capabilities: {
-        llm_provider: llm ? "cloudflare_workers_ai" : null,
-        persistence: d1 ? "cloudflare_d1" : process.env.DATABASE_URL ? "neon_postgres" : ghStore ? "github_store" : null,
-        live_agent_api: agentApi,
-        client_3d: true,
-      },
-      note: "Frontend is live. Deterministic surfaces are served by projection; DB/LLM-backed surfaces activate when their env is configured.",
+      boundary_mode: "stateless_contract_origin",
+      capabilities: { agent_api: null, llm_gateway: null, mcp_gateway: null, persistence: null, client_3d: true },
+      direct_provider_calls: false,
+      live_provider_calls: false,
+      live_mcp_writes: false,
+      production_deploy: false,
+      note: "Frontend liveness only. Stateful capabilities require their configured service boundaries.",
     },
     { headers: { "x-superbrain-source": "frontend-health" } },
   );

@@ -20,6 +20,10 @@ function Assert-RegexContains($label, $value, $pattern) {
   }
 }
 
+Write-Host "[verify] supply-chain pins"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-supply-chain-pins.ps1
+Assert-LastExitCode "supply-chain pins"
+
 Write-Host "[verify] docker compose config"
 docker compose -f docker-compose.dev.yml config | Out-Null
 Assert-LastExitCode "docker compose config"
@@ -92,8 +96,88 @@ py -3 -m py_compile `
   services\agent-api\app\models.py `
   services\llm-gateway\app\main.py `
   services\agent-worker\app\worker.py `
-  services\mcp-gateway\app\main.py
+  services\mcp-gateway\app\main.py `
+  scripts\score_layer5_hosted_mcp_credit.py
 Assert-LastExitCode "python syntax"
+
+Write-Host "[verify] external gate claim-map regression tests"
+py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map
+Assert-LastExitCode "external gate claim-map regression tests"
+
+Write-Host "[verify] project progress delta-ledger replay regression tests"
+py -3 -m unittest scripts.tests.test_verify_project_progress_manifest -v
+Assert-LastExitCode "project progress delta-ledger replay regression tests"
+
+Write-Host "[verify] Layer 5 hosted MCP delta-scorer regression tests"
+py -3 -m unittest scripts.tests.test_layer5_hosted_mcp_credit_scorer -v
+Assert-LastExitCode "Layer 5 hosted MCP delta-scorer regression tests"
+
+Write-Host "[verify] Phase 3/6 draft credit rubric integrity"
+py -3 -m unittest scripts.tests.test_credit_rubric_drafts -v
+Assert-LastExitCode "Phase 3/6 draft credit rubric regression tests"
+py -3 scripts\verify_credit_rubric_drafts.py
+Assert-LastExitCode "Phase 3/6 draft credit rubric integrity"
+
+Write-Host "[verify] Phase 5 itemization transition regression tests"
+py -3 -m unittest scripts.tests.test_verify_phase5_credit_itemization
+Assert-LastExitCode "Phase 5 itemization transition regression tests"
+
+Write-Host "[verify] market-ready transition regression tests"
+py -3 -m unittest `
+  scripts.tests.test_market_ready_entrypoint `
+  scripts.tests.test_frontend_hosted_validate_only `
+  scripts.tests.test_production_auth_identity_evidence
+Assert-LastExitCode "market-ready transition regression tests"
+
+Write-Host "[verify] hosted OAuth and L4/L5 verifier regression tests"
+node --test scripts/tests/l4_hosted_verifiers.test.mjs
+Assert-LastExitCode "hosted L4 verifier regression tests"
+py -3 -m unittest scripts.tests.l5_hosted_verifiers_test -v
+Assert-LastExitCode "hosted L5 verifier regression tests"
+py -3 -m unittest scripts.tests.test_cloudflare_oauth_deploy_config -v
+Assert-LastExitCode "hosted OAuth deploy regression tests"
+py -3 -m unittest scripts.tests.test_cloudflare_oauth_hosted_current -v
+Assert-LastExitCode "hosted OAuth evidence regression tests"
+
+Write-Host "[verify] production auth evidence verifier contract"
+$productionAuthVerifierPath = "scripts\verify-production-auth-identity-evidence.ps1"
+if (-not (Test-Path -LiteralPath $productionAuthVerifierPath -PathType Leaf)) {
+  throw "Missing production auth identity evidence verifier"
+}
+$productionAuthParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  $productionAuthVerifierPath,
+  [ref]$null,
+  [ref]$productionAuthParseErrors
+) | Out-Null
+if ($productionAuthParseErrors -and $productionAuthParseErrors.Count -gt 0) {
+  $productionAuthParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Production auth identity evidence verifier has parse errors"
+}
+$productionAuthVerifier = Get-Content -LiteralPath $productionAuthVerifierPath -Raw
+foreach ($required in @(
+  "production-auth-identity-proof-v1",
+  "oauth_scope_exact_read_user_verified",
+  "oauth_state_one_time_verified",
+  "callback_replay_rejected_verified",
+  "refresh_family_replay_rejected_verified",
+  "audit_before_credential_verified",
+  "human_flow_verified_steps",
+  "production-auth-architecture-decision-v1",
+  "owner_architecture_adr_bound=true",
+  "auth_runtime_bound=true",
+  "verify-frontend-hosted-current.ps1",
+  "full_validation=true",
+  "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false"
+)) {
+  if (-not $productionAuthVerifier.Contains($required)) {
+    throw "Production auth identity evidence verifier missing required guard: $required"
+  }
+}
+
+Write-Host "[verify] Grafana Cloud real-read regression tests"
+py -3 scripts\verify-grafana-cloud-live-read.py
+Assert-LastExitCode "Grafana Cloud real-read regression tests"
 
 Write-Host "[verify] llm responses adapter contract guard"
 if (-not (Test-Path "scripts\verify-llm-responses-contract.ps1")) {
@@ -113,12 +197,13 @@ $llmResponsesVerifier = Get-Content -Path "scripts\verify-llm-responses-contract
 $llmGatewaySource = Get-Content -Path "services\llm-gateway\app\main.py" -Raw
 $agentApiSourceForLlmResponses = Get-Content -Path "services\agent-api\app\main.py" -Raw
 foreach ($required in @(
-  "llm-responses-adapter-contract-v1",
+  "llm-responses-adapter-contract-v2",
   "llm_responses_adapter_contract_visible",
   "POST /llm/v1/responses",
   "GET /llm/api/v1/responses/contract",
   "audit_persisted",
-  "stream true rejected",
+  "stream exact event order",
+  "continuity applied to gateway messages",
   "metadata object required",
   "No direct provider URL is called by the Agent API"
 )) {
@@ -131,7 +216,10 @@ foreach ($required in @(
   "responses_adapter_contract_snapshot",
   '@app.get("/api/v1/responses/contract")',
   '@app.post("/v1/responses")',
-  "stream=true is not supported on this /v1/responses proxy",
+  "responses_stream_events",
+  "store_responses_context",
+  "Responses stream audit persistence failed before emission",
+  "openai-responses-sse-v1",
   "metadata must be an object",
   '"secret_output": False'
 )) {
@@ -150,6 +238,17 @@ foreach ($required in @(
     throw "Agent API source missing responses adapter guard: $required"
   }
 }
+
+Write-Host "[verify] llm responses deterministic streaming regression tests"
+if (-not (Test-Path "services\llm-gateway\tests\test_responses_streaming.py")) {
+  throw "Missing LLM Responses streaming regression tests"
+}
+py -3 services\llm-gateway\tests\test_responses_streaming.py
+Assert-LastExitCode "llm responses deterministic streaming regression tests"
+
+Write-Host "[verify] llm gateway active-provider-only health"
+py -3 scripts\verify_llm_gateway_health_mode.py
+Assert-LastExitCode "llm gateway active-provider-only health"
 
 Write-Host "[verify] live agent steering contract guard"
 if (-not (Test-Path "scripts\verify-live-agent-steering-contract.ps1")) {
@@ -172,11 +271,12 @@ foreach ($required in @(
   "live_agent_steering_contract_visible",
   "POST /llm/v1/responses",
   "GET /llm/api/v1/responses/contract",
-  "llm-responses-adapter-contract-v1",
+  "llm-responses-adapter-contract-v2",
   "live_provider_calls",
   "model_downloads",
   "audit_persisted",
   "secret_output",
+  "caller live-provider authorization rejected",
   "unknown agent rejected",
   "empty message rejected",
   "compatibility route"
@@ -198,9 +298,25 @@ foreach ($required in @(
   "model_downloads",
   "audit_persisted",
   "secret_output"
+  "metadata keys are server-owned"
+  "continuity_reset"
 )) {
   if (-not $agentApiSourceForLiveAgentSteering.Contains($required)) {
     throw "Agent API source missing live agent steering guard: $required"
+  }
+}
+$agentResearchUnitPath = "services\agent-api\tests\test_agent_research_run.py"
+if (-not (Test-Path $agentResearchUnitPath)) {
+  throw "Missing Agent API research/steering regression tests"
+}
+$agentResearchUnitSource = Get-Content -Path $agentResearchUnitPath -Raw
+foreach ($required in @(
+  "test_caller_metadata_cannot_set_server_owned_or_provider_gate_fields",
+  "test_caller_metadata_is_size_bounded",
+  "test_expired_gateway_context_is_reset_and_retried_once"
+)) {
+  if (-not $agentResearchUnitSource.Contains($required)) {
+    throw "Agent API steering regression tests missing required guard: $required"
   }
 }
 
@@ -247,15 +363,26 @@ if (-not (Test-Path "scripts\verify-frontend-cloud-rewrites.ps1")) {
   throw "Missing frontend cloud rewrite verifier"
 }
 $frontendNextConfig = Get-Content -Path "apps\frontend\next.config.mjs" -Raw
-foreach ($required in @("convertFlyAppNameToBaseUrl", "resolveBaseUrl", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY", "cloud-superbrain-agent-api", "cloud-superbrain-mcp-gateway", "cloud-superbrain-llm-gateway", "hostedRewriteFallbackFor")) {
+foreach ($required in @("resolveBaseUrl", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL", "STAGING_BASE_URL", "isSafeHttpsOrigin", "hostedRewriteFallbackFor")) {
   if (-not $frontendNextConfig.Contains($required)) {
-    throw "Frontend Next.js config missing Fly rewrite guard: $required"
+    throw "Frontend Next.js config missing hosted origin rewrite guard: $required"
+  }
+}
+foreach ($forbiddenActiveFlyMarker in @("convertFlyAppNameToBaseUrl", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY")) {
+  if ($frontendNextConfig.Contains($forbiddenActiveFlyMarker)) {
+    throw "Frontend Next.js config must not retain active Fly fallback: $forbiddenActiveFlyMarker"
   }
 }
 
 Write-Host "[verify] frontend cloud rewrites"
+node --test scripts\tests\endpoint-snapshot-metadata.test.mjs
+Assert-LastExitCode "endpoint snapshot metadata regression tests"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-cloud-rewrites.ps1
 Assert-LastExitCode "frontend cloud rewrites"
+
+Write-Host "[verify] frontend provider boundary"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-provider-boundary.ps1
+Assert-LastExitCode "frontend provider boundary"
 
 Write-Host "[verify] workspace pages layer map"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-workspace-pages-layer-map.ps1
@@ -316,9 +443,10 @@ foreach ($required in @(
   "layers_required) 7",
   "directProviderCalls",
   "hostedProofRequiredForRelease",
-  "fly-agent-api",
-  "fly-mcp-gateway",
-  "fly-llm-gateway",
+  "cloudflare-stateful-runtime",
+  "cloudflare-llm-gateway",
+  "vercel-hosted-backend-origin-contracts",
+  "retired active backend target absent",
   "ghcr",
   "Hetzner",
   "GitKraken",
@@ -480,14 +608,25 @@ if ($organismTopologyParseErrors -and $organismTopologyParseErrors.Count -gt 0) 
   throw "Organism topology verifier has parse errors"
 }
 $organismTopologyVerifier = Get-Content -Path "scripts\verify-organism-topology.ps1" -Raw
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-organism-topology.ps1 -StaticOnly
+Assert-LastExitCode "organism topology static surface"
 $organismTopologyFrontend = Get-Content -Path "apps\frontend\app\api\v1\organism\topology\route.ts" -Raw
 $organismTopologyContract = Get-Content -Path "apps\frontend\app\api\v1\organism\contract\route.ts" -Raw
 $organismPlatformSource = Get-Content -Path "apps\frontend\lib\platform.ts" -Raw
 $organismAgentApiSource = Get-Content -Path "services\agent-api\app\main.py" -Raw
 foreach ($required in @(
   "organism-topology-v1",
+  "organism_topology_visible",
   "workspace-surface-wiring-v1",
   "workspace-vertical-stack-v1",
+  "StaticOnly",
+  "OrganismTopologyMap.tsx",
+  "organism map page",
+  "OrganismView",
+  "isTopologyPayload",
+  "organism-topology-map",
+  "organism-topology-kind-filter",
+  "organism-topology-adjacency",
   "node kind count",
   "edge from exists",
   "edge to exists",
@@ -505,6 +644,7 @@ foreach ($required in @(
 }
 foreach ($required in @(
   "organism-topology-v1",
+  "organism_topology_visible",
   "workspace_data_source",
   "workspace_verifier",
   "page_to_data_source",
@@ -527,7 +667,15 @@ foreach ($required in @(
   }
 }
 foreach ($required in @(
-  '{ id: "P4", pct: 99 }',
+  'overall: 89',
+  '{ name: "Frontend", layer: 1, pct: 100 }',
+  '{ name: "Orchestrator", layer: 2, pct: 100 }',
+  '{ name: "Memory", layer: 6, pct: 100 }',
+  '{ id: "P2", pct: 100 }',
+  '{ id: "P3", pct: 44 }',
+  '{ id: "P4", pct: 100 }',
+  '{ id: "P5", pct: 89 }',
+  '{ id: "P6", pct: 90 }',
   "AGENTS",
   "MCP_TOOLS",
   "MODELS",
@@ -541,6 +689,7 @@ foreach ($required in @(
 foreach ($required in @(
   "def organism_topology_payload",
   "organism-topology-v1",
+  "organism_topology_visible",
   '"kind": "agent_to_tool"',
   '"kind": "page_to_verifier"',
   '"kind": "layer_to_provider"',
@@ -548,6 +697,48 @@ foreach ($required in @(
 )) {
   if (-not $organismAgentApiSource.Contains($required)) {
     throw "Agent API organism topology source missing guard: $required"
+  }
+}
+
+Write-Host "[verify] technology runtime view"
+if (-not (Test-Path "scripts\verify-technology-runtime-view.ps1")) {
+  throw "Missing technology runtime view verifier"
+}
+$technologyRuntimeParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-technology-runtime-view.ps1",
+  [ref]$null,
+  [ref]$technologyRuntimeParseErrors
+) | Out-Null
+if ($technologyRuntimeParseErrors -and $technologyRuntimeParseErrors.Count -gt 0) {
+  $technologyRuntimeParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Technology runtime view verifier has parse errors"
+}
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-technology-runtime-view.ps1 -StaticOnly
+Assert-LastExitCode "technology runtime view static surface"
+$technologyRuntimeVerifier = Get-Content -Path "scripts\verify-technology-runtime-view.ps1" -Raw
+foreach ($required in @(
+  "technology runtime contracts expose working filters layer selection and refresh",
+  "cloud-provider-inventory-v1",
+  "cloud_provider_inventory_visible",
+  "cloud-layer-readiness-v1",
+  "cloud_layer_readiness_visible",
+  "cloud-deployment-preflight-v1",
+  "cloud_deployment_preflight_visible",
+  "agent-api-boundary",
+  "project-state-projection",
+  "frontend-projection",
+  "technology-runtime-view",
+  "technology-runtime-refresh",
+  "technology-runtime-retry",
+  "technology-provider-filter",
+  "technology-layer-select",
+  "historical_only",
+  "cloudflare_edge",
+  "Localhost technology runtime proof requires -AllowLocalhost and remains DEV-ONLY"
+)) {
+  if (-not $technologyRuntimeVerifier.Contains($required)) {
+    throw "Technology runtime view verifier missing guard: $required"
   }
 }
 
@@ -592,6 +783,37 @@ foreach ($required in @(
 )) {
   if (-not $workspacePagesBrowserRunner.Contains($required)) {
     throw "Workspace pages browser runner missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-workspace-responsive-browser.cjs")) {
+  throw "Missing workspace responsive browser verifier runner"
+}
+$workspaceResponsiveRunner = Get-Content -Path "scripts\verify-workspace-responsive-browser.cjs" -Raw
+foreach ($required in @(
+  "frontend-22-page-responsive-browser-v1",
+  "frontend_22_page_responsive_click_proof",
+  "Expected 22 routes",
+  "click_navigation_count: 44",
+  "overflow_failures: 0",
+  "console_errors: 0",
+  'width: 1440, height: 960',
+  'width: 390, height: 844',
+  "Suchen oder Befehl ausführen",
+  'waitUntil: "commit"',
+  "Localhost evidence remains DEV-ONLY"
+)) {
+  if (-not $workspaceResponsiveRunner.Contains($required)) {
+    throw "Workspace responsive browser runner missing guard: $required"
+  }
+}
+$browserContractSource = Get-Content -Path "scripts\verify-browser-contract.ps1" -Raw
+foreach ($required in @(
+  "verify-workspace-responsive-browser.cjs",
+  "workspace responsive browser proof",
+  "--allow-localhost"
+)) {
+  if (-not $browserContractSource.Contains($required)) {
+    throw "Browser contract missing responsive integration guard: $required"
   }
 }
 if (-not (Test-Path "scripts\verify-reference-design-browser.ps1")) {
@@ -677,6 +899,84 @@ foreach ($service in @("frontend", "agent-api", "agent-worker", "memory-worker",
   }
 }
 
+Write-Host "[verify] memory worker metadata secret guard"
+& (Join-Path $PSScriptRoot "verify-memory-worker-secret-guard.ps1") -StaticOnly
+Assert-LastExitCode "memory worker metadata secret guard"
+
+Write-Host "[verify] O5 live vector memory search chain"
+# capability-gates.json reserved this exact path long before the file existed, so the owner input
+# manifest pointed at a verifier that was never written. It reports the semantic-retrieval chain and
+# stays read-only: a missing precondition is `blocked` and passes, an incoherent claim fails.
+$liveVectorSearchVerifierPath = Join-Path $PSScriptRoot "verify-live-vector-memory-search.ps1"
+if (-not (Test-Path -LiteralPath $liveVectorSearchVerifierPath -PathType Leaf)) {
+  throw "Missing live vector memory search verifier reserved by capability-gates.json"
+}
+& powershell -NoProfile -ExecutionPolicy Bypass -File $liveVectorSearchVerifierPath
+Assert-LastExitCode "O5 live vector memory search chain"
+
+Write-Host "[verify] O4 live Agent/MCP write gate"
+$liveWriteVerifierPath = Join-Path $PSScriptRoot "verify-o4-live-writes.ps1"
+if (-not (Test-Path -LiteralPath $liveWriteVerifierPath -PathType Leaf)) {
+  throw "Missing O4 live Agent/MCP write verifier"
+}
+$liveWriteVerifierSource = Get-Content -LiteralPath $liveWriteVerifierPath -Raw
+foreach ($required in @(
+  'Assert-ProofSourceParity',
+  '--diff-filter=ACDMRTUXB',
+  'qualificationTruthPaths',
+  'apps/frontend/lib/endpoint-snapshot.json',
+  'apps/frontend/lib/platform.ts',
+  'scripts/verify-o4-live-writes.ps1',
+  'RequireCleanWorktree',
+  'proof tracked runtime worktree is clean',
+  'proof has no untracked runtime paths',
+  '"ls-files", "--others", "--exclude-standard"',
+  'runtime_source_parity_verified',
+  'browser_source_parity_verified',
+  'proof_worktree_clean_verified'
+)) {
+  if (-not $liveWriteVerifierSource.Contains($required)) {
+    throw "O4 live-write verifier missing fail-closed source-parity guard: $required"
+  }
+}
+$liveWriteBrowserPath = Join-Path $PSScriptRoot "verify-o4-live-write-browser.cjs"
+if (-not (Test-Path -LiteralPath $liveWriteBrowserPath -PathType Leaf)) {
+  throw "Missing O4 live-write browser verifier"
+}
+$liveWriteBrowserSource = Get-Content -LiteralPath $liveWriteBrowserPath -Raw
+foreach ($required in @(
+  '"status"',
+  '"--porcelain=v1"',
+  '"--untracked-files=all"',
+  'scripts/verify-o4-live-writes.ps1',
+  'O4 proof generation requires a clean tracked and untracked runtime worktree',
+  'proof_worktree_clean_verified: true'
+)) {
+  if (-not $liveWriteBrowserSource.Contains($required)) {
+    throw "O4 browser verifier missing clean-worktree guard: $required"
+  }
+}
+& powershell -NoProfile -ExecutionPolicy Bypass -File $liveWriteVerifierPath
+Assert-LastExitCode "O4 live Agent/MCP write gate"
+
+Write-Host "[verify] fail-closed vector memory capability gate"
+$vectorMemoryVerifierPath = Join-Path $PSScriptRoot "verify-vector-memory-gate.ps1"
+if (-not (Test-Path -LiteralPath $vectorMemoryVerifierPath -PathType Leaf)) {
+  throw "Missing vector memory gate verifier"
+}
+$vectorMemoryParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile(
+  $vectorMemoryVerifierPath,
+  [ref]$null,
+  [ref]$vectorMemoryParseErrors
+) | Out-Null
+if ($vectorMemoryParseErrors) {
+  $vectorMemoryParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Vector memory gate verifier parse errors"
+}
+& $vectorMemoryVerifierPath
+Assert-LastExitCode "fail-closed vector memory capability gate"
+
 Write-Host "[verify] cloud compose pull-based substrate"
 if (-not (Test-Path "docker-compose.cloud.yml")) {
   throw "Missing cloud pull-based compose file"
@@ -700,8 +1000,9 @@ foreach ($required in @(
   "nginx",
   "infrastructure/nginx/cloud.conf",
   "PROJECT_PROGRESS_MANIFEST_PATH",
-  "FLY_API_TOKEN",
   "CLOUDFLARE_API_TOKEN",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_STATEFUL_BASE_URL",
   "VERCEL_TOKEN",
   "GITHUB_TOKEN",
   "GHCR_TOKEN",
@@ -721,7 +1022,7 @@ if (
   throw "Cloud compose missing deployment guard: project progress manifest mount"
 }
 $envExample = Get-Content -Path ".env.example" -Raw
-foreach ($required in @("GHCR_IMAGE_NAMESPACE", "IMAGE_TAG", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL")) {
+foreach ($required in @("GHCR_IMAGE_NAMESPACE", "IMAGE_TAG", "AGENT_API_BASE_URL", "MCP_GATEWAY_BASE_URL", "LLM_GATEWAY_BASE_URL", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")) {
   if (-not $envExample.Contains($required)) {
     throw ".env.example missing cloud deployment variable: $required"
   }
@@ -737,44 +1038,40 @@ Write-Host "[verify] frontend npm audit"
 npm audit --audit-level=moderate --prefix apps/frontend
 Assert-LastExitCode "frontend npm audit"
 
-Write-Host "[verify] ci budget script"
-py -3 -m py_compile scripts\check_fly_infra_budget.py
-Assert-LastExitCode "ci budget script"
-
-Write-Host "[verify] fly origin configs"
-$flyOriginConfigs = @(
-  @{ path = "fly.agent-api.toml"; app = "cloud-superbrain-agent-api"; dockerfile = "services/agent-api/Dockerfile"; port = "8000"; memory = "1gb" },
-  @{ path = "fly.mcp-gateway.toml"; app = "cloud-superbrain-mcp-gateway"; dockerfile = "services/mcp-gateway/Dockerfile"; port = "9000"; memory = "512mb" },
-  @{ path = "fly.llm-gateway.toml"; app = "cloud-superbrain-llm-gateway"; dockerfile = "services/llm-gateway/Dockerfile"; port = "4000"; memory = "512mb" }
-)
-foreach ($config in $flyOriginConfigs) {
-  if (-not (Test-Path $config.path)) {
-    throw "Missing Fly.io origin config: $($config.path)"
-  }
-  $flyConfig = Get-Content -Path $config.path -Raw
-  foreach ($required in @(
-    "app = `"$($config.app)`"",
-    "primary_region = `"fra`"",
-    "dockerfile = `"$($config.dockerfile)`"",
-    "internal_port = $($config.port)",
-    "force_https = true",
-    "size = `"shared-cpu-1x`"",
-    "memory = `"$($config.memory)`""
-  )) {
-    if (-not $flyConfig.Contains($required)) {
-      throw "Fly.io origin config $($config.path) missing guard: $required"
-    }
-  }
+Write-Host "[verify] active cloud path excludes retired Fly requirements"
+if ($cloudComposeText.Contains("FLY_API_TOKEN")) {
+  throw "Cloud compose must not keep FLY_API_TOKEN in the active Cloudflare-native path"
 }
 
 Write-Host "[verify] project progress manifest"
+node scripts\verify-phase6-frontend.mjs --source-only
+Assert-LastExitCode "phase6 frontend source markers"
 py -3 -m py_compile scripts\verify_project_progress_manifest.py
 Assert-LastExitCode "project progress manifest syntax"
+py -3 -m py_compile scripts\verify_phase5_credit_itemization.py
+Assert-LastExitCode "phase5 credit itemization syntax"
 py -3 scripts\verify_project_progress_manifest.py
 Assert-LastExitCode "project progress manifest"
 $projectProgressManifest = Get-Content -Path "docs\project-progress.manifest.json" -Raw
 if (-not $projectProgressManifest.Contains("runtime-post-recreate-steady-state-proof")) {
   throw "Project progress manifest missing runtime post-recreate steady-state proof marker"
+}
+if (-not $projectProgressManifest.Contains("langgraph-postgres-checkpoint-restart-recovery-proof")) {
+  throw "Project progress manifest missing Phase 2 checkpoint restart recovery proof marker"
+}
+if (-not $projectProgressManifest.Contains("hosted_cloudflare_d1_four_role_agent_pool_readback_proof")) {
+  throw "Project progress manifest missing hosted Agent Pool D1 readback proof marker"
+}
+if (-not $projectProgressManifest.Contains("mcp_current_hosted_readonly_contract_parity_verified")) {
+  throw "Project progress manifest missing current hosted MCP read-only parity proof marker"
+}
+if (-not $projectProgressManifest.Contains("cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified")) {
+  throw "Project progress manifest missing hosted Cloudflare LLM read-only parity proof marker"
+}
+foreach ($marker in @("auth_credential_issuance_fail_closed", "oauth_state_one_time_enforced", "refresh_token_registry_enforced")) {
+  if (-not $projectProgressManifest.Contains($marker)) {
+    throw "Project progress manifest missing Phase 3 auth fail-closed marker: $marker"
+  }
 }
 $projectProgress = $projectProgressManifest | ConvertFrom-Json
 $horizontalById = @{}
@@ -788,7 +1085,10 @@ foreach ($item in $projectProgress.vertical.items) {
 $currentOverall = [int]$projectProgress.overall_percent
 $currentPhase1 = $horizontalById["phase_1"]
 $currentPhase2 = $horizontalById["phase_2"]
+$currentPhase3 = $horizontalById["phase_3"]
 $currentPhase4 = $horizontalById["phase_4"]
+$currentPhase5 = $horizontalById["phase_5"]
+$currentPhase6 = $horizontalById["phase_6"]
 $currentFrontend = $verticalByLabel["Frontend / Next.js"]
 $currentAgentPool = $verticalByLabel["Agent Pool"]
 $currentLlmGateway = $verticalByLabel["LLM Gateway"]
@@ -823,7 +1123,9 @@ foreach ($requiredBrowserMcpTerm in @(
 foreach ($requiredHostedBoundaryTerm in @(
   'Current Hosted Boundary',
   'historical provenance only',
-  'Current hosted gate truth is the latest `external-gate-audit-*` artifact plus a future real Vercel HTTPS `STAGING_BASE_URL` and reachable Fly origins'
+  'Current frontend truth is `frontend-hosted-current-proof-v1`',
+  'current external truth is `external-gate-audit-v2` plus `external-gate-summary-v2`',
+  'Neither one proves a stateful full-backend rollout, release promotion, or full-platform production release'
 )) {
   if (-not $verificationRegister.Contains($requiredHostedBoundaryTerm)) {
     throw "Verification register missing current hosted boundary marker: $requiredHostedBoundaryTerm"
@@ -846,7 +1148,10 @@ foreach ($requiredProgressRegisterTerm in @(
   "Current verified progress is total ``$currentOverall%``",
   "Phase 1 ``$currentPhase1%``",
   "Phase 2 ``$currentPhase2%``",
+  "Phase 3 ``$currentPhase3%``",
   "Phase 4 ``$currentPhase4%``",
+  "Phase 5 ``$currentPhase5%``",
+  "Phase 6 ``$currentPhase6%``",
   "Frontend ``$currentFrontend%``",
   "Agent Pool ``$currentAgentPool%``",
   "LLM Gateway ``$currentLlmGateway%``",
@@ -880,7 +1185,10 @@ foreach ($requiredProjectStateTerm in @(
   "AKTUELLER FORTSCHRITT: $currentOverall%",
   '| P1   |',
   '| P2   |',
+  '| P3   |',
   '| P4   |',
+  '| P5   |',
+  '| P6   |',
   '| Memory        |'
 )) {
   if (-not $projectState.Contains($requiredProjectStateTerm)) {
@@ -889,7 +1197,10 @@ foreach ($requiredProjectStateTerm in @(
 }
 Assert-RegexContains "PROJECT_STATE.md phase 1 row" $projectState "\|\s*P1\s*\|\s*$currentPhase1%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md phase 2 row" $projectState "\|\s*P2\s*\|\s*$currentPhase2%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 3 row" $projectState "\|\s*P3\s*\|\s*$currentPhase3%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md phase 4 row" $projectState "\|\s*P4\s*\|\s*$currentPhase4%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 5 row" $projectState "\|\s*P5\s*\|\s*$currentPhase5%\s*\|"
+Assert-RegexContains "PROJECT_STATE.md phase 6 row" $projectState "\|\s*P6\s*\|\s*$currentPhase6%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md frontend row" $projectState "\|\s*Frontend\s*\|\s*$currentFrontend%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md agent pool row" $projectState "\|\s*Agent Pool\s*\|\s*$currentAgentPool%\s*\|"
 Assert-RegexContains "PROJECT_STATE.md memory row" $projectState "\|\s*Memory\s*\|\s*$currentMemory%\s*\|"
@@ -910,7 +1221,10 @@ foreach ($requiredAiHandoffTerm in @(
   "Overall: ``$currentOverall%``",
   "- P1: ``$currentPhase1%``",
   "- P2: ``$currentPhase2%``",
+  "- P3: ``$currentPhase3%``",
   "- P4: ``$currentPhase4%``",
+  "- P5: ``$currentPhase5%``",
+  "- P6: ``$currentPhase6%``",
   "- Frontend / Next.js: ``$currentFrontend%``",
   "- Agent Pool: ``$currentAgentPool%``",
   "- Memory: ``$currentMemory%``",
@@ -920,6 +1234,293 @@ foreach ($requiredAiHandoffTerm in @(
   if (-not $aiHandoff.Contains($requiredAiHandoffTerm)) {
     throw "AI_HANDOFF.md missing current progress marker: $requiredAiHandoffTerm"
   }
+}
+Write-Host "[verify] current truth mirror external gate v2 alignment"
+$candidateAuditName = "external-gate-audit-20260713-125413.json"
+$masterGoal = Get-Content -Path "CODEX_MASTER_GOAL_FINALE.md" -Raw
+$externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+if ([string]$externalGateSummary.contract_version -ne "external-gate-summary-v2") {
+  throw "Canonical external gate summary must use external-gate-summary-v2"
+}
+if ([string]$externalGateSummary.source_contract_version -ne "external-gate-audit-v2") {
+  throw "Canonical external gate summary must source external-gate-audit-v2"
+}
+if ([string]$externalGateSummary.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
+  throw "Canonical external gate summary must target cloudflare_native_zero_card_hosted_runtime"
+}
+$currentAuditPath = ([string]$externalGateSummary.source_artifact).Replace("\", "/")
+if ($currentAuditPath -ne "docs/runtime-state/external-gate-audit-v2.json") {
+  throw "Canonical external gate summary must dynamically reference the durable v2 audit"
+}
+if (-not (Test-Path -LiteralPath $currentAuditPath)) {
+  throw "Canonical external gate v2 audit is missing: $currentAuditPath"
+}
+$trackedCurrentAudit = git ls-files --error-unmatch -- $currentAuditPath 2>$null
+if ($LASTEXITCODE -ne 0 -or @($trackedCurrentAudit).Count -ne 1) {
+  throw "Canonical external gate v2 audit must be tracked: $currentAuditPath"
+}
+$currentAudit = Get-Content -LiteralPath $currentAuditPath -Raw | ConvertFrom-Json
+if ([string]$currentAudit.contract_version -ne "external-gate-audit-v2") {
+  throw "Canonical external gate audit contract must be external-gate-audit-v2"
+}
+if ([string]$currentAudit.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
+  throw "Canonical external gate audit must target cloudflare_native_zero_card_hosted_runtime"
+}
+if (
+  [string]$externalGateSummary.status -ne [string]$currentAudit.status -or
+  [string]$externalGateSummary.generated_at_utc -ne [string]$currentAudit.generated_at_utc -or
+  [bool]$externalGateSummary.production_deploy_claim_allowed -ne [bool]$currentAudit.production_deploy_claim_allowed
+) {
+  throw "Canonical external gate summary and durable v2 audit are out of parity"
+}
+$currentAuditName = [System.IO.Path]::GetFileName($currentAuditPath)
+$currentTruthMirrors = @(
+  @{ name = "PROJECT_STATE.md"; content = $projectState },
+  @{ name = "AI_HANDOFF.md"; content = $aiHandoff },
+  @{ name = "docs/verification-register.md"; content = $verificationRegister },
+  @{ name = "CODEX_MASTER_GOAL_FINALE.md"; content = $masterGoal }
+)
+foreach ($mirror in $currentTruthMirrors) {
+  foreach ($requiredTruthMarker in @(
+    $currentAuditName,
+    "external-gate-summary-v2",
+    "cloudflare_native_zero_card_hosted_runtime"
+  )) {
+    if (-not $mirror.content.Contains($requiredTruthMarker)) {
+      throw "$($mirror.name) missing current external gate v2 truth marker: $requiredTruthMarker"
+    }
+  }
+}
+if (-not $masterGoal.Contains("``overall=$currentOverall``")) {
+  throw "CODEX_MASTER_GOAL_FINALE.md missing current overall=$currentOverall marker"
+}
+if (([string]$externalGateSummary.source_artifact).Contains($candidateAuditName)) {
+  throw "Historical owner-assisted candidate $candidateAuditName must never be the canonical summary source"
+}
+if ([string]$externalGateSummary.status -ne "blocked" -or [bool]$externalGateSummary.production_deploy_claim_allowed) {
+  throw "Canonical external gate summary must stay blocked with production_deploy_claim_allowed=false while release gates remain open"
+}
+$actualMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+# The canonical missing set must be the exact inverse of all six current claim flags. Keep this
+# relationship data-driven so both today's blocked state and later gate transitions fail closed
+# on omissions, unexpected entries, or duplicates without retaining historical fixed-count rules.
+if (-not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed) {
+  throw "Canonical external gate summary must keep the O2Core claim allowed"
+}
+$externalGateClaimMap = @(
+  @{ id = "hosted_agent_api_contracts"; allowed = [bool]$externalGateSummary.hosted_staging_claim_allowed },
+  @{ id = "github_branch_protection_current_verify"; allowed = [bool]$externalGateSummary.branch_protection_claim_allowed },
+  @{ id = "ghcr_image_digest_verify"; allowed = [bool]$externalGateSummary.ghcr_image_digest_claim_allowed },
+  @{ id = "vercel_backend_origin_health"; allowed = [bool]$externalGateSummary.vercel_backend_origins_claim_allowed },
+  @{ id = "canonical_gitleaks_scan"; allowed = [bool]$externalGateSummary.canonical_gitleaks_claim_allowed },
+  @{ id = "cloudflare_native_zero_card_hosted_runtime"; allowed = [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed }
+)
+$expectedMissingExternalGates = @(
+  $externalGateClaimMap |
+    Where-Object { -not $_.allowed } |
+    ForEach-Object { [string]$_.id } |
+    Sort-Object
+)
+$actualMissingExternalGatesSorted = @($actualMissingExternalGates | Sort-Object)
+if ($actualMissingExternalGatesSorted.Count -ne $expectedMissingExternalGates.Count) {
+  throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+}
+for ($externalGateIndex = 0; $externalGateIndex -lt $expectedMissingExternalGates.Count; $externalGateIndex++) {
+  if ($actualMissingExternalGatesSorted[$externalGateIndex] -cne $expectedMissingExternalGates[$externalGateIndex]) {
+    throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+  }
+}
+if (
+  $externalGateSummary.PSObject.Properties.Name -contains "fly_live_budget_claim_allowed" -or
+  $actualMissingExternalGates -contains "fly_live_budget_check"
+) {
+  throw "Retired Fly gate semantics must not remain active in external-gate-summary-v2"
+}
+if (
+  [string]$externalGateSummary.legacy_provenance.status -ne "historical_only" -or
+  [string]$externalGateSummary.legacy_provenance.retired_gate_id -ne "fly_live_budget_check"
+) {
+  throw "Retired Fly evidence must be explicit historical provenance"
+}
+# The older token/origin-injected run may exist only as historical, non-current evidence.
+$candidateSummaryPath = "docs\runtime-state\external-gate-summary.candidate-125413.json"
+if (-not (Test-Path $candidateSummaryPath)) {
+  throw "Missing owner-assisted candidate summary for $candidateAuditName (R0 candidate-only evidence)"
+}
+$candidateSummary = Get-Content -Path $candidateSummaryPath -Raw | ConvertFrom-Json
+if (-not ([string]$candidateSummary.source_artifact).Contains($candidateAuditName)) {
+  throw "Owner-assisted candidate summary must reference $candidateAuditName"
+}
+if ([bool]$candidateSummary.is_current -or -not [bool]$candidateSummary.owner_assisted_candidate) {
+  throw "R0 violation: 125413 candidate must be labeled is_current=false and owner_assisted_candidate=true"
+}
+if ([bool]$candidateSummary.supersedes_canonical) {
+  throw "Historical owner-assisted candidate must not supersede the canonical v2 summary"
+}
+
+$capabilityGateState = Get-Content -Path "docs\runtime-state\capability-gates.json" -Raw | ConvertFrom-Json
+Write-Host "[verify] current Cloudflare-native hosted runtime truth"
+$cloudflareHostedState = Get-Content -Path "docs\runtime-state\cloudflare-native-hosted-current.json" -Raw | ConvertFrom-Json
+$cloudflareHostedGate = $capabilityGateState.gates.cloudflare_native_zero_card_hosted_runtime
+if (
+  [string]$cloudflareHostedState.contract_version -ne "cloudflare-native-hosted-current-v1" -or
+  [string]$cloudflareHostedState.status -ne "verified" -or
+  [string]$cloudflareHostedState.runtime_contract_version -ne "cloudflare-native-runtime-candidate-v2" -or
+  [string]$cloudflareHostedState.artifact_adapter -ne "cloudflare-d1-bounded-text" -or
+  [int]$cloudflareHostedState.artifact_content_max_bytes -ne 32768 -or
+  [string]$cloudflareHostedState.r2_status -ne "historical_only" -or
+  [bool]$cloudflareHostedState.r2_enabled -or
+  [bool]$cloudflareHostedState.paid_provider -or
+  [bool]$cloudflareHostedState.dev_only -or
+  -not [bool]$cloudflareHostedState.hosted_proof -or
+  -not [bool]$cloudflareHostedState.hosted_source_parity_verified -or
+  -not [bool]$cloudflareHostedState.hosted_stateful_roundtrip_verified -or
+  -not [bool]$cloudflareHostedState.create_enqueue_queue_do_d1_artifact_roundtrip -or
+  -not [bool]$cloudflareHostedState.d1_artifact_write_read_delete_verified -or
+  -not [bool]$cloudflareHostedState.zero_card_verified -or
+  [bool]$cloudflareHostedState.live_provider_calls -or
+  [bool]$cloudflareHostedState.direct_provider_calls -or
+  [bool]$cloudflareHostedState.live_mcp_writes -or
+  [bool]$cloudflareHostedState.production_deploy -or
+  [bool]$cloudflareHostedState.production_release_claimed -or
+  [bool]$cloudflareHostedState.secret_output -or
+  [int]$cloudflareHostedState.percentage_credit -ne 0
+) {
+  throw "Current Cloudflare-native hosted runtime truth violates its verified zero-card/non-claim contract"
+}
+if (
+  [string]$cloudflareHostedState.base_url -notmatch '^https://[^/]+\.workers\.dev$' -or
+  [string]$cloudflareHostedState.source_commit_sha -notmatch '^[0-9a-f]{40}$' -or
+  [string]$cloudflareHostedState.source_archive_sha256 -notmatch '^[0-9a-f]{64}$' -or
+  [string]$cloudflareHostedState.evidence_sha256 -notmatch '^[A-F0-9]{64}$' -or
+  ((@($cloudflareHostedState.bindings) | Sort-Object) -join ',') -ne 'DB,RUNTIME_COORDINATOR,RUNTIME_QUEUE'
+) {
+  throw "Current Cloudflare-native hosted runtime truth has invalid source, evidence, URL, or binding identity"
+}
+
+# Hosted product acceptance and the hosted 22-page matrix used to be forbidden here, because at the
+# time this guard was written the Worker proof was the only hosted evidence and neither acceptance
+# report existed. Both now exist as source-bound hosted artefacts, so a blanket "must be false" would
+# force the truth file to under-report a real proof. The claim is therefore bound to its evidence
+# instead of banned: false means nothing may be claimed, true means the artefact, its SHA-256, its
+# source commit and its deployment identity must all hold. verify-market-ready.ps1 asserts the same
+# pair from the opposite direction, so drifting one file alone now fails both gates.
+function Get-HostedAcceptanceSha256([string]$Path) {
+  $stream = [IO.File]::OpenRead($Path)
+  try {
+    $sha256 = [Security.Cryptography.SHA256]::Create()
+    try {
+      return (($sha256.ComputeHash($stream) | ForEach-Object { $_.ToString("X2") }) -join "")
+    } finally {
+      $sha256.Dispose()
+    }
+  } finally {
+    $stream.Dispose()
+  }
+}
+foreach ($hostedAcceptance in @(
+  @{ Label = "product acceptance"; Flag = "product_acceptance_hosted_proof"; Prefix = "product_acceptance" },
+  @{ Label = "22-page action matrix"; Flag = "workspace_22_page_hosted_proof"; Prefix = "workspace_22_page" }
+)) {
+  $acceptanceClaimed = [bool]$cloudflareHostedState.($hostedAcceptance.Flag)
+  $acceptanceArtifact = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_evidence_artifact"
+  $acceptanceSha = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_evidence_sha256"
+  $acceptanceCommit = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_source_commit_sha"
+  $acceptanceDeployment = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_deployment_id"
+  $acceptanceBaseUrl = [string]$cloudflareHostedState."$($hostedAcceptance.Prefix)_base_url"
+
+  if (-not $acceptanceClaimed) {
+    if (
+      -not [string]::IsNullOrWhiteSpace($acceptanceArtifact) -or
+      -not [string]::IsNullOrWhiteSpace($acceptanceSha) -or
+      -not [string]::IsNullOrWhiteSpace($acceptanceCommit) -or
+      -not [string]::IsNullOrWhiteSpace($acceptanceDeployment)
+    ) {
+      throw "Unclaimed hosted $($hostedAcceptance.Label) must not carry evidence, source, or deployment fields"
+    }
+    continue
+  }
+
+  if (-not (Test-Path -LiteralPath $acceptanceArtifact -PathType Leaf)) {
+    throw "Hosted $($hostedAcceptance.Label) claims proof but its evidence artefact is missing: $acceptanceArtifact"
+  }
+  $acceptanceActualSha = Get-HostedAcceptanceSha256 (Resolve-Path -LiteralPath $acceptanceArtifact).Path
+  if ($acceptanceSha -ne $acceptanceActualSha) {
+    throw "Hosted $($hostedAcceptance.Label) evidence SHA-256 does not match its recorded value"
+  }
+  if (
+    $acceptanceCommit -notmatch '^[0-9a-f]{40}$' -or
+    [string]::IsNullOrWhiteSpace($acceptanceDeployment) -or
+    $acceptanceBaseUrl -notmatch '^https://'
+  ) {
+    throw "Hosted $($hostedAcceptance.Label) must be bound to a full commit sha, a deployment id, and an https base url"
+  }
+  git cat-file -e "$acceptanceCommit^{commit}" 2>$null
+  Assert-LastExitCode "hosted $($hostedAcceptance.Label) source commit"
+  git merge-base --is-ancestor $acceptanceCommit HEAD
+  Assert-LastExitCode "hosted $($hostedAcceptance.Label) source ancestry"
+
+  $acceptanceReport = Get-Content -LiteralPath $acceptanceArtifact -Raw | ConvertFrom-Json
+  if (
+    [string]$acceptanceReport.status -ne "verified" -or
+    -not [bool]$acceptanceReport.hosted_proof -or
+    [bool]$acceptanceReport.dev_only -or
+    [string]$acceptanceReport.proof_scope -ne "hosted_https" -or
+    [bool]$acceptanceReport.secret_output -or
+    [string]$acceptanceReport.source_binding.source_commit_sha -ne $acceptanceCommit -or
+    [string]$acceptanceReport.source_binding.deployment_id -ne $acceptanceDeployment
+  ) {
+    throw "Hosted $($hostedAcceptance.Label) artefact contradicts the truth file it is bound to"
+  }
+}
+
+if (
+  -not [bool]$cloudflareHostedGate.owner_granted -or
+  -not [bool]$cloudflareHostedGate.live_verified -or
+  -not [bool]$cloudflareHostedGate.zero_card_verified -or
+  -not [bool]$cloudflareHostedGate.hosted_source_parity_verified -or
+  -not [bool]$cloudflareHostedGate.hosted_stateful_roundtrip_verified -or
+  [bool]$cloudflareHostedGate.r2_enabled -or
+  [bool]$cloudflareHostedGate.paid_provider -or
+  [string]$cloudflareHostedGate.evidence_sha256 -ne [string]$cloudflareHostedState.evidence_sha256 -or
+  [string]$cloudflareHostedGate.source_commit_sha -ne [string]$cloudflareHostedState.source_commit_sha -or
+  [string]$cloudflareHostedGate.source_archive_sha256 -ne [string]$cloudflareHostedState.source_archive_sha256 -or
+  [string]$cloudflareHostedGate.hosted_base_url -ne [string]$cloudflareHostedState.base_url -or
+  -not [bool]$externalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
+) {
+  throw "Current Cloudflare-native hosted runtime truth is not bound to the verifier-opened capability and external-gate mirrors"
+}
+git cat-file -e "$($cloudflareHostedState.source_commit_sha)^{commit}" 2>$null
+Assert-LastExitCode "current Cloudflare-native hosted source commit"
+git merge-base --is-ancestor ([string]$cloudflareHostedState.source_commit_sha) HEAD
+Assert-LastExitCode "current Cloudflare-native hosted source ancestry"
+git diff --quiet ([string]$cloudflareHostedState.source_commit_sha) -- services/cloudflare-stateful-runtime
+Assert-LastExitCode "current Cloudflare-native hosted Worker source parity"
+
+Write-Host "[verify] O6 bounded live LLM resolution truth"
+$liveLlmCapability = $capabilityGateState.gates.live_llm_provider_calls
+if (
+  -not [bool]$liveLlmCapability.owner_granted -or
+  -not [bool]$liveLlmCapability.live_verified -or
+  [bool]$liveLlmCapability.paid_provider -or
+  [string]::IsNullOrWhiteSpace([string]$liveLlmCapability.evidence_artifact)
+) {
+  throw "O6 bounded live LLM capability must remain owner_granted, free, and verifier-backed"
+}
+$ownerInputManifest = Get-Content -Path "docs\runtime-state\owner-input-manifest.json" -Raw | ConvertFrom-Json
+if ([string]$ownerInputManifest.contract_version -ne "owner-input-manifest-v2") {
+  throw "Owner input manifest must use owner-input-manifest-v2"
+}
+$o6OwnerAction = @($ownerInputManifest.actions | Where-Object { [string]$_.id -eq "O6" })
+if ($o6OwnerAction.Count -ne 1 -or [string]$o6OwnerAction[0].status -ne "resolved_verified") {
+  throw "O6 must be resolved_verified and must not remain Owner-required"
+}
+if (-not ([string]$o6OwnerAction[0].required_owner_action).StartsWith("None")) {
+  throw "O6 must not request a new Owner action"
+}
+$layer4Progress = @($projectProgress.vertical.items | Where-Object { [string]$_.id -eq "layer_4" })
+if ($layer4Progress.Count -ne 1 -or [int]$layer4Progress[0].percent -ge 100) {
+  throw "Bounded O6 resolution must not hand-set Layer 4 to 100"
 }
 py -3 -m py_compile scripts\verify-phase-transition-gate.py
 Assert-LastExitCode "phase transition gate syntax"
@@ -939,7 +1540,7 @@ $apiTaskPolicySource = Get-Content -Path "services\agent-api\app\main.py" -Raw
 if (-not $apiTaskPolicySource.Contains("task_policy_blocked")) { throw "Missing task policy audit event" }
 if (-not $apiTaskPolicySource.Contains("/api/v1/tasks/policy/validate")) { throw "Missing public task policy validation endpoint" }
 $cloudProviderSource = Get-Content -Path "services\agent-api\app\clouds.py" -Raw
-foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "FLY_API_TOKEN", "fly_api_readonly", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GRAFANA_CLOUD_API_KEY", "grafana_api_readonly", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "grafana_cloud")) {
+foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "seven_layer_mapping", "cloud_layer_readiness_state", "historical_only", "cannot satisfy active Layer 2, 3, 6", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "cloudflare_api_readonly", "CLOUDFLARE_DASHBOARD_URL", "VERCEL_TOKEN", "vercel_api_readonly", "GITHUB_TOKEN", "github_api_readonly", "GHCR_TOKEN", "ghcr_api_readonly", "HF_TOKEN", "huggingface_api_readonly", "GITLAB_TOKEN", "gitlab_api_readonly", "GRAFANA_CLOUD_API_KEY", "GRAFANA_CLOUD_API_URL", "/api/v1/accesspolicies", "/api/access-control/user/permissions", "grafana_api_readonly", "real read-only provider API request", "No secret values", "mask_ip", "vercel_frontend", "cloudflare_edge", "github_actions", "ghcr_registry", "huggingface_identity", "gitlab_identity", "grafana_cloud")) {
   if (-not $cloudProviderSource.Contains($required)) {
     throw "Missing cloud provider inventory source guard: $required"
   }
@@ -947,6 +1548,12 @@ foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory
 foreach ($required in @("cloud_provider_state", "cloud_layer_readiness_state", "/api/v1/clouds", "/api/v1/clouds/layers", "cloud-render-offload-v1", "cloud_render_offload_contract_visible", "/api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "cloud_render_offload_requires_STAGING_BASE_URL")) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing cloud provider inventory API guard: $required"
+  }
+}
+$cloudProviderLiveReadVerifier = Get-Content -Path "scripts\verify-cloud-provider-live-read.ps1" -Raw
+foreach ($required in @("cloud-provider-live-read-proof-v1", "RequireT3ProviderSet", "DEV-ONLY; hosted proof still blocked.", "CLOUDFLARE_API_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "GRAFANA_CLOUD_API_KEY", "artifact contains secret material")) {
+  if (-not $cloudProviderLiveReadVerifier.Contains($required)) {
+    throw "Missing cloud provider live-read verifier guard: $required"
   }
 }
 foreach ($required in @(
@@ -962,12 +1569,69 @@ foreach ($required in @(
   "auth_refresh_reuse_blocked",
   "auth_logout_revoked",
   "AUTH_BLACKLIST_PREFIX",
+  "AUTH_REFRESH_ACTIVE_PREFIX",
+  "AUTH_OAUTH_STATE_PREFIX",
+  "AUTH_OAUTH_STATE_PATTERN",
+  "AUTH_SIGNING_SECRET_PATTERN",
+  "auth_signing_secret_is_strong",
+  "auth_credential_issuance_fail_closed",
+  "oauth_state_one_time_enforced",
+  "refresh_token_registry_enforced",
+  "refresh_token_body_not_allowed",
+  "oauth_state_invalid",
+  "oauth_callback_parameters_invalid",
+  "oauth_provider_denied",
+  "auth_configuration_required",
+  "auth_audit_unavailable",
+  "credential_issuance_requires_persistence",
+  "auth_logout_no_active_token",
+  "oauth_state_cookie_clear_headers",
+  "RedirectResponse",
   "SameSite"
 )) {
   if (-not $apiTaskPolicySource.Contains($required)) {
     throw "Missing Auth JWT refresh contract guard: $required"
   }
 }
+foreach ($forbidden in @(
+  'create_access_jwt("github:local-contract-user"',
+  'supplied_token = (request.refresh_token if request else None) or refresh_token_cookie',
+  '"blacklist_key": blacklist_key',
+  'phase3-local-dry-run-signing-secret',
+  '"authorize_url": authorize_url',
+  '"scope": "read:user user:email"',
+  '"mode": "local_contract"',
+  'jwt_signing_configured = len(signing_secret.encode("utf-8")) >= 32'
+)) {
+  if ($apiTaskPolicySource.Contains($forbidden)) {
+    throw "Unsafe Auth credential-issuance source marker remains: $forbidden"
+  }
+}
+$agentApiDockerfile = Get-Content -LiteralPath "services\agent-api\Dockerfile" -Raw
+if (-not $agentApiDockerfile.Contains('"--no-access-log"')) {
+  throw "Agent API must disable raw Uvicorn access logging for OAuth callback query safety"
+}
+foreach ($nginxPath in @("infrastructure\nginx\dev.conf", "infrastructure\nginx\cloud.conf")) {
+  $authSafeNginx = Get-Content -LiteralPath $nginxPath -Raw
+  if (-not $authSafeNginx.Contains("log_format superbrain_path_only") -or
+      -not $authSafeNginx.Contains('$request_method $uri $server_protocol')) {
+    throw "Nginx auth-safe path-only access log missing: $nginxPath"
+  }
+  if ($authSafeNginx -match '(?m)^\s*log_format\s+superbrain_path_only[^;]*\$request(?:\s|''|"|;)') {
+    throw "Nginx auth-safe access log must not include raw request arguments: $nginxPath"
+  }
+  if (([regex]::Matches($authSafeNginx, '(?m)^\s*proxy_set_header\s+Authorization\s+"";\s*$')).Count -lt 2 -or
+      ([regex]::Matches($authSafeNginx, '(?m)^\s*proxy_set_header\s+Cookie\s+"";\s*$')).Count -lt 2 -or
+      ([regex]::Matches($authSafeNginx, '(?m)^\s*proxy_hide_header\s+Set-Cookie;\s*$')).Count -lt 2) {
+    throw "Nginx public MCP/LLM routes must strip browser credentials and upstream cookies: $nginxPath"
+  }
+}
+Write-Host "[verify] Phase 3 auth credential issuance fail-closed"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -StaticOnly
+Assert-LastExitCode "Phase 3 auth credential issuance fail-closed"
+Write-Host "[verify] Phase 5 historical auth supersession"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-auth-gate-recheck.ps1 -StaticOnly
+Assert-LastExitCode "Phase 5 historical auth supersession"
 foreach ($required in @(
   "MemoryPurgeRequest",
   "memory_purge_contract_payload",
@@ -1204,7 +1868,7 @@ foreach ($required in @("Canonical platform specification", "not live runtime me
   }
 }
 $homeSource = Get-Content -Path "apps\frontend\app\home\page.tsx" -Raw
-foreach ($required in @("Developer Platform", "Produktfläche", "Evidence", "Diagnostics", "Organism", "Studio-Modi", "Core Pages", "Live Claims")) {
+foreach ($required in @("Entwicklerplattform", "Produktfläche", "Nachweise", "Diagnose", "Organismus", "Studio-Modi", "Kernseiten", "Live-Aussagen")) {
   if (-not $homeSource.Contains($required)) {
     throw "Missing clean home product-surface guard: $required"
   }
@@ -1215,19 +1879,156 @@ foreach ($forbidden in @("fetchRecentTasks", "fetchRecentSessions", "fetchAuditR
   }
 }
 # The workbench surface is split between the route wrapper (page.tsx) and the studio component
-# (batch1-workbench-studio.tsx). Validate the combined surface so the guard tracks the real layout.
+# (workbench-studio.tsx). Validate the combined surface so the guard tracks the real layout.
 $workbenchSource = Get-Content -Path "apps\frontend\app\workbench\page.tsx" -Raw
-$workbenchStudioSource = Get-Content -Path "apps\frontend\components\batch1-workbench-studio.tsx" -Raw
+$workbenchStudioSource = Get-Content -Path "apps\frontend\components\workbench-studio.tsx" -Raw
 $workbenchSurface = $workbenchSource + "`n" + $workbenchStudioSource
-foreach ($required in @("runId", "paidCapabilityVisible", "Metered Budget", "Preview / Assets", "22 Seiten", "CortexCanvas", "Run Binding", "terminal-feed")) {
+foreach ($required in @("WorkbenchStudio", "workbench-studio", "wb-composer", "/api/v1/build", "Dateien", "Vorschau", "Build-Protokoll", "terminal-feed", "ws-frame")) {
   if (-not $workbenchSurface.Contains($required)) {
     throw "Missing clean workbench platform guard: $required"
   }
 }
 foreach ($forbidden in @("fetchMasterPlan", "Master Plan (live)", "Dispatch endpoints", "fetchCompletionGate", "fetchRecentTasks", "fetchRecentSessions", "fetchAuditRecent", "fetchLiveAgents", "Completion-Gate", "Workspace-Surfaces (22)", "Fail-closed by design", "Gate-Matrix", "Recovery-Historie")) {
-  if ($workbenchSource.Contains($forbidden)) {
+  if ($workbenchSurface.Contains($forbidden)) {
     throw "Workbench must not surface project-plan dashboard elements: $forbidden"
   }
+}
+Write-Host "[verify] generated HTML runnability guard"
+if (-not (Test-Path "apps\frontend\tests\generated-html-runnability.test.mjs")) {
+  throw "Missing generated HTML runnability regression tests"
+}
+node --test apps/frontend/tests/generated-html-runnability.test.mjs
+Assert-LastExitCode "generated HTML runnability guard"
+Write-Host "[verify] team status frontend projection guard"
+if (-not (Test-Path "apps\frontend\tests\team-status-default.test.mjs")) {
+  throw "Missing team status frontend projection regression tests"
+}
+node --test apps/frontend/tests/team-status-default.test.mjs
+Assert-LastExitCode "team status frontend projection guard"
+foreach ($required in @(
+  "CSP_REPORT_CONTRACT_VERSION",
+  "CSP_REPORT_EVIDENCE_REF",
+  "CSP_REPORT_AUDIT_EVIDENCE_REF",
+  "CSP_REPORT_MAX_BODY_BYTES",
+  "CSP_REPORT_CONTENT_TYPES",
+  "sanitize_csp_report",
+  "persist_csp_report_audit",
+  "/api/v1/security/csp/contract",
+  "/api/v1/security/csp/report",
+  "csp-report-contract-v1",
+  "csp_report_contract_visible",
+  "csp_report_audit_persisted",
+  "security_csp_violation_reported",
+  "csp_report_too_large",
+  "unsupported_csp_report_content_type",
+  "uri_query_and_fragment_persisted",
+  "live_external_report_forwarding"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing CSP report audit contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "CSRF_ORIGIN_CONTRACT_VERSION",
+  "CSRF_ORIGIN_EVIDENCE_REF",
+  "CSRF_ORIGIN_AUDIT_EVIDENCE_REF",
+  "csrf_origin_guard_middleware",
+  "persist_csrf_rejection_audit",
+  "/api/v1/security/csrf/contract",
+  "/api/v1/security/csrf/probe",
+  "csrf-origin-guard-v1",
+  "csrf_origin_guard_visible",
+  "csrf_origin_rejection_audited",
+  "security_csrf_request_rejected",
+  "fetch_metadata_cross_site",
+  "invalid_or_null_origin",
+  "origin_mismatch"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing CSRF origin guard: $required" }
+}
+foreach ($required in @(
+  "PHASE6_3D_CAMERA_LIGHTING_CONTRACT_VERSION",
+  "PHASE6_3D_CAMERA_LIGHTING_EVIDENCE_REF",
+  "phase6_3d_camera_lighting_runtime_contract_payload",
+  "/api/v1/phase6/3d-camera-lighting/contract",
+  "phase6-3d-camera-lighting-runtime-v1",
+  "phase6_3d_camera_lighting_runtime_visible",
+  "local_camera_rig_lighting_profile_state",
+  "camera_preset_switch_visible",
+  "fov_step_control_visible",
+  "lighting_profile_switch_visible",
+  "safe_exposure_bounds_visible",
+  "applied_runtime_state_attributes_required",
+  "network_calls_required"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 camera and lighting contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "PHASE6_3D_GAMEPLAY_STATE_CONTRACT_VERSION",
+  "PHASE6_3D_GAMEPLAY_STATE_EVIDENCE_REF",
+  "phase6_3d_gameplay_state_runtime_contract_payload",
+  "/api/v1/phase6/3d-gameplay-state/contract",
+  "phase6-3d-gameplay-state-runtime-v1",
+  "phase6_3d_gameplay_state_runtime_visible",
+  "local_objective_score_checkpoint_state_machine",
+  "deterministic_gameplay_state_machine",
+  "pause_safe_game_loop_state",
+  "applied_runtime_state_attributes_required",
+  "network_calls_required"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 gameplay state contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "PHASE6_3D_ASSET_POLICY_CONTRACT_VERSION",
+  "PHASE6_3D_ASSET_POLICY_EVIDENCE_REF",
+  "phase6_3d_asset_policy_runtime_contract_payload",
+  "/api/v1/phase6/3d-asset-policy/contract",
+  "phase6-3d-asset-policy-runtime-v1",
+  "phase6_3d_asset_policy_runtime_visible",
+  "local_procedural_primitive_asset_catalog",
+  "procedural_asset_catalog_visible",
+  "asset_profile_switch_visible",
+  "material_policy_variant_visible",
+  "external_asset_fetch_allowed",
+  "binary_asset_upload_allowed"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 asset policy contract guard: $required"
+  }
+}
+foreach ($required in @(
+  "PHASE6_3D_SAVE_LOAD_CONTRACT_VERSION",
+  "PHASE6_3D_SAVE_LOAD_EVIDENCE_REF",
+  "phase6_3d_save_load_runtime_contract_payload",
+  "/api/v1/phase6/3d-save-load/contract",
+  "phase6-3d-save-load-runtime-v1",
+  "phase6_3d_save_load_runtime_visible",
+  "typed_allowlisted_react_state_snapshot",
+  "scene_snapshot_capture_visible",
+  "scene_snapshot_restore_visible",
+  "persistent_browser_storage_blocked",
+  "cloud_save_sync_allowed",
+  "server_snapshot_write_allowed"
+)) {
+  if (-not $apiTaskPolicySource.Contains($required)) {
+    throw "Missing Phase 6 save and load contract guard: $required"
+  }
+}
+foreach ($required in @("PHASE6_3D_ACCESSIBILITY_CONTRACT_VERSION","PHASE6_3D_ACCESSIBILITY_EVIDENCE_REF","phase6_3d_accessibility_runtime_contract_payload","/api/v1/phase6/3d-accessibility/contract","phase6-3d-accessibility-runtime-v1","phase6_3d_accessibility_runtime_visible","system_aware_reduced_motion_semantic_keyboard_fallback","keyboard_fallback_navigation_visible","accessibility_telemetry_export_allowed")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 accessibility contract guard: $required" }
+}
+foreach ($required in @("PHASE6_3D_NETCODE_CONTRACT_VERSION","PHASE6_3D_NETCODE_EVIDENCE_REF","phase6_3d_netcode_loopback_runtime_contract_payload","/api/v1/phase6/3d-netcode/contract","phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible","two_peer_manual_lockstep_browser_loopback","remote_transport_boundary_closed","websocket_allowed","server_authoritative_sync_allowed")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 netcode loopback contract guard: $required" }
+}
+foreach ($required in @("PHASE6_LOCAL_SCOREBOARD_CONTRACT_VERSION","PHASE6_LOCAL_SCOREBOARD_EVIDENCE_REF","phase6_local_scoreboard_performance_runtime_contract_payload","/api/v1/phase6/local-scoreboard-performance/contract","phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible","volatile_top_three_runs_visible","bounded_frame_sample_visible","leaderboard_sync_allowed","persistent_storage_allowed","scale_capacity_claim_allowed")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Phase 6 local scoreboard/performance contract guard: $required" }
+}
+foreach ($required in @("ORCHESTRATOR_COMPLETION_EVIDENCE_CONTRACT_VERSION","ORCHESTRATOR_COMPLETION_EVIDENCE_REF","orchestrator_completion_evidence_contract_payload","/api/v1/orchestrator/completion/contract","orchestrator-completion-evidence-v1","orchestrator_completion_evidence_verified","required_runtime_proofs_not_precomputed_results","parent_sse_replay_and_restart_recovery")) {
+  if (-not $apiTaskPolicySource.Contains($required)) { throw "Missing Orchestrator completion contract guard: $required" }
 }
 foreach ($required in @("SSE_BUFFER_LIMIT = 50", "Last-Event-ID", "record_sse_event", "replay_sse_events")) {
   if (-not $apiTaskPolicySource.Contains($required)) {
@@ -1420,7 +2221,7 @@ foreach ($required in @(
   "mcp_timeout_guard",
   "mcp_tool_controlled_error",
   "task session UUID fail-closed",
-  "session_id must be a valid UUID",
+  "request field failed schema validation",
   "mcp_tool_session_bound_audit",
   '"session_bound":true',
   '"partial_failure":true'
@@ -1452,9 +2253,11 @@ foreach ($required in @(
   '"status":"blocked_external_gates"',
   '"can_set_all_to_100":false',
   "missing_external_gates",
-  "fly_api_token",
-  "vercel_backend_origins",
-  "live_infra_budget_refresh_requires_FLY_API_TOKEN",
+  "project progress completion missing external gate parity",
+  "project progress completion hard blocker present",
+  "live_llm_provider_calls_require_owner_gate_and_budget_guard",
+  "production_auth_identity_requires_owner_configured_oauth_and_hosted_url",
+  "docker_registry_publish_requires_owner_release_gate",
   "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 )) {
   if (-not $runtimeVerifier.Contains($required)) {
@@ -1466,19 +2269,67 @@ foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contrac
     throw "Runtime verifier missing cloud render offload proof marker: $required"
   }
 }
+foreach ($required in @("phase6-3d-camera-lighting-runtime-v1", "phase6_3d_camera_lighting_runtime_visible", "/api/v1/phase6/3d-camera-lighting/contract", '"safe_exposure_range":{"min":0.72,"max":1.18,"step":0.02}', '"all_scenarios_pass":true')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 camera and lighting proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-gameplay-state-runtime-v1", "phase6_3d_gameplay_state_runtime_visible", "/api/v1/phase6/3d-gameplay-state/contract", '"objectives":["collect","checkpoint","survive"]', '"pause_safe_loop_required":true')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 gameplay state proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-asset-policy-runtime-v1", "phase6_3d_asset_policy_runtime_visible", "/api/v1/phase6/3d-asset-policy/contract", '"asset_catalog_count":3', '"external_asset_fetch_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 asset policy proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-save-load-runtime-v1", "phase6_3d_save_load_runtime_visible", "/api/v1/phase6/3d-save-load/contract", '"snapshot_field_count":15', '"cloud_save_sync_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) {
+    throw "Runtime verifier missing Phase 6 save and load proof marker: $required"
+  }
+}
+foreach ($required in @("phase6-3d-accessibility-runtime-v1","phase6_3d_accessibility_runtime_visible","/api/v1/phase6/3d-accessibility/contract",'"accessible_item_count":10','"accessibility_telemetry_export_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 accessibility marker: $required" }
+}
+foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible","/api/v1/phase6/3d-netcode/contract",'"maximum_peers":2','"websocket_allowed":false','"server_authoritative_sync_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 netcode loopback marker: $required" }
+}
+foreach ($required in @("phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible","/api/v1/phase6/local-scoreboard-performance/contract",'"leaderboard_maximum_entries":3','"performance_sample_count":12','"leaderboard_sync_allowed":false','"persistent_storage_allowed":false','"scale_capacity_claim_allowed":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Phase 6 local scoreboard/performance marker: $required" }
+}
+$scoreboardPerformanceVerifier = Get-Content -Path "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1" -Raw
+foreach ($required in @("performance_timeout_seconds -eq 20", "observed twelve samples", "observed finite positive samples")) {
+  if (-not $scoreboardPerformanceVerifier.Contains($required)) { throw "Scoreboard/performance verifier missing bounded sample guard: $required" }
+}
+foreach ($required in @("orchestrator-completion-evidence-v1","orchestrator_completion_evidence_verified","/api/v1/orchestrator/completion/contract",'"layer_progress_after_proof":100','"live_provider_calls":false','"live_mcp_writes":false','"production_deploy":false')) {
+  if (-not $runtimeVerifier.Contains($required)) { throw "Runtime verifier missing Orchestrator completion marker: $required" }
+}
 foreach ($required in @(
   "cloud-deployment-preflight-v1",
   "cloud_deployment_preflight_visible",
   "/api/v1/clouds/deployment-preflight/contract",
-  '"status":"action_required"',
-  '"cloud_deploy_claim_allowed":false',
-  '"production_deploy_claim_allowed":false',
+  "canonicalExternalGateSummary",
+  "expectedExternalGateClaims",
+  "expectedExternalGateStatus",
+  "expectedProductionDeployClaim",
+  "cloud deployment preflight status follows canonical summary",
+  "cloud deployment preflight blocker parity",
+  "external gates status follows canonical summary",
+  "external gate mirror status follows canonical summary",
+  "canonical_summary_status",
   "missing_or_blocked_gates",
-  "fly_cloud_stack",
+  "cloudflare_native_zero_card_hosted_runtime",
   "publish_ghcr_images",
   "hosted_backend_origins",
+  "CLOUDFLARE_STATEFUL_BASE_URL",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_API_TOKEN",
+  "cloud deployment preflight required owner scope",
+  "cloudflare_zero_card_projection",
   "BRANCH_PROTECTION_TOKEN",
-  "canonical_secret_scan"
+  "canonical_secret_scan",
+  "This endpoint does not create, mutate, deploy, or delete cloud resources."
 )) {
   if (-not $runtimeVerifier.Contains($required)) {
     throw "Runtime verifier missing cloud deployment preflight proof marker: $required"
@@ -1511,7 +2362,8 @@ foreach ($required in @(
   "/api/v1/project/progress/completion",
   '"status":"blocked_external_gates"',
   '"can_set_all_to_100":false',
-  '"missing_external_gates":[]',
+  "missing_external_gates",
+  "project progress completion missing external gate parity",
   "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
 )) {
   if (-not $hostedVerifier.Contains($required)) {
@@ -1527,10 +2379,16 @@ foreach ($required in @(
   "cloud-deployment-preflight-v1",
   "cloud_deployment_preflight_visible",
   "/api/v1/clouds/deployment-preflight/contract",
-  '"status":"verified"',
-  '"cloud_deploy_claim_allowed":true',
-  '"production_deploy_claim_allowed":true',
-  '"missing_or_blocked_gates":[]',
+  "canonicalExternalGateSummary",
+  "expectedExternalGateClaims",
+  "expectedExternalGateStatus",
+  "expectedProductionDeployClaim",
+  "cloud deployment preflight status follows canonical summary",
+  "cloud deployment preflight blocker parity",
+  "external gates status follows canonical summary",
+  "external gate mirror status follows canonical summary",
+  "canonical_summary_status",
+  "missing_or_blocked_gates",
   "hosted_backend_origins",
   "BRANCH_PROTECTION_TOKEN",
   "owner_review_before_production"
@@ -1727,6 +2585,440 @@ foreach ($required in @("project_progress_100_percent_gate_contract", "/api/v1/p
     throw "Project progress completion contract document missing guard: $required"
   }
 }
+if (-not (Test-Path "docs\runtime-contracts\security-csp-report-contract.md")) {
+  throw "Missing Phase 3 CSP report audit contract document"
+}
+$cspReportContractDoc = Get-Content -Path "docs\runtime-contracts\security-csp-report-contract.md" -Raw
+foreach ($required in @(
+  "csp-report-contract-v1",
+  "csp_report_contract_visible",
+  "csp_report_audit_persisted",
+  "security_csp_violation_reported",
+  "/api/v1/security/csp/report",
+  "16384",
+  "Query strings and fragments are removed",
+  "DEV-ONLY",
+  "No live provider call",
+  "No production incident-response workflow is claimed"
+)) {
+  if (-not $cspReportContractDoc.Contains($required)) {
+    throw "CSP report audit contract document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase3-csp-report-contract.ps1")) {
+  throw "Missing Phase 3 CSP report audit verifier"
+}
+$cspVerifierParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase3-csp-report-contract.ps1",
+  [ref]$null,
+  [ref]$cspVerifierParseErrors
+) | Out-Null
+if ($cspVerifierParseErrors -and $cspVerifierParseErrors.Count -gt 0) {
+  $cspVerifierParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 3 CSP report audit verifier has parse errors"
+}
+$cspVerifierSource = Get-Content -Path "scripts\verify-phase3-csp-report-contract.ps1" -Raw
+foreach ($required in @(
+  "application/csp-report",
+  "csp_report_too_large",
+  "unsupported_csp_report_content_type",
+  "must-not-persist",
+  "security_csp_violation_reported",
+  "csp_report_audit_persisted",
+  "proof_scope=DEV-ONLY",
+  "use -ReadOnly for non-local targets"
+)) {
+  if (-not $cspVerifierSource.Contains($required)) {
+    throw "Phase 3 CSP report audit verifier missing guard: $required"
+  }
+}
+$cspDiagnosticsSource = Get-Content -Path "apps\frontend\app\diagnostics\page.tsx" -Raw
+foreach ($required in @("CSP Report Contract", "/api/v1/security/csp/contract")) {
+  if (-not $cspDiagnosticsSource.Contains($required)) {
+    throw "Diagnostics CSP report surface missing guard: $required"
+  }
+}
+if (-not (Test-Path "apps\frontend\e2e\phase3-csp-report.spec.ts")) {
+  throw "Missing Phase 3 CSP report browser click proof"
+}
+$cspBrowserProof = Get-Content -Path "apps\frontend\e2e\phase3-csp-report.spec.ts" -Raw
+foreach ($required in @("/diagnostics", "selectOption", "live-console-load", "200 OK", "csp_report_contract_visible", "csp_report_audit_persisted")) {
+  if (-not $cspBrowserProof.Contains($required)) {
+    throw "Phase 3 CSP report browser click proof missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\security-csrf-origin-guard.md")) { throw "Missing Phase 3 CSRF origin guard document" }
+$csrfOriginDoc = Get-Content -Path "docs\runtime-contracts\security-csrf-origin-guard.md" -Raw
+foreach ($required in @("csrf-origin-guard-v1","csrf_origin_guard_visible","csrf_origin_rejection_audited","security_csrf_request_rejected","/api/v1/security/csrf/probe","Raw Origin values","DEV-ONLY")) {
+  if (-not $csrfOriginDoc.Contains($required)) { throw "CSRF origin guard document missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-phase3-csrf-origin-guard.ps1")) { throw "Missing Phase 3 CSRF origin verifier" }
+$csrfOriginParseErrors=$null
+[System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-csrf-origin-guard.ps1",[ref]$null,[ref]$csrfOriginParseErrors)|Out-Null
+if($csrfOriginParseErrors){$csrfOriginParseErrors|ForEach-Object{Write-Error $_.Message};throw "CSRF origin verifier parse errors"}
+$csrfOriginVerifier=Get-Content -Path "scripts\verify-phase3-csrf-origin-guard.ps1" -Raw
+foreach($required in @("manifest phase3 at least 42","fetch_metadata_cross_site","invalid_or_null_origin","origin_mismatch","diagnostics-csrf-origin-guard.png","raw attacker origin absent")) {
+  if(-not $csrfOriginVerifier.Contains($required)){throw "CSRF origin verifier missing: $required"}
+}
+foreach($required in @("CSRF Origin Guard","/api/v1/security/csrf/contract")){if(-not $cspDiagnosticsSource.Contains($required)){throw "Diagnostics CSRF surface missing: $required"}}
+if(-not(Test-Path "apps\frontend\e2e\phase3-csrf-origin.spec.ts")){throw "Missing Phase 3 CSRF browser click proof"}
+$csrfOriginBrowser=Get-Content -Path "apps\frontend\e2e\phase3-csrf-origin.spec.ts" -Raw
+foreach($required in @("/diagnostics","selectOption","same-origin browser POST","csrf_origin_guard_visible","x-superbrain-csrf-contract")){if(-not $csrfOriginBrowser.Contains($required)){throw "CSRF browser proof missing: $required"}}
+if (-not (Test-Path "docs\runtime-contracts\security-cross-origin-response-guard.md")) { throw "Missing Phase 3 cross-origin response guard document" }
+$crossOriginDoc = Get-Content -Path "docs\runtime-contracts\security-cross-origin-response-guard.md" -Raw
+foreach ($required in @("cross-origin-response-guard-v1", "cross_origin_response_guard_visible", "Cross-Origin-Opener-Policy", "reflected attacker origins", "DEV-ONLY")) {
+  if (-not $crossOriginDoc.Contains($required)) { throw "Cross-origin response guard document missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-phase3-cross-origin-response-guard.ps1")) { throw "Missing Phase 3 cross-origin response verifier" }
+$crossOriginParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-cross-origin-response-guard.ps1", [ref]$null, [ref]$crossOriginParseErrors) | Out-Null
+if ($crossOriginParseErrors) { $crossOriginParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Cross-origin response verifier parse errors" }
+$crossOriginVerifier = Get-Content -Path "scripts\verify-phase3-cross-origin-response-guard.ps1" -Raw
+foreach ($required in @("manifest phase3 at least 43", "attacker origin not reflected", "diagnostics-cross-origin-response-guard.png", "cross-origin-resource-policy: same-origin")) {
+  if (-not $crossOriginVerifier.Contains($required)) { throw "Cross-origin response verifier missing: $required" }
+}
+foreach ($required in @("Cross-Origin Response Guard", "/api/v1/security/cross-origin/contract")) {
+  if (-not $cspDiagnosticsSource.Contains($required)) { throw "Diagnostics cross-origin surface missing: $required" }
+}
+if (-not (Test-Path "apps\frontend\e2e\phase3-cross-origin-response.spec.ts")) { throw "Missing Phase 3 cross-origin browser click proof" }
+$crossOriginBrowser = Get-Content -Path "apps\frontend\e2e\phase3-cross-origin-response.spec.ts" -Raw
+foreach ($required in @("/diagnostics", "selectOption", "real click", "cross-origin-response-guard-v1", "attacker_origin_reflected")) {
+  if (-not $crossOriginBrowser.Contains($required)) { throw "Cross-origin browser proof missing: $required" }
+}
+if (-not (Test-Path "docs\runtime-contracts\auth-session-integrity.md")) { throw "Missing Phase 3 auth-session integrity document" }
+$authSessionDoc = Get-Content -Path "docs\runtime-contracts\auth-session-integrity.md" -Raw
+foreach ($required in @("auth-session-integrity-v1", "HMAC-SHA256", "AUTH_SESSION_SECRET", "DEV-ONLY")) {
+  if (-not $authSessionDoc.Contains($required)) { throw "Auth-session integrity document missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-phase3-auth-session-integrity.ps1")) { throw "Missing Phase 3 auth-session integrity verifier" }
+$authSessionParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase3-auth-session-integrity.ps1", [ref]$null, [ref]$authSessionParseErrors) | Out-Null
+if ($authSessionParseErrors) { $authSessionParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Auth-session integrity verifier parse errors" }
+$authSessionVerifier = Get-Content -Path "scripts\verify-phase3-auth-session-integrity.ps1" -Raw
+foreach ($required in @("deterministic token unit tests", "tampered_cookie_rejected", "unsupported_provider_rejected", "login-auth-session-integrity.png")) {
+  if (-not $authSessionVerifier.Contains($required)) { throw "Auth-session integrity verifier missing: $required" }
+}
+if (-not (Test-Path "scripts\verify-auth-session-http.mjs")) { throw "Missing auth-session token-safe HTTP probe" }
+$authSessionHttpProbe = Get-Content -Path "scripts\verify-auth-session-http.mjs" -Raw
+foreach ($required in @("valid_cookie_accepted", "tampered_cookie_rejected", "unsupported_provider_rejected", "token_output")) {
+  if (-not $authSessionHttpProbe.Contains($required)) { throw "Auth-session HTTP probe missing: $required" }
+}
+$authSessionHelper = Get-Content -Path "apps\frontend\lib\authSession.ts" -Raw
+foreach ($required in @("createHmac", "timingSafeEqual", "AUTH_SESSION_TTL_SECONDS", "verifySignedAuthSession")) {
+  if (-not $authSessionHelper.Contains($required)) { throw "Auth-session integrity helper missing: $required" }
+}
+$authSessionRoute = Get-Content -Path "apps\frontend\app\api\v1\auth\session\route.ts" -Raw
+foreach ($required in @(
+  "AUTH_SESSION_COOKIE",
+  "external_provider_write: false",
+  "async function clearSessionCookie()",
+  'jar.set(AUTH_SESSION_COOKIE, "", {',
+  "httpOnly: true",
+  "secure: true",
+  'sameSite: "strict"',
+  'path: "/"',
+  "maxAge: 0",
+  "expires: new Date(0)"
+)) {
+  if (-not $authSessionRoute.Contains($required)) { throw "Auth-session route missing: $required" }
+}
+if ($authSessionRoute.Contains("jar.delete(AUTH_SESSION_COOKIE)")) {
+  throw "Auth-session route must clear the __Host- cookie with the full creation attributes"
+}
+if ($authSessionRoute.Contains("ghStore")) { throw "Auth-session route must not contain a GitHub write path" }
+if (-not (Test-Path "apps\frontend\e2e\phase3-auth-session-integrity.spec.ts")) { throw "Missing auth-session Chromium proof" }
+$authSessionBrowser = Get-Content -Path "apps\frontend\e2e\phase3-auth-session-integrity.spec.ts" -Raw
+foreach ($required in @("signed session", "tampered cookie", "session_invalidated", "external_provider_write")) {
+  if (-not $authSessionBrowser.Contains($required)) { throw "Auth-session Chromium proof missing: $required" }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-camera-lighting-runtime.md")) {
+  throw "Missing Phase 6 3D camera and lighting contract document"
+}
+$phase6CameraLightingDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-camera-lighting-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-camera-lighting-runtime-v1",
+  "phase6_3d_camera_lighting_runtime_visible",
+  "/api/v1/phase6/3d-camera-lighting/contract",
+  "camera_preset_switch_visible",
+  "fov_step_control_visible",
+  "lighting_profile_switch_visible",
+  "safe_exposure_bounds_visible",
+  "local_camera_lighting_state_only",
+  'Phase 6 to move from `32%` to `40%`',
+  "DEV-ONLY",
+  "No shader hotload"
+)) {
+  if (-not $phase6CameraLightingDoc.Contains($required)) {
+    throw "Phase 6 camera and lighting document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-camera-lighting-runtime.ps1")) {
+  throw "Missing Phase 6 camera and lighting verifier"
+}
+$phase6CameraLightingParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-camera-lighting-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6CameraLightingParseErrors
+) | Out-Null
+if ($phase6CameraLightingParseErrors -and $phase6CameraLightingParseErrors.Count -gt 0) {
+  $phase6CameraLightingParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 camera and lighting verifier has parse errors"
+}
+$phase6CameraLightingVerifier = Get-Content -Path "scripts\verify-phase6-3d-camera-lighting-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-camera-lighting-runtime-v1",
+  "camera_preset_switch_visible",
+  "lighting_profile_switch_visible",
+  "safe exposure min",
+  "manifest phase6 40",
+  "Phase-6 camera and lighting controls",
+  "phase6-camera-lighting.png"
+)) {
+  if (-not $phase6CameraLightingVerifier.Contains($required)) {
+    throw "Phase 6 camera and lighting verifier missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-gameplay-state-runtime.md")) {
+  throw "Missing Phase 6 3D gameplay state contract document"
+}
+$phase6GameplayStateDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-gameplay-state-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-gameplay-state-runtime-v1",
+  "phase6_3d_gameplay_state_runtime_visible",
+  "/api/v1/phase6/3d-gameplay-state/contract",
+  "objective_state_overlay_visible",
+  "deterministic_gameplay_state_machine",
+  "pause_safe_game_loop_state",
+  'Phase 6 may move from `40%` to `48%`',
+  "DEV-ONLY",
+  "No multiplayer or netcode"
+)) {
+  if (-not $phase6GameplayStateDoc.Contains($required)) {
+    throw "Phase 6 gameplay state document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-gameplay-state-runtime.ps1")) {
+  throw "Missing Phase 6 gameplay state verifier"
+}
+$phase6GameplayStateParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-gameplay-state-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6GameplayStateParseErrors
+) | Out-Null
+if ($phase6GameplayStateParseErrors -and $phase6GameplayStateParseErrors.Count -gt 0) {
+  $phase6GameplayStateParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 gameplay state verifier has parse errors"
+}
+$phase6GameplayStateVerifier = Get-Content -Path "scripts\verify-phase6-3d-gameplay-state-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-gameplay-state-runtime-v1",
+  "deterministic_gameplay_state_machine",
+  "pause_safe_game_loop_state",
+  "manifest phase6 48",
+  "Phase-6 gameplay state is deterministic",
+  "phase6-gameplay-state.png"
+)) {
+  if (-not $phase6GameplayStateVerifier.Contains($required)) {
+    throw "Phase 6 gameplay state verifier missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-asset-policy-runtime.md")) {
+  throw "Missing Phase 6 3D asset policy contract document"
+}
+$phase6AssetPolicyDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-asset-policy-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-asset-policy-runtime-v1",
+  "phase6_3d_asset_policy_runtime_visible",
+  "/api/v1/phase6/3d-asset-policy/contract",
+  "procedural_asset_catalog_visible",
+  "asset_profile_switch_visible",
+  "material_policy_variant_visible",
+  'Phase 6 may move from `48%` to `56%`',
+  "DEV-ONLY",
+  "No external asset fetch"
+)) {
+  if (-not $phase6AssetPolicyDoc.Contains($required)) {
+    throw "Phase 6 asset policy document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-asset-policy-runtime.ps1")) {
+  throw "Missing Phase 6 asset policy verifier"
+}
+$phase6AssetPolicyParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-asset-policy-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6AssetPolicyParseErrors
+) | Out-Null
+if ($phase6AssetPolicyParseErrors -and $phase6AssetPolicyParseErrors.Count -gt 0) {
+  $phase6AssetPolicyParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 asset policy verifier has parse errors"
+}
+$phase6AssetPolicyVerifier = Get-Content -Path "scripts\verify-phase6-3d-asset-policy-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-asset-policy-runtime-v1",
+  "procedural_asset_catalog_visible",
+  "external_asset_fetch_blocked",
+  "manifest phase6 56",
+  "Phase-6 asset policy applies procedural profiles",
+  "phase6-asset-policy.png"
+)) {
+  if (-not $phase6AssetPolicyVerifier.Contains($required)) {
+    throw "Phase 6 asset policy verifier missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-save-load-runtime.md")) {
+  throw "Missing Phase 6 3D save and load contract document"
+}
+$phase6SaveLoadDoc = Get-Content -Path "docs\runtime-contracts\phase6-3d-save-load-runtime.md" -Raw
+foreach ($required in @(
+  "phase6-3d-save-load-runtime-v1",
+  "phase6_3d_save_load_runtime_visible",
+  "/api/v1/phase6/3d-save-load/contract",
+  "scene_snapshot_capture_visible",
+  "scene_snapshot_restore_visible",
+  "persistent_browser_storage_blocked",
+  'Phase 6 may move from `56%` to `64%`',
+  "DEV-ONLY",
+  "No persistent browser storage"
+)) {
+  if (-not $phase6SaveLoadDoc.Contains($required)) {
+    throw "Phase 6 save and load document missing guard: $required"
+  }
+}
+if (-not (Test-Path "scripts\verify-phase6-3d-save-load-runtime.ps1")) {
+  throw "Missing Phase 6 save and load verifier"
+}
+$phase6SaveLoadParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-phase6-3d-save-load-runtime.ps1",
+  [ref]$null,
+  [ref]$phase6SaveLoadParseErrors
+) | Out-Null
+if ($phase6SaveLoadParseErrors -and $phase6SaveLoadParseErrors.Count -gt 0) {
+  $phase6SaveLoadParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Phase 6 save and load verifier has parse errors"
+}
+$phase6SaveLoadVerifier = Get-Content -Path "scripts\verify-phase6-3d-save-load-runtime.ps1" -Raw
+foreach ($required in @(
+  "phase6-3d-save-load-runtime-v1",
+  "scene_snapshot_restore_visible",
+  "persistent_browser_storage_blocked",
+  "manifest phase6 64",
+  "Phase-6 save and load restores",
+  "phase6-save-load.png"
+)) {
+  if (-not $phase6SaveLoadVerifier.Contains($required)) {
+    throw "Phase 6 save and load verifier missing guard: $required"
+  }
+}
+$phase6OrganismView = Get-Content -Path "apps\frontend\components\organism\OrganismView.tsx" -Raw
+$phase6FallbackSource = Get-Content -Path "apps\frontend\components\organism\CortexCanvas.tsx" -Raw
+$phase6CanvasSource = Get-Content -Path "apps\frontend\components\organism\CortexCanvas3D.tsx" -Raw
+$phase6OrganismTest = Get-Content -Path "apps\frontend\e2e\organism.spec.ts" -Raw
+foreach ($required in @("phase6-camera-lighting-controls", 'id: "top"', 'id: "sunrise"', 'phase6-camera-preset-${preset.id}', 'phase6-lighting-profile-${profile.id}', "phase6-camera-fov", "phase6-lighting-exposure", "local_state_only=true")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 camera and lighting UI missing guard: $required"
+  }
+}
+foreach ($required in @("PerspectiveCamera", "ACESFilmicToneMapping", "data-camera-position", "data-tone-exposure", "CAMERA_PRESETS", "LIGHTING_PROFILES")) {
+  if (-not $phase6CanvasSource.Contains($required)) {
+    throw "Phase 6 camera and lighting Three.js source missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 camera and lighting controls", "0.72", "1.18", "browser-local", "phase6-camera-lighting.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 camera and lighting browser proof missing guard: $required"
+  }
+}
+foreach ($required in @("phase6-gameplay-state-controls", "GAMEPLAY_OBJECTIVES", "completeGameplayObjective", "KeyG", "gameplayTicks", "local_state_only=true")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 gameplay state UI missing guard: $required"
+  }
+}
+foreach ($required in @("GAMEPLAY_BEACONS", "GameplayBeacon", "data-gameplay-objective", "data-gameplay-paused", "data-gameplay-local-only")) {
+  if (-not $phase6CanvasSource.Contains($required)) {
+    throw "Phase 6 gameplay state Three.js source missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 gameplay state is deterministic", "data-gameplay-ticks", "gameplay controls remain browser-local", "phase6-gameplay-state.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 gameplay state browser proof missing guard: $required"
+  }
+}
+foreach ($required in @("phase6-asset-policy-controls", "ASSET_PROFILES", "MATERIAL_VARIANTS", "selectAssetProfile", "selectMaterialVariant", "remote_assets=0", "binary_upload=false")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 asset policy UI missing guard: $required"
+  }
+}
+foreach ($required in @("AssetPolicyPreview", "boxGeometry", "coneGeometry", "torusGeometry", "data-asset-profile", "data-binary-asset-upload", "data-asset-policy-local-only")) {
+  if (-not $phase6CanvasSource.Contains($required)) {
+    throw "Phase 6 asset policy Three.js source missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 asset policy applies procedural profiles", "data-remote-asset-count", "asset policy controls remain browser-local", "phase6-asset-policy.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 asset policy browser proof missing guard: $required"
+  }
+}
+foreach ($required in @("phase6-save-load-controls", "Phase6SceneSnapshot", "savedSnapshot", "saveSceneSnapshot", "loadSceneSnapshot", "clearSceneSnapshot", "storage=react_state", "reload_persistence=false")) {
+  if (-not $phase6OrganismView.Contains($required)) {
+    throw "Phase 6 save and load UI missing guard: $required"
+  }
+}
+foreach ($required in @("Phase-6 save and load restores", "snapshot_status=restored", "save load controls remain browser-local", "phase6-save-load.png")) {
+  if (-not $phase6OrganismTest.Contains($required)) {
+    throw "Phase 6 save and load browser proof missing guard: $required"
+  }
+}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-accessibility-runtime.md")) { throw "Missing Phase 6 accessibility document" }
+$phase6AccessibilityDoc = Get-Content "docs\runtime-contracts\phase6-3d-accessibility-runtime.md" -Raw
+foreach ($required in @("phase6-3d-accessibility-runtime-v1","phase6_3d_accessibility_runtime_visible",'Phase 6 may move from `64%` to `72%`',"DEV-ONLY")) { if(-not $phase6AccessibilityDoc.Contains($required)){throw "Accessibility document missing: $required"} }
+if (-not (Test-Path "scripts\verify-phase6-3d-accessibility-runtime.ps1")) { throw "Missing Phase 6 accessibility verifier" }
+$phase6AccessibilityParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-3d-accessibility-runtime.ps1",[ref]$null,[ref]$phase6AccessibilityParseErrors)|Out-Null
+if($phase6AccessibilityParseErrors){$phase6AccessibilityParseErrors|%{Write-Error $_.Message};throw "Accessibility verifier parse errors"}
+$phase6AccessibilityVerifier=Get-Content "scripts\verify-phase6-3d-accessibility-runtime.ps1" -Raw
+foreach($required in @("manifest phase6 minimum 72","Phase-6 accessibility honors","phase6-accessibility.png")){if(-not $phase6AccessibilityVerifier.Contains($required)){throw "Accessibility verifier missing: $required"}}
+foreach($required in @("phase6-accessibility-controls","systemReducedMotion","focusCortexSurface",'role="status"')){if(-not $phase6OrganismView.Contains($required)){throw "Accessibility UI missing: $required"}}
+foreach($required in @("phase6-reduced-motion-fallback","handleFallbackKeyDown","aria-current")){if(-not $phase6FallbackSource.Contains($required)){throw "Accessibility fallback missing: $required"}}
+foreach($required in @("Phase-6 accessibility honors",'reducedMotion: "reduce"',"accessibility controls remain browser-local")){if(-not $phase6OrganismTest.Contains($required)){throw "Accessibility test missing: $required"}}
+if (-not (Test-Path "docs\runtime-contracts\phase6-3d-netcode-loopback-runtime.md")) { throw "Missing Phase 6 netcode loopback document" }
+$phase6NetcodeDoc = Get-Content "docs\runtime-contracts\phase6-3d-netcode-loopback-runtime.md" -Raw
+foreach ($required in @("phase6-3d-netcode-loopback-runtime-v1","phase6_3d_netcode_loopback_runtime_visible",'Phase 6 may move from `72%` to `80%`',"WebSocket","server-authoritative","DEV-ONLY")) { if(-not $phase6NetcodeDoc.Contains($required)){throw "Netcode loopback document missing: $required"} }
+if (-not (Test-Path "scripts\verify-phase6-3d-netcode-loopback-runtime.ps1")) { throw "Missing Phase 6 netcode loopback verifier" }
+$phase6NetcodeParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-3d-netcode-loopback-runtime.ps1",[ref]$null,[ref]$phase6NetcodeParseErrors)|Out-Null
+if($phase6NetcodeParseErrors){$phase6NetcodeParseErrors|%{Write-Error $_.Message};throw "Netcode loopback verifier parse errors"}
+$phase6NetcodeVerifier=Get-Content "scripts\verify-phase6-3d-netcode-loopback-runtime.ps1" -Raw
+foreach($required in @("manifest phase6 minimum 80","manifest overall minimum 82","Phase-6 netcode loopback enforces","phase6-netcode-loopback.png")){if(-not $phase6NetcodeVerifier.Contains($required)){throw "Netcode loopback verifier missing: $required"}}
+foreach($required in @("phase6-netcode-controls","netcodeSessionActive","startLoopbackLockstep","advanceLoopbackTick","websocket=false","server_sync=false")){if(-not $phase6OrganismView.Contains($required)){throw "Netcode loopback UI missing: $required"}}
+foreach($required in @("function LoopbackPeer","data-netcode-transport","data-netcode-guest-connected","data-netcode-sequence","data-netcode-websocket")){if(-not $phase6CanvasSource.Contains($required)){throw "Netcode loopback Three.js source missing: $required"}}
+foreach($required in @("Phase-6 netcode loopback enforces","packets=5","sequence=5","phase6-netcode-loopback.png","websocket_allowed")){if(-not $phase6OrganismTest.Contains($required)){throw "Netcode loopback test missing: $required"}}
+if (-not (Test-Path "docs\runtime-contracts\phase6-local-scoreboard-performance-runtime.md")) { throw "Missing Phase 6 local scoreboard/performance document" }
+$phase6ScoreboardDoc = Get-Content "docs\runtime-contracts\phase6-local-scoreboard-performance-runtime.md" -Raw
+foreach ($required in @("phase6-local-scoreboard-performance-runtime-v1","phase6_local_scoreboard_performance_runtime_visible",'Phase 6 may move from `80%` to `90%`',"twelve-sample","DEV-ONLY")) { if(-not $phase6ScoreboardDoc.Contains($required)){throw "Local scoreboard/performance document missing: $required"} }
+if (-not (Test-Path "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1")) { throw "Missing Phase 6 local scoreboard/performance verifier" }
+$phase6ScoreboardParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-local-scoreboard-performance-runtime.ps1",[ref]$null,[ref]$phase6ScoreboardParseErrors)|Out-Null
+if($phase6ScoreboardParseErrors){$phase6ScoreboardParseErrors|%{Write-Error $_.Message};throw "Local scoreboard/performance verifier parse errors"}
+$phase6ScoreboardVerifier=Get-Content "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1" -Raw
+foreach($required in @("manifest phase6 90","manifest overall equals rounded horizontal phase average","MidpointRounding","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
+foreach($required in @("phase6-scoreboard-performance-controls","phase6-leaderboard-capture","phase6-leaderboard-reset","phase6-performance-start","local_only=true","sync=false","storage=false","network=false")){if(-not $phase6OrganismView.Contains($required)){throw "Local scoreboard/performance UI missing: $required"}}
+foreach($required in @("Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png","localStorage","indexedDB")){if(-not $phase6OrganismTest.Contains($required)){throw "Local scoreboard/performance test missing: $required"}}
+
+if (-not (Test-Path "docs\runtime-contracts\orchestrator-completion-evidence.md")) { throw "Missing Orchestrator completion evidence document" }
+$orchestratorCompletionDoc = Get-Content "docs\runtime-contracts\orchestrator-completion-evidence.md" -Raw
+foreach ($required in @("orchestrator-completion-evidence-v1","orchestrator_completion_evidence_verified","99%","100%","MCP timeout","DEV-ONLY")) { if(-not $orchestratorCompletionDoc.Contains($required)){throw "Orchestrator completion document missing: $required"} }
+if (-not (Test-Path "scripts\verify-orchestrator-completion-evidence.ps1")) { throw "Missing Orchestrator completion evidence verifier" }
+$orchestratorCompletionParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-orchestrator-completion-evidence.ps1",[ref]$null,[ref]$orchestratorCompletionParseErrors)|Out-Null
+if($orchestratorCompletionParseErrors){$orchestratorCompletionParseErrors|%{Write-Error $_.Message};throw "Orchestrator completion verifier parse errors"}
+$orchestratorCompletionVerifier=Get-Content "scripts\verify-orchestrator-completion-evidence.ps1" -Raw
+foreach($required in @("manifest orchestrator 100","deterministic four-role success","policy hard-stop","controlled MCP timeout","Chromium diagnostics click","diagnostics-orchestrator-completion-evidence.png","parent_sse_replay_and_restart_recovery")){if(-not $orchestratorCompletionVerifier.Contains($required)){throw "Orchestrator completion verifier missing: $required"}}
+$orchestratorCompletionTest=Get-Content "apps\frontend\e2e\orchestrator-completion.spec.ts" -Raw
+foreach($required in @("diagnostics loads orchestrator completion evidence through a real click","orchestrator-completion-evidence-v1","layer_progress_after_proof","diagnostics-orchestrator-completion-evidence.png")){if(-not $orchestratorCompletionTest.Contains($required)){throw "Orchestrator completion browser test missing: $required"}}
+$diagnosticsPage=Get-Content "apps\frontend\app\diagnostics\page.tsx" -Raw
+foreach($required in @("Orchestrator Completion Evidence","/api/v1/orchestrator/completion/contract")){if(-not $diagnosticsPage.Contains($required)){throw "Diagnostics Orchestrator completion wiring missing: $required"}}
 
 Write-Host "[verify] branch protection script"
 py -3 -m py_compile scripts\apply_github_branch_protection.py
@@ -1754,32 +3046,43 @@ if ($workflowArtifacts) {
   throw "Workflow artifact contains literal backslash-n"
 }
 $branchProtectionWorkflow = Get-Content -Path ".github\workflows\branch-protection.yml" -Raw
-foreach ($required in @("Apply and verify default branch protection", "BRANCH_PROTECTION_TOKEN", "BRANCH_NAME", "python scripts/apply_github_branch_protection.py --branch")) {
+foreach ($required in @("Apply and verify default branch protection", "BRANCH_PROTECTION_TOKEN", "BRANCH_NAME", "python scripts/apply_github_branch_protection.py --apply --branch")) {
   if (-not $branchProtectionWorkflow.Contains($required)) {
     throw "Branch protection workflow missing verify guard: $required"
   }
 }
 $prCheckWorkflow = Get-Content -Path ".github\workflows\pr-check.yml" -Raw
 Assert-Contains "pr-check default branch" $prCheckWorkflow "chore/repo-bootstrap"
-$mainDeployWorkflow = Get-Content -Path ".github\workflows\main-deploy.yml" -Raw
-Assert-Contains "main-deploy default branch" $mainDeployWorkflow "chore/repo-bootstrap"
-foreach ($required in @(
-  'IMAGE_NAMESPACE: ghcr.io/${{ github.repository_owner }}/cloud-superbrain-developer-platform',
-  'agent-api',
-  'agent-worker',
-  'memory-worker',
-  'mcp-gateway',
-  'llm-gateway',
-  'frontend',
-  '${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.sha }}',
-  '${{ env.IMAGE_NAMESPACE }}/${{ matrix.name }}:${{ github.event.inputs.deploy_environment || ''staging'' }}'
-)) {
-  if (-not $mainDeployWorkflow.Contains($required)) {
-    throw "main-deploy workflow missing GHCR cloud image guard: $required"
+Write-Host "[verify] main-deploy immutable candidate transition"
+& powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-main-deploy-transition.ps1 | Out-Null
+Assert-LastExitCode "main-deploy immutable candidate transition"
+Write-Host "[verify] Phase-6 scale producer and evidence mutation safety contracts"
+& npm.cmd run verify:phase6-scale:static | Out-Null
+Assert-LastExitCode "Phase-6 scale producer and evidence mutation safety contracts"
+Write-Host "[verify] OAuth frontend boundary unit contract"
+& npm.cmd run verify:oauth-boundary | Out-Null
+Assert-LastExitCode "OAuth frontend boundary unit contract"
+$infraCostWorkflow = Get-Content -Path ".github\workflows\infra-cost-check.yml" -Raw
+foreach ($required in @("CLOUDFLARE_PROJECTED_MONTHLY_EUR", "Cloudflare zero-card target must remain EUR 0.00", "paid fallback is forbidden")) {
+  if (-not $infraCostWorkflow.Contains($required)) {
+    throw "Infra cost workflow missing Cloudflare zero-card guard: $required"
   }
 }
-if ($mainDeployWorkflow.Contains('ghcr.io/${{ github.repository }}/')) {
-  throw "main-deploy workflow must not use github.repository for GHCR image paths because this repo name is not a stable lowercase image namespace"
+foreach ($forbidden in @("FLY_PROJECTED_MONTHLY_EUR", '"Fly.io":')) {
+  if ($infraCostWorkflow.Contains($forbidden)) {
+    throw "Infra cost workflow still contains active Fly budget input: $forbidden"
+  }
+}
+$budgetSource = Get-Content -Path "services\agent-api\app\budget.py" -Raw
+foreach ($required in @("cloudflare-native-zero-card-hosted-runtime", "cloudflare_zero_card_projection", "allow_new_infra=False")) {
+  if (-not $budgetSource.Contains($required)) {
+    throw "Budget source missing fail-closed Cloudflare projection guard: $required"
+  }
+}
+foreach ($forbidden in @("fly-production-shared-cpu", "fly-staging-shared-cpu", "fly_live_budget_items", "FLY_API_TOKEN")) {
+  if ($budgetSource.Contains($forbidden)) {
+    throw "Budget source still contains active Fly planning marker: $forbidden"
+  }
 }
 
 Write-Host "[verify] external gate audit contract"
@@ -1793,19 +3096,27 @@ if (-not (Test-Path "scripts\verify-all-gates-with-tokens.ps1")) {
   throw "Missing private env external gate runner"
 }
 $externalGateAuditScript = Get-Content -Path "scripts\verify-external-gates.ps1" -Raw
-foreach ($required in @("external-gate-audit-v1", "external_gate_audit_proof", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "Test-RetiredHostedBaseUrl", "retired_provider_url", "network_classification", "elapsed_ms", "response_url", "failed_hosted_required_probe_ids", "failed_vercel_origin_probe_ids", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_image_digest_proof", "Invoke-BoundedNativeCommand", "WaitForExit", "EXTERNAL_GATE_HTTP_TIMEOUT_MS", "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS", "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS", '"timeout"', "dockerExitCode", "vercel_backend_origin_required", "vercel_backend_origin_health", "hosted_agent_api_health", "hosted_agent_api_health_required", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "fly_live_budget_check", "root_health", "prefixed_health", "Join-OriginProbeUrl", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "grafana_cloud_claim_allowed", "Invoke-RestMethod", "GITLAB_TOKEN", "HF_TOKEN", "GRAFANA_CLOUD_API_KEY")) {
+foreach ($required in @("external-gate-audit-v2", "external-gate-summary-v2", "external_gate_audit_proof", "active_target_gate", "cloudflare_native_zero_card_hosted_runtime", "cloudflare_native_zero_card_hosted_runtime_claim_allowed", "Get-CloudflareNativeGateProbe", "DurableAuditPath", "docs\runtime-state\external-gate-audit-v2.json", "local_run_artifact", "hosted_staging_claim_allowed", "frontend_preview_claim_allowed", "production_deploy_claim_allowed", "Assert-HostedBaseUrlSafe", "External gate hosted proof requires HTTPS", "Test-RetiredHostedBaseUrl", "retired_provider_url", "network_classification", "elapsed_ms", "response_url", "failed_hosted_required_probe_ids", "failed_vercel_origin_probe_ids", "hosted_cloud_deployment_preflight", "cloud_deployment_preflight_visible", "ghcr_image_digest_verify", "ghcr_release_candidate_readback", "Invoke-BoundedNativeCommand", "WaitForExit", "EXTERNAL_GATE_HTTP_TIMEOUT_MS", "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS", "EXTERNAL_GATE_DOCKER_TIMEOUT_SECONDS", '"timeout"', "verification.exit_code", "vercel_backend_origin_required", "vercel_backend_origin_health", "hosted_agent_api_health", "hosted_agent_api_health_required", "cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "github_branch_protection_verify", "canonical_gitleaks_scan", "root_health", "prefixed_health", "Join-OriginProbeUrl", "gitlab_identity_claim_allowed", "huggingface_identity_claim_allowed", "grafana_cloud_claim_allowed", "Invoke-RestMethod", "GITLAB_TOKEN", "HF_TOKEN", "GRAFANA_CLOUD_API_KEY", "Invoke-PublicBranchProtectionProbe", "public_anonymous_subset", "publicBackendOrigin", "cloud-superbrain-developer-platform.vercel.app", "historical_only", "percentage credit")) {
   if (-not $externalGateAuditScript.Contains($required)) {
     throw "External gate audit verifier missing guard: $required"
   }
 }
+if ($externalGateAuditScript -match '\$missing\s*\+=\s*["'']fly_live_budget_check["'']') {
+  throw "External gate audit verifier must not keep fly_live_budget_check in the active missing gate set"
+}
 $privateGateRunner = Get-Content -Path "scripts\verify-all-gates-with-tokens.ps1" -Raw
-foreach ($required in @("Convert-FlyAppNameToBaseUrl", "Resolve-OriginEnv", "Test-HostedRewriteFallbackValue", "Get-FlyAppNameOrDefault", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY", "cloud-superbrain-agent-api", "cloud-superbrain-mcp-gateway", "cloud-superbrain-llm-gateway", ".fly.dev")) {
+foreach ($required in @("verify-external-gates.ps1", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN")) {
   if (-not $privateGateRunner.Contains($required)) {
-    throw "Private env external gate runner missing Fly origin derivation guard: $required"
+    throw "Private env external gate runner missing Cloudflare-native guard: $required"
+  }
+}
+foreach ($forbiddenActiveFlyMarker in @("Convert-FlyAppNameToBaseUrl", "Get-FlyAppNameOrDefault", "FLY_APP_AGENT_API", "FLY_APP_MCP_GATEWAY", "FLY_APP_LLM_GATEWAY")) {
+  if ($privateGateRunner.Contains($forbiddenActiveFlyMarker)) {
+    throw "Private env external gate runner still contains active Fly derivation: $forbiddenActiveFlyMarker"
   }
 }
 $externalGateAuditDoc = Get-Content -Path "docs\runtime-contracts\external-gate-audit-contract.md" -Raw
-foreach ($required in @("external-gate-audit-v1", "cloud-only-staging-proof-v1", "Frontend preview reachability is not hosted staging", "hosted_staging_claim_allowed", "production_deploy_claim_allowed", "No secret values", "Optional GitLab identity", "Optional Hugging Face identity", "Optional grafana identity", "Fly app names", "never the token")) {
+foreach ($required in @("external-gate-audit-v2", "external-gate-summary-v2", "cloud-only-staging-proof-v1", "Frontend preview reachability is not hosted staging", "hosted_staging_claim_allowed", "production_deploy_claim_allowed", "cloudflare_native_zero_card_hosted_runtime", "CLOUDFLARE_STATEFUL_BASE_URL", "No secret values", "Optional GitLab identity", "Optional Hugging Face identity", "Optional grafana identity", "historical_only", "never the token")) {
   if (-not $externalGateAuditDoc.Contains($required)) {
     throw "External gate audit contract document missing guard: $required"
   }
@@ -1823,7 +3134,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-provider-inventory-contract.md
   throw "Missing cloud provider inventory contract document"
 }
 $cloudProviderInventoryDoc = Get-Content -Path "docs\runtime-contracts\cloud-provider-inventory-contract.md" -Raw
-foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "Seven-Layer Mapping", "Cloud Layer Readiness", "No secret values", "Vercel Live Read", "Fly.io Live Read", "Cloudflare Live Read", "GitHub Live Read", "GHCR Live Read", "Hugging Face Live Read", "GitLab Live Read", "Grafana Cloud Live Read", "FLY_API_TOKEN", "CLOUDFLARE_API_TOKEN", "VERCEL_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "HF_TOKEN", "GITLAB_TOKEN", "GRAFANA_CLOUD_API_KEY", "vercel_frontend", "ghcr_registry", "grafana_cloud")) {
+foreach ($required in @("cloud-provider-inventory-v1", "cloud_provider_inventory_visible", "cloud-layer-readiness-v1", "cloud_layer_readiness_visible", "GET /api/v1/clouds", "GET /api/v1/clouds/layers", "Seven-Layer Mapping", "Cloud Layer Readiness", "No secret values", "Vercel Live Read", "Cloudflare Live Read", "GitHub Live Read", "GHCR Live Read", "Hugging Face Live Read", "GitLab Live Read", "Grafana Cloud Live Read", "Cloudflare-native stateful runtime", "historical_only", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "VERCEL_TOKEN", "GITHUB_TOKEN", "GHCR_TOKEN", "HF_TOKEN", "GITLAB_TOKEN", "GRAFANA_CLOUD_API_KEY", "vercel_frontend", "ghcr_registry", "grafana_cloud")) {
   if (-not $cloudProviderInventoryDoc.Contains($required)) {
     throw "Cloud provider inventory contract document missing guard: $required"
   }
@@ -1832,7 +3143,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-render-offload-contract.md")) 
   throw "Missing cloud render offload contract document"
 }
 $cloudRenderOffloadDoc = Get-Content -Path "docs\runtime-contracts\cloud-render-offload-contract.md" -Raw
-foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contract_visible", "GET /api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "STAGING_BASE_URL", "FLY_API_TOKEN", "webgl_3d_rendering", "control_plane")) {
+foreach ($required in @("cloud-render-offload-v1", "cloud_render_offload_contract_visible", "GET /api/v1/clouds/render-offload/contract", "localhost_heavy_render_allowed", "STAGING_BASE_URL", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "webgl_3d_rendering", "control_plane")) {
   if (-not $cloudRenderOffloadDoc.Contains($required)) {
     throw "Cloud render offload contract document missing guard: $required"
   }
@@ -1841,7 +3152,7 @@ if (-not (Test-Path "docs\runtime-contracts\cloud-deployment-preflight-contract.
   throw "Missing cloud deployment preflight contract document"
 }
 $cloudDeploymentPreflightDoc = Get-Content -Path "docs\runtime-contracts\cloud-deployment-preflight-contract.md" -Raw
-foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "GITHUB_TOKEN", "GHCR_TOKEN", "FLY_API_TOKEN", "AGENT_API_BASE_URL", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
+foreach ($required in @("cloud-deployment-preflight-v1", "cloud_deployment_preflight_visible", "GET /api/v1/clouds/deployment-preflight/contract", "publish_ghcr_images", "cloudflare_native_zero_card_hosted_runtime", "CLOUDFLARE_STATEFUL_BASE_URL", "CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "workers_scripts_edit", "d1_edit", "durable_objects_edit", "queues_edit", "historical_only", "GITHUB_TOKEN", "GHCR_TOKEN", "BRANCH_PROTECTION_TOKEN", "cloud_deploy_claim_allowed", "production_deploy_claim_allowed", "manual_external_actions")) {
   if (-not $cloudDeploymentPreflightDoc.Contains($required)) {
     throw "Cloud deployment preflight contract document missing guard: $required"
   }
@@ -1861,6 +3172,65 @@ Write-Host "[verify] owner cloud gate activation guard"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-owner-cloud-gate-activation.ps1
 Assert-LastExitCode "owner cloud gate activation guard"
 
+Write-Host "[verify] owner Cloudflare token helper"
+pwsh -NoProfile -File scripts\verify-owner-set-cloudflare-token.ps1
+Assert-LastExitCode "owner Cloudflare token helper"
+
+Write-Host "[verify] qualified Cloudflare token promotion"
+pwsh -NoProfile -File scripts\verify-promote-cloudflare-token-candidate.ps1
+Assert-LastExitCode "qualified Cloudflare token promotion"
+
+Write-Host "[verify] Agent Research read-only source binding"
+pwsh -NoProfile -File scripts\verify-agent-research-source-binding.ps1
+Assert-LastExitCode "Agent Research read-only source binding"
+
+Write-Host "[verify] retired Fly rollout paths fail closed"
+$retiredRolloutScript = Get-Content -Path "scripts\owner-production-rollout.ps1" -Raw
+foreach ($required in @("RETIRED_HISTORICAL_DO_NOT_EXECUTE", "owner-cloud-gate-activation.ps1", "PlanOnly")) {
+  if (-not $retiredRolloutScript.Contains($required)) {
+    throw "Retired production rollout script missing fail-closed marker: $required"
+  }
+}
+foreach ($forbidden in @("FLY_API_TOKEN", "fly deploy", "gh workflow run", "vercel deploy")) {
+  if ($retiredRolloutScript.Contains($forbidden)) {
+    throw "Retired production rollout script still contains executable legacy path: $forbidden"
+  }
+}
+$retiredTraePrompt = Get-Content -Path "TRAE_DEPLOY_PROMPT.md" -Raw
+foreach ($required in @("RETIRED_HISTORICAL_DO_NOT_EXECUTE", "cloudflare_native_zero_card_hosted_runtime", "owner-cloud-gate-activation.ps1")) {
+  if (-not $retiredTraePrompt.Contains($required)) {
+    throw "Retired deployment prompt missing current gate marker: $required"
+  }
+}
+foreach ($forbidden in @("fly deploy", "gh workflow run", "vercel deploy")) {
+  if ($retiredTraePrompt.Contains($forbidden)) {
+    throw "Retired deployment prompt still contains copyable legacy action: $forbidden"
+  }
+}
+$ownerGoLiveChecklist = Get-Content -Path "docs\runbooks\OWNER_GO_LIVE_CHECKLIST.md" -Raw
+foreach ($required in @("OWNER_BLOCKED_AUTONOMOUS_COMPLETE", "cloudflare_native_zero_card_hosted_runtime", "O2Core 4/4", "O5 1/1", "R2 is historical-only", "O6", "resolved_verified", "PlanOnly")) {
+  if (-not $ownerGoLiveChecklist.Contains($required)) {
+    throw "Owner go-live checklist missing current truth marker: $required"
+  }
+}
+$gateOpeningAnalysis = Get-Content -Path "docs\audit\gate-opening-analysis.md" -Raw
+foreach ($required in @("external-gate-audit-v2.json", "cloudflare_native_zero_card_hosted_runtime", "cloudflare-native-hosted-current.json", "FEEE5D40E14E547C9B8EB5903B993E61BC324E2C2CAD64ECF8C7DF3BA9049D0B", "github_branch_protection_current_verify", "ghcr_image_digest_verify", "O2Core 4/4", "O5 1/1", "historical_only", "production_deploy_claim_allowed=false")) {
+  if (-not $gateOpeningAnalysis.Contains($required)) {
+    throw "Gate-opening analysis missing current truth marker: $required"
+  }
+}
+$toolingReadinessSource = Get-Content -Path "scripts\verify-tooling-readiness.ps1" -Raw
+foreach ($required in @("fly_io_historical", "historical_only", "cloudflare-owner-scope-readiness-v1", "o2_prime_scope_ready", "CLOUDFLARE_STATEFUL_BASE_URL")) {
+  if (-not $toolingReadinessSource.Contains($required)) {
+    throw "Tooling readiness missing Cloudflare-native guard: $required"
+  }
+}
+foreach ($forbidden in @("KnownFlyTokenPath", 'fetch("https://api.fly.io/graphql"', '"fly_io" @("FLY_API_TOKEN")')) {
+  if ($toolingReadinessSource.Contains($forbidden)) {
+    throw "Tooling readiness still contains active Fly readiness path: $forbidden"
+  }
+}
+
 Write-Host "[verify] go-live readiness guard"
 if (-not (Test-Path "scripts\verify-go-live-readiness.ps1")) {
   throw "Missing go-live readiness verifier"
@@ -1869,18 +3239,25 @@ $goLiveVerifier = Get-Content -Path "scripts\verify-go-live-readiness.ps1" -Raw
 foreach ($required in @(
   "go-live-readiness-v1",
   "go-live-readiness-surface-v1",
-  "external-gate-audit-v1",
+  "external-gate-audit-v2",
+  "external-gate-summary-v2",
+  "cloudflare_native_zero_card_hosted_runtime",
+  "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
   "hosted_agent_api_contracts",
   "github_branch_protection_current_verify",
   "vercel_backend_origin_health",
-  "fly_live_budget_check",
-  "FLY_API_TOKEN",
   "STAGING_BASE_URL",
+  "CLOUDFLARE_STATEFUL_BASE_URL",
+  "CLOUDFLARE_ACCOUNT_ID",
+  "CLOUDFLARE_API_TOKEN",
+  "workers_scripts_edit",
+  "d1_edit",
+  "durable_objects_edit",
+  "queues_edit",
   "BRANCH_PROTECTION_TOKEN",
   "AGENT_API_BASE_URL",
   "MCP_GATEWAY_BASE_URL",
   "LLM_GATEWAY_BASE_URL",
-  "external-gate-summary-v1",
   "external_audit_missing_or_failed_gates",
   "production_deploy_claim_allowed",
   "Assert-NoSecretPattern",
@@ -1904,7 +3281,10 @@ $goLiveAgentApi = Get-Content -Path "services\agent-api\app\main.py" -Raw
 foreach ($required in @(
   "EXTERNAL_GATE_SUMMARY_PATH",
   "external_gate_summary_state",
-  "external-gate-summary-v1",
+  "external-gate-summary-v2",
+  "cloudflare_native_runtime",
+  "cloudflare_native_zero_card_hosted_runtime",
+  "required_owner_scopes",
   "external_audit_summary_status",
   "external_audit_missing_or_failed_gates",
   "github_branch_protection_current_verify",
@@ -1919,13 +3299,16 @@ if (-not (Test-Path "docs\runtime-state\external-gate-summary.json")) {
 }
 $externalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw
 foreach ($required in @(
-  "external-gate-summary-v1",
-  "external-gate-audit-v1",
+  "external-gate-summary-v2",
+  "external-gate-audit-v2",
+  "docs\\runtime-state\\external-gate-audit-v2.json",
+  "cloudflare_native_zero_card_hosted_runtime",
   "hosted_agent_api_contracts",
   "github_branch_protection_current_verify",
   "vercel_backend_origin_health",
-  "fly_live_budget_check",
-  "Probe snippets, URLs, logs, and token values are not included"
+  "historical_only",
+  "Probe snippets",
+  "token values"
 )) {
   if (-not $externalGateSummary.Contains($required)) {
     throw "Sanitized external gate summary missing guard: $required"
@@ -1998,7 +3381,7 @@ foreach ($required in @(
   "browser_contract_harness",
   "llm responses adapter contract",
   "verify-llm-responses-contract.ps1",
-  "llm-responses-adapter-contract-v1",
+  "llm-responses-adapter-contract-v2",
   "live agent steering contract",
   "verify-live-agent-steering-contract.ps1",
   "live-agent-steering-v1",
@@ -2008,6 +3391,56 @@ foreach ($required in @(
   "/api/v1/project/progress/completion",
   "project-progress-100-percent-contract-v1",
   "project_progress_100_percent_gate_contract",
+  "external-gate-summary-v2",
+  "external-gate-audit-v2",
+  "cloudflare_native_zero_card_hosted_runtime",
+  "bounded O6 live LLM capability is open",
+  "O6 is resolved and not Owner-required",
+  "Layer 4 equal 100",
+  "CSP report audit contract",
+  "verify-phase3-csp-report-contract.ps1",
+  "csp-report-contract-v1",
+  "csp_report_audit_persisted",
+  "CSRF origin guard contract",
+  "verify-phase3-csrf-origin-guard.ps1",
+  "csrf-origin-guard-v1",
+  "csrf_origin_rejection_audited",
+  "signed auth-session integrity",
+  "verify-phase3-auth-session-integrity.ps1",
+  "auth-session-integrity-v1",
+  "auth_session_integrity_visible",
+  "Phase 6 3D camera and lighting controls",
+  "verify-phase6-3d-camera-lighting-runtime.ps1",
+  "phase6-3d-camera-lighting-runtime-v1",
+  "phase6_3d_camera_lighting_runtime_visible",
+  "Phase 6 3D gameplay state controls",
+  "verify-phase6-3d-gameplay-state-runtime.ps1",
+  "phase6-3d-gameplay-state-runtime-v1",
+  "phase6_3d_gameplay_state_runtime_visible",
+  "Phase 6 3D asset policy controls",
+  "verify-phase6-3d-asset-policy-runtime.ps1",
+  "phase6-3d-asset-policy-runtime-v1",
+  "phase6_3d_asset_policy_runtime_visible",
+  "Phase 6 3D save and load controls",
+  "verify-phase6-3d-save-load-runtime.ps1",
+  "phase6-3d-save-load-runtime-v1",
+  "phase6_3d_save_load_runtime_visible",
+  "Phase 6 3D accessibility controls",
+  "verify-phase6-3d-accessibility-runtime.ps1",
+  "phase6-3d-accessibility-runtime-v1",
+  "phase6_3d_accessibility_runtime_visible",
+  "Phase 6 3D netcode loopback controls",
+  "verify-phase6-3d-netcode-loopback-runtime.ps1",
+  "phase6-3d-netcode-loopback-runtime-v1",
+  "phase6_3d_netcode_loopback_runtime_visible",
+  "Phase 6 local scoreboard and performance controls",
+  "verify-phase6-local-scoreboard-performance-runtime.ps1",
+  "phase6-local-scoreboard-performance-runtime-v1",
+  "phase6_local_scoreboard_performance_runtime_visible",
+  "orchestrator completion evidence",
+  "verify-orchestrator-completion-evidence.ps1",
+  "orchestrator-completion-evidence-v1",
+  "orchestrator_completion_evidence_verified",
   '"can_set_all_to_100":false'
 )) {
   if (-not $browserContractScript.Contains($required)) {
@@ -2046,13 +3479,16 @@ foreach ($required in @(
 }
 
 if (-not (Test-Path "docs\runbooks\fly-live-budget-proof-2026-06-08.md")) {
-  throw "Missing Fly.io/Vercel/GHCR/Grafana budget proof document"
+  throw "Missing historical Fly budget provenance document"
 }
 $flyBudgetProof = Get-Content -Path "docs\runbooks\fly-live-budget-proof-2026-06-08.md" -Raw
-foreach ($required in @("Projected Fly.io monthly server cost", "EUR 9.00", "EUR 16.00", "EUR 20.00", "Live Fly.io token probe: external-gated", "under warning threshold", "token is not persisted", "Vercel/Fly.io/GHCR/Grafana Cloud")) {
+foreach ($required in @("historical_only", "external-gate-audit-v2", "Projected Fly.io monthly server cost", "token is not persisted")) {
   if (-not $flyBudgetProof.Contains($required)) {
-    throw "Fly.io/Vercel/GHCR/Grafana budget proof document missing guard: $required"
+    throw "Historical Fly budget provenance document missing guard: $required"
   }
+}
+if ($flyBudgetProof.Contains("Active infrastructure baseline: Vercel/Fly.io/GHCR/Grafana Cloud.")) {
+  throw "Historical Fly budget provenance must not declare the active infrastructure baseline"
 }
 $backupParseErrors = $null
 [System.Management.Automation.Language.Parser]::ParseFile(
@@ -2116,6 +3552,289 @@ if ($resourceParseErrors -and $resourceParseErrors.Count -gt 0) {
   throw "Resource measurement script syntax failed"
 }
 
+Write-Host "[verify] phase5 local production candidate contract"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -StaticOnly -AllowNonCandidateHead
+Assert-LastExitCode "phase5 local production candidate static contract"
+$phase5LocalCandidateVerifier = Get-Content -Path "scripts\verify-phase5-production-candidate-local.ps1" -Raw
+foreach ($required in @(
+  'verification-runtime.json',
+  'verification_scope',
+  'runtime_without_browser',
+  'full_with_browser',
+  'AllowNonCandidateHead',
+  'candidate runtime source matches HEAD',
+  'progress_credit_claimed',
+  'candidate_runtime_source_parity_verified'
+)) {
+  if (-not $phase5LocalCandidateVerifier.Contains($required)) {
+    throw "Phase5 local candidate verifier missing artifact-isolation guard: $required"
+  }
+}
+$currentReleaseCandidateVerifier = Get-Content -Path "scripts\verify-current-release-candidate.ps1" -Raw
+foreach ($required in @(
+  'docs\runtime-state\external-gate-summary.json',
+  'docs\runtime-state\backend-hosted-current.json',
+  '/api/v1/external-gates/mirror',
+  'candidate_technical=true',
+  'promotion_eligible=',
+  'canonical_read_only_contract_origin',
+  'read_only_contract_origin',
+  'stateful_backend_verified',
+  'production_release_claimed',
+  'external_gates_snapshot_scope',
+  'external_gates_deployment_snapshot_source_artifact',
+  'embedded_at_source_commit',
+  'active release candidate has committed or staged runtime-source drift outside the exact truth transition',
+  'qualificationTruthPaths',
+  'qualification_truth_transition=',
+  'dual_binding_transition=',
+  'source-truth-projection-binding-v1',
+  'verify_source_truth_projection_binding.py',
+  'backendState.overall_percent',
+  'runtime_source_parity=true',
+  'snapshot_stale=',
+  'ssl.create_default_context()',
+  'class NoRedirectHandler',
+  'urllib.request.HTTPSHandler(context=ctx)',
+  'response.status != 200',
+  'response.geturl() != url',
+  'attempts = 3',
+  'urllib.error.HTTPError',
+  '500 <= exc.code <= 599',
+  'transient_errors = (ConnectionError, TimeoutError, socket.timeout, http.client.RemoteDisconnected)',
+  'not isinstance(exc.reason, transient_errors)',
+  'time.sleep(attempt)',
+  'Assert-Equal "hosted status $url" ([int]$status) 200',
+  'ready_for_100_percent_review',
+  'Verified hosted read failed after bounded retries'
+)) {
+  if (-not $currentReleaseCandidateVerifier.Contains($required)) {
+    throw "Current release candidate verifier missing canonical gate classification: $required"
+  }
+}
+$dualBindingVerifierPath = Join-Path $PSScriptRoot 'verify_source_truth_projection_binding.py'
+if (-not (Test-Path -LiteralPath $dualBindingVerifierPath -PathType Leaf)) {
+  throw 'Missing source/truth-projection binding verifier'
+}
+$dualBindingVerifierSource = Get-Content -LiteralPath $dualBindingVerifierPath -Raw
+foreach ($required in @(
+  'source-truth-projection-binding-v1',
+  'runtime-to-projection ancestry',
+  'projection-to-receipt ancestry',
+  'runtime product drift exists after source freeze',
+  'receipt must not modify truth projection paths',
+  'all seven horizontal cells must be 100',
+  'all seven vertical cells must be 100'
+)) {
+  if (-not $dualBindingVerifierSource.Contains($required)) {
+    throw "Source/truth-projection binding verifier missing fail-closed guard: $required"
+  }
+}
+$ownerRequestWriterPath = Join-Path $PSScriptRoot 'write-market-ready-owner-request.ps1'
+$ownerRequestVerifierPath = Join-Path $PSScriptRoot 'verify-market-ready-owner-request.ps1'
+foreach ($requiredPath in @($ownerRequestWriterPath, $ownerRequestVerifierPath)) {
+  if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+    throw "Missing market-ready owner request component: $requiredPath"
+  }
+}
+$sourceQualificationWriterPath = Join-Path $PSScriptRoot 'write-source-qualification-control.ps1'
+$sourceQualificationVerifierPath = Join-Path $PSScriptRoot 'verify-source-qualification-control.ps1'
+foreach ($requiredPath in @($sourceQualificationWriterPath, $sourceQualificationVerifierPath)) {
+  if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+    throw "Missing source qualification control component: $requiredPath"
+  }
+}
+$prCheckSource = Get-Content -LiteralPath '.github\workflows\pr-check.yml' -Raw
+foreach ($required in @(
+  'docs/runtime-state/source-qualification-control.json',
+  'source qualification control JSON must be the only S-to-Q path',
+  'source qualification control candidate mismatch',
+  'source qualification control may not award credit'
+)) {
+  if (-not $prCheckSource.Contains($required)) {
+    throw "pr-check missing source qualification fail-closed guard: $required"
+  }
+}
+foreach ($forbidden in @('ssl._create_unverified_context', 'ssl.CERT_NONE', 'check_hostname = False')) {
+  if ($currentReleaseCandidateVerifier.Contains($forbidden)) {
+    throw "Current release candidate verifier weakens TLS verification: $forbidden"
+  }
+}
+$phase5ImmutableParityVerifier = Get-Content -Path "scripts\manual\verify-phase5-staging-immutable-parity.ps1" -Raw
+foreach ($required in @(
+  '"-StagingIp"',
+  '"plan-only"',
+  '"-StagingHostname"',
+  '"plan-only.invalid"',
+  '"-StagingBaseUrl"',
+  '"https://plan-only.invalid"'
+)) {
+  if (-not $phase5ImmutableParityVerifier.Contains($required)) {
+    throw "Phase5 immutable parity verifier missing isolated plan-only boundary: $required"
+  }
+}
+
+Write-Host "[verify] DEV-LIVE owner master gate"
+$devLiveParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\start-dev-live.ps1",
+  [ref]$null,
+  [ref]$devLiveParseErrors
+) | Out-Null
+if ($devLiveParseErrors -and $devLiveParseErrors.Count -gt 0) {
+  $devLiveParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "DEV-LIVE start script syntax failed"
+}
+$devLiveScript = Get-Content -Path "scripts\start-dev-live.ps1" -Raw
+foreach ($required in @(
+  '$env:LLM_LIVE_PROVIDER_DEFAULT = ''false''',
+  '$env:LLM_LIVE_PROVIDER_DEFAULT = ''true''',
+  'Owner-Live-Master-Gate',
+  '$ownerLiveGate -eq ''true''',
+  'PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED'
+)) {
+  if (-not $devLiveScript.Contains($required)) {
+    throw "DEV-LIVE start script missing fail-closed owner-gate guard: $required"
+  }
+}
+
+Write-Host "[verify] market-ready hosted proof classification"
+$marketReadyParseErrors = $null
+[System.Management.Automation.Language.Parser]::ParseFile(
+  "scripts\verify-market-ready.ps1",
+  [ref]$null,
+  [ref]$marketReadyParseErrors
+) | Out-Null
+if ($marketReadyParseErrors -and $marketReadyParseErrors.Count -gt 0) {
+  $marketReadyParseErrors | ForEach-Object { Write-Error $_.Message }
+  throw "Market-ready verifier syntax failed"
+}
+$marketReadyScript = Get-Content -Path "scripts\verify-market-ready.ps1" -Raw
+foreach ($required in @(
+  'verify:frontend-hosted-current',
+  'verify:backend-hosted-current',
+  'verify:current-release-candidate',
+  'scripts\start-dev-live.ps1',
+  'pwsh -NoProfile',
+  'dev-live-rehydrate',
+  'o4Evidence.runtime_report_source_commit',
+  'o4Evidence.browser_report_source_commit',
+  'o4Evidence.runtime_source_parity_verified',
+  'o4Evidence.browser_source_parity_verified',
+  'o4Evidence.proof_worktree_clean_verified',
+  'o4Runtime.proof_worktree_clean_verified',
+  'o4Browser.proof_worktree_clean_verified',
+  'requires owner-gated stateful hosted runtime',
+  'Ledger rows have no authenticated Owner-gate metadata.',
+  '$autonomousOpenItems = @($openItems)',
+  '$ledgerOwnerGated = $false',
+  'market-ready-aggregate-v2',
+  'market_ready_verified',
+  'RequireReady',
+  'valid_owner_blocked',
+  'ready-evidence-candidate-source-bound'
+)) {
+  if (-not $marketReadyScript.Contains($required)) {
+    throw "Market-ready verifier missing current gate guard: $required"
+  }
+}
+$rootPackageConfig = Get-Content -Path "package.json" -Raw | ConvertFrom-Json
+$frontendHostedCommand = [string]$rootPackageConfig.scripts.'verify:frontend-hosted-current'
+if (-not $frontendHostedCommand.Contains('-SkipBrowser')) {
+  throw "Current hosted frontend package verifier must preserve and validate the timestamp-bound canonical browser report"
+}
+
+Write-Host "[verify] fixed DEV-ONLY filesystem project-progress adapter"
+if (-not (Test-Path "scripts\verify-mcp-filesystem-project-progress.ps1")) { throw "Missing filesystem project-progress verifier" }
+$filesystemProjectProgressParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-mcp-filesystem-project-progress.ps1", [ref]$null, [ref]$filesystemProjectProgressParseErrors) | Out-Null
+if ($filesystemProjectProgressParseErrors) { $filesystemProjectProgressParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Filesystem project-progress verifier parse errors" }
+$filesystemProjectProgressVerifier = Get-Content "scripts\verify-mcp-filesystem-project-progress.ps1" -Raw
+foreach ($required in @("filesystem-project-progress-read-v1", "canonical-project-progress", "filesystem_project_progress_read_verified", "audit_before_after=true", "direct_provider_calls", "DEV-ONLY hosted=false")) {
+  if (-not $filesystemProjectProgressVerifier.Contains($required)) { throw "Filesystem project-progress verifier missing: $required" }
+}
+if (-not (Test-Path "docs\runtime-contracts\mcp-filesystem-project-progress-contract.md")) { throw "Missing filesystem project-progress runtime contract documentation" }
+$filesystemProjectProgressDoc = Get-Content "docs\runtime-contracts\mcp-filesystem-project-progress-contract.md" -Raw
+foreach ($required in @("filesystem-project-progress-read-v1", "canonical-project-progress", "O_NOFOLLOW", "audit_before_read", "audit_after_read", "DEV-ONLY; hosted proof still blocked", 'MCP Gateway remains `56%`', 'Overall remains `89%`')) {
+  if (-not $filesystemProjectProgressDoc.Contains($required)) { throw "Filesystem project-progress documentation missing: $required" }
+}
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-mcp-filesystem-project-progress.ps1 -StaticOnly
+Assert-LastExitCode "filesystem project-progress static verifier"
+
+Write-Host "[verify] current hosted MCP read-only verifier"
+if (-not (Test-Path "scripts\verify-mcp-hosted-current-readonly.ps1")) { throw "Missing current hosted MCP read-only verifier" }
+$hostedMcpReadOnlyParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-mcp-hosted-current-readonly.ps1", [ref]$null, [ref]$hostedMcpReadOnlyParseErrors) | Out-Null
+if ($hostedMcpReadOnlyParseErrors) { $hostedMcpReadOnlyParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Current hosted MCP read-only verifier parse errors" }
+$hostedMcpReadOnlyVerifier = Get-Content "scripts\verify-mcp-hosted-current-readonly.ps1" -Raw
+foreach ($required in @("mcp-hosted-current-readonly-v1", "mcp_current_hosted_readonly_contract_parity_verified", "/mcp/api/v1/version-pinning/contract", "/api/v1/audit/mcp/contract", "source-bound backend verification artifact exists", "token_used = `$false", "provider_write = `$false")) {
+  if (-not $hostedMcpReadOnlyVerifier.Contains($required)) { throw "Current hosted MCP read-only verifier missing: $required" }
+}
+foreach ($forbidden in @("x-superbrain-agent-token", "-Method Post", "-Method Put", "-Method Patch", "-Method Delete", "Bearer ")) {
+  if ($hostedMcpReadOnlyVerifier.Contains($forbidden)) { throw "Current hosted MCP read-only verifier contains write/auth marker: $forbidden" }
+}
+
+Write-Host "[verify] hosted Cloudflare LLM read-only verifier"
+if (-not (Test-Path "scripts\verify-cloudflare-llm-gateway-hosted-readonly.ps1")) { throw "Missing hosted Cloudflare LLM read-only verifier" }
+$hostedCloudflareLlmReadOnlyParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-cloudflare-llm-gateway-hosted-readonly.ps1", [ref]$null, [ref]$hostedCloudflareLlmReadOnlyParseErrors) | Out-Null
+if ($hostedCloudflareLlmReadOnlyParseErrors) { $hostedCloudflareLlmReadOnlyParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Hosted Cloudflare LLM read-only verifier parse errors" }
+$hostedCloudflareLlmReadOnlyVerifier = Get-Content "scripts\verify-cloudflare-llm-gateway-hosted-readonly.ps1" -Raw
+foreach ($required in @("cloudflare-llm-gateway-hosted-readonly-v1", "cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified", "/api/v1/health", "/v1/models", "deployed source tree matches HEAD", "token_used = `$false", "inference_executed = `$false", "provider_write = `$false")) {
+  if (-not $hostedCloudflareLlmReadOnlyVerifier.Contains($required)) { throw "Hosted Cloudflare LLM read-only verifier missing: $required" }
+}
+foreach ($forbidden in @("x-superbrain-gateway-token", "GATEWAY_AUTH_TOKEN", "-Method Post", "-Method Put", "-Method Patch", "-Method Delete", "Bearer ")) {
+  if ($hostedCloudflareLlmReadOnlyVerifier.Contains($forbidden)) { throw "Hosted Cloudflare LLM read-only verifier contains write/auth marker: $forbidden" }
+}
+
+Write-Host "[verify] hosted Agent Pool read-only verifier"
+if (-not (Test-Path "scripts\verify-agent-pool-hosted-readonly.ps1")) { throw "Missing hosted Agent Pool read-only verifier" }
+$hostedAgentPoolReadOnlyParseErrors = $null
+[Management.Automation.Language.Parser]::ParseFile("scripts\verify-agent-pool-hosted-readonly.ps1", [ref]$null, [ref]$hostedAgentPoolReadOnlyParseErrors) | Out-Null
+if ($hostedAgentPoolReadOnlyParseErrors) { $hostedAgentPoolReadOnlyParseErrors | ForEach-Object { Write-Error $_.Message }; throw "Hosted Agent Pool read-only verifier parse errors" }
+$hostedAgentPoolReadOnlyVerifier = Get-Content "scripts\verify-agent-pool-hosted-readonly.ps1" -Raw
+foreach ($required in @("hosted-agent-pool-readonly-v1", "hosted_cloudflare_d1_four_role_agent_pool_readback_proof", "/api/v1/phase2/runtime/contract", "/api/v1/phase2/runtime/runs", "exactly four persisted tasks", "token_used = `$false", "provider_write = `$false")) {
+  if (-not $hostedAgentPoolReadOnlyVerifier.Contains($required)) { throw "Hosted Agent Pool read-only verifier missing: $required" }
+}
+foreach ($forbidden in @("x-superbrain-agent-token", "-Method Post", "-Method Put", "-Method Patch", "-Method Delete")) {
+  if ($hostedAgentPoolReadOnlyVerifier.Contains($forbidden)) { throw "Hosted Agent Pool read-only verifier contains write/auth marker: $forbidden" }
+}
+
+Write-Host "[verify] Cloudflare Workers AI LLM Gateway static contract"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-cloudflare-llm-gateway.ps1 -StaticOnly
+Assert-LastExitCode "Cloudflare Workers AI LLM Gateway static contract"
+
+Write-Host "[verify] Cloudflare D1 stateful runtime static contract"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-cloudflare-stateful-runtime.ps1 -StaticOnly
+Assert-LastExitCode "Cloudflare D1 stateful runtime static contract"
+
+Write-Host "[verify] bounded live LLM evidence chain"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-live-llm-evidence-chain.ps1
+Assert-LastExitCode "bounded live LLM evidence chain"
+
+Write-Host "[verify] current hosted frontend proof"
+$frontendHostedVerifierSource = Get-Content -Path "scripts\verify-frontend-hosted-current.ps1" -Raw
+foreach ($required in @(
+  'former500Paths',
+  'requiredReadPaths',
+  'hosted read endpoint inventory',
+  'production_operational_deploy_verified',
+  'browserBaseUrl',
+  '[switch]$ValidateOnly',
+  'full_validation=true',
+  'verification_written=false'
+)) {
+  if (-not $frontendHostedVerifierSource.Contains($required)) {
+    throw "Current hosted frontend verifier missing T1 Production guard: $required"
+  }
+}
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-frontend-hosted-current.ps1 -StaticOnly
+Assert-LastExitCode "current hosted frontend static proof"
+
+Write-Host "[verify] current hosted backend contract-origin proof"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-backend-hosted-current.ps1 -StaticOnly
+Assert-LastExitCode "current hosted backend contract-origin static proof"
+
 Write-Host "[verify] git diff whitespace"
 $prevEap = $ErrorActionPreference
 $prevNative = $PSNativeCommandUseErrorActionPreference
@@ -2142,15 +3861,65 @@ $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
   Write-Host "[verify] gitleaks scan"
   $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } else { $repoLocalGitleaks }
-  $prevEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-  & $gitleaksExecutable detect --no-git --source . --config .gitleaks.toml --redact
-  $gitleaksExit = $LASTEXITCODE; $ErrorActionPreference = $prevEap
-  if ($gitleaksExit -ne 0) { throw "Verification failed: gitleaks scan exited $gitleaksExit" }
+  $repoRoot = (Resolve-Path ".").Path
+  $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+  $gitleaksScanRoot = Join-Path $tempRoot ("superbrain-gitleaks-scan-" + [guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Path $gitleaksScanRoot | Out-Null
+  try {
+    $trackedAndUntrackedFiles = git ls-files -z --cached --others --exclude-standard
+    Assert-LastExitCode "git ls-files for gitleaks scan"
+    $scanFileCount = 0
+    foreach ($relativePath in ($trackedAndUntrackedFiles -split "`0")) {
+      if ([string]::IsNullOrWhiteSpace($relativePath)) { continue }
+      $sourcePath = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $relativePath))
+      if (-not $sourcePath.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Verification failed: gitleaks source escaped repo root: $relativePath"
+      }
+      if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) { continue }
+      $targetPath = [System.IO.Path]::GetFullPath((Join-Path $gitleaksScanRoot $relativePath))
+      if (-not $targetPath.StartsWith($gitleaksScanRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Verification failed: gitleaks target escaped scan root: $relativePath"
+      }
+      $targetParent = Split-Path -Parent $targetPath
+      if (-not (Test-Path -LiteralPath $targetParent)) {
+        New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+      }
+      Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force
+      $scanFileCount += 1
+    }
+    if ($scanFileCount -lt 100) {
+      throw "Verification failed: gitleaks scan mirror unexpectedly small: $scanFileCount files"
+    }
+    Write-Host "[verify] gitleaks scan files=$scanFileCount"
+    $prevEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+    & $gitleaksExecutable detect --no-git --source $gitleaksScanRoot --config .gitleaks.toml --redact --timeout 600
+    $gitleaksExit = $LASTEXITCODE; $ErrorActionPreference = $prevEap
+    if ($gitleaksExit -ne 0) { throw "Verification failed: gitleaks scan exited $gitleaksExit" }
+  } finally {
+    if (Test-Path -LiteralPath $gitleaksScanRoot) {
+      $resolvedScanRoot = (Resolve-Path -LiteralPath $gitleaksScanRoot).Path
+      if (-not $resolvedScanRoot.StartsWith($tempRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove non-temp gitleaks scan root: $resolvedScanRoot"
+      }
+      Remove-Item -LiteralPath $resolvedScanRoot -Recurse -Force
+    }
+  }
 } else {
   Write-Host "[verify] fallback secret scan"
   py -3 scripts\secret_scan_fallback.py
   Assert-LastExitCode "fallback secret scan"
 }
 
-Write-Host "[verify] phase1 checks completed"
+# Five-axis substance audit. It lived outside the gate chain until 2026-08-28, which is how
+# RC20 could qualify while its regression test was red. The registry at line ~126 only
+# discovers verify-*.ps1, so a .mjs verifier can never be reached through verify.suites.json;
+# it has to be invoked here.
+Write-Host "[verify] five-axis substance audit"
+node scripts\verify-five-axis-substance-audit.mjs
+Assert-LastExitCode "five-axis substance audit"
 
+Write-Host "[verify] five-axis audit regression"
+node --test scripts\tests\five-axis-audit-regression.test.mjs
+Assert-LastExitCode "five-axis audit regression"
+
+Write-Host "[verify] phase1 checks completed"

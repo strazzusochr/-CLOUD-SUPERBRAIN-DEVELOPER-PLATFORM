@@ -1,6 +1,7 @@
 import AppShell from "../../components/shell/AppShell";
 import { PageHeader, Panel, Badge } from "../../components/ui";
 import { CreatorStudio } from "../../components/creator-studio";
+import { ArtifactLibrary } from "../../components/artifact-library";
 
 export const metadata = { title: "Dokumente — Cloud Superbrain" };
 export const dynamic = "force-dynamic";
@@ -15,9 +16,15 @@ export default function DocsOutputPage() {
           title="Dokumente erstellen"
           subtitle="Schreibe Markdown, sieh die Live-Vorschau und lade als .md oder .html herunter."
         />
-        <Panel title="Doc Studio" actions={<Badge tone="green">echt · Download</Badge>}>
+        <Panel title="Dokumentenstudio" actions={<Badge tone="green">echt · Herunterladen</Badge>}>
           <div className="wb-pad">
             <CreatorStudio only="doc" />
+          </div>
+        </Panel>
+
+        <Panel title="Dokument-Bibliothek" className="mb-16" actions={<Badge tone="cyan">Agent API · Registry</Badge>}>
+          <div className="wb-pad">
+            <ArtifactLibrary types={["document", "doc", "markdown", "pdf_plan", "md_export"]} emptyText="Keine registrierten Dokumente. Editor-Exporte bleiben als direkter Browser-Download verfügbar." testId="docs-library" />
           </div>
         </Panel>
       </div>

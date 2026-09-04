@@ -1,21 +1,31 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {};
 
+const apiSecurityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  {
+    key: "Content-Security-Policy",
+    value: "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /api/v1/security/csp/report",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
+  { key: "X-Superbrain-Security-Contract", value: "security-headers-v1" },
+];
+
+nextConfig.headers = async () => [
+  {
+    source: "/api/:path*",
+    headers: apiSecurityHeaders,
+  },
+];
+
 if (!process.env.VERCEL) {
   nextConfig.outputFileTracingRoot = new URL("../..", import.meta.url).pathname;
 }
-
-const flyOriginAppDefaults = {
-  FLY_APP_AGENT_API: "cloud-superbrain-agent-api",
-  FLY_APP_MCP_GATEWAY: "cloud-superbrain-mcp-gateway",
-  FLY_APP_LLM_GATEWAY: "cloud-superbrain-llm-gateway",
-};
-
-const originEnvToFlyAppEnv = {
-  AGENT_API_BASE_URL: "FLY_APP_AGENT_API",
-  MCP_GATEWAY_BASE_URL: "FLY_APP_MCP_GATEWAY",
-  LLM_GATEWAY_BASE_URL: "FLY_APP_LLM_GATEWAY",
-};
 
 const normalizeBaseUrl = (value) => {
   if (!value || typeof value !== "string") return null;
@@ -34,24 +44,8 @@ const isSafeHttpsOrigin = (value) => {
   return !/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0|host\.docker\.internal)/i.test(normalized);
 };
 
-const convertFlyAppNameToBaseUrl = (value) => {
-  const trimmed = normalizeBaseUrl(value);
-  if (!trimmed || hasPlaceholder(trimmed)) return null;
-  if (/^https:\/\/[A-Za-z0-9.-]+(\.fly\.dev)?$/.test(trimmed)) return trimmed;
-  if (/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(trimmed)) {
-    return `https://${trimmed}.fly.dev`;
-  }
-  return null;
-};
-
 const isStagingRewritesEnabled = () => {
   return /^(1|true|yes|on)$/i.test(process.env.STAGING_REWRITES_ENABLED || "");
-};
-
-const getFlyAppNameOrDefault = (flyAppEnvKey) => {
-  const configured = process.env[flyAppEnvKey];
-  if (configured) return configured;
-  return isStagingRewritesEnabled() ? flyOriginAppDefaults[flyAppEnvKey] || "" : "";
 };
 
 const hostedRewriteFallbackFor = (envKey, stagingBaseUrl) => {
@@ -63,24 +57,9 @@ const hostedRewriteFallbackFor = (envKey, stagingBaseUrl) => {
   return null;
 };
 
-const isHostedRewriteFallback = (envKey, value, stagingBaseUrl) => {
-  const normalized = normalizeBaseUrl(value);
-  const fallback = hostedRewriteFallbackFor(envKey, stagingBaseUrl);
-  return !!normalized && !!fallback && normalized.toLowerCase() === fallback.toLowerCase();
-};
-
 const resolveBaseUrl = (envKey) => {
   const direct = normalizeBaseUrl(process.env[envKey]);
-  if (
-    isSafeHttpsOrigin(direct) &&
-    !isHostedRewriteFallback(envKey, direct, process.env.STAGING_BASE_URL)
-  ) {
-    return direct;
-  }
-
-  const flyAppEnvKey = originEnvToFlyAppEnv[envKey];
-  const flyOrigin = flyAppEnvKey ? convertFlyAppNameToBaseUrl(getFlyAppNameOrDefault(flyAppEnvKey)) : null;
-  if (flyOrigin) return flyOrigin;
+  if (isSafeHttpsOrigin(direct)) return direct;
 
   if (!isStagingRewritesEnabled()) return null;
   const fallback = hostedRewriteFallbackFor(envKey, process.env.STAGING_BASE_URL);
@@ -102,12 +81,11 @@ const cloudRewrite = (source, envKey, pathPrefix = "") => {
 
 // NOTE: edge rewrites to external backend origins are intentionally disabled.
 // The app's own route handlers (app/api/v1/[...slug], app/llm, app/mcp) own these
-// paths now: they serve real project-state projection data + the Cloudflare
-// Workers AI LLM for free, AND do live passthrough to AGENT_API_BASE_URL /
-// MCP_GATEWAY_BASE_URL / LLM_GATEWAY_BASE_URL when those point to a *reachable*
-// origin — with graceful fallback to projection/CF if the origin is dead. A
+// paths now: they serve read-only project-state contract projections and forward
+// runtime requests only through AGENT_API_BASE_URL / MCP_GATEWAY_BASE_URL /
+// LLM_GATEWAY_BASE_URL when those point to a reachable approved origin. A
 // beforeFiles rewrite would intercept at the edge before the handler runs and
-// hard-502 on a dead origin, so we keep routing in the handlers instead.
+// hard-502 on a dead origin, so fail-closed routing stays in the handlers.
 // `cloudRewrite` and the origin resolvers above are retained for reference.
 void cloudRewrite;
 

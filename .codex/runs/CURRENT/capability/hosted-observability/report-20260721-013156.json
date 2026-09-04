@@ -1,0 +1,24 @@
+﻿{
+    "contract_version":  "hosted-observability-ingestion-proof-v1",
+    "status":  "verified",
+    "evidence_ref":  "hosted_observability_ingestion_verified",
+    "provider":  "grafana_cloud",
+    "paid_provider":  false,
+    "region":  "prod-eu-west-2",
+    "otlp_gateway":  "https://otlp-gateway-prod-eu-west-2.grafana.net/otlp",
+    "write_scopes_present":  [
+                                 "metrics:write",
+                                 "logs:write"
+                             ],
+    "log_ingestion_http":  204,
+    "metric_ingestion_http":  200,
+    "invalid_credential_http":  401,
+    "run_tag":  "supervisor-l7-1784597513",
+    "verified_at_utc":  "2026-07-21T01:31:56.1762995Z",
+    "non_claims":  [
+                       "Proves authenticated live ingestion ACCEPTANCE (HTTP 2xx) of one log and one metric into Grafana Cloud.",
+                       "Does not claim dashboards, alerting, retention, or read-back query throughput.",
+                       "No Grafana token value is printed, logged, or stored in this artifact.",
+                       "Free tier only; no paid provider."
+                   ]
+}

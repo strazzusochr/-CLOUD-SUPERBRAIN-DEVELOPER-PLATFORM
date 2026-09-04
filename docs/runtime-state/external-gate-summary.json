@@ -1,48 +1,49 @@
-﻿{
-    "contract_version":  "external-gate-summary-v1",
-    "source_contract_version":  "external-gate-audit-v1",
-    "source_artifact":  ".phase1-artifacts\\external-gate-audit-20260615-121905.json",
-    "generated_at_utc":  "2026-06-15T10:19:05.9797833Z",
-    "status":  "blocked",
-    "gate_ids":  [
-                     "hosted_agent_api_contracts",
-                     "github_branch_protection_current_verify",
-                     "vercel_backend_origin_health",
-                     "fly_live_budget_check"
-                 ],
-    "frontend_preview_claim_allowed":  false,
-    "hosted_staging_claim_allowed":  false,
-    "branch_protection_claim_allowed":  false,
-    "ghcr_image_digest_claim_allowed":  true,
-    "vercel_backend_origins_claim_allowed":  false,
-    "canonical_gitleaks_claim_allowed":  true,
-    "fly_live_budget_claim_allowed":  false,
-    "gitlab_identity_claim_allowed":  false,
-    "huggingface_identity_claim_allowed":  false,
-    "grafana_cloud_claim_allowed":  false,
-    "production_deploy_claim_allowed":  false,
-    "missing_or_failed_gates":  [
-                                    "hosted_agent_api_contracts",
-                                    "github_branch_protection_current_verify",
-                                    "vercel_backend_origin_health",
-                                    "fly_live_budget_check"
-                                ],
-    "failed_hosted_required_probe_ids":  [
-                                             "hosted_agent_api_health",
-                                             "hosted_cloud_provider_inventory",
-                                             "hosted_cloud_layer_readiness",
-                                             "hosted_cloud_deployment_preflight",
-                                             "hosted_project_progress_integrity",
-                                             "hosted_project_progress_completion"
-                                         ],
-    "failed_vercel_origin_probe_ids":  [
-                                           "vercel_agent_api_origin",
-                                           "vercel_mcp_gateway_origin",
-                                           "vercel_llm_gateway_origin"
-                                       ],
-    "non_claims":  [
-                       "This is a sanitized runtime summary, not the full audit artifact.",
-                       "Probe snippets, URLs, logs, and token values are not included.",
-                       "No hosted, production, branch-protection, Fly budget, or Vercel-origin claim is allowed while missing_or_failed_gates is non-empty."
-                   ]
+{
+  "contract_version": "external-gate-summary-v2",
+  "source_contract_version": "external-gate-audit-v2",
+  "source_artifact": "docs\\runtime-state\\external-gate-audit-v2.json",
+  "local_run_artifact": ".phase1-artifacts\\external-gate-audit-v2-20260829-192549.json",
+  "generated_at_utc": "2026-08-29T17:25:49.1046628Z",
+  "status": "blocked",
+  "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+  "requested_release_candidate_selector": "5668e7cb89eac03a929853f004204b56bd171cb9",
+  "active_release_candidate_sha": "",
+  "ghcr_published_manifest_ref": "",
+  "ghcr_candidate_readback_source_artifact": "",
+  "gate_ids": [
+    "hosted_agent_api_contracts",
+    "github_branch_protection_current_verify",
+    "ghcr_image_digest_verify",
+    "vercel_backend_origin_health",
+    "canonical_gitleaks_scan",
+    "cloudflare_native_zero_card_hosted_runtime"
+  ],
+  "frontend_preview_claim_allowed": true,
+  "hosted_staging_claim_allowed": true,
+  "branch_protection_claim_allowed": true,
+  "ghcr_image_digest_claim_allowed": false,
+  "vercel_backend_origins_claim_allowed": true,
+  "canonical_gitleaks_claim_allowed": true,
+  "cloudflare_native_zero_card_hosted_runtime_claim_allowed": true,
+  "gitlab_identity_claim_allowed": false,
+  "huggingface_identity_claim_allowed": false,
+  "grafana_cloud_claim_allowed": false,
+  "production_deploy_claim_allowed": false,
+  "missing_or_failed_gates": [
+    "ghcr_image_digest_verify"
+  ],
+  "failed_hosted_required_probe_ids": [],
+  "failed_vercel_origin_probe_ids": [],
+  "legacy_provenance": {
+    "status": "historical_only",
+    "contract_version": "external-gate-audit-v1",
+    "source_artifact": ".phase1-artifacts\\external-gate-audit-20260720-191532.json",
+    "retired_gate_id": "fly_live_budget_check"
+  },
+  "non_claims": [
+    "This is a sanitized runtime summary, not the full audit artifact.",
+    "Probe snippets, URLs, logs, and token values are not included.",
+    "RC10 external-gate-summary-v1 and Fly semantics are historical provenance only.",
+    "Claims are gate-specific; missing_or_failed_gates blocks the named claims and production deployment, while individually verified hosted claims remain evidence-bounded."
+  ]
 }

@@ -1,0 +1,27 @@
+{
+  "binding_mode": "source_checkout_attestation_v1",
+  "candidate_sha": "bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85",
+  "checked_out_sha": "bbc2ad481352e8d9ee1e8e9fc010a5d3407d7b85",
+  "contract_version": "pr-check-source-checkout-attestation-v1",
+  "control_delta": [
+    "scripts/verify-main-deploy-transition.ps1"
+  ],
+  "control_sha": "fd268dbe14a8e9246567be0b1857246bee194a81",
+  "event_name": "workflow_dispatch",
+  "github_actions_artifact_upload": true,
+  "non_claims": [
+    "This attestation proves only the exact source checkout boundary for this CI run.",
+    "This attestation does not convert DEV-ONLY evidence into hosted proof.",
+    "This attestation does not claim GHCR publication, production deployment, release promotion, or Owner approval."
+  ],
+  "production_deploy": false,
+  "ref": "refs/heads/codex/source-prequal-bbc2ad4",
+  "registry_publish": false,
+  "release_promotion": false,
+  "run_attempt": 1,
+  "run_id": 33171020720,
+  "run_sha": "fd268dbe14a8e9246567be0b1857246bee194a81",
+  "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33171020720",
+  "secret_output": false,
+  "source_prequalification": true
+}

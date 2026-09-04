@@ -2,12 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// A real IDE-style build studio (the structure of a proper developer platform,
-// with REAL content): prompt composer + Explorer (the actually-generated files) +
-// Editor/Live-Preview tabs (the real running app & its code) + a real build log.
-// Backed by /api/v1/build (Qwen2.5-Coder on free Cloudflare Workers AI).
+// IDE-style build studio backed exclusively by /api/v1/build. That route reaches
+// models through the LLM Gateway and fails closed when no gateway is configured.
 
-type Build = { id: string; title: string; model: string; html: string; share_path?: string | null };
+type Build = {
+  id: string;
+  title: string;
+  model: string;
+  html: string;
+  live_provider_calls?: boolean;
+  gateway_mode?: string;
+  gateway_provider?: string;
+  persisted?: boolean;
+  share_path?: string | null;
+};
 type VFile = { name: string; lang: string; content: string };
 type LogRow = { kind: "run" | "ok" | "info" | "err"; text: string };
 
@@ -27,6 +35,37 @@ function parseFiles(html: string): VFile[] {
   return files;
 }
 
+function readableBuildError(payload: Record<string, unknown>, status: number): string {
+  const error = String(payload.error ?? "");
+  if (error === "write_session_required") {
+    return "Für den Build konnte keine sichere Sitzung gestartet werden. Bitte neu laden und erneut versuchen.";
+  }
+  if (error === "configured_boundary_unavailable") {
+    return "Build benötigt eine laufende Runtime mit LLM-Gateway und Backend. Dieses Frontend ist nur lesbar.";
+  }
+  if (error === "llm_gateway_generation_unavailable") {
+    return "Das LLM-Gateway hat kein vollständiges Build-Artefakt geliefert. Bitte später erneut versuchen.";
+  }
+  if (error === "build_persistence_unavailable") {
+    return "Der Build wurde erzeugt, aber das Backend konnte ihn nicht sicher speichern.";
+  }
+  const fallback = `Build fehlgeschlagen (HTTP ${status}).`;
+  return String(payload.note ?? payload.reason ?? (error || fallback));
+}
+
+async function ensureSignedGuestSession(): Promise<void> {
+  const current = await fetch("/api/v1/auth/session", { cache: "no-store" });
+  const currentPayload = (await current.json()) as Record<string, unknown>;
+  if (current.ok && currentPayload.status === "signed_in") return;
+  const created = await fetch("/api/v1/auth/session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ provider: "guest" }),
+  });
+  const createdPayload = (await created.json()) as Record<string, unknown>;
+  if (!created.ok || createdPayload.status !== "signed_in") throw new Error("Sichere Gast-Sitzung nicht verfügbar.");
+}
+
 export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { examples?: string[]; placeholder?: string } = {}) {
   const EXAMPLES = examples;
   const [prompt, setPrompt] = useState("");
@@ -37,19 +76,68 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
   const [active, setActive] = useState(0);
   const [tab, setTab] = useState<"preview" | "code">("preview");
   const [log, setLog] = useState<LogRow[]>([]);
+  const [runtimeReady, setRuntimeReady] = useState<boolean | null>(null);
   const startRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("build");
-    if (!id) return;
+    let alive = true;
     (async () => {
       try {
-        const r = await fetch(`/api/v1/build/${id}`, { cache: "no-store" });
-        const b = await r.json();
-        if (r.ok && b.html) { setBuild(b); setFiles(parseFiles(b.html)); setLog([{ kind: "ok", text: `✓ „${b.title}" geladen` }]); }
-      } catch { /* ignore */ }
+        const response = await fetch("/api/v1/builds?limit=1", { cache: "no-store" });
+        const payload = (await response.json()) as Record<string, unknown>;
+        if (!alive) return;
+        setRuntimeReady(response.ok && payload.persisted === true && payload.live_backend !== false);
+      } catch {
+        if (alive) setRuntimeReady(false);
+      }
     })();
+    return () => { alive = false; };
+  }, []);
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("build");
+    if (!id) return;
+    let alive = true;
+    (async () => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 32_000);
+        try {
+          const response = await fetch(`/api/v1/build/${encodeURIComponent(id)}`, {
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          const payload = await response.json().catch(() => ({})) as Build & Record<string, unknown>;
+          if (!alive) return;
+          if (response.ok && payload.html) {
+            setBuild(payload);
+            setFiles(parseFiles(payload.html));
+            setLog([{ kind: "ok", text: `✓ „${payload.title}" geladen` }]);
+            return;
+          }
+          if (response.status >= 500 && attempt === 0) {
+            setLog([{ kind: "info", text: `↻ Build-Lesen fehlgeschlagen (HTTP ${response.status}); ein begrenzter Leseversuch folgt.` }]);
+            continue;
+          }
+          const message = response.ok
+            ? "Build-Antwort enthält kein HTML-Artefakt."
+            : readableBuildError(payload, response.status);
+          setLog([{ kind: "err", text: `✗ Build konnte nicht geladen werden: ${message}` }]);
+          return;
+        } catch (error) {
+          if (!alive) return;
+          const message = error instanceof DOMException && error.name === "AbortError"
+            ? "Zeitlimit beim Lesen des Builds erreicht."
+            : error instanceof Error ? error.message : String(error);
+          setLog([{ kind: "err", text: `✗ Build konnte nicht geladen werden: ${message}` }]);
+          return;
+        } finally {
+          window.clearTimeout(timeout);
+        }
+      }
+    })();
+    return () => { alive = false; };
   }, []);
 
   function addLog(kind: LogRow["kind"], text: string) {
@@ -59,24 +147,31 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
   async function run(text: string, baseHtml?: string) {
     const p = text.trim();
     if (!p || busy) return;
+    if (runtimeReady === false) {
+      setLog([{ kind: "err", text: "✗ Build benötigt eine laufende Runtime mit LLM-Gateway und Backend. Dieses Frontend ist nur lesbar." }]);
+      return;
+    }
     setBusy(true); setTab("preview");
-    setLog(baseHtml ? [{ kind: "run", text: `▸ Ändere bestehende App…` }] : [{ kind: "run", text: `▸ Anfrage an Qwen2.5-Coder…` }]);
+    setLog(baseHtml ? [{ kind: "run", text: `▸ Ändere bestehende App…` }] : [{ kind: "run", text: `▸ Anfrage an das LLM-Gateway…` }]);
     startRef.current = Date.now(); setElapsed(0);
     const tick = setInterval(() => setElapsed(Math.round((Date.now() - startRef.current) / 1000)), 1000);
     const ctrl = new AbortController(); abortRef.current = ctrl;
     try {
+      await ensureSignedGuestSession();
       const res = await fetch("/api/v1/build", {
         method: "POST", headers: { "content-type": "application/json" }, signal: ctrl.signal,
         body: JSON.stringify(baseHtml ? { prompt: p, base_html: baseHtml } : { prompt: p }),
       });
-      const b = await res.json();
+      const b = (await res.json()) as Build & Record<string, unknown>;
       const secs = Math.round((Date.now() - startRef.current) / 1000);
-      if (!res.ok || !b.html) { addLog("err", `✗ ${b.note ?? res.status}`); }
+      if (!res.ok || !b.html) { addLog("err", `✗ ${readableBuildError(b, res.status)}`); }
       else {
         const f = parseFiles(b.html);
         setBuild(b); setFiles(f); setActive(0);
         addLog("ok", `✓ ${b.html.length.toLocaleString("de-DE")} Bytes in ${secs}s generiert`);
         addLog("ok", `✓ ${f.length} Datei(en) · GPU-Schutz injiziert`);
+        addLog("ok", `✓ Build-ID ${b.id}`);
+        addLog("ok", `✓ LLM-Gateway ${b.gateway_provider ?? "unbekannt"} · live_provider_calls=${String(b.live_provider_calls === true)}`);
         addLog("ok", `✓ Live-Vorschau bereit`);
         if (b.share_path) addLog("ok", `✓ Persistiert · ${b.share_path}`);
       }
@@ -95,30 +190,47 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
 
   return (
     <div className="workbench-studio" data-testid="workbench-studio">
+      {runtimeReady === false ? (
+        <div className="status bad" role="status" data-testid="workbench-runtime-notice">
+          Build benötigt eine laufende Runtime mit LLM-Gateway und Backend. Dieses Frontend ist nur lesbar.
+        </div>
+      ) : null}
       <div className="wb-composer">
         <textarea
           className="wb-composer-input"
           placeholder={placeholder ?? "Beschreibe, was du bauen willst — z. B. „ein 3D-Weltraum-Shooter mit Maus-Steuerung“"}
+          aria-label="Beschreibung für die App-Erstellung"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(prompt); }}
           rows={2}
           disabled={busy}
         />
-        <button type="button" className="btn btn-primary wb-composer-go" onClick={() => run(prompt)} disabled={busy} data-testid="ws-build">
+        <button type="button" className="btn btn-primary wb-composer-go" onClick={() => run(prompt)} disabled={busy || runtimeReady === false} data-testid="ws-build">
           {busy ? `Baut… ${elapsed}s` : "✨ Bauen"}
         </button>
       </div>
       {!build && !busy ? (
         <div className="wb-examples">
-          {EXAMPLES.map((ex) => <button key={ex} type="button" className="ab-chip" onClick={() => { setPrompt(ex); run(ex); }}>{ex}</button>)}
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex}
+              type="button"
+              className="ab-chip"
+              disabled={busy}
+              onClick={() => setPrompt(ex)}
+              title="Beispiel in das Eingabefeld übernehmen"
+            >
+              {ex}
+            </button>
+          ))}
         </div>
       ) : null}
 
       <section className="wb-studio">
         {/* Explorer — the real generated files */}
         <aside className="wb-pane wb-explorer">
-          <div className="wb-pane-head"><span>Explorer</span>{files.length ? <span className="mono muted-copy">{files.length}</span> : null}</div>
+          <div className="wb-pane-head"><span>Dateien</span>{files.length ? <span className="mono muted-copy">{files.length}</span> : null}</div>
           <div className="wb-tree">
             {files.length ? (
               <>
@@ -131,7 +243,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
                 ))}
               </>
             ) : (
-              <div className="ws-empty text-12 text-mut">Beschreibe oben etwas und «Bauen» — die generierten Dateien erscheinen hier.</div>
+              <div className="ws-empty text-12 text-mut">Beschreibe oben deine Idee und wähle „Bauen“ — die generierten Dateien erscheinen hier.</div>
             )}
           </div>
         </aside>
@@ -146,7 +258,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
           </div>
           {tab === "preview" ? (
             build ? (
-              <iframe className="ws-frame" title="preview" srcDoc={build.html} sandbox="allow-scripts allow-pointer-lock allow-popups allow-modals" data-testid="ws-frame" />
+              <iframe className="ws-frame" title="Vorschau" srcDoc={build.html} sandbox="allow-scripts allow-pointer-lock allow-popups allow-modals" data-testid="ws-frame" />
             ) : (
               <div className="ws-stage-empty">
                 {busy ? <><div className="ab-spinner" /><div>Baut deine App… <b>{elapsed}s</b></div></> : <div className="text-mut">Hier läuft gleich deine gebaute App.</div>}
@@ -159,7 +271,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
 
         {/* Build log + actions */}
         <aside className="wb-pane wb-preview">
-          <div className="wb-pane-head"><span>Build-Log</span>{build ? <span className="mono muted-copy">{String(build.model).replace("@cf/", "")}</span> : null}</div>
+          <div className="wb-pane-head"><span>Build-Protokoll</span>{build ? <span className="mono muted-copy">{String(build.model).replace("@cf/", "")}</span> : null}</div>
           <div className="terminal-feed ws-log" data-testid="ws-log">
             {busy ? <div className="terminal-row"><span className="run">▸ Generiere… {elapsed}s</span></div> : null}
             {log.map((r, i) => <div key={i} className="terminal-row"><span className={r.kind}>{r.text}</span></div>)}
@@ -170,16 +282,42 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
               <div className="row gap-8 wrap">
                 <button type="button" className="btn btn-sm" onClick={() => { const w = window.open(); if (w) { w.document.write(build.html); w.document.close(); } }}>⤢ Vollbild</button>
                 {build.share_path ? <button type="button" className="btn btn-sm" onClick={() => navigator.clipboard?.writeText(`${location.origin}${build.share_path}`)}>🔗 Teilen</button> : null}
-                <button type="button" className="btn btn-sm" onClick={download}>↓ Download</button>
+                <button type="button" className="btn btn-sm" onClick={download}>↓ Herunterladen</button>
               </div>
               <input
                 className="wb-composer-input ws-iterate"
                 placeholder="Ändern/erweitern — z. B. „füge Highscore hinzu“"
+                aria-label="App ändern oder erweitern"
                 onKeyDown={(e) => { if (e.key === "Enter") { const v = (e.target as HTMLInputElement).value.trim(); if (v && build) { run(v, build.html); (e.target as HTMLInputElement).value = ""; } } }}
                 disabled={busy}
               />
             </div>
           ) : null}
+        </aside>
+      </section>
+      <section className="wb-studio wb-studio-secondary" aria-label="Workbench-Laufzeitbereiche">
+        <aside className="wb-pane wb-agent">
+          <div className="wb-pane-head"><span>Agentenhilfe</span><span className="mono muted-copy">{busy ? "läuft" : "bereit"}</span></div>
+          <div className="wb-tree">
+            <div className="terminal-row"><span className={busy ? "run" : "info"}>{busy ? "Planung und Code-Erzeugung aktiv" : "Bereit für Prompt-zu-Code"}</span></div>
+            <div className="terminal-row">
+              <span className="ok">{build?.live_provider_calls === true ? "live_provider_calls=true" : "live_provider_calls=false"}</span>
+            </div>
+          </div>
+        </aside>
+        <aside className="wb-pane wb-cortex">
+          <div className="wb-pane-head"><span>Mini-Cortex</span><span className="mono muted-copy">L1-L7</span></div>
+          <div className="wb-tree">
+            <div className="terminal-row"><span className="info">Werkbank → Agentenpool → LLM/MCP → Nachweise</span></div>
+            <div className="terminal-row"><span className="ok">writes=false · secret_output=false</span></div>
+          </div>
+        </aside>
+        <aside className="wb-pane wb-artifacts">
+          <div className="wb-pane-head"><span>Artefakte</span><span className="mono muted-copy">{build ? "bereit" : "leer"}</span></div>
+          <div className="wb-tree">
+            <div className="terminal-row"><span className="ok">{build ? `Build-ID ${build.id}` : "Noch keine Build-ID"}</span></div>
+            <div className="terminal-row"><span className="info">{build?.share_path ?? "Noch kein Build-Artefakt"}</span></div>
+          </div>
         </aside>
       </section>
     </div>

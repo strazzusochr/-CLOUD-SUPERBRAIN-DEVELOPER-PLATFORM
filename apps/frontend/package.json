@@ -2,6 +2,10 @@
   "name": "cloud-superbrain-frontend",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9 <26"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
@@ -9,15 +13,16 @@
     "lint": "eslint .",
     "test": "playwright test",
     "test:e2e": "playwright test",
+    "test:e2e:22-page-actions": "playwright test e2e/22-page-actions.spec.ts --project=chromium --workers=1",
+    "test:e2e:product-acceptance": "playwright test e2e/product-acceptance.spec.ts --project=chromium --workers=1",
     "release:build": "next build --webpack",
     "release": "node release.mjs"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^0.10.4",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",
-    "next": "^16.2.7",
+    "next": "16.2.11",
     "postprocessing": "^6.39.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -29,11 +34,15 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.184.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.2.7",
+    "brace-expansion": "file:vendor/brace-expansion-compat",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.11",
     "typescript": "^6.0.3"
   },
   "overrides": {
-    "postcss": "8.5.10"
+    "postcss": "8.5.23",
+    "brace-expansion": "$brace-expansion",
+    "sharp": "0.35.3",
+    "browserslist": "4.28.8"
   }
 }

@@ -32,6 +32,8 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | [cloud-provider-inventory-contract.md](cloud-provider-inventory-contract.md) | Phase 4 / External gates | `implemented-local` | Nicht-geheimes Cloud-Inventar und Cloud-Readiness-Matrix ueber sieben Provider und die sieben Architektur-Schichten |
 | [cloud-render-offload-contract.md](cloud-render-offload-contract.md) | Phase 4 / Cloud runtime | `implemented-local` | Localhost bleibt Dev-Control-Plane; schwere Grafik-/3D-/GPU-Browserlast bleibt cloud-only |
 | [cloud-deployment-preflight-contract.md](cloud-deployment-preflight-contract.md) | Phase 4 / External gates | `implemented-local` | Fail-closed Vorflug fuer GHCR, Fly.io, Vercel origins, Hosted Staging, Branch Protection, Secret Scan und Owner Review |
+| [frontend-hosted-current.md](frontend-hosted-current.md) | Frontend / Hosted proof | `verified-hosted-production` | Source-, archiv- und deploymentgebundener Vercel-Production-22x2-Beweis in echtem Google Chrome mit Alias-Paritaet und 32 Read-Endpunkten |
+| [backend-hosted-current.md](backend-hosted-current.md) | Backend / Contract Origin | `verified-hosted-production-read-only` | Sourcegebundener zustandsloser Production-Contract-Origin mit geschuetzter immutable URL und fail-closed POST-Grenze |
 
 Ergaenzendes Schema-Artefakt:
 
