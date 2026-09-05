@@ -791,6 +791,28 @@ foreach ($required in @(
 }
 node --test scripts\tests\workspace-pages-browser-filter.test.mjs
 Assert-LastExitCode "workspace pages browser console-filter regression tests"
+node --test scripts/tests/auth-console-policy.test.mjs
+Assert-LastExitCode "browser anonymous-auth console-policy regression tests"
+foreach ($browserSourcePath in @(
+  "apps/frontend/e2e/product-acceptance.spec.ts",
+  "apps/frontend/e2e/22-page-actions.spec.ts",
+  "apps/frontend/e2e/hosted-o2-actions.spec.ts"
+)) {
+  if (-not (Test-Path $browserSourcePath)) {
+    throw "Missing browser verifier source: $browserSourcePath"
+  }
+  $browserSource = Get-Content -Path $browserSourcePath -Raw
+  foreach ($required in @(
+    "isCorrelatedAnonymousAuthConsoleError",
+    "anonymousAuthWindow",
+    'new URL(page.url()).pathname === "/login"',
+    "matchedConsoleCount < matchingResponseCount"
+  )) {
+    if (-not $browserSource.Contains($required)) {
+      throw "Browser verifier $browserSourcePath missing anonymous-auth guard: $required"
+    }
+  }
+}
 if (-not (Test-Path "scripts\verify-workspace-responsive-browser.cjs")) {
   throw "Missing workspace responsive browser verifier runner"
 }
@@ -799,6 +821,8 @@ foreach ($required in @(
   "frontend-22-page-responsive-browser-v1",
   "frontend_22_page_responsive_click_proof",
   "Expected 22 routes",
+  "filteredRouteConsoleErrors",
+  "response.status() >= 400",
   "click_navigation_count: 44",
   "overflow_failures: 0",
   "console_errors: 0",

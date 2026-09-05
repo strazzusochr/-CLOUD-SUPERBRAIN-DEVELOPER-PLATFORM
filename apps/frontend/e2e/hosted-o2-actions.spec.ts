@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { isCorrelatedAnonymousAuthConsoleError, type BrowserResourceError } from "./auth-console-policy.js";
 
 const baseUrl = (process.env.HOSTED_O2_BASE_URL ?? "").trim().replace(/\/+$/, "");
 
@@ -23,10 +24,20 @@ test("hosted O2 agent, read-only tool, and technology actions have real effects"
   expect(baseUrl, "HOSTED_O2_BASE_URL is required").toMatch(/^https:\/\/[^/]+\.vercel\.app$/);
 
   const consoleErrors: string[] = [];
+  const pendingConsoleErrors: Array<{ text: string; locationUrl: string; anonymousAuthWindow: boolean }> = [];
+  const anonymousAuthResourceErrors: BrowserResourceError[] = [];
+  const acceptedAnonymousAuthConsoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const providerRequests: string[] = [];
+  const isLoginPage = (): boolean => new URL(page.url()).pathname === "/login";
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(safeMessage(message.text()));
+    if (message.type() === "error") {
+      pendingConsoleErrors.push({
+        text: safeMessage(message.text()),
+        locationUrl: message.location().url,
+        anonymousAuthWindow: isLoginPage(),
+      });
+    }
   });
   page.on("pageerror", (error) => pageErrors.push(safeMessage(error.message)));
   page.on("request", (request) => {
@@ -37,6 +48,14 @@ test("hosted O2 agent, read-only tool, and technology actions have real effects"
     ) {
       providerRequests.push(`${request.method()} ${url.origin}${url.pathname}`);
     }
+  });
+  page.on("response", (response) => {
+    if (!isLoginPage() || response.status() !== 401) return;
+    anonymousAuthResourceErrors.push({
+      status: response.status(),
+      url: response.url(),
+      resourceType: response.request().resourceType(),
+    });
   });
 
   const login = await page.goto(`${baseUrl}/login`, { waitUntil: "domcontentloaded", timeout: 60_000 });
@@ -58,7 +77,6 @@ test("hosted O2 agent, read-only tool, and technology actions have real effects"
     expect(signedIn.status).toBe(200);
     expect(signedIn.payload.status).toBe("signed_in");
   }
-
   await goto(page, "/technology");
   const technology = page.getByTestId("technology-runtime-view");
   await expect(technology).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
@@ -105,6 +123,25 @@ test("hosted O2 agent, read-only tool, and technology actions have real effects"
   await expect(toolResult).toContainText("✓ ausgeführt · tool=memory_read", { timeout: 30_000 });
   await expect(toolResult).toContainText("audit_persisted=true");
 
+  for (const item of pendingConsoleErrors) {
+    const matchingResponseCount = anonymousAuthResourceErrors.filter((resource) => resource.url === item.locationUrl).length;
+    const matchedConsoleCount = acceptedAnonymousAuthConsoleErrors.filter((url) => url === item.locationUrl).length;
+    if (
+      item.anonymousAuthWindow
+      && isCorrelatedAnonymousAuthConsoleError({
+        baseUrl,
+        pageId: "login",
+        text: item.text,
+        locationUrl: item.locationUrl,
+        resourceErrors: anonymousAuthResourceErrors,
+      })
+      && matchedConsoleCount < matchingResponseCount
+    ) {
+      acceptedAnonymousAuthConsoleErrors.push(item.locationUrl);
+    } else {
+      consoleErrors.push(item.text);
+    }
+  }
   expect(providerRequests).toEqual([]);
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);

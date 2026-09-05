@@ -40,7 +40,8 @@ HARD RULES:
   * varied geometry - not every object a box; use spheres, cylinders, cones where they suit.
 - Do not enable tone mapping unless you also raise light intensities to match; a dark render is a failed render.
 - For a playable game also implement: keyboard state via keydown/keyup (never a single keypress branch), initialize every keyboard-state binding before starting the animation loop, gravity and ground collision, collision or pickup detection, a visible score/HUD in the DOM, and a lose/win or reset path.
-- If collision code reads geometry.boundingSphere.radius, call geometry.computeBoundingSphere() first (or use THREE.Box3); boundingSphere starts as null.`;
+- If collision code reads geometry.boundingSphere.radius, call geometry.computeBoundingSphere() first (or use THREE.Box3); boundingSphere starts as null.
+- THREE.Box3 has no computeBoundingSphere() method. To obtain a sphere from a Box3, call box.getBoundingSphere(new THREE.Sphere()).`;
 
 const GPU_GUARD = `<script>(function(){var _r=window.requestAnimationFrame.bind(window),last=0;window.requestAnimationFrame=function(cb){return _r(function(t){if(document.hidden){window.requestAnimationFrame(cb);return;}if(t-last<15){window.requestAnimationFrame(cb);return;}last=t;cb(t);});};})();</script>`;
 const MAX_PROMPT_CHARS = 2_000;

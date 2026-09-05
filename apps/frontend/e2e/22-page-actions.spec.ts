@@ -12,6 +12,7 @@ import {
   type PageActionEntry,
 } from "../lib/actionMatrix";
 import { WORKSPACE_PAGES } from "../lib/nav";
+import { isCorrelatedAnonymousAuthConsoleError, type BrowserResourceError } from "./auth-console-policy.js";
 
 const baseUrl = (process.env.PAGE_ACTIONS_BASE_URL ?? "http://localhost:8081").trim().replace(/\/+$/, "");
 const proofScope = (process.env.PAGE_ACTIONS_PROOF_SCOPE ?? "dev_only_localhost").trim();
@@ -1234,9 +1235,11 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
 
   const origin = new URL(baseUrl);
   const consoleErrors: string[] = [];
-  const pendingConsoleErrors: Array<{ text: string; locationUrl: string }> = [];
+  const pendingConsoleErrors: Array<{ text: string; locationUrl: string; anonymousAuthWindow: boolean }> = [];
   const expectedBlockedConsoleErrors: string[] = [];
   const expectedBlockedResponses: string[] = [];
+  const anonymousAuthResourceErrors: BrowserResourceError[] = [];
+  const acceptedAnonymousAuthConsoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const providerRequests: string[] = [];
   const liveProviderResponses: string[] = [];
@@ -1246,12 +1249,14 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   const unregisteredByRoute = new Map<string, readonly JsonRecord[]>();
   const registeredMatchCountsByRoute = new Map<string, Readonly<Record<string, number>>>();
   let failure: unknown = null;
+  const isLoginPage = (): boolean => new URL(page.url()).pathname === "/login";
 
   page.on("console", (message) => {
     if (message.type() !== "error") return;
     pendingConsoleErrors.push({
       text: safeMessage(message.text()),
       locationUrl: message.location().url,
+      anonymousAuthWindow: isLoginPage(),
     });
   });
   page.on("pageerror", (error) => pageErrors.push(safeMessage(error.message)));
@@ -1262,6 +1267,13 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   });
   context.on("response", (response) => {
     const responseUrl = new URL(response.url());
+    if (isLoginPage() && response.status() === 401) {
+      anonymousAuthResourceErrors.push({
+        status: response.status(),
+        url: response.url(),
+        resourceType: response.request().resourceType(),
+      });
+    }
     if (
       response.request().method() === "DELETE"
       && response.status() === 403
@@ -1445,6 +1457,19 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
         && matchedConsoleCount < matchingResponseCount
       ) {
         expectedBlockedConsoleErrors.push(item.locationUrl);
+      } else if (
+        item.anonymousAuthWindow
+        && isCorrelatedAnonymousAuthConsoleError({
+          baseUrl,
+          pageId: "login",
+          text: item.text,
+          locationUrl: item.locationUrl,
+          resourceErrors: anonymousAuthResourceErrors,
+        })
+        && acceptedAnonymousAuthConsoleErrors.filter((url) => url === item.locationUrl).length
+          < anonymousAuthResourceErrors.filter((resource) => resource.url === item.locationUrl).length
+      ) {
+        acceptedAnonymousAuthConsoleErrors.push(item.locationUrl);
       } else {
         consoleErrors.push(item.text);
       }
@@ -1541,6 +1566,8 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     report.console_error_count = consoleErrors.length;
     report.expected_blocked_console_errors = expectedBlockedConsoleErrors;
     report.expected_blocked_console_error_count = expectedBlockedConsoleErrors.length;
+    report.expected_anonymous_auth_console_errors = acceptedAnonymousAuthConsoleErrors;
+    report.expected_anonymous_auth_console_error_count = acceptedAnonymousAuthConsoleErrors.length;
     report.expected_blocked_responses = expectedBlockedResponses;
     report.page_errors = pageErrors;
     report.page_error_count = pageErrors.length;
