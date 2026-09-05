@@ -10,6 +10,30 @@ function Assert-True($label, $condition) {
   }
 }
 
+function Get-HtmlElementByTestId($html, $testId) {
+  $pattern = '(?is)<[^>]*\bdata-testid\s*=\s*["'']' + [Regex]::Escape([string]$testId) + '["''][^>]*>'
+  $match = [Regex]::Match([string]$html, $pattern)
+  Assert-True "agents page element $testId visible" $match.Success
+  return $match.Value
+}
+
+function Assert-HtmlAttribute($label, $element, $name, $expected) {
+  $pattern = '(?is)\b' + [Regex]::Escape([string]$name) + '\s*=\s*["'']' + [Regex]::Escape([string]$expected) + '["'']'
+  Assert-True $label ([Regex]::IsMatch([string]$element, $pattern))
+}
+
+function Assert-DevOnlyUiBoundaries($html) {
+  foreach ($required in @(
+    "DEV-ONLY; hosted proof still blocked",
+    "live_provider_calls=false",
+    "live_mcp_writes=false",
+    "production_deploy=false",
+    "secret_output=false"
+  )) {
+    Assert-True "agents page boundary $required visible" ([string]$html).Contains($required)
+  }
+}
+
 function Invoke-WebResponse($url, $method = "GET", $body = $null, [hashtable]$headers = $null, $contentType = $null, $timeoutSeconds = 30) {
   $bodyBase64 = $null
   if ($null -ne $body) {
@@ -100,10 +124,19 @@ Assert-True "constraints visible" (@($plan.hard_constraints).Count -ge 3)
 Assert-True "containers visible" (@($plan.running_containers).Count -ge 1)
 Assert-True "dispatch endpoints visible" (@($plan.dispatch_endpoints).Count -ge 3)
 
-$homepage = Invoke-WebResponse -url "$BaseUrl/" -method "GET" -contentType $null -timeoutSeconds 20
-Assert-True "homepage returns 200" ($homepage.StatusCode -eq 200)
-Assert-True "homepage autonomous master plan marker" ($homepage.Content.Contains("Autonomous Master Plan"))
+$agentsPage = Invoke-WebResponse -url "$BaseUrl/agents" -method "GET" -contentType $null -timeoutSeconds 20
+Assert-True "agents page returns 200" ($agentsPage.StatusCode -eq 200)
+$masterPlanElement = Get-HtmlElementByTestId -html $agentsPage.Content -testId "autonomous-master-plan"
+Assert-HtmlAttribute "agents page master-plan contract parity" $masterPlanElement "data-contract-version" $plan.contract_version
+Assert-HtmlAttribute "agents page master-plan integrity parity" $masterPlanElement "data-integrity-status" $plan.integrity_status
+Assert-HtmlAttribute "agents page master-plan source parity" $masterPlanElement "data-source-document" $plan.source_document
+Assert-HtmlAttribute "agents page master-plan overall parity" $masterPlanElement "data-overall-percent" ([string][int]$plan.overall_percent)
+Assert-HtmlAttribute "agents page master-plan role-count parity" $masterPlanElement "data-logical-role-count" ([string](@($plan.logical_roles).Count))
+Assert-DevOnlyUiBoundaries $agentsPage.Content
 
 Write-Host "[autonomous-master-plan] base_url=$BaseUrl"
 Write-Host "[autonomous-master-plan] overall=$($plan.overall_percent)"
+Write-Host "[autonomous-master-plan] evidence_scope=DEV-ONLY"
+Write-Host "[autonomous-master-plan] hosted_proof=false"
+Write-Host "[autonomous-master-plan] production_deploy=false"
 Write-Host "[autonomous-master-plan] result=verified"

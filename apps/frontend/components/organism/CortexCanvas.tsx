@@ -89,6 +89,7 @@ export default function CortexCanvas({
   interactive = true,
   showRegions = true,
   sourceLabel = "SPEC · ORGANISM",
+  forceReducedMotion = false,
   className,
 }: {
   runState?: RunState;
@@ -98,12 +99,14 @@ export default function CortexCanvas({
   interactive?: boolean;
   showRegions?: boolean;
   sourceLabel?: string;
+  forceReducedMotion?: boolean;
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const brain = useBrain(nodeCount);
   const [reduced, setReduced] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const effectiveReducedMotion = forceReducedMotion || reduced;
   const stateRef = useRef(runState);
   const activeRef = useRef(activeRegion);
   const hoverRef = useRef<string | null>(null);
@@ -125,7 +128,7 @@ export default function CortexCanvas({
   }, []);
 
   useEffect(() => {
-    if (reduced) return;
+    if (effectiveReducedMotion) return;
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return;
@@ -164,6 +167,15 @@ export default function CortexCanvas({
     const projected = new Array(brain.pts.length).fill(null).map(() => ({ sx: 0, sy: 0, d: 0 }));
 
     const frame = (now: number) => {
+      // GPU/CPU-safety: cap to ~30 FPS and skip work in a hidden/background tab.
+      if (typeof document !== "undefined" && document.hidden) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+      if (now - t0 < 1000 / 30) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
       const dt = Math.min((now - t0) / 1000, 0.05);
       t0 = now;
       rot += dt * 0.18;
@@ -318,7 +330,7 @@ export default function CortexCanvas({
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [brain, reduced, showRegions]);
+  }, [brain, effectiveReducedMotion, showRegions]);
 
   const handlePointer = (e: React.PointerEvent) => {
     if (!interactive || !onSelectRegion) return;
@@ -346,19 +358,50 @@ export default function CortexCanvas({
     hoverRef.current = best ? best.id : null;
   };
 
-  if (reduced) {
+  const handleFallbackKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const buttons = Array.from(
+      event.currentTarget.closest("ul")?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? [],
+    );
+    const currentIndex = buttons.indexOf(event.currentTarget);
+    if (currentIndex < 0 || buttons.length === 0) return;
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowDown" || event.key === "ArrowRight") nextIndex = (currentIndex + 1) % buttons.length;
+    if (event.key === "ArrowUp" || event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = buttons.length - 1;
+    if (nextIndex === currentIndex && !["Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    buttons[nextIndex]?.focus();
+  };
+
+  if (effectiveReducedMotion) {
     return (
-      <div ref={wrapRef} className={`cortex-wrap ${className ?? ""}`}>
+      <div
+        ref={wrapRef}
+        className={`cortex-wrap ${className ?? ""}`}
+        role="region"
+        aria-label="Statische 2D-Topologie fuer reduzierte Bewegung"
+        aria-describedby="phase6-reduced-motion-description"
+        data-testid="phase6-reduced-motion-fallback"
+      >
         <span className="cortex-badge">{sourceLabel} · REDUCED MOTION</span>
+        <p id="phase6-reduced-motion-description" className="sr-only">
+          Zehn Fokusbereiche. Mit Pfeiltasten, Pos1 und Ende navigieren; mit Eingabe oder Leertaste auswaehlen.
+        </p>
+        <span className="sr-only" role="status" aria-live="polite">Statische 2D-Ansicht aktiv</span>
         <div className="cortex-fallback cortex-fallback-stretch">
-          <ul className="cortex-fallback-list">
-            {REGIONS.map((rg) => (
+          <ul className="cortex-fallback-list" aria-label="Organismus-Fokusbereiche">
+            {REGIONS.map((rg, index) => (
               <li key={rg.id}>
                 <button
                   type="button"
                   className={`lg-row${activeRegion === rg.id ? " active" : ""}`}
                   disabled={!interactive || !onSelectRegion}
                   onClick={() => onSelectRegion?.(rg.id)}
+                  onKeyDown={handleFallbackKeyDown}
+                  aria-label={`${rg.name}: ${rg.cap}`}
+                  aria-current={activeRegion === rg.id ? "true" : undefined}
+                  data-testid={`phase6-fallback-region-${index}`}
                 >
                   <span className={`lg-dot rg-${rg.id}`} />
                   <strong>{rg.name}</strong>

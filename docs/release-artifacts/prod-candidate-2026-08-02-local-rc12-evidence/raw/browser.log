@@ -1,0 +1,585 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=browser
+[phase5-evidence] release_id=prod-candidate-2026-08-02-local-rc12
+[phase5-evidence] source_commit_sha=6261f9f89d803c36b449ba87a4d93e14411b31d0
+[phase5-evidence] evidence_run_id=b19cb7de-f807-47ca-821c-bac03d238608
+[phase5-evidence] command=npm run verify:browser
+
+> cloud-superbrain-developer-platform@0.1.0 verify:browser
+> powershell -ExecutionPolicy Bypass -File scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost && powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-product-acceptance.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -ApproveLiveProviderCall && powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-22-page-actions.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -ApproveLiveProviderCalls && node scripts\verify-o4-live-write-browser.cjs --base-url http://localhost:8081 --allow-localhost && powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1 -PromoteGateOnFullPass
+
+[browser-contract] base url: http://localhost:8081
+[browser-contract] frontend markers
+[browser-contract] favicon
+[browser-contract] project progress
+[browser-contract] project progress integrity
+[browser-contract] project progress completion contract
+[browser-contract] layer interface contracts
+[browser-contract] cloud provider inventory
+[browser-contract] technology runtime view
+[technology-runtime] static surface
+[technology-runtime] runtime contracts
+[technology-runtime] providers=8 layers=7 missing_gates=1
+[technology-runtime] sources=agent-api-boundary,agent-api-boundary,agent-api-boundary
+[technology-runtime] current_live_proof=true
+[technology-runtime] checks completed
+[browser-contract] go-live readiness
+[go-live-readiness] runtime contract
+[go-live-readiness] canonical standard external gate audit
+[go-live-readiness] sanitized external gate summary
+[go-live-readiness] artifact=D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\docs\runtime-state\external-gate-audit-v2.json
+[go-live-readiness] status=blocked_external_gates
+[go-live-readiness] checks completed
+[browser-contract] auth contract
+[auth-fail-closed] source guard AUTH_OAUTH_STATE_PREFIX
+[auth-fail-closed] source guard AUTH_REFRESH_ACTIVE_PREFIX
+[auth-fail-closed] source guard AUTH_OAUTH_STATE_COOKIE
+[auth-fail-closed] source guard AUTH_OAUTH_STATE_PATTERN
+[auth-fail-closed] source guard AUTH_SIGNING_SECRET_PATTERN
+[auth-fail-closed] source guard auth_signing_secret_is_strong
+[auth-fail-closed] source guard consume_oauth_state
+[auth-fail-closed] source guard consume_refresh_token
+[auth-fail-closed] source guard oauth_state_cookie_clear_headers
+[auth-fail-closed] source guard RedirectResponse
+[auth-fail-closed] source guard credential_issuance_ready
+[auth-fail-closed] source guard oauth_state_invalid
+[auth-fail-closed] source guard oauth_callback_parameters_invalid
+[auth-fail-closed] source guard oauth_provider_denied
+[auth-fail-closed] source guard refresh_token_body_not_allowed
+[auth-fail-closed] source guard auth_configuration_required
+[auth-fail-closed] source guard production_auth_owner_activation_required
+[auth-fail-closed] source guard auth_audit_unavailable
+[auth-fail-closed] source guard github_identity_verification_failed
+[auth-fail-closed] source guard auth_logout_no_active_token
+[auth-fail-closed] source guard "scope": "read:user"
+[auth-fail-closed] source guard auth_credential_issuance_fail_closed
+[auth-fail-closed] source guard oauth_state_one_time_enforced
+[auth-fail-closed] source guard refresh_token_registry_enforced
+[auth-fail-closed] unsafe source absent: create_access_jwt("github:local-contract-user"
+[auth-fail-closed] unsafe source absent: supplied_token = (request.refresh_token if request else None) or refresh_token_cookie
+[auth-fail-closed] unsafe source absent: "blacklist_key": blacklist_key
+[auth-fail-closed] unsafe source absent: phase3-local-dry-run-signing-secret
+[auth-fail-closed] unsafe source absent: "authorize_url": authorize_url
+[auth-fail-closed] unsafe source absent: "scope": "read:user user:email"
+[auth-fail-closed] unsafe source absent: "mode": "local_contract"
+[auth-fail-closed] unsafe source absent: jwt_signing_configured = len(signing_secret.encode("utf-8")) >= 32
+......................................
+----------------------------------------------------------------------
+Ran 38 tests in 0.294s
+System.Management.Automation.RemoteException
+OK
+[auth-fail-closed] auth unit tests
+[auth-fail-closed] auth unit test coverage count
+[auth-fail-closed] contract curl exit
+[auth-fail-closed] contract HTTP expected '200' got '200'
+[auth-fail-closed] contract version expected 'auth-github-jwt-refresh-v1' got 'auth-github-jwt-refresh-v1'
+[auth-fail-closed] contract mode expected 'verified_identity_fail_closed' got 'verified_identity_fail_closed'
+[auth-fail-closed] contract read has no provider call expected 'False' got 'False'
+[auth-fail-closed] OAuth state is one-time expected 'True' got 'True'
+[auth-fail-closed] OAuth state store expected 'redis' got 'redis'
+[auth-fail-closed] OAuth start body excludes state expected 'False' got 'False'
+[auth-fail-closed] OAuth minimal scope expected 'read:user' got 'read:user'
+[auth-fail-closed] OAuth state format expected 'phase3-auth-state-<32_urlsafe_chars>' got 'phase3-auth-state-<32_urlsafe_chars>'
+[auth-fail-closed] JWT signing secret format expected 'base64url_256_bit_minimum' got 'base64url_256_bit_minimum'
+[auth-fail-closed] refresh active registry required expected 'True' got 'True'
+[auth-fail-closed] refresh body token disabled expected 'False' got 'False'
+[auth-fail-closed] refresh signing secret required expected 'True' got 'True'
+[auth-fail-closed] refresh complete issuance configuration required expected 'True' got 'True'
+[auth-fail-closed] host-prefixed cookies expected 'True' got 'True'
+[auth-fail-closed] credential issuance audit persistence required expected 'True' got 'True'
+[auth-fail-closed] owner activation is an explicit issuance gate expected 'True' got 'True'
+[auth-fail-closed] real Redis OAuth-state and refresh concurrency
+[auth-fail-closed] OAuth start curl exit
+[auth-fail-closed] OAuth start HTTP expected '200' got '200'
+[auth-fail-closed] OAuth start issued no credentials expected 'False' got 'False'
+[auth-fail-closed] OAuth start made no provider call expected 'False' got 'False'
+[auth-fail-closed] OAuth start blocked by the exact inactive gate expected 'configuration_required' got 'configuration_required'
+[auth-fail-closed] OAuth start configuration truth expected 'False' got 'False'
+[auth-fail-closed] OAuth start owner activation truth expected 'False' got 'False'
+[auth-fail-closed] blocked start state not issued expected 'False' got 'False'
+[auth-fail-closed] arbitrary callback curl exit
+[auth-fail-closed] arbitrary callback configuration HTTP expected '503' got '503'
+[auth-fail-closed] arbitrary callback configuration error
+[auth-fail-closed] arbitrary callback issued no credentials
+[auth-fail-closed] arbitrary callback set no access cookie
+[auth-fail-closed] arbitrary callback set no refresh cookie
+[auth-fail-closed] arbitrary callback clears state cookie
+[auth-fail-closed] arbitrary callback expires state cookie
+[auth-fail-closed] body refresh curl exit
+[auth-fail-closed] body refresh HTTP expected '400' got '400'
+[auth-fail-closed] body refresh rejected
+[auth-fail-closed] body refresh issued no credentials
+[auth-fail-closed] unknown cookie refresh curl exit
+[auth-fail-closed] unknown cookie refresh HTTP expected '401' got '401'
+[auth-fail-closed] unknown cookie refresh rejected
+[auth-fail-closed] unknown cookie refresh reason
+[auth-fail-closed] unknown cookie refresh issued no access credential
+[auth-fail-closed] unknown cookie logout curl exit
+[auth-fail-closed] unknown cookie logout HTTP expected '200' got '200'
+[auth-fail-closed] unknown logout does not claim revoke expected 'False' got 'False'
+[auth-fail-closed] logout body token not accepted expected 'False' got 'False'
+[auth-fail-closed] unknown logout audit persisted expected 'True' got 'True'
+[auth-fail-closed] logout exposes no blacklist key
+[auth-fail-closed] status=verified_dev_only credentials_issued=false live_github_oauth_call=false
+[auth-fail-closed] DEV-ONLY; hosted proof still blocked
+[browser-contract] signed auth-session integrity
+[phase3-auth-session] contract and source guards
+[phase3-auth-session] deterministic token unit tests
+✔ accepts an intact signed session within its lifetime (2.2311ms)
+✔ rejects signature tampering (0.2656ms)
+✔ rejects expired and future-issued sessions (0.2767ms)
+✔ rejects malformed cookies and unsupported identity providers (0.256ms)
+✔ validates hosted opaque session envelopes without exposing a signing secret (0.3532ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 198.3526
+[phase3-auth-session] issue, verify, tamper, and provider rejection
+[phase3-auth-session] Chromium login and tamper proof
+(node:29992) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:30408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:30408) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:30408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\phase3-auth-session-integrity.spec.ts:7:1 › login issues a signed session and rejects a tampered cookie
+[1A[2K  1 passed (5.4s)
+[phase3-auth-session] status=verified browser_click_verified=True
+[browser-contract] system unavailable fallback contract
+[browser-contract] phase3 product surface contracts
+[browser-contract] CSP report audit contract
+[phase3-csp-report] base url: http://localhost:8081
+[phase3-csp-report] contract and UI
+[phase3-csp-report] local audit and redaction proof
+[phase3-csp-report] negative paths
+[phase3-csp-report] Chromium click proof
+(node:12800) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:29160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:29160) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:29160) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\phase3-csp-report.spec.ts:6:1 › diagnostics loads the CSP report contract through a real click
+[1A[2K  1 passed (2.5s)
+status=verified
+contract_version=csp-report-contract-v1
+evidence_ref=csp_report_contract_visible
+audit_evidence_ref=csp_report_audit_persisted
+proof_scope=DEV-ONLY
+screenshot_bytes=157204
+[browser-contract] CSRF origin guard contract
+[phase3-csrf] contract and visible surface
+[phase3-csrf] same-origin and non-browser compatibility
+[phase3-csrf] fail-closed negative paths
+[phase3-csrf] Chromium click and same-origin POST proof
+(node:27520) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:14744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:14744) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:14744) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\phase3-csrf-origin.spec.ts:6:1 › diagnostics loads CSRF guard and performs a same-origin browser POST
+[1A[2K  1 passed (2.9s)
+[phase3-csrf] status=verified
+[phase3-csrf] screenshot_bytes=156680
+[browser-contract] cross-origin response guard contract
+[phase3-cross-origin] contract and source guards
+[phase3-cross-origin] response and negative-origin probes
+[phase3-cross-origin] Chromium click proof
+(node:10672) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:23600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:23600) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:23600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\phase3-cross-origin-response.spec.ts:6:1 › diagnostics loads the cross-origin response guard through a real click
+[1A[2K  1 passed (4.3s)
+[phase3-cross-origin] status=verified
+[phase3-cross-origin] screenshot_bytes=163968
+[browser-contract] orchestrator completion evidence
+[orchestrator-completion] contract
+[orchestrator-completion] source and parent-proof guards
+[orchestrator-completion] deterministic four-role success
+[orchestrator-completion] policy hard-stop
+[orchestrator-completion] controlled MCP timeout
+[orchestrator-completion] Chromium diagnostics click
+(node:20420) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:25544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:25544) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:25544) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\orchestrator-completion.spec.ts:7:1 › diagnostics loads orchestrator completion evidence through a real click
+[1A[2K  1 passed (4.4s)
+[orchestrator-completion] result=verified
+[orchestrator-completion] scope=DEV-ONLY
+[orchestrator-completion] screenshot_bytes=164156
+[browser-contract] phase5 local production candidate
+[browser-contract] task assignment queue contract
+[browser-contract] agent llm streaming contract
+[browser-contract] llm responses adapter contract
+[llm-responses] contract
+[llm-responses] local runtime dry-run
+[llm-responses] local negative cases
+[llm-responses] trace=llm-responses-contract-246a195faa8c46748b9f1e83aa8b4812
+[llm-responses] checks completed
+[browser-contract] live agent steering contract
+[live-agent-steering] contract
+[live-agent-steering] reset and steer
+[live-agent-steering] compatibility route
+[live-agent-steering] negative cases
+[live-agent-steering] reset after proof
+[live-agent-steering] trace=live-agent-steering-contract-ecda0adc0b18479ab571bbfc54378843
+[live-agent-steering] checks completed
+[browser-contract] mcp version pinning contract
+[browser-contract] memory embedding consistency contract
+[browser-contract] Phase 2 Runtime Contract
+[browser-contract] organism contracts
+[browser-contract] Phase 6 3D camera and lighting controls
+[phase6-camera-lighting] runtime contract
+[phase6-camera-lighting] frontend and source guards
+[phase6-camera-lighting] Chromium interaction proof
+(node:15592) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:15600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:15600) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:15600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\organism.spec.ts:428:3 › Cloud Superbrain platform › organism Phase-6 camera and lighting controls apply bounded runtime state
+[1A[2K  1 passed (16.2s)
+[phase6-camera-lighting] result=verified
+[phase6-camera-lighting] evidence_ref=phase6_3d_camera_lighting_runtime_visible
+[phase6-camera-lighting] screenshot_bytes=443965
+[browser-contract] Phase 6 3D gameplay state controls
+[phase6-gameplay-state] runtime contract
+[phase6-gameplay-state] frontend and source guards
+[phase6-gameplay-state] Chromium interaction proof
+(node:33728) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+
+
+[1A[2K(node:28408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1A[2K(node:28408) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:28408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1A[2K[1/1] [chromium] › e2e\organism.spec.ts:521:3 › Cloud Superbrain platform › organism Phase-6 gameplay state is deterministic, pause-safe, and browser-local
+[1A[2K  1 passed (1.3m)
+[phase6-gameplay-state] result=verified
+[phase6-gameplay-state] evidence_ref=phase6_3d_gameplay_state_runtime_visible
+[phase6-gameplay-state] screenshot_bytes=664646
+[browser-contract] Phase 6 3D asset policy controls
+[phase6-asset-policy] runtime contract
+[phase6-asset-policy] frontend and source guards
+[phase6-asset-policy] Chromium interaction proof
+(node:31760) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:17552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:17552) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:17552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\organism.spec.ts:617:3 › Cloud Superbrain platform › organism Phase-6 asset policy applies procedural profiles without network access
+[1A[2K  1 passed (1.3m)
+[phase6-asset-policy] result=verified
+[phase6-asset-policy] evidence_ref=phase6_3d_asset_policy_runtime_visible
+[phase6-asset-policy] screenshot_bytes=660104
+[browser-contract] Phase 6 3D save and load controls
+[phase6-save-load] runtime contract
+[phase6-save-load] frontend and source guards
+[phase6-save-load] Chromium interaction proof
+(node:32324) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:17264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:17264) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:17264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1A[2K[1/1] [chromium] › e2e\organism.spec.ts:703:3 › Cloud Superbrain platform › organism Phase-6 save and load restores a volatile browser-memory snapshot
+[1A[2K  1 passed (2.4m)
+[phase6-save-load] result=verified
+[phase6-save-load] evidence_ref=phase6_3d_save_load_runtime_visible
+[phase6-save-load] screenshot_bytes=668229
+[browser-contract] Phase 6 3D accessibility controls
+[phase6-accessibility] runtime contract
+[phase6-accessibility] frontend and source guards
+[phase6-accessibility] Chromium interaction proof
+(node:25000) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+
+
+[1A[2K(node:21172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1A[2K(node:21172) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:21172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\organism.spec.ts:813:3 › Cloud Superbrain platform › organism Phase-6 accessibility honors reduced motion, focus, keyboard, and live status
+[1A[2K  1 passed (42.9s)
+[phase6-accessibility] result=verified
+[phase6-accessibility] screenshot_bytes=491647
+[browser-contract] Phase 6 3D netcode loopback controls
+[phase6-netcode] runtime contract
+[phase6-netcode] frontend and source guards
+[phase6-netcode] Chromium interaction proof
+(node:18748) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:28304) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:28304) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:28304) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\organism.spec.ts:918:3 › Cloud Superbrain platform › organism Phase-6 netcode loopback enforces two-peer ready and lockstep boundaries
+[1A[2K  1 passed (2.0m)
+[phase6-netcode] result=verified
+[phase6-netcode] screenshot_bytes=647038
+[browser-contract] Phase 6 local scoreboard and performance controls
+[phase6-scoreboard-performance] runtime contract
+[phase6-scoreboard-performance] frontend and source guards
+[phase6-scoreboard-performance] Chromium interaction proof
+(node:10884) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+[1A[2K(node:11812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:11812) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+
+[1A[2K(node:11812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/1] [chromium] › e2e\organism.spec.ts:1014:3 › Cloud Superbrain platform › organism Phase-6 local scoreboard and performance sample stay browser-local
+[1A[2K  1 passed (2.7m)
+[phase6-scoreboard-performance] result=verified
+[phase6-scoreboard-performance] screenshot_bytes=659790
+[organism-topology] static topology surface
+[organism-topology] normalized frontend/backend mirror
+[organism-topology] mirror nodes=246 edges=500
+[organism-topology] runtime topology
+[organism-topology] nodes=246 edges=500
+[organism-topology] checks completed
+[browser-contract] workspace vertical stack
+[workspace-vertical-stack] runtime contract
+[workspace-vertical-stack] checks completed
+[browser-contract] workspace data sources
+[workspace-data-sources] runtime contracts
+[workspace-data-sources] api_refs=126
+[workspace-data-sources] checks completed
+[browser-contract] platform UI status boundary
+[platform-ui-boundary] runtime product surfaces
+[platform-ui-boundary] product_surfaces=7 routes=6
+[platform-ui-boundary] checks completed
+[browser-contract] reference design contract
+[reference-design-browser] base url: http://localhost:8081
+[reference-design-browser] proof=.phase1-artifacts\reference-design-browser-proof-latest.json
+[reference-design-browser] checks completed
+[browser-contract] workspace pages browser proof
+[workspace-pages-browser] base url: http://localhost:8081
+[workspace-pages-browser] proof=.phase1-artifacts\workspace-pages-browser-proof-latest.json
+[workspace-pages-browser] checks completed
+[browser-contract] workspace responsive browser proof
+[responsive-22] profile=desktop click=/workbench
+[responsive-22] profile=desktop click=/organism
+[responsive-22] profile=desktop click=/organism/replay
+[responsive-22] profile=desktop click=/organism/map
+[responsive-22] profile=desktop click=/agents
+[responsive-22] profile=desktop click=/files
+[responsive-22] profile=desktop click=/files/local
+[responsive-22] profile=desktop click=/tools
+[responsive-22] profile=desktop click=/marketplace
+[responsive-22] profile=desktop click=/observe
+[responsive-22] profile=desktop click=/games
+[responsive-22] profile=desktop click=/apps
+[responsive-22] profile=desktop click=/media
+[responsive-22] profile=desktop click=/docs-output
+[responsive-22] profile=desktop click=/evidence
+[responsive-22] profile=desktop click=/diagnostics
+[responsive-22] profile=desktop click=/design-system
+[responsive-22] profile=desktop click=/technology
+[responsive-22] profile=desktop click=/settings
+[responsive-22] profile=desktop click=/open-source
+[responsive-22] profile=desktop click=/home
+[responsive-22] profile=desktop click=/login
+[responsive-22] profile=mobile click=/workbench
+[responsive-22] profile=mobile click=/organism
+[responsive-22] profile=mobile click=/organism/replay
+[responsive-22] profile=mobile click=/organism/map
+[responsive-22] profile=mobile click=/agents
+[responsive-22] profile=mobile click=/files
+[responsive-22] profile=mobile click=/files/local
+[responsive-22] profile=mobile click=/tools
+[responsive-22] profile=mobile click=/marketplace
+[responsive-22] profile=mobile click=/observe
+[responsive-22] profile=mobile click=/games
+[responsive-22] profile=mobile click=/apps
+[responsive-22] profile=mobile click=/media
+[responsive-22] profile=mobile click=/docs-output
+[responsive-22] profile=mobile click=/evidence
+[responsive-22] profile=mobile click=/diagnostics
+[responsive-22] profile=mobile click=/design-system
+[responsive-22] profile=mobile click=/technology
+[responsive-22] profile=mobile click=/settings
+[responsive-22] profile=mobile click=/open-source
+[responsive-22] profile=mobile click=/home
+[responsive-22] profile=mobile click=/login
+[responsive-22] routes=22 viewports=2 clicks=44
+[responsive-22] report=.codex\runs\CURRENT\frontend\responsive-22\report.json
+[responsive-22] checks completed
+[browser-contract] external gate mirror
+[browser-contract] Start Phase 2 Runtime
+[browser-contract] Organism Runtime Event Projection
+[organism-runtime-events] verified run_id=6068e3e1-532f-461f-a518-0f50b306c69e source_kind=agent_api_redacted
+[browser-contract] session history opens
+[browser-contract] Memory Consolidation: feed shape
+[browser-contract] checks completed
+[product-acceptance] DEV-ONLY base url: http://localhost:8081
+[product-acceptance] one live provider call explicitly approved; expected gateway: cloudflare-workers-ai
+[product-acceptance] evidence: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\product-acceptance
+
+> cloud-superbrain-frontend@1.0.0 test:e2e:product-acceptance
+> playwright test e2e/product-acceptance.spec.ts --project=chromium --workers=1
+
+(node:14740) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:5212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5212) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:5212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\product-acceptance.spec.ts:148:1 › real prompt builds, runs, interacts, and reloads the persisted 3D game (50.1s)
+
+  1 passed (51.9s)
+[product-acceptance] PASS DEV-ONLY; hosted proof still blocked
+[product-acceptance] build_id=0bc1006a-82a9-40e6-bf2e-941595261f47 provider=cloudflare-workers-ai live_provider_calls=true
+[product-acceptance] report=D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\product-acceptance\report.json sha256=6C70442F1E3608CB7E7F8ACE320735CA245D6A286CAA9866AE1AD77157D2CBB9
+[22-page-actions] DEV-ONLY base url: http://localhost:8081
+[22-page-actions] two registered build controls are explicitly approved; mocks, interception, and direct provider bypass are forbidden
+[22-page-actions] evidence: D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\22-page-actions
+
+> cloud-superbrain-frontend@1.0.0 test:e2e:22-page-actions
+> playwright test e2e/22-page-actions.spec.ts --project=chromium --workers=1
+
+(node:540) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:30684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30684) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(node:30684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\22-page-actions.spec.ts:1175:1 › all 22 canonical pages directly prove every enabled page-local action and reject unregistered controls (21.6m)
+
+  Slow test file: [chromium] › e2e\22-page-actions.spec.ts (21.6m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 passed (21.6m)
+[22-page-actions] PASS DEV-ONLY; hosted proof still blocked
+[22-page-actions] routes=22 families=29 members=161 direct=160 preverified_exact=1
+[22-page-actions] report=D:\PLATTFORM\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM\.codex\runs\CURRENT\22-page-actions\report.json sha256=DC30B2DC4B257C302F63830CE6C1A18C66E4F2BCF95D6638E0DA3725EF9647B1
+[o4-browser] status=verified branch=claude/cloud-superbrain-analysis-127d2e audit_persisted=true secret_output=false
+[o4-browser] evidence=.phase1-artifacts/o4-live-writes/browser-proof.json
+[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes
+[o4-write] evidence=.phase1-artifacts\o4-live-writes\proof.json sha256=6B314543B2B7FBE224848A705FE85E29D46123C6631E564CEB3657B7F5242090
+BROWSER_EXIT=0
+[phase5-evidence] exit_code=0

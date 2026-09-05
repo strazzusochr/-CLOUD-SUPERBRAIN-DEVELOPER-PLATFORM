@@ -1,0 +1,29 @@
+{
+  "name": "Cloud Superbrain I1 digest-only candidate control",
+  "image": "mcr.microsoft.com/devcontainers/universal@sha256:dca6a985ffbbc74007a13b6f56ac0fbbc5febae081350b66e865a5549338134b",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
+  "initializeCommand": "python3 scripts/verify_i1_codespaces_static.py",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "I1 candidate same-origin ingress",
+      "onAutoForward": "notify",
+      "protocol": "https"
+    }
+  },
+  "remoteEnv": {
+    "I1_HOSTING_PROVIDER": "github_codespaces"
+  },
+  "shutdownAction": "none",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "remote.autoForwardPorts": false
+      }
+    }
+  }
+}

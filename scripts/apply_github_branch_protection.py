@@ -4,6 +4,11 @@
 Requires:
 - GITHUB_TOKEN with repo administration rights
 - GITHUB_REPOSITORY in owner/name form, or REPOSITORY_OWNER + REPOSITORY_NAME
+
+Modes:
+- no token: dry-run
+- token configured: verify-only
+- --apply with a token: apply the exact policy, then verify it
 """
 from __future__ import annotations
 
@@ -188,11 +193,45 @@ def self_test() -> int:
     if drift_report["status"] != "mismatch":
         raise SystemExit("Self-test failed: drifted branch protection response was not rejected")
 
+    if selected_mode([], False) != "dry-run":
+        raise SystemExit("Self-test failed: token-free default must be dry-run")
+    if selected_mode([], True) != "verify-only":
+        raise SystemExit("Self-test failed: token default must be verify-only")
+    if selected_mode(["--apply"], True) != "apply":
+        raise SystemExit("Self-test failed: explicit apply mode was not selected")
+    try:
+        selected_mode(["--apply"], False)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("Self-test failed: token-free apply was not rejected")
+    try:
+        selected_mode(["--dry-run", "--apply"], True)
+    except SystemExit:
+        pass
+    else:
+        raise SystemExit("Self-test failed: conflicting modes were not rejected")
+
+    # Branch resolution must never silently invent a target. Both cases below are offline:
+    # an explicit branch always wins, and without a token the constant stays a pure dry-run label.
+    if resolve_target_branch("owner/name", None, "chore/repo-bootstrap") != "chore/repo-bootstrap":
+        raise SystemExit("Self-test failed: explicit --branch must win over any default")
+    if resolve_target_branch("owner/name", None, None) != DEFAULT_BRANCH_NAME:
+        raise SystemExit("Self-test failed: token-free resolution must stay on the dry-run fallback")
+
     print(json.dumps({"status": "self_test_passed", "evidence_ref": EVIDENCE_REF}, indent=2))
     return 0
 
 
-def request_json(method: str, url: str, token: str, payload: dict | None = None) -> dict:
+def request_json(
+    method: str,
+    url: str,
+    token: str,
+    payload: dict | None = None,
+    missing_ok: bool = False,
+) -> dict | None:
+    """Call the GitHub API. With missing_ok, a 404 returns None instead of exiting,
+    so callers can tell "this resource does not exist" apart from a real failure."""
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     request = urllib.request.Request(
         url,
@@ -209,8 +248,44 @@ def request_json(method: str, url: str, token: str, payload: dict | None = None)
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8") or "{}")
     except urllib.error.HTTPError as exc:
+        if missing_ok and exc.code == 404:
+            return None
         body = exc.read().decode("utf-8", errors="replace")
         raise SystemExit(f"GitHub API failed: {exc.code} {exc.reason}\n{body}") from exc
+
+
+def resolve_target_branch(repo: str, token: str | None, explicit: str | None) -> str:
+    """Pick the branch to protect.
+
+    DEFAULT_BRANCH_NAME is only a token-free fallback for the dry-run output. This repository's
+    default branch is not `main` and `main` does not exist at all, so trusting the constant made
+    every live call target a phantom branch and fail with an opaque 404. Whenever a token is
+    available the real default branch is read from the API instead.
+    """
+    if explicit:
+        return explicit
+    if not token:
+        return DEFAULT_BRANCH_NAME
+    metadata = request_json("GET", f"https://api.github.com/repos/{repo}", token) or {}
+    return str(metadata.get("default_branch") or "").strip() or DEFAULT_BRANCH_NAME
+
+
+def assert_branch_exists(repo: str, branch_name: str, token: str) -> None:
+    """Fail closed before any protection claim if the target branch is not in the repository."""
+    if request_json(
+        "GET",
+        f"https://api.github.com/repos/{repo}/branches/{branch_name}",
+        token,
+        missing_ok=True,
+    ) is not None:
+        return
+    metadata = request_json("GET", f"https://api.github.com/repos/{repo}", token) or {}
+    actual_default = str(metadata.get("default_branch") or "unknown")
+    raise SystemExit(
+        f"Branch '{branch_name}' does not exist in {repo}. Refusing to apply or claim protection "
+        f"for a branch that is not there. The repository default branch is '{actual_default}'; "
+        f"re-run with --branch {actual_default} if that is the branch you meant to protect."
+    )
 
 
 def token_from_environment() -> str | None:
@@ -227,25 +302,39 @@ def argument_value(flag: str) -> str | None:
         raise SystemExit(f"{flag} requires a value") from exc
 
 
-def mode_from_environment() -> str:
-    token = token_from_environment()
-    if not token:
-        return "dry-run"
-    return "verify-only"
+def selected_mode(arguments: list[str], token_configured: bool) -> str:
+    requested = [
+        mode
+        for mode, flag in (
+            ("dry-run", "--dry-run"),
+            ("verify-only", "--verify-only"),
+            ("apply", "--apply"),
+        )
+        if flag in arguments
+    ]
+    if len(requested) > 1:
+        raise SystemExit("--dry-run, --verify-only, and --apply are mutually exclusive")
+    if requested == ["apply"] and not token_configured:
+        raise SystemExit("--apply requires BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN")
+    if requested:
+        return requested[0]
+    return "verify-only" if token_configured else "dry-run"
 
 
 def main() -> int:
-    dry_run = "--dry-run" in sys.argv
-    verify_only = ("--verify-only" in sys.argv) or (mode_from_environment() == "verify-only")
     if "--self-test" in sys.argv:
         return self_test()
 
+    token = token_from_environment()
+    mode = selected_mode(sys.argv[1:], token is not None)
     repo_override = argument_value("--repo")
     repo = repository(repo_override)
-    branch_name = argument_value("--branch") or os.environ.get("BRANCH_NAME") or DEFAULT_BRANCH_NAME
+    branch_name = resolve_target_branch(
+        repo, token, argument_value("--branch") or os.environ.get("BRANCH_NAME")
+    )
     payload = protection_payload()
 
-    if dry_run or mode_from_environment() == "dry-run":
+    if mode == "dry-run":
         verify_command = f"py -3 scripts/apply_github_branch_protection.py --verify-only --repo {repo} --branch {branch_name}"
         print(
             json.dumps(
@@ -257,7 +346,7 @@ def main() -> int:
                     "payload": payload,
                     "expected": expected_settings(payload),
                     "verify_command": verify_command,
-                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to enable live verification, then run: "
+                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to enable read-only live verification, then run: "
                     + verify_command,
                 },
                 indent=2,
@@ -265,40 +354,20 @@ def main() -> int:
         )
         return 0
 
-    url = f"https://api.github.com/repos/{repo}/branches/{branch_name}/protection"
-    if not verify_only and not token_from_environment():
-        verify_command = f"py -3 scripts/apply_github_branch_protection.py --verify-only --repo {repo} --branch {branch_name}"
-        print(
-            json.dumps(
-                {
-                    "status": "dry-run",
-                    "branch_protection_verify_contract": EVIDENCE_REF,
-                    "repository": repo,
-                    "branch": branch_name,
-                    "payload": payload,
-                    "expected": expected_settings(payload),
-                    "verify_command": verify_command,
-                    "next_action": "set BRANCH_PROTECTION_TOKEN or GITHUB_TOKEN to apply protection; for verify-only, run: "
-                    + verify_command,
-                },
-                indent=2,
-            )
-        )
-        return 0
-
-    auth_value = token_from_environment()
-    if not auth_value:
+    if not token:
         print("BRANCH_PROTECTION_TOKEN is not configured; branch protection cannot be applied or verified.", file=sys.stderr)
         return 1
 
-    url = f"https://api.github.com/repos/{repo}/branches/{branch_name}/protection"
-    if not verify_only:
-        request_json("PUT", url, auth_value, payload)
+    assert_branch_exists(repo, branch_name, token)
 
-    response = request_json("GET", url, auth_value)
+    url = f"https://api.github.com/repos/{repo}/branches/{branch_name}/protection"
+    if mode == "apply":
+        request_json("PUT", url, token, payload)
+
+    response = request_json("GET", url, token)
     report = verification_report(response, payload)
     result = {
-        "status": "verified" if verify_only else "applied_and_verified",
+        "status": "applied_and_verified" if mode == "apply" else "verified",
         "repository": repo,
         "branch": branch_name,
         **report,

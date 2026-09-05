@@ -1,0 +1,5036 @@
+{
+  "contract_version": "22-page-action-acceptance-v2",
+  "registry_contract_version": "workspace-action-matrix-v2",
+  "status": "verified",
+  "started_at": "2026-07-30T21:27:17.405Z",
+  "completed_at": "2026-07-30T21:49:02.343Z",
+  "base_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app",
+  "dev_only": false,
+  "hosted_proof": true,
+  "proof_scope": "hosted_https",
+  "source_binding_sha256": "de42a6a60d7d539fdc35d99c735d3dbc24c0b0db7ea8547ca0b05744db435d4a",
+  "source_binding": {
+    "git_head": "0bb1c326c01e988a153cf12cde36d2108a2ff8c5",
+    "source_commit_sha": "0bb1c326c01e988a153cf12cde36d2108a2ff8c5",
+    "source_archive_sha256": "c2ebf8d10255829bc4aa191a83a2522d1c7d59bc70e0315c6a0b6d2e874d6d50",
+    "deployment_id": "dpl_G3ZgkPsZQND5yWJpFe5tpNLHTX8h",
+    "product_acceptance_report_path": ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
+    "product_acceptance_report_sha256": "24c1a1c6feee18777eb9f534b66444a9e082b207adfbf7005dbcd83424851f9f",
+    "files_sha256": {
+      "action_spec": "ea722bf20a6ab1b5c9e52538325ce5607ccfc9b8bcdaa7c871a42109e3b56c4f",
+      "action_matrix": "5f78aec1b79a56022501bcd0ce05c661084bfdad2d2d50f483dfe779e1b03f36",
+      "workspace_nav": "7fe5d91a2304a8524cde9ac1f2e8e5d6f52781de12fe05e88a63454487e4372c",
+      "product_acceptance_spec": "241720c3ec8f83df921066db9a4cfa2971e82ad4cb84b61b5ff9d0681a72ffc4",
+      "product_acceptance_report": "24c1a1c6feee18777eb9f534b66444a9e082b207adfbf7005dbcd83424851f9f"
+    }
+  },
+  "registered_route_count": 22,
+  "visited_route_count": 22,
+  "route_registry_parity": true,
+  "registry_summary": {
+    "routeCount": 22,
+    "familyCount": 31,
+    "memberActionCount": 173,
+    "zeroActionRoutes": [
+      "/open-source"
+    ],
+    "passMembers": 68,
+    "gapMembers": 105
+  },
+  "registered_enabled_family_count": 29,
+  "audited_enabled_family_count": 29,
+  "effect_verified_family_count": 29,
+  "registered_enabled_member_action_count": 161,
+  "audited_enabled_member_action_count": 161,
+  "direct_effect_count": 160,
+  "preverified_exact_control_count": 1,
+  "non_direct_pass_count": 0,
+  "registered_member_counts_by_availability": {
+    "enabled": 161,
+    "spec_only": 5,
+    "contract_only": 2,
+    "provider_gated": 0,
+    "conditional": 5
+  },
+  "excluded_member_action_count": 12,
+  "excluded_spec_only_count": 5,
+  "excluded_contract_only_count": 2,
+  "excluded_provider_gated_count": 0,
+  "excluded_conditional_count": 5,
+  "excluded_gate_count": 6,
+  "unregistered_page_local_action_count": 0,
+  "unregistered_page_local_actions": [],
+  "dead_action_count": 0,
+  "dead_actions": [],
+  "click_only_passes": 0,
+  "provider_request_count": 2,
+  "allowed_build_request_count": 2,
+  "live_provider_response_count": 2,
+  "unexpected_provider_request_count": 0,
+  "mocks_used": false,
+  "route_interception_used": false,
+  "appshell_controls_excluded_from_page_local_scope": true,
+  "page_local_control_scope": "main button:not([disabled]), main input:not([disabled]):not([type=\"hidden\"]), main textarea:not([disabled]), main select:not([disabled]), main a[href]",
+  "secret_output": false,
+  "routes": [
+    {
+      "route": "/home",
+      "visited": true,
+      "enabled_family_count": 3,
+      "enabled_member_action_count": 18,
+      "member_counts_by_availability": {
+        "enabled": 18,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 1
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/login",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 6,
+      "member_counts_by_availability": {
+        "enabled": 6,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [
+        "external-oauth"
+      ],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/workbench",
+      "visited": true,
+      "enabled_family_count": 3,
+      "enabled_member_action_count": 10,
+      "member_counts_by_availability": {
+        "enabled": 10,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/organism",
+      "visited": true,
+      "enabled_family_count": 4,
+      "enabled_member_action_count": 30,
+      "member_counts_by_availability": {
+        "enabled": 30,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/organism/replay",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 33,
+      "member_counts_by_availability": {
+        "enabled": 33,
+        "spec_only": 0,
+        "contract_only": 1,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/organism/map",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 7,
+      "member_counts_by_availability": {
+        "enabled": 7,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/agents",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 2,
+      "member_counts_by_availability": {
+        "enabled": 2,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 1
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/files",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 2,
+      "member_counts_by_availability": {
+        "enabled": 2,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/files/local",
+      "visited": true,
+      "enabled_family_count": 0,
+      "enabled_member_action_count": 0,
+      "member_counts_by_availability": {
+        "enabled": 0,
+        "spec_only": 5,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [
+        "host-filesystem"
+      ],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/tools",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 4,
+      "member_counts_by_availability": {
+        "enabled": 4,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [
+        "tools-write"
+      ],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/marketplace",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 3,
+      "member_counts_by_availability": {
+        "enabled": 3,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [
+        "marketplace-provider-install"
+      ],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/observe",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 5,
+      "member_counts_by_availability": {
+        "enabled": 5,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/games",
+      "visited": true,
+      "enabled_family_count": 4,
+      "enabled_member_action_count": 14,
+      "member_counts_by_availability": {
+        "enabled": 14,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 2
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/apps",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 4,
+      "member_counts_by_availability": {
+        "enabled": 4,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/media",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 4,
+      "member_counts_by_availability": {
+        "enabled": 4,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/docs-output",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 4,
+      "member_counts_by_availability": {
+        "enabled": 4,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/evidence",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 4,
+      "member_counts_by_availability": {
+        "enabled": 4,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [
+        "evidence-run-scripts"
+      ],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/diagnostics",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 5,
+      "member_counts_by_availability": {
+        "enabled": 5,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/design-system",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 3,
+      "member_counts_by_availability": {
+        "enabled": 3,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/technology",
+      "visited": true,
+      "enabled_family_count": 1,
+      "enabled_member_action_count": 3,
+      "member_counts_by_availability": {
+        "enabled": 3,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 1
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/settings",
+      "visited": true,
+      "enabled_family_count": 0,
+      "enabled_member_action_count": 0,
+      "member_counts_by_availability": {
+        "enabled": 0,
+        "spec_only": 0,
+        "contract_only": 1,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [
+        "settings-apply"
+      ],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": null
+    },
+    {
+      "route": "/open-source",
+      "visited": true,
+      "enabled_family_count": 0,
+      "enabled_member_action_count": 0,
+      "member_counts_by_availability": {
+        "enabled": 0,
+        "spec_only": 0,
+        "contract_only": 0,
+        "provider_gated": 0,
+        "conditional": 0
+      },
+      "excluded_gates": [],
+      "unregistered_page_local_controls": [],
+      "zero_page_local_reason": "Static license inventory: no mounted page-local action control."
+    }
+  ],
+  "actions": [
+    {
+      "route": "/home",
+      "family_id": "home-build-examples",
+      "action_id": "home-prompt",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Prompt state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "textarea",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-build-examples",
+      "action_id": "home-build",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Build result, preview, files and audit facts become visible.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_route_build_persisted_readback",
+      "details": {
+        "build_id": "fb91ddbb-ec8b-4307-a5f6-e6e2bf1551bf",
+        "response_status": 200,
+        "persisted": true,
+        "audit_persisted": true,
+        "live_provider_calls": true,
+        "gateway_provider": "cloudflare-workers-ai",
+        "direct_provider_calls": false
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-build-examples",
+      "action_id": "home-iteration-input",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Iteration input state changes without starting a provider request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-build-examples",
+      "action_id": "home-example",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected example is copied into the prompt without starting a provider request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 6,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "prompt_changed": true,
+            "selected_prompt_length": 58,
+            "trigger": "prompt_example_selection",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-result-actions",
+      "action_id": "home-result-fullscreen",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated HTML opens in a new browser window.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "target_url": "about:blank",
+            "trigger": "popup_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-result-actions",
+      "action_id": "home-result-share",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Absolute share URL is copied.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 101,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-result-actions",
+      "action_id": "home-result-download",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated HTML downloads as a file.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "filename": "baue-ein-3d-web-game-mit-three-js-drehba.html",
+            "trigger": "download",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-result-actions",
+      "action_id": "home-result-code-toggle",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible result switches between iframe and source code.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-link-workbench",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /workbench.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 4,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/workbench",
+            "href": "/workbench",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-link-organism",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /organism.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/organism",
+            "href": "/organism",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-link-evidence",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /evidence.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/evidence",
+            "href": "/evidence",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-link-games",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /games.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/games",
+            "href": "/games",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-link-apps",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /apps.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/apps",
+            "href": "/apps",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-link-media",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /media.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/media",
+            "href": "/media",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-link-docs",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /docs-output.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/docs-output",
+            "href": "/docs-output",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-live-endpoint",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected read-only endpoint changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "/api/v1/clouds",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-live-load",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible status, response metadata and response body update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_selected_endpoint_get_and_visible_response_binding",
+      "details": {
+        "endpoint": "/api/v1/clouds",
+        "method": "GET",
+        "response_status": 200,
+        "visible_status": "200 OK",
+        "response_body_sha256": "596310bcf2691a21ae5b21a2446f494d2a068754762afccc504ec89e072bbd83",
+        "response_body_bound_to_visible_output": true,
+        "causal_user_click": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/home",
+      "family_id": "home-links-live-console",
+      "action_id": "home-live-copy",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Current output is written to the clipboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 6209,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/login",
+      "family_id": "login-session-navigation",
+      "action_id": "login-name",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Name input state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/login",
+      "family_id": "login-session-navigation",
+      "action_id": "login-signin",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Signed HttpOnly session is created and signed-in UI appears.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/login",
+      "family_id": "login-session-navigation",
+      "action_id": "login-signout",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Session deletion succeeds before signed-out UI appears.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 0
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/login",
+      "family_id": "login-session-navigation",
+      "action_id": "login-workbench",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Browser navigates to /workbench.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/workbench",
+            "href": "/workbench",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/login",
+      "family_id": "login-session-navigation",
+      "action_id": "login-home",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /home.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/home",
+            "href": "/home",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/login",
+      "family_id": "login-session-navigation",
+      "action_id": "login-marketing",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/",
+            "href": "/",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-build-iteration",
+      "action_id": "workbench-prompt",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Prompt value changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "textarea",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-build-iteration",
+      "action_id": "workbench-build",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "One build POST produces visible persisted result and preview.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "preverified_exact_control",
+      "trigger": "preverified_exact_p0_ws_build_control",
+      "details": {
+        "exact_control": "[data-testid=\"ws-build\"]",
+        "p0_build_id": "41d5e2e1-57f3-4292-bbf5-51c0251bd11d",
+        "p0_product_acceptance_report_sha256": "24c1a1c6feee18777eb9f534b66444a9e082b207adfbf7005dbcd83424851f9f",
+        "p0_spec_contains_exact_click": true,
+        "persisted_readback": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-build-iteration",
+      "action_id": "workbench-iteration-input",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Iteration input state changes without starting a provider request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-build-iteration",
+      "action_id": "workbench-example",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Example is copied into the prompt without starting a provider request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 4,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "prompt_changed": true,
+            "selected_prompt_length": 58,
+            "trigger": "prompt_example_selection",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-preview-code-file",
+      "action_id": "workbench-preview",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated iframe becomes visible.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-preview-code-file",
+      "action_id": "workbench-code",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected generated file source becomes visible.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-preview-code-file",
+      "action_id": "workbench-file",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected file becomes active and code tab opens.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-preview-code-file",
+      "action_id": "workbench-fullscreen",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated HTML opens in a new browser window.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "target_url": "about:blank",
+            "trigger": "popup_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-share-download",
+      "action_id": "workbench-share",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Absolute share URL is copied.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 101,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/workbench",
+      "family_id": "workbench-share-download",
+      "action_id": "workbench-download",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated HTML downloads as a file.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "filename": "baue-ein-3d-web-game-mit-three-js-drehba.html",
+            "trigger": "download",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-run-filter",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible nodes are filtered by the selected run state.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 5,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-auto-rotate",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Canvas auto-rotation toggles without a network request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-camera-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Camera returns to the bounded selected preset.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-reduced-motion",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "3D/2D presentation changes and state remains browser-local.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-camera-preset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Camera preset and position attributes change within contract bounds.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-camera-fov",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Canvas FOV changes to a safe contract value.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "38",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-light-profile",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Lighting profile and exposure update locally.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-light-exposure",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Exposure stays within the safe contract range.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-layer-filter",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Layer visibility/filter state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 7,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-agent-filter",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Agent visibility/filter state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 4,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-hub-select",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected hub details and route link update.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 18,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 0
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-3d-camera-filter",
+      "action_id": "organism-hub-open",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to the selected workspace hub.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/workbench",
+            "href": "/workbench",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-gameplay-complete",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Objective, score, checkpoint and completion state advance deterministically.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-gameplay-pause",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Paused state toggles and blocks objective completion.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-gameplay-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Gameplay returns to its deterministic initial state.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-asset-profile",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Asset manifest switches to the selected local policy.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-material-variant",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Material variant changes without external asset writes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-asset-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Asset policy returns to the default manifest.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-save-snapshot",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "A browser-memory scene snapshot becomes loadable.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-load-snapshot",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Saved scene state is restored.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-clear-snapshot",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Snapshot is removed and load/clear disable.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-gameplay-snapshot",
+      "action_id": "organism-focus-scene",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Keyboard focus moves to the interactive scene and announcement updates.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-netcode-performance",
+      "action_id": "organism-netcode-session",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Two-peer deterministic lockstep state changes with network transport disabled.",
+      "effect_type": "state",
+      "control_count": 8,
+      "audited_control_count": 8,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_ordered_loopback_control_sequence",
+      "details": {
+        "controls": [
+          "create",
+          "join",
+          "host-ready",
+          "guest-ready",
+          "start",
+          "tick",
+          "disconnect",
+          "close"
+        ],
+        "final_state": "transport=loopback · session_active=false · guest_connected=false · host_ready=false · guest_ready=false · running=false · ticks=1 · packets=3 · sequence=3 · disconnects=1 · websocket=false · server_sync=false · public_lobby=false · local_only=true"
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-netcode-performance",
+      "action_id": "organism-leaderboard-capture",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Immutable run snapshot is ranked in the three-entry local leaderboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-netcode-performance",
+      "action_id": "organism-leaderboard-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Local leaderboard becomes empty.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-netcode-performance",
+      "action_id": "organism-performance-sample",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Twelve renderer samples produce an honest pass/fail classification.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-netcode-performance",
+      "action_id": "organism-performance-finish",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Sampling completes early with the collected local samples.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_performance_finish_after_12_samples",
+      "details": {
+        "sample_count": 12,
+        "result": "FAIL · 12 Samples · Ø 3.9 FPS · Ø 256.9 ms Frame-Intervall · budget · kein GPU-Benchmark",
+        "network": false,
+        "local_only": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-netcode-performance",
+      "action_id": "organism-performance-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Performance sampling returns to idle.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-navigation",
+      "action_id": "organism-nav-replay",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /organism/replay.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/organism/replay",
+            "href": "/organism/replay",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism",
+      "family_id": "organism-navigation",
+      "action_id": "organism-nav-map",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /organism/map.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/organism/map",
+            "href": "/organism/map",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-run-filter",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible nodes are filtered by the selected run state.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 5,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-auto-rotate",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Canvas auto-rotation toggles without a network request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-camera-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Camera returns to the bounded selected preset.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-reduced-motion",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "3D/2D presentation changes and state remains browser-local.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-camera-preset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Camera preset and position attributes change within contract bounds.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-camera-fov",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Canvas FOV changes to a safe contract value.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "38",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-light-profile",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Lighting profile and exposure update locally.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-light-exposure",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Exposure stays within the safe contract range.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-layer-filter",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Layer visibility/filter state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 7,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-agent-filter",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Agent visibility/filter state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 4,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-hub-select",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected hub details and route link update.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 18,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 0
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-hub-open",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to the selected workspace hub.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/workbench",
+            "href": "/workbench",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-gameplay-complete",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Objective, score, checkpoint and completion state advance deterministically.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-gameplay-pause",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Paused state toggles and blocks objective completion.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-gameplay-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Gameplay returns to its deterministic initial state.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-asset-profile",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Asset manifest switches to the selected local policy.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-material-variant",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Material variant changes without external asset writes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-asset-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Asset policy returns to the default manifest.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-save-snapshot",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "A browser-memory scene snapshot becomes loadable.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-load-snapshot",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Saved scene state is restored.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-clear-snapshot",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Snapshot is removed and load/clear disable.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-focus-scene",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Keyboard focus moves to the interactive scene and announcement updates.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-netcode-session",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Two-peer deterministic lockstep state changes with network transport disabled.",
+      "effect_type": "state",
+      "control_count": 8,
+      "audited_control_count": 8,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_ordered_loopback_control_sequence",
+      "details": {
+        "controls": [
+          "create",
+          "join",
+          "host-ready",
+          "guest-ready",
+          "start",
+          "tick",
+          "disconnect",
+          "close"
+        ],
+        "final_state": "transport=loopback · session_active=false · guest_connected=false · host_ready=false · guest_ready=false · running=false · ticks=1 · packets=3 · sequence=3 · disconnects=1 · websocket=false · server_sync=false · public_lobby=false · local_only=true"
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-leaderboard-capture",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Immutable run snapshot is ranked in the three-entry local leaderboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-leaderboard-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Local leaderboard becomes empty.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-performance-sample",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Twelve renderer samples produce an honest pass/fail classification.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": true,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-performance-finish",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Sampling completes early with the collected local samples.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_performance_finish_after_12_samples",
+      "details": {
+        "sample_count": 12,
+        "result": "FAIL · 12 Samples · Ø 4.0 FPS · Ø 250.0 ms Frame-Intervall · budget · kein GPU-Benchmark",
+        "network": false,
+        "local_only": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-organism-performance-reset",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Performance sampling returns to idle.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-live-endpoint",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected read-only endpoint changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "/api/v1/organism/events",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-live-load",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible status, response metadata and response body update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_selected_endpoint_get_and_visible_response_binding",
+      "details": {
+        "endpoint": "/api/v1/health",
+        "method": "GET",
+        "response_status": 200,
+        "visible_status": "200 OK",
+        "response_body_sha256": "4661ba32a15cd9711bf9453200c5ebe1d98c9029dfd424862cff020e6e931e96",
+        "response_body_bound_to_visible_output": true,
+        "causal_user_click": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-live-copy",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Current output is written to the clipboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 2637,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-nav-live",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /organism.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/organism",
+            "href": "/organism",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/replay",
+      "family_id": "organism-replay-controls",
+      "action_id": "replay-nav-map",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /organism/map.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/organism/map",
+            "href": "/organism/map",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/map",
+      "family_id": "organism-map-controls",
+      "action_id": "map-topology-kind-filter",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "The visible node list is filtered to the selected contract kind.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 13,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/map",
+      "family_id": "organism-map-controls",
+      "action_id": "map-topology-node-select",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "The selected node and its inbound/outbound adjacency update.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 14,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/map",
+      "family_id": "organism-map-controls",
+      "action_id": "map-live-endpoint",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected read-only endpoint changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "/api/v1/organism/safety",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/map",
+      "family_id": "organism-map-controls",
+      "action_id": "map-live-load",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible status, response metadata and response body update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_selected_endpoint_get_and_visible_response_binding",
+      "details": {
+        "endpoint": "/api/v1/organism/topology",
+        "method": "GET",
+        "response_status": 200,
+        "visible_status": "200 OK",
+        "response_body_sha256": "975291cf960c01b6fea4d113447669760d172f4f66119c6de062d7a71c1eacdb",
+        "response_body_bound_to_visible_output": true,
+        "causal_user_click": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/map",
+      "family_id": "organism-map-controls",
+      "action_id": "map-live-copy",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Current output is written to the clipboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 6271,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/map",
+      "family_id": "organism-map-controls",
+      "action_id": "map-nav-live",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /organism.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/organism",
+            "href": "/organism",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/organism/map",
+      "family_id": "organism-map-controls",
+      "action_id": "map-nav-replay",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /organism/replay.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/organism/replay",
+            "href": "/organism/replay",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/agents",
+      "family_id": "agents-research-results",
+      "action_id": "agents-goal",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Research goal state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/agents",
+      "family_id": "agents-research-results",
+      "action_id": "agents-run",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Planner, Coder, Tester, DevOps, and a non-empty synthesis become visible.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 0
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/files",
+      "family_id": "files-memory-search",
+      "action_id": "files-query",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Search query state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/files",
+      "family_id": "files-memory-search",
+      "action_id": "files-search",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Visible result reports real hit count.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/tools",
+      "family_id": "tools-read-only-execute",
+      "action_id": "tools-select",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected allowlisted tool changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "task_router",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/tools",
+      "family_id": "tools-read-only-execute",
+      "action_id": "tools-query",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Tool query state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/tools",
+      "family_id": "tools-read-only-execute",
+      "action_id": "tools-execute",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Visible result contains tool name and audit identifier.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/tools",
+      "family_id": "tools-read-only-execute",
+      "action_id": "tools-marketplace-link",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /marketplace.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/marketplace",
+            "href": "/marketplace",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/marketplace",
+      "family_id": "marketplace-selection-details-install",
+      "action_id": "marketplace-select",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected catalog item changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "Skill:product-ux-guardian",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/marketplace",
+      "family_id": "marketplace-selection-details-install",
+      "action_id": "marketplace-details",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Visible result reports item details.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/marketplace",
+      "family_id": "marketplace-selection-details-install",
+      "action_id": "marketplace-install-plan",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Dry-run artifact plan is registered with provider_writes=false.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/observe",
+      "family_id": "observe-console-metrics-diagnose",
+      "action_id": "observe-live-endpoint",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected read-only endpoint changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "/api/v1/health",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/observe",
+      "family_id": "observe-console-metrics-diagnose",
+      "action_id": "observe-live-load",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible status, response metadata and response body update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_selected_endpoint_get_and_visible_response_binding",
+      "details": {
+        "endpoint": "/api/v1/health",
+        "method": "GET",
+        "response_status": 200,
+        "visible_status": "200 OK",
+        "response_body_sha256": "4661ba32a15cd9711bf9453200c5ebe1d98c9029dfd424862cff020e6e931e96",
+        "response_body_bound_to_visible_output": true,
+        "causal_user_click": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/observe",
+      "family_id": "observe-console-metrics-diagnose",
+      "action_id": "observe-live-copy",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Current output is written to the clipboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 2637,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/observe",
+      "family_id": "observe-console-metrics-diagnose",
+      "action_id": "observe-diagnose",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible diagnosis summarizes real read-only endpoint results.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/observe",
+      "family_id": "observe-console-metrics-diagnose",
+      "action_id": "observe-evidence-link",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /evidence.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/evidence",
+            "href": "/evidence",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-build",
+      "action_id": "games-prompt",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Prompt state changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "textarea",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-build",
+      "action_id": "games-build-run",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible build log, files and preview update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_route_build_persisted_readback",
+      "details": {
+        "build_id": "ed5a9b4f-c370-499d-9e51-9cc379f4d815",
+        "response_status": 200,
+        "persisted": true,
+        "audit_persisted": true,
+        "live_provider_calls": true,
+        "gateway_provider": "cloudflare-workers-ai",
+        "direct_provider_calls": false
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-build",
+      "action_id": "games-example",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Example is copied into the prompt without starting a provider request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 4,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "prompt_changed": true,
+            "selected_prompt_length": 58,
+            "trigger": "prompt_example_selection",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-generated-result",
+      "action_id": "games-iteration-input",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Iteration input state changes without starting a provider request.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-generated-result",
+      "action_id": "games-preview",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated game iframe becomes visible.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-generated-result",
+      "action_id": "games-code",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected generated game source becomes visible.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-generated-result",
+      "action_id": "games-file",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected file becomes active and code tab opens.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-generated-result",
+      "action_id": "games-fullscreen",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated game opens in a new browser window.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "target_url": "about:blank",
+            "trigger": "popup_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-generated-result",
+      "action_id": "games-share",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Absolute game share URL is copied.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 101,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-generated-result",
+      "action_id": "games-download",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Generated game HTML downloads as a file.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "filename": "baue-ein-3d-web-game-mit-three-js-drehba.html",
+            "trigger": "download",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-local-game",
+      "action_id": "games-local-start",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Local game loop starts and score can change.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-build-history",
+      "action_id": "games-history-open",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Persisted run opens in a new tab.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/run/ed5a9b4f-c370-499d-9e51-9cc379f4d815",
+            "trigger": "popup_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-build-history",
+      "action_id": "games-history-edit",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to workbench with build query.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/workbench?build=ed5a9b4f-c370-499d-9e51-9cc379f4d815",
+            "href": "/workbench?build=ed5a9b4f-c370-499d-9e51-9cc379f4d815",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/games",
+      "family_id": "games-build-history",
+      "action_id": "games-history-delete",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Card disappears only after 2xx DELETE; 403/network errors remain visible and keep the card.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 3
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/apps",
+      "family_id": "apps-open-edit-delete-workbench",
+      "action_id": "apps-open",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Persisted run opens in a new tab.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/run/ed5a9b4f-c370-499d-9e51-9cc379f4d815",
+            "trigger": "popup_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/apps",
+      "family_id": "apps-open-edit-delete-workbench",
+      "action_id": "apps-edit",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to workbench with build query.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/workbench?build=ed5a9b4f-c370-499d-9e51-9cc379f4d815",
+            "href": "/workbench?build=ed5a9b4f-c370-499d-9e51-9cc379f4d815",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/apps",
+      "family_id": "apps-open-edit-delete-workbench",
+      "action_id": "apps-delete",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Card disappears only after 2xx DELETE; 403/network errors keep it and show an alert.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 3,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 3
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/apps",
+      "family_id": "apps-open-edit-delete-workbench",
+      "action_id": "apps-workbench",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /workbench.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/workbench",
+            "href": "/workbench",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/media",
+      "family_id": "media-tabs-play-record-download",
+      "action_id": "media-tab",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected music/video tool becomes visible.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 2,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/media",
+      "family_id": "media-tabs-play-record-download",
+      "action_id": "media-play",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Local synth audio starts or stops.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/media",
+      "family_id": "media-tabs-play-record-download",
+      "action_id": "media-music-record",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Six-second local audio recording downloads.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "filename": "superbrain-track.webm",
+            "trigger": "download",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/media",
+      "family_id": "media-tabs-play-record-download",
+      "action_id": "media-video-record",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Five-second local WebM clip downloads.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "filename": "superbrain-clip.webm",
+            "trigger": "download",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/docs-output",
+      "family_id": "docs-title-markdown-download",
+      "action_id": "docs-title",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Title and download slug update.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "input",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/docs-output",
+      "family_id": "docs-title-markdown-download",
+      "action_id": "docs-markdown",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Rendered preview updates.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "textarea",
+            "control_delta": true,
+            "trigger": "fill",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/docs-output",
+      "family_id": "docs-title-markdown-download",
+      "action_id": "docs-download-md",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Markdown file downloads with slugged title.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "filename": "p2-aktionsnachweis.md",
+            "trigger": "download",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/docs-output",
+      "family_id": "docs-title-markdown-download",
+      "action_id": "docs-download-html",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Standalone HTML file downloads.",
+      "effect_type": "download",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "filename": "p2-aktionsnachweis.html",
+            "trigger": "download",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/evidence",
+      "family_id": "evidence-console-verifier",
+      "action_id": "evidence-live-endpoint",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected read-only endpoint changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "/api/v1/project/progress/integrity",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/evidence",
+      "family_id": "evidence-console-verifier",
+      "action_id": "evidence-live-load",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible status, response metadata and response body update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_selected_endpoint_get_and_visible_response_binding",
+      "details": {
+        "endpoint": "/api/v1/project/progress/integrity",
+        "method": "GET",
+        "response_status": 200,
+        "visible_status": "200 OK",
+        "response_body_sha256": "9e56411bd999a6bb6d22d8319f31aa98fcaebda4dd7b827f93755ad3eee94705",
+        "response_body_bound_to_visible_output": true,
+        "causal_user_click": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/evidence",
+      "family_id": "evidence-console-verifier",
+      "action_id": "evidence-live-copy",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Current output is written to the clipboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 1636,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/evidence",
+      "family_id": "evidence-console-verifier",
+      "action_id": "evidence-verifier",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible result summarizes read-only verifier state.",
+      "effect_type": "data",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": false,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/diagnostics",
+      "family_id": "diagnostics-contract-copy-evidence",
+      "action_id": "diagnostics-live-endpoint",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Selected read-only endpoint changes.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "select",
+            "selected_value": "/api/v1/escalations/recent",
+            "trigger": "select",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/diagnostics",
+      "family_id": "diagnostics-contract-copy-evidence",
+      "action_id": "diagnostics-live-load",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible status, response metadata and response body update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_selected_endpoint_get_and_visible_response_binding",
+      "details": {
+        "endpoint": "/api/v1/escalations/recent",
+        "method": "GET",
+        "response_status": 200,
+        "visible_status": "200 OK",
+        "response_body_sha256": "3d67a0973a9507dfaf74c55654425f74a8ee73fbf02244156dcf9107795468ef",
+        "response_body_bound_to_visible_output": true,
+        "causal_user_click": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/diagnostics",
+      "family_id": "diagnostics-contract-copy-evidence",
+      "action_id": "diagnostics-live-copy",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Current output is written to the clipboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 465,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/diagnostics",
+      "family_id": "diagnostics-contract-copy-evidence",
+      "action_id": "diagnostics-evidence",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /evidence.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 6,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/evidence",
+            "href": "/evidence",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/diagnostics",
+      "family_id": "diagnostics-contract-copy-evidence",
+      "action_id": "diagnostics-archive-evidence",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to evidence with archive query.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 4,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/evidence?archive=Owner%20Approval%20Storage%20Dry-Run",
+            "href": "/evidence?archive=Owner%20Approval%20Storage%20Dry-Run",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/design-system",
+      "family_id": "design-contract-copy-responsive",
+      "action_id": "design-live-load",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Visible status, response metadata and response body update.",
+      "effect_type": "data",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "trigger": "direct_selected_endpoint_get_and_visible_response_binding",
+      "details": {
+        "endpoint": "/api/v1/design/reference-contract",
+        "method": "GET",
+        "response_status": 200,
+        "visible_status": "200 OK",
+        "response_body_sha256": "89fd22167c010563a4bbea2a9dd9c0aee7f318226905317c2a7f7d0bd44688ca",
+        "response_body_bound_to_visible_output": true,
+        "causal_user_click": true
+      },
+      "passed": true
+    },
+    {
+      "route": "/design-system",
+      "family_id": "design-contract-copy-responsive",
+      "action_id": "design-live-copy",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Current output is written to the clipboard.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "clipboard_changed": true,
+            "clipboard_length": 4365,
+            "trigger": "clipboard",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/design-system",
+      "family_id": "design-contract-copy-responsive",
+      "action_id": "design-responsive",
+      "availability": "enabled",
+      "registry_status": "GAP",
+      "expected_effect": "Browser navigates to /responsive.",
+      "effect_type": "navigation",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "a",
+            "target_url": "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/responsive",
+            "href": "/responsive",
+            "trigger": "native_anchor_navigation",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/technology",
+      "family_id": "technology-runtime-controls",
+      "action_id": "technology-runtime-refresh",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "All three contract sources reload in parallel and the validated-load counter increments.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 1,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 0,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": false,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/technology",
+      "family_id": "technology-runtime-controls",
+      "action_id": "technology-provider-filter",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "The provider grid changes to the selected contract-backed subset.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 5,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    },
+    {
+      "route": "/technology",
+      "family_id": "technology-runtime-controls",
+      "action_id": "technology-layer-select",
+      "availability": "enabled",
+      "registry_status": "PASS",
+      "expected_effect": "Layer detail, blockers and provider counts change to the selected layer.",
+      "effect_type": "state",
+      "click_only": false,
+      "proof_kind": "direct_effect",
+      "control_count": 7,
+      "audited_control_count": 1,
+      "effect_observed": true,
+      "trigger": "direct_route_control_effect",
+      "details": {
+        "controls": [
+          {
+            "control_index": 1,
+            "tag": "button",
+            "state_or_data_delta": true,
+            "control_delta": true,
+            "already_active_state": false,
+            "explicit_blocked_or_error": false,
+            "trigger": "click",
+            "effect_visible_count": 1
+          }
+        ]
+      },
+      "passed": true
+    }
+  ],
+  "provider_requests": [
+    "POST /api/v1/build",
+    "POST /api/v1/build"
+  ],
+  "live_provider_responses": [
+    "/api/v1/build",
+    "/api/v1/build"
+  ],
+  "console_errors": [],
+  "console_error_count": 0,
+  "expected_blocked_console_errors": [
+    "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/api/v1/build/ed5a9b4f-c370-499d-9e51-9cc379f4d815"
+  ],
+  "expected_blocked_console_error_count": 1,
+  "expected_blocked_responses": [
+    "https://frontend-m2x1u8hsr-strazzusochrs-projects.vercel.app/api/v1/build/ed5a9b4f-c370-499d-9e51-9cc379f4d815"
+  ],
+  "page_errors": [],
+  "page_error_count": 0
+}

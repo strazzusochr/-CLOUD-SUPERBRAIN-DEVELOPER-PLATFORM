@@ -108,7 +108,7 @@ function Assert-SourceFile([string]$RelativePath) {
 }
 
 function Get-DefaultHostname([string]$Ip) {
-    throw "Retired staging hostname derivation is disabled. Use Vercel/Fly owner activation instead of sslip.io/Hetzner defaults."
+    throw "Retired staging hostname derivation is disabled. Use Cloudflare-native Owner activation instead of sslip.io/Hetzner defaults."
 }
 
 function Invoke-HostedGet([string]$Url) {
@@ -199,11 +199,11 @@ if ([string]::IsNullOrWhiteSpace($StagingBaseUrl)) {
 }
 
 if ($StagingHostname.ToLowerInvariant().EndsWith(".sslip.io") -or $StagingBaseUrl.ToLowerInvariant().Contains(".sslip.io")) {
-    throw "Retired sslip.io/Hetzner staging target is blocked. Use the Vercel/Fly owner activation path."
+    throw "Retired sslip.io/Hetzner staging target is blocked. Use the Cloudflare-native Owner activation path."
 }
 
 if (-not $PlanOnly) {
-    throw "scripts/deploy-to-staging.ps1 is retired for active cloud mutation. Use scripts/owner-cloud-gate-activation.ps1 for the owner-reviewed Vercel/Fly plan."
+    throw "scripts/deploy-to-staging.ps1 is retired for active cloud mutation. Use scripts/owner-cloud-gate-activation.ps1 for the owner-reviewed Cloudflare-native PlanOnly path."
 }
 
 if ($RequireHttps) {

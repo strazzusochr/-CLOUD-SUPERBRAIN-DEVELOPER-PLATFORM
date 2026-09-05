@@ -1,33 +1,30 @@
 import AppShell from "../../components/shell/AppShell";
-import { LiveConsole } from "../../components/live-console";
 import { PageHeader, Panel, Badge, Note } from "../../components/ui";
-import { OpenSourceProbe } from "../../components/batch5-actions";
 import { Icon } from "../../lib/nav";
 
 export const metadata = { title: "Open Source — Cloud Superbrain" };
 
 const PRINCIPLES = [
-  { icon: "shield" as const, title: "Self-Hostable", body: "Run on your own machine or cloud. Your workflow, your infrastructure — no lock-in." },
-  { icon: "tools" as const, title: "Extensible", body: "Compose skills, tools, agents and integrations. Plug in anything via MCP." },
-  { icon: "agents" as const, title: "Community Powered", body: "Built together, made for everyone. Transparent, auditable, evidence-first." },
+  { icon: "shield" as const, title: "Technisch selbst hostbar", body: "Die Entwicklungs-Laufzeit kann auf eigener Infrastruktur betrieben werden. Hosted- und Produktionsfreigaben bleiben getrennt gegated." },
+  { icon: "tools" as const, title: "Vertraglich erweiterbar", body: "Skills, Werkzeuge, Agenten und Integrationen besitzen begrenzte Verträge. Externe MCP-Wirkung bleibt scope- und owner-gegatet." },
+  { icon: "agents" as const, title: "Prüfbar", body: "Quellcode, Verträge und lokale Nachweise sind einsehbar. Eine Projektlizenz und die rechtliche Freigabe stehen noch aus." },
 ];
 
-/** Real open-source components the platform is built on, with their licenses. */
+/** Declared upstream licenses; this inventory is not a project-license grant. */
 const OSS: { name: string; license: string; role: string }[] = [
-  { name: "Next.js", license: "MIT", role: "App Router frontend framework" },
-  { name: "React", license: "MIT", role: "UI runtime (v19)" },
-  { name: "three.js", license: "MIT", role: "WebGL 3D engine for the cortex" },
-  { name: "@react-three/fiber", license: "MIT", role: "React renderer for three.js" },
-  { name: "@react-three/drei", license: "MIT", role: "R3F helpers (Environment, Html…)" },
-  { name: "postprocessing", license: "MIT", role: "Bloom / vignette effect composer" },
-  { name: "FastAPI", license: "MIT", role: "Python API framework" },
-  { name: "LangGraph", license: "MIT", role: "Agent orchestration graph" },
-  { name: "PostgreSQL", license: "PostgreSQL", role: "Primary datastore" },
-  { name: "pgvector", license: "PostgreSQL", role: "Vector memory / embeddings" },
-  { name: "Redis", license: "RSALv2 / SSPL", role: "Queues + working memory" },
-  { name: "Playwright", license: "Apache-2.0", role: "E2E + WebGL render proof" },
-  { name: "OpenPolicyAgent", license: "Apache-2.0", role: "Gate policies (can_write…)" },
-  { name: "gitleaks", license: "MIT", role: "Secret scanning" },
+  { name: "Next.js", license: "MIT", role: "Frontend-Framework mit App Router" },
+  { name: "React", license: "MIT", role: "UI-Laufzeit (v19)" },
+  { name: "three.js", license: "MIT", role: "WebGL-3D-Engine für den Cortex" },
+  { name: "@react-three/fiber", license: "MIT", role: "React-Renderer für three.js" },
+  { name: "@react-three/drei", license: "MIT", role: "R3F-Helfer (Environment, Html…)" },
+  { name: "postprocessing", license: "MIT", role: "Komposition von Bloom- und Vignetteneffekten" },
+  { name: "FastAPI", license: "MIT", role: "Python-API-Framework" },
+  { name: "LangGraph", license: "MIT", role: "Orchestrierungsgraph für Agenten" },
+  { name: "PostgreSQL", license: "PostgreSQL", role: "Primärer Datenspeicher" },
+  { name: "pgvector", license: "PostgreSQL", role: "Vektorgedächtnis und Embeddings" },
+  { name: "Redis", license: "RSALv2 / SSPL", role: "Warteschlangen und Arbeitsgedächtnis" },
+  { name: "Playwright", license: "Apache-2.0", role: "E2E- und WebGL-Rendernachweis" },
+  { name: "gitleaks", license: "MIT", role: "Secret-Prüfung" },
 ];
 
 export default function OpenSourcePage() {
@@ -35,26 +32,12 @@ export default function OpenSourcePage() {
     <AppShell crumb="Open Source" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Open by Design"
-          title="Open Source First"
-          subtitle="Cloud Superbrain is open-source, independent and free-first. Use it, fork it, self-host it, and own your workflow end to end."
-          actions={<Badge tone="green">no vendor lock-in</Badge>}
+          eyebrow="Quellcode einsehbar"
+          title="Projektlizenz noch offen"
+          subtitle="Der Quellcode ist im Repository einsehbar, aber es liegt keine Root-LICENSE und damit noch keine ausdrückliche Projektlizenz vor. Nutzung, Fork und Weitergabe werden erst nach der Owner-Lizenzentscheidung als erlaubt behauptet."
+          actions={<Badge tone="amber">OWNER-BLOCKED · Lizenzwahl</Badge>}
         />
 
-        <div className="mb-16">
-          <OpenSourceProbe />
-        </div>
-
-        <Panel title="Live console" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
-          <div className="wb-pad">
-            <LiveConsole
-              endpoints={[
-                { label: "Workspace wiring", path: "/api/v1/workspace/wiring" },
-                { label: "Platform inventory", path: "/api/v1/platform/inventory" },
-              ]}
-            />
-          </div>
-        </Panel>
 
         <div className="grid cols-3">
           {PRINCIPLES.map((p) => (
@@ -70,17 +53,17 @@ export default function OpenSourcePage() {
 
         <div className="page-head open-source-subhead">
           <div>
-            <div className="eyebrow">Built on open source</div>
-            <h2 className="open-source-h2">{OSS.length} core components &amp; their licenses</h2>
+            <div className="eyebrow">Upstream-Inventar</div>
+            <h2 className="open-source-h2">{OSS.length} Kernkomponenten und deklarierte Lizenzen</h2>
           </div>
-          <Badge tone="cyan">licenses respected</Badge>
+          <Badge tone="amber">SBOM-/Lizenzprüfung offen</Badge>
         </div>
         <Panel>
           <div className="oss-table">
             <div className="oss-row oss-head">
-              <span>Component</span>
-              <span>License</span>
-              <span>Role</span>
+              <span>Komponente</span>
+              <span>Lizenz</span>
+              <span>Rolle</span>
             </div>
             {OSS.map((o) => (
               <div key={o.name} className="oss-row">
@@ -93,15 +76,16 @@ export default function OpenSourcePage() {
         </Panel>
 
         <Note>
-          Every dependency keeps its upstream license; this page lists them for transparency. No
-          bundled component is relicensed. Provider tokens and secrets are never part of the
-          open-source surface — they stay in <span className="mono">.codex/secrets</span> as status only.
+          Die Tabelle ist eine handgepflegte Upstream-Inventur, kein automatischer SBOM- oder Compliance-Beweis.
+          Ohne Root-<span className="mono">LICENSE</span> wird keine Projektlizenz behauptet. Provider-Tokens und
+          Secrets gehören nie zu dieser Oberfläche; unter <span className="mono">.codex/secrets</span> wird nur ihr
+          Status geführt.
         </Note>
 
         <div className="footer-slogan">
-          <span>Build anything.</span>
-          <span>Automate everything.</span>
-          <span>Own your workflow.</span>
+          <span>Baue alles.</span>
+          <span>Automatisiere alles.</span>
+          <span>Dein Arbeitsablauf gehört dir.</span>
         </div>
       </div>
     </AppShell>

@@ -46,12 +46,29 @@ function Assert-ArrayEquivalent($label, $actual, $expected) {
 function Invoke-Text($url) {
   $python = @'
 import sys
+import time
+import urllib.error
 import urllib.request
 
 sys.stdout.reconfigure(encoding="utf-8")
 url = sys.argv[1]
-with urllib.request.urlopen(url, timeout=30) as response:
-    sys.stdout.write(response.read().decode("utf-8", errors="replace"))
+last_error = None
+for attempt in range(1, 7):
+    try:
+        with urllib.request.urlopen(url, timeout=30) as response:
+            sys.stdout.write(response.read().decode("utf-8", errors="replace"))
+        break
+    except urllib.error.HTTPError as error:
+        last_error = error
+        if error.code not in (502, 503, 504) or attempt == 6:
+            raise
+    except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+        last_error = error
+        if attempt == 6:
+            raise
+    time.sleep(1.5 * attempt)
+else:
+    raise RuntimeError(f"request failed after retries: {last_error}")
 '@
   $env:PYTHONIOENCODING = "utf-8"
   return ($python | py -3 -X utf8 - $url)
@@ -167,7 +184,8 @@ if (-not $BaseUrl) {
 }
 
 $BaseUrl = $BaseUrl.TrimEnd("/")
-if ((-not $AllowLocalhost) -and ($BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]")) {
+$isLocalProof = $BaseUrl -match "localhost|127\.0\.0\.1|\[::1\]"
+if ((-not $AllowLocalhost) -and $isLocalProof) {
   throw "Browser contract proof refuses localhost unless -AllowLocalhost is set"
 }
 
@@ -179,23 +197,23 @@ Assert-Contains "landing title" $landingHtml "Cloud Superbrain"
 Assert-Contains "landing open workbench" $landingHtml "Open Workbench"
 Assert-Contains "landing canonical spec marker" $landingHtml "Canonical platform specification"
 $homeHtml = Invoke-Text "$BaseUrl/home"
-Assert-Contains "home product marker" $homeHtml "Developer Platform"
-Assert-Contains "home evidence wiring marker" $homeHtml "Evidence"
-Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnostics"
+Assert-Contains "home product marker" $homeHtml "Entwicklerplattform"
+Assert-Contains "home evidence wiring marker" $homeHtml "Nachweise"
+Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnose"
 Assert-True "home does not surface recent projects" (-not $homeHtml.Contains("Letzte Projekte"))
 Assert-True "home does not surface project workspace status" (-not $homeHtml.Contains("Projektstand"))
 $workbenchHtml = Invoke-Text "$BaseUrl/workbench"
-Assert-Contains "workbench studio marker" $workbenchHtml "Main Workbench"
-Assert-Contains "workbench preview marker" $workbenchHtml "Preview / Assets"
-Assert-Contains "workbench cloud target marker" $workbenchHtml "Cloud Staging"
-Assert-Contains "workbench run binding marker" $workbenchHtml "Run Binding"
+Assert-Contains "workbench studio marker" $workbenchHtml "workbench-studio"
+Assert-Contains "workbench files marker" $workbenchHtml "Dateien"
+Assert-Contains "workbench preview marker" $workbenchHtml "Vorschau"
+Assert-Contains "workbench build log marker" $workbenchHtml "Build-Protokoll"
 Assert-True "workbench does not surface session list" (-not $workbenchHtml.Contains("Sessions"))
 Assert-True "workbench does not surface completion gate" (-not $workbenchHtml.Contains("Completion-Gate"))
 Assert-True "workbench does not surface workspace status wall" (-not $workbenchHtml.Contains("Workspace-Surfaces"))
 Assert-True "workbench budget hidden without paid option" (-not $workbenchHtml.Contains("Metered Budget"))
 $workbenchPaidHtml = Invoke-Text "$BaseUrl/workbench?capability=paid_llm"
-Assert-Contains "workbench paid budget visible" $workbenchPaidHtml "Metered Budget"
-Assert-Contains "workbench paid budget reason" $workbenchPaidHtml "paid/metered Capability"
+Assert-True "workbench budget remains hidden when no paid option exists" (-not $workbenchPaidHtml.Contains("Metered Budget"))
+Assert-True "workbench paid capability marker remains hidden when no paid option exists" (-not $workbenchPaidHtml.Contains("paid/metered Capability"))
 
 Write-Host "[browser-contract] favicon"
 $faviconStatus = Invoke-StatusCode "$BaseUrl/favicon.ico"
@@ -219,16 +237,88 @@ Assert-Contains "project progress integrity manifest" $projectProgressIntegrity 
 Write-Host "[browser-contract] project progress completion contract"
 $projectProgressCompletion = Invoke-Text "$BaseUrl/api/v1/project/progress/completion"
 Assert-Contains "project progress completion version" $projectProgressCompletion '"contract_version":"project-progress-100-percent-contract-v1"'
-Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
-Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
-Assert-True "project progress completion missing fly gate" ($projectProgressCompletionMissingGates -contains "fly_api_token")
-Assert-True "project progress completion missing vercel backend origins gate" ($projectProgressCompletionMissingGates -contains "vercel_backend_origins")
-Assert-Contains "project progress completion fly blocker" $projectProgressCompletion "live_infra_budget_refresh_requires_FLY_API_TOKEN"
-Assert-Contains "project progress completion vercel origins blocker" $projectProgressCompletion "vercel_backend_origins"
-Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
+$projectProgressCompletionHardBlockers = @($projectProgressCompletionJson.hard_blockers | ForEach-Object { [string]$_ })
+$projectProgressItems = @($progressManifest.horizontal.items) + @($progressManifest.vertical.items)
+$localProjectProgressComplete = (
+  $expectedOverallPercent -eq 100 -and
+  @($projectProgressItems | Where-Object { [int]$_.percent -ne 100 }).Count -eq 0
+)
+$expectedProjectProgressCompletionReady = (
+  $localProjectProgressComplete -and
+  $projectProgressCompletionMissingGates.Count -eq 0 -and
+  $projectProgressCompletionHardBlockers.Count -eq 0
+)
+$expectedProjectProgressCompletionStatus = if ($expectedProjectProgressCompletionReady) {
+  "ready_for_100_percent_review"
+} else {
+  "blocked_external_gates"
+}
+$canSetAllTo100Property = $projectProgressCompletionJson.PSObject.Properties["can_set_all_to_100"]
+Assert-True "project progress completion current overall parity" ([int]$projectProgressCompletionJson.current_overall_percent -eq $expectedOverallPercent)
+Assert-True "project progress completion status follows progress and blockers" ([string]$projectProgressCompletionJson.status -eq $expectedProjectProgressCompletionStatus)
+Assert-True "project progress completion can_set_all_to_100 is boolean" ($null -ne $canSetAllTo100Property -and $canSetAllTo100Property.Value -is [bool])
+Assert-True "project progress completion can_set_all_to_100 follows progress and blockers" ([bool]$canSetAllTo100Property.Value -eq $expectedProjectProgressCompletionReady)
+foreach ($hardBlocker in $projectProgressCompletionHardBlockers) {
+  Assert-True "project progress completion hard blocker is non-empty" (-not [string]::IsNullOrWhiteSpace($hardBlocker))
+}
+$capabilityGateState = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\capability-gates.json") -Raw | ConvertFrom-Json
+$liveLlmCapability = $capabilityGateState.gates.live_llm_provider_calls
+$liveLlmCapabilityOpen = (
+  [bool]$liveLlmCapability.owner_granted -and
+  [bool]$liveLlmCapability.live_verified -and
+  -not [string]::IsNullOrWhiteSpace([string]$liveLlmCapability.evidence_artifact) -and
+  $liveLlmCapability.paid_provider -is [bool] -and
+  -not [bool]$liveLlmCapability.paid_provider
+)
+Assert-True "bounded O6 live LLM capability is open" $liveLlmCapabilityOpen
+Assert-True "project progress completion clears verified free live LLM blocker" (-not ($projectProgressCompletionHardBlockers -contains "live_llm_provider_calls_require_owner_gate_and_budget_guard"))
+$ownerInputManifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\owner-input-manifest.json") -Raw | ConvertFrom-Json
+$o6OwnerAction = @($ownerInputManifest.actions | Where-Object { [string]$_.id -eq "O6" })
+Assert-True "O6 is resolved and not Owner-required" (
+  $o6OwnerAction.Count -eq 1 -and
+  [string]$o6OwnerAction[0].status -eq "resolved_verified" -and
+  ([string]$o6OwnerAction[0].required_owner_action).StartsWith("None")
+)
+$layer4Progress = @($progressManifest.vertical.items | Where-Object { [string]$_.id -eq "layer_4" })
+Assert-True "project progress completion has exactly one Layer 4 item" ($layer4Progress.Count -eq 1)
+$liveMemoryCapability = $capabilityGateState.gates.live_memory_provider
+$liveMemoryCapabilityOpen = (
+  [bool]$liveMemoryCapability.owner_granted -and
+  [bool]$liveMemoryCapability.live_verified -and
+  -not [string]::IsNullOrWhiteSpace([string]$liveMemoryCapability.evidence_artifact) -and
+  $liveMemoryCapability.paid_provider -is [bool] -and
+  -not [bool]$liveMemoryCapability.paid_provider
+)
+Assert-True "project progress completion keeps verified D1 lexical memory distinct" $liveMemoryCapabilityOpen
+Assert-True "project progress completion clears verified D1 lexical memory blocker" (-not ($projectProgressCompletionHardBlockers -contains "live_memory_provider_requires_owner_gate_and_hosted_lexical_persistence_proof"))
+$liveVectorMemoryCapability = $capabilityGateState.gates.live_vector_memory_search
+$liveVectorMemoryCapabilityOpen = (
+  [bool]$liveVectorMemoryCapability.owner_granted -and
+  [bool]$liveVectorMemoryCapability.owner_scope_approved -and
+  [bool]$liveVectorMemoryCapability.architecture_approved -and
+  [bool]$liveVectorMemoryCapability.hosted_semantic_search_verified -and
+  [bool]$liveVectorMemoryCapability.live_verified -and
+  -not [string]::IsNullOrWhiteSpace([string]$liveVectorMemoryCapability.evidence_artifact) -and
+  [string]$liveVectorMemoryCapability.provider -eq "cloudflare_vectorize" -and
+  [string]$liveVectorMemoryCapability.verifier -eq "scripts/verify-live-vector-memory-search.ps1" -and
+  $liveVectorMemoryCapability.paid_provider -is [bool] -and
+  -not [bool]$liveVectorMemoryCapability.paid_provider
+)
+$liveVectorMemoryBlocker = "live_vector_memory_search_requires_owner_vectorize_scope_architecture_approval_and_hosted_proof"
+if ($liveVectorMemoryCapabilityOpen) {
+  Assert-True "project progress completion clears fully verified vector memory blocker" (-not ($projectProgressCompletionHardBlockers -contains $liveVectorMemoryBlocker))
+} else {
+  Assert-True "project progress completion retains fail-closed vector memory blocker" ($projectProgressCompletionHardBlockers -contains $liveVectorMemoryBlocker)
+}
+$localProgressGapBlocker = "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
+if ($localProjectProgressComplete) {
+  Assert-True "project progress completion clears local gap blocker at 100" (-not ($projectProgressCompletionHardBlockers -contains $localProgressGapBlocker))
+} else {
+  Assert-True "project progress completion retains local gap blocker below 100" ($projectProgressCompletionHardBlockers -contains $localProgressGapBlocker)
+}
 
 Write-Host "[browser-contract] layer interface contracts"
 $layerInterfaceContract = Invoke-Text "$BaseUrl/api/v1/layer-interfaces/contract"
@@ -242,7 +332,8 @@ Write-Host "[browser-contract] cloud provider inventory"
 $cloudProviderInventory = Invoke-Text "$BaseUrl/api/v1/clouds"
 Assert-Contains "cloud provider contract version" $cloudProviderInventory '"contract_version":"cloud-provider-inventory-v1"'
 Assert-Contains "cloud provider evidence" $cloudProviderInventory '"evidence_ref":"cloud_provider_inventory_visible"'
-Assert-Contains "cloud provider Fly.io" $cloudProviderInventory '"id":"fly_io"'
+Assert-Contains "cloud provider active Cloudflare-native runtime" $cloudProviderInventory '"id":"cloudflare_edge"'
+Assert-Contains "cloud provider retired Fly is historical" $cloudProviderInventory '"historical_only":true'
 Assert-Contains "cloud provider grafana" $cloudProviderInventory '"id":"grafana_cloud"'
 Assert-Contains "cloud provider seven layer mapping" $cloudProviderInventory '"seven_layer_mapping"'
 $cloudLayerReadiness = Invoke-Text "$BaseUrl/api/v1/clouds/layers"
@@ -256,6 +347,15 @@ Assert-Contains "platform verify source" $platformVerify '"source":"agent-api"'
 Assert-Contains "platform verify endpoint" $platformVerify '"/api/v1/platform/verify"'
 Assert-Contains "platform verify total" $platformVerify '"total":7'
 Assert-Contains "platform verify dev-only non claim" $platformVerify "Localhost remains DEV-ONLY"
+Write-Host "[browser-contract] technology runtime view"
+if ($AllowLocalhost) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-technology-runtime-view.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-technology-runtime-view.ps1 -BaseUrl $BaseUrl
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: technology runtime view"
+}
 $cloudRenderOffloadContract = Invoke-Text "$BaseUrl/api/v1/clouds/render-offload/contract"
 Assert-Contains "cloud render offload contract version" $cloudRenderOffloadContract '"contract_version":"cloud-render-offload-surface-v1"'
 Assert-Contains "cloud render offload contract evidence" $cloudRenderOffloadContract '"evidence_ref":"cloud_render_offload_contract_runtime_visible"'
@@ -268,6 +368,13 @@ Assert-Contains "cloud render offload local block" $cloudRenderOffloadRuntime '"
 $cloudRenderOffloadRuntimeJson = $cloudRenderOffloadRuntime | ConvertFrom-Json
 $cloudRenderOffloadMissingRequired = @($cloudRenderOffloadRuntimeJson.missing_required_env | ForEach-Object { [string]$_ })
 $cloudRenderOffloadExpectedBlockers = @($cloudRenderOffloadMissingRequired | ForEach-Object { "cloud_render_offload_requires_{0}" -f $_ })
+$cloudflareNativeRuntimeGate = @($cloudRenderOffloadRuntimeJson.cloud_gates | Where-Object {
+  [string]$_.id -eq "cloudflare_native_zero_card_hosted_runtime"
+}) | Select-Object -First 1
+Assert-True "cloud render offload Cloudflare-native gate visible" ($null -ne $cloudflareNativeRuntimeGate)
+if (-not [bool]$cloudflareNativeRuntimeGate.verified) {
+  $cloudRenderOffloadExpectedBlockers += "cloud_render_offload_requires_cloudflare_native_zero_card_hosted_runtime_verifier"
+}
 $cloudRenderOffloadActualBlockers = @($cloudRenderOffloadRuntimeJson.blockers | ForEach-Object { [string]$_ })
 Assert-True "cloud render offload missing required env visible" ($null -ne $cloudRenderOffloadRuntimeJson.missing_required_env)
 Assert-True "cloud render offload blockers visible" ($null -ne $cloudRenderOffloadRuntimeJson.blockers)
@@ -286,18 +393,63 @@ Assert-Contains "cloud deployment preflight runtime endpoint" $cloudDeploymentPr
 $cloudDeploymentPreflightRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/deployment-preflight"
 Assert-Contains "cloud deployment preflight runtime version" $cloudDeploymentPreflightRuntime '"contract_version":"cloud-deployment-preflight-v1"'
 Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPreflightRuntime '"evidence_ref":"cloud_deployment_preflight_visible"'
-Assert-Contains "cloud deployment preflight status" $cloudDeploymentPreflightRuntime '"status":"action_required"'
-Assert-Contains "cloud deployment preflight cloud claim blocked" $cloudDeploymentPreflightRuntime '"cloud_deploy_claim_allowed":false'
-Assert-Contains "cloud deployment preflight production blocked" $cloudDeploymentPreflightRuntime '"production_deploy_claim_allowed":false'
+$canonicalExternalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
+Assert-True "canonical summary contract v2" ([string]$canonicalExternalGateSummary.contract_version -eq "external-gate-summary-v2")
+Assert-True "canonical summary source contract v2" ([string]$canonicalExternalGateSummary.source_contract_version -eq "external-gate-audit-v2")
+Assert-True "canonical summary active Cloudflare target" ([string]$canonicalExternalGateSummary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+$canonicalExternalGateAuditPath = ([string]$canonicalExternalGateSummary.source_artifact).Replace("\", "/")
+Assert-True "canonical summary durable audit source" ($canonicalExternalGateAuditPath -eq "docs/runtime-state/external-gate-audit-v2.json")
+Assert-True "canonical durable audit exists" (Test-Path -LiteralPath $canonicalExternalGateAuditPath)
+$canonicalTrackedAudit = git ls-files --error-unmatch -- $canonicalExternalGateAuditPath 2>$null
+Assert-True "canonical durable audit tracked" ($LASTEXITCODE -eq 0 -and @($canonicalTrackedAudit).Count -eq 1)
+$canonicalExternalGateAudit = Get-Content -LiteralPath $canonicalExternalGateAuditPath -Raw | ConvertFrom-Json
+Assert-True "canonical durable audit contract v2" ([string]$canonicalExternalGateAudit.contract_version -eq "external-gate-audit-v2")
+Assert-True "canonical durable audit active Cloudflare target" ([string]$canonicalExternalGateAudit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+Assert-True "canonical summary/audit status parity" ([string]$canonicalExternalGateSummary.status -eq [string]$canonicalExternalGateAudit.status)
+Assert-True "canonical summary/audit timestamp parity" ([string]$canonicalExternalGateSummary.generated_at_utc -eq [string]$canonicalExternalGateAudit.generated_at_utc)
+$expectedExternalGateClaims = [ordered]@{
+  ghcr_images = [bool]$canonicalExternalGateSummary.ghcr_image_digest_claim_allowed
+  cloudflare_native_zero_card_hosted_runtime = [bool]$canonicalExternalGateSummary.cloudflare_native_zero_card_hosted_runtime_claim_allowed
+  hosted_backend_origins = [bool]$canonicalExternalGateSummary.vercel_backend_origins_claim_allowed
+  hosted_staging = [bool]$canonicalExternalGateSummary.hosted_staging_claim_allowed
+  branch_protection = [bool]$canonicalExternalGateSummary.branch_protection_claim_allowed
+  canonical_secret_scan = [bool]$canonicalExternalGateSummary.canonical_gitleaks_claim_allowed
+}
+$expectedBlockedExternalGates = @($expectedExternalGateClaims.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object { [string]$_.Key })
+$expectedExternalVerifiedCount = @($expectedExternalGateClaims.GetEnumerator() | Where-Object { $_.Value }).Count
+$canonicalExternalGateSummaryVerified = (
+  [string]$canonicalExternalGateSummary.status -eq "verified" -and
+  @($canonicalExternalGateSummary.missing_or_failed_gates).Count -eq 0
+)
+$expectedExternalGateStatus = if ($canonicalExternalGateSummaryVerified -and $expectedExternalVerifiedCount -eq $expectedExternalGateClaims.Count) { "verified" } else { "action_required" }
+$expectedPreflightStatus = if ($expectedBlockedExternalGates.Count -gt 0) { "action_required" } elseif ([bool]$canonicalExternalGateSummary.production_deploy_claim_allowed -and $canonicalExternalGateSummaryVerified) { "verified" } else { "ready_for_external_execution" }
+$expectedCloudDeployClaim = $expectedBlockedExternalGates.Count -eq 0
+$expectedProductionDeployClaim = $expectedCloudDeployClaim -and $canonicalExternalGateSummaryVerified -and [bool]$canonicalExternalGateSummary.production_deploy_claim_allowed
+$expectedMirrorStatus = if ($expectedExternalGateStatus -eq "verified") { "verified" } else { "local_mirror_ready_hosted_blocked" }
 $cloudDeploymentPreflightRuntimeJson = $cloudDeploymentPreflightRuntime | ConvertFrom-Json
 $cloudDeploymentPreflightBlockedGates = @($cloudDeploymentPreflightRuntimeJson.missing_or_blocked_gates | ForEach-Object { [string]$_ })
-Assert-True "cloud deployment preflight missing fly cloud stack" ($cloudDeploymentPreflightBlockedGates -contains "fly_cloud_stack")
-Assert-True "cloud deployment preflight missing hosted backend origins gate" ($cloudDeploymentPreflightBlockedGates -contains "hosted_backend_origins")
+Assert-True "cloud deployment preflight status follows canonical summary" ([string]$cloudDeploymentPreflightRuntimeJson.status -eq $expectedPreflightStatus)
+Assert-True "cloud deployment preflight cloud claim follows canonical summary" ([bool]$cloudDeploymentPreflightRuntimeJson.cloud_deploy_claim_allowed -eq $expectedCloudDeployClaim)
+Assert-True "cloud deployment preflight production claim follows canonical summary" ([bool]$cloudDeploymentPreflightRuntimeJson.production_deploy_claim_allowed -eq $expectedProductionDeployClaim)
+Assert-True "cloud deployment preflight canonical summary status" ([string]$cloudDeploymentPreflightRuntimeJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
+Assert-ArrayEquivalent "cloud deployment preflight blocker parity" $cloudDeploymentPreflightBlockedGates $expectedBlockedExternalGates
+foreach ($requiredGateId in @("ghcr_images", "cloudflare_native_zero_card_hosted_runtime", "hosted_backend_origins", "hosted_staging", "branch_protection", "canonical_secret_scan")) {
+  $requiredGate = @($cloudDeploymentPreflightRuntimeJson.gates | Where-Object { [string]$_.id -eq $requiredGateId })
+  Assert-True "cloud deployment preflight gate present: $requiredGateId" ($requiredGate.Count -eq 1)
+  Assert-True "cloud deployment preflight gate summary parity: $requiredGateId" ([bool]$requiredGate[0].verified -eq [bool]$expectedExternalGateClaims[$requiredGateId])
+}
 Assert-Contains "cloud deployment preflight ghcr sequence" $cloudDeploymentPreflightRuntime "publish_ghcr_images"
 Assert-Contains "cloud deployment preflight hosted origins" $cloudDeploymentPreflightRuntime "hosted_backend_origins"
 Assert-Contains "cloud deployment preflight branch token" $cloudDeploymentPreflightRuntime "BRANCH_PROTECTION_TOKEN"
-Assert-Contains "cloud deployment preflight cloud compose" $cloudDeploymentPreflightRuntime "docker-compose.cloud.yml"
+Assert-Contains "cloud deployment preflight Cloudflare URL" $cloudDeploymentPreflightRuntime "CLOUDFLARE_STATEFUL_BASE_URL"
+Assert-Contains "cloud deployment preflight Cloudflare account" $cloudDeploymentPreflightRuntime "CLOUDFLARE_ACCOUNT_ID"
+Assert-Contains "cloud deployment preflight Cloudflare token presence" $cloudDeploymentPreflightRuntime "CLOUDFLARE_API_TOKEN"
+foreach ($requiredScope in @("workers_scripts_edit", "d1_edit", "durable_objects_edit", "queues_edit")) {
+  Assert-Contains "cloud deployment preflight required owner scope" $cloudDeploymentPreflightRuntime $requiredScope
+}
+Assert-Contains "cloud deployment preflight Cloudflare manifest" $cloudDeploymentPreflightRuntime "services/cloudflare-stateful-runtime/wrangler.jsonc"
 Assert-Contains "cloud deployment preflight owner review" $cloudDeploymentPreflightRuntime "owner_review_before_production"
+Assert-Contains "cloud deployment preflight no mutation claim" $cloudDeploymentPreflightRuntime "This endpoint does not create, mutate, deploy, or delete cloud resources."
 
 Write-Host "[browser-contract] go-live readiness"
 $goLiveReadinessContract = Invoke-Text "$BaseUrl/api/v1/clouds/go-live-readiness/contract"
@@ -328,38 +480,59 @@ Assert-Contains "auth contract refresh ttl" $authContract '"ttl_seconds":604800'
 Assert-Contains "auth contract rotation" $authContract '"rotation_required":true'
 Assert-Contains "auth contract redis blacklist" $authContract '"blacklist_store":"redis"'
 Assert-Contains "auth contract same site" $authContract '"SameSite":"Strict"'
-$authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
-Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
-Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
-$authCallback = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=browser-auth-code&state=browser-auth-state" -Method "GET" -ContentType ""
-Assert-Contains "auth callback authenticated" $authCallback '"status":"authenticated"'
-Assert-Contains "auth callback no live oauth" $authCallback '"live_github_oauth_call":false'
-Assert-Contains "auth callback same site strict" $authCallback '"SameSite":"Strict"'
-$authRefreshToken = "browser-refresh-token-" + [Guid]::NewGuid().ToString("N")
-$authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "browser-auth-refresh-rotated" } | ConvertTo-Json -Compress
-$authRefresh = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-Assert-Contains "auth refresh rotated status" $authRefresh '"status":"rotated"'
-Assert-Contains "auth refresh rotated flag" $authRefresh '"refresh_token_rotated":true'
-Assert-Contains "auth refresh blacklist flag" $authRefresh '"old_refresh_token_blacklisted":true'
-$authReuseOutput = ""
-$authReuseFailed = $false
-try {
-  $authReuseOutput = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-} catch {
-  $authReuseFailed = $true
-  $authReuseOutput = $_.Exception.Message
+Assert-Contains "auth contract fail-closed mode" $authContract '"mode":"verified_identity_fail_closed"'
+Assert-Contains "auth contract one-time state" $authContract '"one_time":true'
+Assert-Contains "auth contract active refresh registry" $authContract '"active_registry_required":true'
+Assert-Contains "auth contract body refresh disabled" $authContract '"body_token_allowed":false'
+Assert-Contains "auth contract response body excludes state" $authContract '"response_body_contains_state":false'
+Assert-Contains "auth contract minimal scope" $authContract '"scope":"read:user"'
+Assert-Contains "auth contract strong signing format" $authContract '"signing_secret_format":"base64url_256_bit_minimum"'
+Assert-Contains "auth contract audit persistence gate" $authContract '"credential_issuance_requires_persistence":true'
+$authContractObject = $authContract | ConvertFrom-Json
+if ($isLocalProof) {
+  if ([bool]$authContractObject.credential_issuance_ready) {
+    $authStartHeaders = Join-Path $env:TEMP ("browser-auth-start-headers-" + [Guid]::NewGuid().ToString("N") + ".txt")
+    $authStartBody = Join-Path $env:TEMP ("browser-auth-start-body-" + [Guid]::NewGuid().ToString("N") + ".txt")
+    try {
+      $authStartStatus = curl.exe -sS --max-time 30 --dump-header $authStartHeaders --output $authStartBody --write-out "%{http_code}" "$BaseUrl/api/v1/auth/github"
+      Assert-True "auth github curl exit" ($LASTEXITCODE -eq 0)
+      Assert-True "auth github redirect status" ([int]$authStartStatus -in @(302, 303, 307))
+      $authStartHeaderText = Get-Content -LiteralPath $authStartHeaders -Raw
+      $authStartBodyText = Get-Content -LiteralPath $authStartBody -Raw
+      Assert-True "auth github fixed redirect" ($authStartHeaderText -match '(?im)^Location:\s*https://github\.com/login/oauth/authorize\?')
+      Assert-True "auth github minimal scope" ($authStartHeaderText.Contains("scope=read%3Auser"))
+      Assert-True "auth github no email scope" (-not $authStartHeaderText.Contains("user%3Aemail"))
+      Assert-True "auth github empty JSON body" ([string]::IsNullOrWhiteSpace($authStartBodyText))
+    } finally {
+      Remove-TempFileWithRetry $authStartHeaders
+      Remove-TempFileWithRetry $authStartBody
+    }
+  } else {
+    $authGithub = Invoke-Text "$BaseUrl/api/v1/auth/github"
+    Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
+    Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
+    Assert-Contains "auth github no credentials" $authGithub '"credentials_issued":false'
+    Assert-Contains "auth github state required" $authGithub '"state_required":true'
+  }
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: auth fail-closed verifier" }
+} else {
+  Write-Host "[browser-contract] hosted auth proof is read-only; OAuth start/callback/refresh/logout are not invoked"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl $BaseUrl
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: hosted read-only auth contract verifier" }
 }
-Assert-True "auth refresh reuse blocked with non-2xx" $authReuseFailed
-Assert-Contains "auth refresh reuse blocked" $authReuseOutput "refresh_token_invalid"
-$authLogoutBody = @{ refresh_token = ("browser-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "browser-auth-logout-revoked" } | ConvertTo-Json -Compress
-$authLogout = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/logout" -Method "POST" -Body $authLogoutBody -ContentType "application/json"
-Assert-Contains "auth logout status" $authLogout '"status":"logged_out"'
-Assert-Contains "auth logout revoked" $authLogout '"refresh_token_revoked":true'
-$authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
-Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
-Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
-Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
+
+Write-Host "[browser-contract] signed auth-session integrity"
+$signedAuthSessionContract = Invoke-Text "$BaseUrl/api/v1/auth/session/contract"
+Assert-Contains "signed auth-session version" $signedAuthSessionContract '"contract_version":"auth-session-integrity-v1"'
+Assert-Contains "signed auth-session evidence" $signedAuthSessionContract '"evidence_ref":"auth_session_integrity_visible"'
+Assert-Contains "signed auth-session external writes blocked" $signedAuthSessionContract '"external_provider_write":false'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-session-integrity.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-session-integrity.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: signed auth-session integrity verifier" }
 
 Write-Host "[browser-contract] system unavailable fallback contract"
 $systemFallbackContract = Invoke-Text "$BaseUrl/api/v1/system/fallback/contract"
@@ -398,6 +571,67 @@ Assert-Contains "error contract envelope evidence" $errorContract "error_respons
 $securityHeadersContract = Invoke-Text "$BaseUrl/api/v1/security/headers/contract"
 Assert-Contains "security headers contract version" $securityHeadersContract '"contract_version":"security-headers-v1"'
 Assert-Contains "security headers evidence" $securityHeadersContract "security_headers_enforced"
+Write-Host "[browser-contract] CSP report audit contract"
+$cspReportContract = Invoke-Text "$BaseUrl/api/v1/security/csp/contract"
+Assert-Contains "CSP report contract version" $cspReportContract '"contract_version":"csp-report-contract-v1"'
+Assert-Contains "CSP report contract evidence" $cspReportContract "csp_report_contract_visible"
+Assert-Contains "CSP report audit evidence" $cspReportContract "csp_report_audit_persisted"
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csp-report-contract.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csp-report-contract.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: CSP report audit contract verifier"
+}
+Write-Host "[browser-contract] CSRF origin guard contract"
+$csrfOriginContract = Invoke-Text "$BaseUrl/api/v1/security/csrf/contract"
+Assert-Contains "CSRF origin contract version" $csrfOriginContract '"contract_version":"csrf-origin-guard-v1"'
+Assert-Contains "CSRF origin evidence" $csrfOriginContract '"evidence_ref":"csrf_origin_guard_visible"'
+Assert-Contains "CSRF origin audit evidence" $csrfOriginContract '"audit_evidence_ref":"csrf_origin_rejection_audited"'
+Assert-Contains "CSRF origin rejection status" $csrfOriginContract '"rejection_status_code":403'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csrf-origin-guard.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-csrf-origin-guard.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: CSRF origin guard verifier" }
+Write-Host "[browser-contract] cross-origin response guard contract"
+$crossOriginContract = Invoke-Text "$BaseUrl/api/v1/security/cross-origin/contract"
+Assert-Contains "cross-origin contract version" $crossOriginContract '"contract_version":"cross-origin-response-guard-v1"'
+Assert-Contains "cross-origin evidence" $crossOriginContract '"evidence_ref":"cross_origin_response_guard_visible"'
+Assert-Contains "cross-origin attacker reflection blocked" $crossOriginContract '"attacker_origin_reflected":false'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-cross-origin-response-guard.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+} else {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-cross-origin-response-guard.ps1 -BaseUrl $BaseUrl -ReadOnly
+}
+if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: cross-origin response guard verifier" }
+
+Write-Host "[browser-contract] orchestrator completion evidence"
+$orchestratorCompletionContract = Invoke-Text "$BaseUrl/api/v1/orchestrator/completion/contract"
+Assert-Contains "orchestrator completion version" $orchestratorCompletionContract '"contract_version":"orchestrator-completion-evidence-v1"'
+Assert-Contains "orchestrator completion evidence" $orchestratorCompletionContract '"evidence_ref":"orchestrator_completion_evidence_verified"'
+Assert-Contains "orchestrator completion target" $orchestratorCompletionContract '"layer_progress_after_proof":100'
+Assert-Contains "orchestrator completion no live provider" $orchestratorCompletionContract '"live_provider_calls":false'
+Assert-Contains "orchestrator completion no live MCP writes" $orchestratorCompletionContract '"live_mcp_writes":false'
+Assert-Contains "orchestrator completion no production deploy" $orchestratorCompletionContract '"production_deploy":false'
+if ($isLocalProof) {
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-orchestrator-completion-evidence.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: orchestrator completion evidence verifier" }
+}
+
+Write-Host "[browser-contract] phase5 local production candidate"
+$phase5CandidateContract = Invoke-Text "$BaseUrl/api/v1/release-candidate/local/contract"
+Assert-Contains "phase5 candidate contract version" $phase5CandidateContract '"contract_version":"phase5-production-candidate-local-v1"'
+Assert-Contains "phase5 candidate evidence" $phase5CandidateContract '"evidence_ref":"phase5_local_production_candidate_verified"'
+Assert-Contains "phase5 candidate service count" $phase5CandidateContract '"service_count":6'
+Assert-Contains "phase5 candidate progress" $phase5CandidateContract '"phase5_progress_after_proof":68'
+Assert-Contains "phase5 candidate registry closed" $phase5CandidateContract '"registry_publish":false'
+Assert-Contains "phase5 candidate hosted closed" $phase5CandidateContract '"hosted_staging_parity":false'
+Assert-Contains "phase5 candidate deploy closed" $phase5CandidateContract '"production_deploy":false'
+Assert-Contains "phase5 candidate promotion closed" $phase5CandidateContract '"release_promotion":false'
+Assert-Contains "phase5 candidate secret output closed" $phase5CandidateContract '"secret_output":false'
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"
@@ -411,8 +645,23 @@ $agentActivityContract = Invoke-Text "$BaseUrl/api/v1/agent-activity/contract"
 Assert-Contains "agent activity contract version" $agentActivityContract '"contract_version":"agent-activity-trace-v1"'
 Assert-Contains "agent activity filtered feed evidence" $agentActivityContract "agent_activity_filtered_feed_visible"
 $agentActivityFeed = Invoke-Text "$BaseUrl/api/v1/agent-activity/recent?limit=5&severity=info"
-Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
-Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
+if ($isLocalProof) {
+  Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
+  Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
+} else {
+  Assert-Contains "hosted agent activity projection contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
+  Assert-Contains "hosted agent activity projection source" $agentActivityFeed '"source":"frontend-projection"'
+  Assert-Contains "hosted agent activity projection degraded" $agentActivityFeed '"status":"degraded"'
+  Assert-Contains "hosted agent activity projection read-only" $agentActivityFeed '"read_only":true'
+  Assert-Contains "hosted agent activity projection non-live" $agentActivityFeed '"live_backend":false'
+  Assert-Contains "hosted agent activity projection empty" $agentActivityFeed '"events":[]'
+  Assert-Contains "hosted agent activity projection no audit claim" $agentActivityFeed '"audit_persisted":false'
+  Assert-Contains "hosted agent activity projection no direct provider" $agentActivityFeed '"direct_provider_calls":false'
+  Assert-Contains "hosted agent activity projection no live provider" $agentActivityFeed '"live_provider_calls":false'
+  Assert-Contains "hosted agent activity projection no live MCP write" $agentActivityFeed '"live_mcp_writes":false'
+  Assert-Contains "hosted agent activity projection no production deploy" $agentActivityFeed '"production_deploy":false'
+  Assert-Contains "hosted agent activity projection no secret output" $agentActivityFeed '"secret_output":false'
+}
 
 Write-Host "[browser-contract] task assignment queue contract"
 $taskAssignmentContract = Invoke-Text "$BaseUrl/api/v1/tasks/assignment-contract"
@@ -440,7 +689,7 @@ Assert-Contains "agent llm streaming no live" $agentLlmStreamingContract "No liv
 
 Write-Host "[browser-contract] llm responses adapter contract"
 $llmResponsesContract = Invoke-Text "$BaseUrl/llm/api/v1/responses/contract"
-Assert-Contains "llm responses adapter version" $llmResponsesContract '"contract_version":"llm-responses-adapter-contract-v1"'
+Assert-Contains "llm responses adapter version" $llmResponsesContract '"contract_version":"llm-responses-adapter-contract-v2"'
 Assert-Contains "llm responses adapter evidence" $llmResponsesContract '"evidence_ref":"llm_responses_adapter_contract_visible"'
 Assert-Contains "llm responses adapter runtime endpoint" $llmResponsesContract "POST /llm/v1/responses"
 & (Join-Path $PSScriptRoot "verify-llm-responses-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
@@ -449,10 +698,17 @@ Write-Host "[browser-contract] live agent steering contract"
 $liveAgentSteeringContract = Invoke-Text "$BaseUrl/api/v1/live-agents/contract"
 Assert-Contains "live agent steering version" $liveAgentSteeringContract '"contract_version":"live-agent-steering-v1"'
 Assert-Contains "live agent steering evidence" $liveAgentSteeringContract "live_agent_steering_contract_visible"
-Assert-Contains "live agent steering llm adapter" $liveAgentSteeringContract "llm-responses-adapter-contract-v1"
+Assert-Contains "live agent steering llm adapter" $liveAgentSteeringContract "llm-responses-adapter-contract-v2"
 Assert-Contains "live agent steering response no-live" $liveAgentSteeringContract "live_provider_calls"
 Assert-Contains "live agent steering response audit" $liveAgentSteeringContract "audit_persisted"
-& (Join-Path $PSScriptRoot "verify-live-agent-steering-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
+if ($isLocalProof) {
+  & (Join-Path $PSScriptRoot "verify-live-agent-steering-contract.ps1") -BaseUrl $BaseUrl -AllowLocalhost:$AllowLocalhost
+} else {
+  $hostedLiveAgentStatus = Invoke-Text "$BaseUrl/api/v1/live-agents/status"
+  Assert-Contains "hosted live agent status degraded" $hostedLiveAgentStatus '"status":"degraded"'
+  Assert-Contains "hosted live agent status non-live" $hostedLiveAgentStatus '"live_backend":false'
+  Assert-Contains "hosted live agent status empty" $hostedLiveAgentStatus '"agents":[]'
+}
 
 Write-Host "[browser-contract] mcp version pinning contract"
 $mcpVersionPinningContract = Invoke-Text "$BaseUrl/mcp/api/v1/version-pinning/contract"
@@ -470,13 +726,26 @@ Assert-Contains "mcp version pinning no live write" $mcpVersionPinningContract "
 Write-Host "[browser-contract] memory embedding consistency contract"
 $memoryEmbeddingConsistencyContract = Invoke-Text "$BaseUrl/api/v1/memory/embedding-consistency/contract"
 Assert-Contains "memory embedding consistency version" $memoryEmbeddingConsistencyContract '"contract_version":"memory-embedding-consistency-v1"'
-Assert-Contains "memory embedding consistency status" $memoryEmbeddingConsistencyContract '"status":"verified"'
+if ($isLocalProof) {
+  Assert-Contains "memory embedding consistency status" $memoryEmbeddingConsistencyContract '"status":"verified"'
+  Assert-Contains "memory embedding consistency gap" $memoryEmbeddingConsistencyContract '"audit_gap":"L-09"'
+  Assert-Contains "memory embedding consistency column" $memoryEmbeddingConsistencyContract '"embedding_model_version"'
+  Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistencyContract "vector(1536)"
+  Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
+  Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
+} else {
+  Assert-True "hosted memory embedding status honest" (
+    $memoryEmbeddingConsistencyContract.Contains('"status":"action_required"') -or
+    $memoryEmbeddingConsistencyContract.Contains('"status":"verified"')
+  )
+  Assert-Contains "hosted memory embedding model" $memoryEmbeddingConsistencyContract '"model_version":"text-embedding-3-small"'
+  Assert-Contains "hosted memory embedding dimensions" $memoryEmbeddingConsistencyContract '"dimensions":1536'
+  Assert-Contains "hosted memory embedding vector" $memoryEmbeddingConsistencyContract "vector(1536)"
+  Assert-Contains "hosted memory lexical fallback" $memoryEmbeddingConsistencyContract '"search_mode":"lexical_fallback"'
+  Assert-Contains "hosted memory no direct provider" $memoryEmbeddingConsistencyContract '"direct_provider_calls":false'
+  Assert-Contains "hosted memory contract no provider call" $memoryEmbeddingConsistencyContract "No live embedding provider call is performed"
+}
 Assert-Contains "memory embedding consistency evidence" $memoryEmbeddingConsistencyContract '"evidence_ref":"memory_embedding_consistency_contract_visible"'
-Assert-Contains "memory embedding consistency gap" $memoryEmbeddingConsistencyContract '"audit_gap":"L-09"'
-Assert-Contains "memory embedding consistency column" $memoryEmbeddingConsistencyContract '"embedding_model_version"'
-Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistencyContract "vector(1536)"
-Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
-Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
 
 Write-Host "[browser-contract] Phase 2 Runtime Contract"
 $runtimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"
@@ -501,6 +770,97 @@ Assert-Contains "organism contract topology related" $organismContract '"/api/v1
 Assert-Contains "organism contract safety related" $organismContract '"/api/v1/organism/safety"'
 Assert-Contains "organism contract workspace wiring related" $organismContract '"/api/v1/workspace/wiring"'
 Assert-Contains "organism contract workspace page count" $organismContract '"workspace_page_count":22'
+$phase6CameraLightingContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-camera-lighting/contract"
+Assert-Contains "phase6 camera lighting contract version" $phase6CameraLightingContract '"contract_version":"phase6-3d-camera-lighting-runtime-v1"'
+Assert-Contains "phase6 camera lighting evidence" $phase6CameraLightingContract '"evidence_ref":"phase6_3d_camera_lighting_runtime_visible"'
+Assert-Contains "phase6 camera presets" $phase6CameraLightingContract '"camera_presets"'
+Assert-Contains "phase6 lighting profiles" $phase6CameraLightingContract '"lighting_profiles"'
+Assert-Contains "phase6 safe exposure" $phase6CameraLightingContract '"safe_exposure_range":{"min":0.72,"max":1.18,"step":0.02}'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D camera and lighting controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-camera-lighting-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 camera and lighting verifier"
+  }
+}
+$phase6GameplayStateContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-gameplay-state/contract"
+Assert-Contains "phase6 gameplay state contract version" $phase6GameplayStateContract '"contract_version":"phase6-3d-gameplay-state-runtime-v1"'
+Assert-Contains "phase6 gameplay state evidence" $phase6GameplayStateContract '"evidence_ref":"phase6_3d_gameplay_state_runtime_visible"'
+Assert-Contains "phase6 gameplay state objectives" $phase6GameplayStateContract '"objectives":["collect","checkpoint","survive"]'
+Assert-Contains "phase6 gameplay state transitions" $phase6GameplayStateContract '"objective_transitions"'
+Assert-Contains "phase6 gameplay state local only" $phase6GameplayStateContract '"local_gameplay_state_only_required":true'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D gameplay state controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-gameplay-state-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 gameplay state verifier"
+  }
+}
+$phase6AssetPolicyContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-asset-policy/contract"
+Assert-Contains "phase6 asset policy contract version" $phase6AssetPolicyContract '"contract_version":"phase6-3d-asset-policy-runtime-v1"'
+Assert-Contains "phase6 asset policy evidence" $phase6AssetPolicyContract '"evidence_ref":"phase6_3d_asset_policy_runtime_visible"'
+Assert-Contains "phase6 asset profiles" $phase6AssetPolicyContract '"asset_profiles"'
+Assert-Contains "phase6 material variants" $phase6AssetPolicyContract '"material_variants"'
+Assert-Contains "phase6 asset policy local only" $phase6AssetPolicyContract '"local_asset_manifest_only_required":true'
+Assert-Contains "phase6 external asset fetch blocked" $phase6AssetPolicyContract '"external_asset_fetch_allowed":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D asset policy controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-asset-policy-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 asset policy verifier"
+  }
+}
+$phase6SaveLoadContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-save-load/contract"
+Assert-Contains "phase6 save load contract version" $phase6SaveLoadContract '"contract_version":"phase6-3d-save-load-runtime-v1"'
+Assert-Contains "phase6 save load evidence" $phase6SaveLoadContract '"evidence_ref":"phase6_3d_save_load_runtime_visible"'
+Assert-Contains "phase6 save load field count" $phase6SaveLoadContract '"snapshot_field_count":15'
+Assert-Contains "phase6 save load volatile only" $phase6SaveLoadContract '"volatile_browser_memory_only_required":true'
+Assert-Contains "phase6 save load cloud sync blocked" $phase6SaveLoadContract '"cloud_save_sync_allowed":false'
+Assert-Contains "phase6 save load network blocked" $phase6SaveLoadContract '"network_calls_required":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D save and load controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-save-load-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) {
+    throw "Browser contract verification failed: Phase 6 save and load verifier"
+  }
+}
+$phase6AccessibilityContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-accessibility/contract"
+Assert-Contains "phase6 accessibility contract version" $phase6AccessibilityContract '"contract_version":"phase6-3d-accessibility-runtime-v1"'
+Assert-Contains "phase6 accessibility evidence" $phase6AccessibilityContract '"evidence_ref":"phase6_3d_accessibility_runtime_visible"'
+Assert-Contains "phase6 accessibility system preference" $phase6AccessibilityContract '"system_preference_detection_required":true'
+Assert-Contains "phase6 accessibility keyboard" $phase6AccessibilityContract '"accessible_item_count":10'
+Assert-Contains "phase6 accessibility no network" $phase6AccessibilityContract '"network_calls_required":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D accessibility controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-accessibility-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: Phase 6 accessibility verifier" }
+}
+$phase6NetcodeContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-netcode/contract"
+Assert-Contains "phase6 netcode contract version" $phase6NetcodeContract '"contract_version":"phase6-3d-netcode-loopback-runtime-v1"'
+Assert-Contains "phase6 netcode evidence" $phase6NetcodeContract '"evidence_ref":"phase6_3d_netcode_loopback_runtime_visible"'
+Assert-Contains "phase6 netcode transport" $phase6NetcodeContract '"transport":"loopback"'
+Assert-Contains "phase6 netcode peers" $phase6NetcodeContract '"maximum_peers":2'
+Assert-Contains "phase6 netcode packets" $phase6NetcodeContract '"packets_per_tick":2'
+Assert-Contains "phase6 netcode no websocket" $phase6NetcodeContract '"websocket_allowed":false'
+Assert-Contains "phase6 netcode no server sync" $phase6NetcodeContract '"server_authoritative_sync_allowed":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 3D netcode loopback controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-3d-netcode-loopback-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: Phase 6 netcode loopback verifier" }
+}
+$phase6ScoreboardContract = Invoke-Text "$BaseUrl/api/v1/phase6/local-scoreboard-performance/contract"
+Assert-Contains "phase6 scoreboard contract version" $phase6ScoreboardContract '"contract_version":"phase6-local-scoreboard-performance-runtime-v1"'
+Assert-Contains "phase6 scoreboard evidence" $phase6ScoreboardContract '"evidence_ref":"phase6_local_scoreboard_performance_runtime_visible"'
+Assert-Contains "phase6 scoreboard maximum" $phase6ScoreboardContract '"leaderboard_maximum_entries":3'
+Assert-Contains "phase6 scoreboard sample count" $phase6ScoreboardContract '"performance_sample_count":12'
+Assert-Contains "phase6 scoreboard no sync" $phase6ScoreboardContract '"leaderboard_sync_allowed":false'
+Assert-Contains "phase6 scoreboard no persistence" $phase6ScoreboardContract '"persistent_storage_allowed":false'
+Assert-Contains "phase6 scoreboard no capacity claim" $phase6ScoreboardContract '"scale_capacity_claim_allowed":false'
+if ($isLocalProof) {
+  Write-Host "[browser-contract] Phase 6 local scoreboard and performance controls"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase6-local-scoreboard-performance-runtime.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: Phase 6 local scoreboard/performance verifier" }
+}
 $organismTopology = Invoke-Text "$BaseUrl/api/v1/organism/topology"
 Assert-Contains "organism topology version" $organismTopology '"contract_version":"organism-topology-v1"'
 Assert-Contains "organism topology layer node" $organismTopology '"id":"layer:FE"'
@@ -584,6 +944,19 @@ if ($AllowLocalhost) {
 if ($LASTEXITCODE -ne 0) {
   throw "Browser contract verification failed: workspace pages browser proof"
 }
+Write-Host "[browser-contract] workspace responsive browser proof"
+$responsiveArgs = @(
+  "scripts\verify-workspace-responsive-browser.cjs",
+  "--base-url",
+  $BaseUrl
+)
+if ($AllowLocalhost) {
+  $responsiveArgs += "--allow-localhost"
+}
+node @responsiveArgs
+if ($LASTEXITCODE -ne 0) {
+  throw "Browser contract verification failed: workspace responsive browser proof"
+}
 $organismLiveState = Invoke-Text "$BaseUrl/api/v1/organism/live-state"
 Assert-Contains "organism live-state version" $organismLiveState '"contract_version":"organism-live-state-v1"'
 Assert-Contains "organism live-state no secret" $organismLiveState '"gates_closed"'
@@ -607,23 +980,38 @@ Assert-Contains "external gates contract" $externalGates '"contract_version":"ex
 Assert-Contains "external gates endpoint" $externalGates '"endpoint":"GET /api/v1/external-gates"'
 Assert-Contains "external gates evidence" $externalGates '"evidence_ref":"external_gates_state_visible"'
 Assert-Contains "external gates aligned with preflight" $externalGates '"aligned_with_deployment_preflight":true'
-Assert-Contains "external gates blocked ghcr" $externalGates '"ghcr_images"'
-Assert-Contains "external gates blocked hosted origins" $externalGates '"hosted_backend_origins"'
+Assert-Contains "external gates total count" $externalGates '"total_count":6'
+Assert-Contains "external gates ghcr mapping" $externalGates '"ghcr_images"'
+Assert-Contains "external gates Cloudflare-native runtime mapping" $externalGates '"cloudflare_native_zero_card_hosted_runtime"'
+Assert-Contains "external gates hosted origins mapping" $externalGates '"hosted_backend_origins"'
 Assert-Contains "external gates branch alias" $externalGates '"preflight_gate_id":"branch_protection"'
 Assert-Contains "external gates evidence alias" $externalGates '"evidence_ref":"ghcr_image_digest_proof"'
+$externalGatesJson = $externalGates | ConvertFrom-Json
+$expectedMissingVerifiedGateIds = @($externalGatesJson.gates | Where-Object { -not [bool]$_.verified } | ForEach-Object { [string]$_.id })
+Assert-True "external gates status follows canonical summary" ([string]$externalGatesJson.status -eq $expectedExternalGateStatus)
+Assert-True "external gates verified count follows canonical summary" ([int]$externalGatesJson.verified_count -eq $expectedExternalVerifiedCount)
+Assert-True "external gates canonical summary status" ([string]$externalGatesJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
+Assert-ArrayEquivalent "external gates release blocker parity" @($externalGatesJson.blocked_release_gates) $expectedBlockedExternalGates
+Assert-ArrayEquivalent "project progress completion missing external gate parity" $projectProgressCompletionMissingGates $expectedMissingVerifiedGateIds
+foreach ($expectedMissingGateId in $expectedMissingVerifiedGateIds) {
+  Assert-True "project progress completion hard blocker present: $expectedMissingGateId" ($projectProgressCompletionHardBlockers -contains $expectedMissingGateId)
+}
 $externalGateMirror = Invoke-Text "$BaseUrl/api/v1/external-gates/mirror"
+$externalGateMirrorJson = $externalGateMirror | ConvertFrom-Json
 Assert-Contains "external gate mirror contract" $externalGateMirror '"contract_version":"external-gate-mirror-v1"'
-Assert-Contains "external gate mirror status" $externalGateMirror '"status":"local_mirror_ready_hosted_blocked"'
 Assert-Contains "external gate mirror evidence" $externalGateMirror '"evidence_ref":"external_gate_mirror_proof"'
-Assert-Contains "external gate mirror hosted allowed" $externalGateMirror '"hosted_staging_claim_allowed":true'
-Assert-Contains "external gate mirror branch protection allowed" $externalGateMirror '"branch_protection_claim_allowed":true'
+Assert-True "external gate mirror status follows canonical summary" ([string]$externalGateMirrorJson.status -eq $expectedMirrorStatus)
+Assert-True "external gate mirror canonical summary status" ([string]$externalGateMirrorJson.canonical_summary_status -eq [string]$canonicalExternalGateSummary.status)
+Assert-True "external gate mirror hosted claim parity" ([bool]$externalGateMirrorJson.hosted_staging_claim_allowed -eq [bool]$canonicalExternalGateSummary.hosted_staging_claim_allowed)
+Assert-True "external gate mirror branch protection claim parity" ([bool]$externalGateMirrorJson.branch_protection_claim_allowed -eq [bool]$canonicalExternalGateSummary.branch_protection_claim_allowed)
 Assert-Contains "external gate mirror branch protection evidence" $externalGateMirror '"branch_protection_evidence_ref":"branch_protection_verify_contract"'
 Assert-Contains "external gate mirror branch protection workflow" $externalGateMirror ".github/workflows/branch-protection.yml"
 Assert-Contains "external gate mirror branch protection verifier" $externalGateMirror "scripts/apply_github_branch_protection.py --verify-only"
-Assert-Contains "external gate mirror production blocked" $externalGateMirror '"production_deploy_claim_allowed":false'
+Assert-True "external gate mirror production claim parity" ([bool]$externalGateMirrorJson.production_deploy_claim_allowed -eq $expectedProductionDeployClaim)
 Assert-Contains "external gate mirror sse contract" $externalGateMirror "phase2-sse-event-contract-v1"
 Assert-Contains "external gate mirror project progress proof" $externalGateMirror "project_progress_manifest_proof"
 
+if ($isLocalProof) {
 Write-Host "[browser-contract] Start Phase 2 Runtime"
 $phase2RuntimeThreadId = "browser-contract-phase2-runtime-" + [Guid]::NewGuid().ToString("N")
 $phase2RuntimeBody = @{
@@ -712,6 +1100,12 @@ Assert-True "session history audit events visible" (@($sessionHistory.audit_even
 Assert-True "session history project progress visible" ($sessionHistory.project_progress.overall_percent -eq $expectedOverallPercent)
 Assert-True "session history integrity verified" ($sessionHistory.project_progress_integrity.status -eq "verified")
 Assert-True "session history integrity evidence" ($sessionHistory.project_progress_integrity.evidence_ref -eq "project_progress_integrity_runtime_proof")
+} else {
+  Write-Host "[browser-contract] Hosted Phase 2 Runtime mutation skipped (stateless read-only contract origin)"
+  $hostedPhase2RuntimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"
+  Assert-Contains "hosted phase2 runtime contract version" $hostedPhase2RuntimeContract '"contract_version":"phase2-runtime-v1"'
+  Assert-Contains "hosted phase2 runtime no live provider" $hostedPhase2RuntimeContract '"live_provider_calls":false'
+}
 
 if ($SeedMemoryConsolidation) {
   Write-Host "[browser-contract] Memory Consolidation: seed memory consolidation"
@@ -732,6 +1126,14 @@ if ($SeedMemoryConsolidation) {
   $consolidationFeed = Invoke-Text "$BaseUrl/api/v1/memory/consolidation/recent?limit=8"
   Assert-Contains "memory consolidation feed shape" $consolidationFeed '"events"'
   Assert-Contains "memory consolidation summary shape" $consolidationFeed '"summary"'
+}
+
+if ($isLocalProof) {
+  Write-Host "[browser-contract] fixed DEV-ONLY filesystem project-progress adapter"
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-mcp-filesystem-project-progress.ps1 -BaseUrl $BaseUrl -AllowLocalhost
+  if ($LASTEXITCODE -ne 0) { throw "Browser contract filesystem project-progress verifier failed" }
+} else {
+  Write-Host "[browser-contract] filesystem project-progress adapter skipped: DEV-ONLY; hosted proof still blocked"
 }
 
 Write-Host "[browser-contract] checks completed"

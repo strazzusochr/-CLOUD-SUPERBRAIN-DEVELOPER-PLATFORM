@@ -163,6 +163,11 @@ Embedding-verboten:
 ## Sicherheits- und Datenschutzregeln
 
 - Redaction passiert vor Klassifikation, Persistenz und Embedding.
+- `memory_worker_metadata_secret_guard_verified`: Der Memory Worker prueft `content_text`
+  sowie Schluessel und Werte beliebig tief verschachtelter nested metadata rekursiv.
+  Ein Treffer persistiert keinen Memory-Eintrag, konsumiert den Working-Memory-Key und
+  schreibt nur ein redigiertes `memory_consolidation_blocked`-Audit mit generischem
+  Grund und sicherem Fundbereich.
 - Secrets duerfen weder in Memory noch in Logs gespeichert werden.
 - Memory-Purge braucht Owner-Bestaetigung.
 - Retention-Regeln duerfen nicht still geaendert werden.

@@ -12,12 +12,28 @@
  * runState / activeRegion. CortexCanvas (2D) is the reduced-motion fallback.
  */
 
-import { useMemo, useRef, useState, useEffect, memo, Suspense, Component, type ReactNode } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback, memo, Suspense, Component, type CSSProperties, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { OrbitControls, Html, Environment, Lightformer, useGLTF } from "@react-three/drei";
+import { Edges, Environment, Html, Lightformer, MeshTransmissionMaterial, OrbitControls, PerspectiveCamera, useGLTF } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { HUBS, STATE_COLOR, STATE_LABEL, type RunState } from "./regionMap";
+import { useRenderActive } from "../../lib/useRenderActive";
+
+// GPU-safety: caps the render loop to ~30 FPS via R3F demand mode + throttled
+// invalidate, and only runs while `active` (visible tab + on-screen + not paused).
+// OrbitControls still invalidates on user interaction. This stops the GPU from
+// being pinned at full framerate (or running at all in a background tab).
+const SAFE_FPS = 30;
+function FrameThrottle({ active }: { active: boolean }) {
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    if (!active) return;
+    const interval = setInterval(() => invalidate(), 1000 / SAFE_FPS);
+    return () => clearInterval(interval);
+  }, [active, invalidate]);
+  return null;
+}
 
 /** Single source of truth for the 3D palette — mirrors the CSS design tokens
  *  (--cyan/--violet/--magenta/--blue/--bg) so the cortex never drifts from the UI. */
@@ -30,6 +46,100 @@ const ORGANISM_COLORS = {
   coreGlow: "#eafbff",
   bg: "#04060d",
 } as const;
+
+type CameraPreset = "wide" | "close" | "top";
+type LightingProfile = "studio" | "night" | "sunrise";
+type GameplayObjective = "collect" | "checkpoint" | "survive";
+type AssetProfile = "cube" | "beacon" | "ring";
+type MaterialVariant = "cyan" | "amber" | "rose";
+type CoreAssetStatus = "loading" | "ready" | "error";
+
+type VisualTelemetry = {
+  sourceKind: string;
+  live: boolean;
+  eventCount: number;
+  frameCount: number;
+  renderFps: number;
+  renderMs: number;
+  samples: number[];
+};
+
+const EMPTY_VISUAL_TELEMETRY: VisualTelemetry = {
+  sourceKind: "loading",
+  live: false,
+  eventCount: 0,
+  frameCount: 0,
+  renderFps: 0,
+  renderMs: 0,
+  samples: [0],
+};
+
+const CAMERA_PRESETS: Record<CameraPreset, { position: [number, number, number]; target: [number, number, number] }> = {
+  wide: { position: [0, 0.6, 7], target: [0, 0, 0] },
+  close: { position: [0, 0.35, 5], target: [0, 0, 0] },
+  top: { position: [0.2, 6.8, 1.4], target: [0, 0, 0] },
+};
+
+const LIGHTING_PROFILES: Record<LightingProfile, {
+  ambient: number;
+  key: number;
+  fill: number;
+  bloom: number;
+  keyColor: string;
+  leftColor: string;
+  rightColor: string;
+}> = {
+  studio: {
+    ambient: 0.35,
+    key: 9,
+    fill: 7,
+    bloom: 1.25,
+    keyColor: ORGANISM_COLORS.cyan,
+    leftColor: ORGANISM_COLORS.violet,
+    rightColor: ORGANISM_COLORS.magenta,
+  },
+  night: {
+    ambient: 0.2,
+    key: 6.4,
+    fill: 5.2,
+    bloom: 1.05,
+    keyColor: ORGANISM_COLORS.ice,
+    leftColor: ORGANISM_COLORS.blue,
+    rightColor: ORGANISM_COLORS.violet,
+  },
+  sunrise: {
+    ambient: 0.42,
+    key: 8.2,
+    fill: 6.2,
+    bloom: 1.38,
+    keyColor: "#f59e0b",
+    leftColor: "#fb7185",
+    rightColor: "#a78bfa",
+  },
+};
+
+const GAMEPLAY_BEACONS: Record<GameplayObjective, { color: string; position: [number, number, number] }> = {
+  collect: { color: ORGANISM_COLORS.cyan, position: [-2.4, 0.4, 0.8] },
+  checkpoint: { color: "#f59e0b", position: [0, 2.15, 0.35] },
+  survive: { color: ORGANISM_COLORS.magenta, position: [2.4, 0.4, 0.8] },
+};
+const ASSET_MATERIALS: Record<MaterialVariant, string> = {
+  cyan: ORGANISM_COLORS.cyan,
+  amber: "#f59e0b",
+  rose: "#fb7185",
+};
+
+type CameraAppliedState = {
+  preset: CameraPreset;
+  fov: number;
+  position: string;
+  framingScale: number;
+};
+
+type LightingAppliedState = {
+  profile: LightingProfile;
+  exposure: number;
+};
 
 function seededUnit(seed: number) {
   const value = Math.sin(seed * 12.9898) * 43758.5453;
@@ -44,6 +154,22 @@ function stringSeed(value: string) {
   }
   return hash >>> 0;
 }
+
+const MATRIX_COLUMNS = Array.from({ length: 18 }, (_, index) => {
+  const alphabet = "01A7C9EF";
+  let glyphs = "";
+  for (let glyphIndex = 0; glyphIndex < 14; glyphIndex += 1) {
+    const pick = Math.floor(seededUnit(index * 37 + glyphIndex + 1) * alphabet.length);
+    glyphs += alphabet[pick];
+  }
+  return {
+    glyphs: glyphs.split("").join("\n"),
+    left: 2 + index * (96 / 17),
+    delay: seededUnit(index + 101) * 5.5,
+    duration: 4.8 + seededUnit(index + 211) * 4.2,
+    opacity: 0.18 + seededUnit(index + 307) * 0.34,
+  };
+});
 
 function useGlow() {
   return useMemo(() => {
@@ -192,7 +318,40 @@ function Brain({ count, tex }: { count: number; tex: THREE.Texture }) {
  *  hardware GPUs get full PBR. Falls back to procedural geometry on load failure. */
 const CORE_GLB = "/organism/core.glb";
 
-function CrystalGLB({ pbr, color }: { pbr: boolean; color: string }) {
+function CoreCrystalMaterial({ pbr, color }: { pbr: boolean; color: string }) {
+  if (!pbr) {
+    return <meshBasicMaterial color={color} transparent opacity={0.82} toneMapped={false} />;
+  }
+  return (
+    <MeshTransmissionMaterial
+      color={color}
+      emissive={color}
+      emissiveIntensity={0.48}
+      transmission={0.78}
+      thickness={0.58}
+      roughness={0.18}
+      chromaticAberration={0.018}
+      anisotropy={0.08}
+      distortion={0.08}
+      distortionScale={0.16}
+      temporalDistortion={0.015}
+      samples={3}
+      resolution={128}
+      transparent
+      opacity={0.92}
+    />
+  );
+}
+
+function CrystalGLB({
+  pbr,
+  color,
+  onReady,
+}: {
+  pbr: boolean;
+  color: string;
+  onReady: () => void;
+}) {
   const gltf = useGLTF(CORE_GLB);
   const geometry = useMemo(() => {
     let g: THREE.BufferGeometry | null = null;
@@ -202,10 +361,16 @@ function CrystalGLB({ pbr, color }: { pbr: boolean; color: string }) {
     });
     return g;
   }, [gltf]);
-  if (!geometry) return <ProceduralCrystal pbr={pbr} color={color} />;
+  useEffect(() => {
+    if (geometry) onReady();
+  }, [geometry, onReady]);
+  if (!geometry) {
+    throw new Error("The organism core GLB contains no renderable mesh geometry.");
+  }
   return (
     <mesh geometry={geometry}>
-      <NodeMaterial color={color} pbr={pbr} emissive={1.8} on />
+      <CoreCrystalMaterial color={color} pbr={pbr} />
+      <Edges threshold={16} color={ORGANISM_COLORS.coreGlow} lineWidth={0.7} transparent opacity={0.5} />
     </mesh>
   );
 }
@@ -214,19 +379,27 @@ function ProceduralCrystal({ pbr, color }: { pbr: boolean; color: string }) {
   return (
     <mesh>
       <icosahedronGeometry args={[1, 4]} />
-      <NodeMaterial color={color} pbr={pbr} emissive={1.8} on />
+      <CoreCrystalMaterial color={color} pbr={pbr} />
+      <Edges threshold={16} color={ORGANISM_COLORS.coreGlow} lineWidth={0.7} transparent opacity={0.5} />
     </mesh>
   );
 }
 
-/** Render-error boundary: if the GLB fails to load/parse, show procedural geometry. */
-class CrystalBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
-  constructor(props: { fallback: ReactNode; children: ReactNode }) {
+/** Render-error boundary: only a genuine GLB load/parse/render failure may show procedural geometry. */
+class CrystalBoundary extends Component<{
+  fallback: ReactNode;
+  children: ReactNode;
+  onError: () => void;
+}, { failed: boolean }> {
+  constructor(props: { fallback: ReactNode; children: ReactNode; onError: () => void }) {
     super(props);
     this.state = { failed: false };
   }
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onError();
   }
   render() {
     return this.state.failed ? this.props.fallback : this.props.children;
@@ -234,7 +407,19 @@ class CrystalBoundary extends Component<{ fallback: ReactNode; children: ReactNo
 }
 
 /** Central core: real GLB crystal + reactor rings + multi-layer additive glow. */
-function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boolean }) {
+function Core({
+  color,
+  tex,
+  pbr,
+  onAssetReady,
+  onAssetError,
+}: {
+  color: string;
+  tex: THREE.Texture;
+  pbr: boolean;
+  onAssetReady: () => void;
+  onAssetError: () => void;
+}) {
   const halo = useRef<THREE.Sprite>(null);
   const shell = useRef<THREE.Mesh>(null);
   const core = useRef<THREE.Group>(null);
@@ -282,11 +467,11 @@ function Core({ color, tex, pbr }: { color: string; tex: THREE.Texture; pbr: boo
         <torusGeometry args={[0.88, 0.008, 8, 96]} />
         <meshBasicMaterial color={ORGANISM_COLORS.ice} transparent opacity={0.4} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-      {/* Real GLB crystal core (procedural fallback on load failure) */}
+      {/* Normal loading is intentionally neutral; procedural geometry is error-only. */}
       <group ref={core}>
-        <CrystalBoundary fallback={procedural}>
-          <Suspense fallback={procedural}>
-            <CrystalGLB pbr={pbr} color={coreColor} />
+        <CrystalBoundary fallback={procedural} onError={onAssetError}>
+          <Suspense fallback={null}>
+            <CrystalGLB pbr={pbr} color={coreColor} onReady={onAssetReady} />
           </Suspense>
         </CrystalBoundary>
       </group>
@@ -423,6 +608,94 @@ function Stars({ tex }: { tex: THREE.Texture }) {
   );
 }
 
+/** Fibonacci-sphere dot globe: a cheap geometry-only orbit marker that keeps the
+ *  reference-video silhouette without introducing another texture or shader. */
+function DotGlobe({ color, paused }: { color: string; paused: boolean }) {
+  const globe = useRef<THREE.Group>(null);
+  const positions = useMemo(() => {
+    const count = 360;
+    const points = new Float32Array(count * 3);
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    for (let index = 0; index < count; index += 1) {
+      const y = 1 - (index / (count - 1)) * 2;
+      const radius = Math.sqrt(Math.max(0, 1 - y * y));
+      const theta = golden * index;
+      points[index * 3] = Math.cos(theta) * radius;
+      points[index * 3 + 1] = y;
+      points[index * 3 + 2] = Math.sin(theta) * radius;
+    }
+    return points;
+  }, []);
+  useFrame((_, delta) => {
+    if (!globe.current || paused) return;
+    globe.current.rotation.y += delta * 0.16;
+    globe.current.rotation.x += delta * 0.025;
+  });
+  return (
+    <group ref={globe} name="organism-visual-dot-globe" position={[2.75, -1.28, -0.75]} scale={0.72} rotation={[0.22, 0, -0.18]}>
+      <points>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
+        <pointsMaterial color={color} size={0.035} transparent opacity={0.72} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} />
+      </points>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.02, 0.008, 6, 96]} />
+        <meshBasicMaterial color={ORGANISM_COLORS.ice} transparent opacity={0.16} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+      <mesh rotation={[0, Math.PI / 2, 0]}>
+        <torusGeometry args={[1.02, 0.008, 6, 96]} />
+        <meshBasicMaterial color={color} transparent opacity={0.12} toneMapped={false} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Low-opacity glass shards frame the core. They are deterministic, non-
+ *  interactive planes and stay below the particle/label interaction layer. */
+function Shards({ color, paused }: { color: string; paused: boolean }) {
+  const group = useRef<THREE.Group>(null);
+  const transforms = useMemo(() => Array.from({ length: 12 }, (_, index) => {
+    const side = index % 2 === 0 ? -1 : 1;
+    return {
+      position: [
+        side * (1.65 + seededUnit(index + 701) * 2.1),
+        -2.25 + seededUnit(index + 733) * 4.5,
+        -1.8 + seededUnit(index + 769) * 2.4,
+      ] as [number, number, number],
+      rotation: [
+        seededUnit(index + 797) * Math.PI,
+        seededUnit(index + 823) * Math.PI,
+        seededUnit(index + 859) * Math.PI,
+      ] as [number, number, number],
+      scale: 0.45 + seededUnit(index + 887) * 0.9,
+    };
+  }), []);
+  useFrame((state, delta) => {
+    if (!group.current || paused) return;
+    group.current.rotation.y += delta * 0.018;
+    group.current.position.y = Math.sin(state.clock.elapsedTime * 0.22) * 0.08;
+  });
+  return (
+    <group ref={group} name="organism-visual-shards">
+      {transforms.map((transform, index) => (
+        <mesh key={index} position={transform.position} rotation={transform.rotation} scale={transform.scale}>
+          <planeGeometry args={[0.58, 1.55]} />
+          <meshBasicMaterial
+            color={index % 3 === 0 ? ORGANISM_COLORS.violet : color}
+            transparent
+            opacity={0.06}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function Stats({ onStats, nodes }: { onStats?: (fps: number, nodes: number, ms: number) => void; nodes: number }) {
   const acc = useRef(0);
   const frames = useRef(0);
@@ -439,25 +712,43 @@ function Stats({ onStats, nodes }: { onStats?: (fps: number, nodes: number, ms: 
   return null;
 }
 
-/** Phase-6 camera rig: OrbitControls + keyboard interaction loop (arrows rotate,
- *  +/- dolly, R reset, Space toggle auto-rotate) and a reset signal. */
+/** Phase-6 camera rig: preset/FOV application plus the bounded keyboard loop. */
 function CameraRig({
   interactive,
   autoRotate,
   resetSignal,
+  cameraPreset,
+  fovDegrees,
   onToggleAutoRotate,
+  onApplied,
 }: {
   interactive: boolean;
   autoRotate: boolean;
   resetSignal: number;
+  cameraPreset: CameraPreset;
+  fovDegrees: number;
   onToggleAutoRotate?: () => void;
+  onApplied?: (state: CameraAppliedState) => void;
 }) {
   const controls = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const { camera } = useThree();
+  const size = useThree((state) => state.size);
+  const preset = CAMERA_PRESETS[cameraPreset];
+  const aspect = size.width / Math.max(1, size.height);
+  const framingScale = aspect < 0.8 ? Math.min(2, 1.1 / Math.max(0.55, aspect)) : 1;
+  const framedPosition = useMemo(
+    () => preset.position.map((value) => value * framingScale) as [number, number, number],
+    [framingScale, preset.position],
+  );
 
   useEffect(() => {
-    controls.current?.reset();
-  }, [resetSignal]);
+    onApplied?.({
+      preset: cameraPreset,
+      fov: fovDegrees,
+      position: framedPosition.map((value) => value.toFixed(2)).join(","),
+      framingScale,
+    });
+  }, [cameraPreset, fovDegrees, framedPosition, framingScale, onApplied]);
 
   useEffect(() => {
     if (!interactive) return;
@@ -490,25 +781,244 @@ function CameraRig({
   }, [interactive, camera, onToggleAutoRotate]);
 
   return (
-    <OrbitControls
-      ref={controls}
-      enablePan={false}
-      enableZoom={interactive}
-      enableRotate={interactive}
-      autoRotate={autoRotate}
-      autoRotateSpeed={0.5}
-      minDistance={4.5}
-      maxDistance={12}
-      minPolarAngle={Math.PI * 0.2}
-      maxPolarAngle={Math.PI * 0.8}
-    />
+    <>
+      <PerspectiveCamera
+        key={`camera-${cameraPreset}-${fovDegrees}-${framingScale.toFixed(3)}-${resetSignal}`}
+        makeDefault
+        position={framedPosition}
+        fov={fovDegrees}
+        near={0.1}
+        far={100}
+      />
+      <OrbitControls
+        key={`controls-${cameraPreset}-${resetSignal}`}
+        ref={controls}
+        target={preset.target}
+        enablePan={false}
+        enableZoom={interactive}
+        enableRotate={interactive}
+        autoRotate={autoRotate}
+        autoRotateSpeed={0.5}
+        minDistance={4.5}
+        maxDistance={14}
+        minPolarAngle={cameraPreset === "top" ? Math.PI * 0.05 : Math.PI * 0.2}
+        maxPolarAngle={Math.PI * 0.8}
+      />
+    </>
   );
+}
+
+function LightingRig({
+  profile,
+  exposure,
+  onApplied,
+}: {
+  profile: LightingProfile;
+  exposure: number;
+  onApplied?: (state: LightingAppliedState) => void;
+}) {
+  const renderer = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  useEffect(() => {
+    rendererRef.current = renderer;
+  }, [renderer]);
+  useEffect(() => {
+    const current = rendererRef.current;
+    if (!current) return;
+    current.toneMapping = THREE.ACESFilmicToneMapping;
+    current.toneMappingExposure = exposure;
+    invalidate();
+    onApplied?.({ profile, exposure });
+  }, [exposure, invalidate, onApplied, profile]);
+  return null;
 }
 
 function hubVisible(hub: (typeof HUBS)[number], layers?: string[], agents?: string[]) {
   if (layers && layers.length && !layers.includes(hub.layer)) return false;
   if (agents && agents.length && !hub.agents.some((a) => agents.includes(a))) return false;
   return true;
+}
+
+function GameplayBeacon({ objective, paused }: { objective: GameplayObjective; paused: boolean }) {
+  const group = useRef<THREE.Group>(null);
+  const beacon = GAMEPLAY_BEACONS[objective];
+  useFrame((state, delta) => {
+    if (!group.current || paused) return;
+    group.current.rotation.y += delta * 0.8;
+    group.current.position.y = beacon.position[1] + Math.sin(state.clock.elapsedTime * 1.8) * 0.08;
+  });
+  return (
+    <group ref={group} position={beacon.position}>
+      <mesh>
+        <octahedronGeometry args={[0.16, 0]} />
+        <meshBasicMaterial color={beacon.color} toneMapped={false} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.28, 0.025, 8, 32]} />
+        <meshBasicMaterial color={beacon.color} transparent opacity={0.7} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function AssetPolicyPreview({
+  profile,
+  variant,
+  paused,
+  pbr,
+}: {
+  profile: AssetProfile;
+  variant: MaterialVariant;
+  paused: boolean;
+  pbr: boolean;
+}) {
+  const preview = useRef<THREE.Group>(null);
+  const color = ASSET_MATERIALS[variant];
+  useFrame((state, delta) => {
+    if (!preview.current || paused) return;
+    preview.current.rotation.y += delta * 0.55;
+    preview.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.55) * 0.12;
+  });
+  return (
+    <group ref={preview} position={[0, -1.65, 0.55]}>
+      <mesh>
+        {profile === "cube" ? <boxGeometry args={[0.34, 0.34, 0.34]} /> : null}
+        {profile === "beacon" ? <coneGeometry args={[0.25, 0.52, 6]} /> : null}
+        {profile === "ring" ? <torusGeometry args={[0.25, 0.07, 12, 36]} /> : null}
+        <NodeMaterial color={color} pbr={pbr} emissive={1.65} on />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -0.31, 0]}>
+        <ringGeometry args={[0.23, 0.33, 40]} />
+        <meshBasicMaterial color={color} transparent opacity={0.24} side={THREE.DoubleSide} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function LoopbackPeer({ connected, running, sequence, paused }: { connected: boolean; running: boolean; sequence: number; paused: boolean }) {
+  const peer = useRef<THREE.Group>(null);
+  useFrame((state, delta) => {
+    if (!peer.current || paused || !connected) return;
+    peer.current.rotation.y += delta * (running ? 1.1 : 0.35);
+    peer.current.position.y = -1.15 + Math.sin(state.clock.elapsedTime * 1.4 + sequence * 0.1) * 0.06;
+  });
+  if (!connected) return null;
+  const color = running ? "#22c55e" : "#8b5cf6";
+  return (
+    <group ref={peer} position={[1.15, -1.15, 0.65]}>
+      <mesh>
+        <icosahedronGeometry args={[0.2, 1]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.32, 0.025, 8, 32]} />
+        <meshBasicMaterial color={color} transparent opacity={0.65} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
+function MatrixRain({ paused }: { paused: boolean }) {
+  return (
+    <div
+      className={`cortex-matrix-rain${paused ? " is-paused" : ""}`}
+      data-testid="organism-matrix-rain"
+      aria-hidden="true"
+    >
+      {MATRIX_COLUMNS.map((column, index) => (
+        <span
+          key={index}
+          className="cortex-matrix-column"
+          style={{
+            left: `${column.left}%`,
+            animationDelay: `-${column.delay.toFixed(2)}s`,
+            animationDuration: `${column.duration.toFixed(2)}s`,
+            opacity: column.opacity,
+          } as CSSProperties}
+        >
+          {column.glyphs}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TelemetryWaveform({ telemetry }: { telemetry: VisualTelemetry }) {
+  const samples = telemetry.samples
+    .filter((sample) => Number.isFinite(sample))
+    .slice(-24)
+    .map((sample) => Math.min(1, Math.max(0, sample)));
+  const bounded = samples.length === 0 ? [0, 0] : samples.length === 1 ? [samples[0], samples[0]] : samples;
+  const points = bounded.map((sample, index) => {
+    const x = (index / (bounded.length - 1)) * 100;
+    const y = 34 - sample * 28;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  }).join(" ");
+  const source = telemetry.sourceKind.replace(/[^A-Za-z0-9_.:-]/g, "_").slice(0, 32) || "unknown";
+  return (
+    <div
+      className={`cortex-telemetry-waveform${telemetry.live ? " is-live" : ""}`}
+      data-testid="organism-telemetry-waveform"
+      data-telemetry-source={source}
+      data-telemetry-live={String(telemetry.live)}
+      data-event-count={telemetry.eventCount}
+      data-frame-count={telemetry.frameCount}
+      data-render-fps={telemetry.renderFps.toFixed(1)}
+      data-render-ms={telemetry.renderMs.toFixed(1)}
+      data-sample-count={bounded.length}
+      role="img"
+      aria-label={`${telemetry.live ? "Live" : "Spec-only"} telemetry waveform: ${telemetry.eventCount} events, ${telemetry.frameCount} replay frames, ${telemetry.renderFps.toFixed(0)} FPS`}
+    >
+      <div className="cortex-waveform-label">
+        <span>{telemetry.live ? "LIVE SIGNAL" : "SPEC SIGNAL"}</span>
+        <span>{telemetry.eventCount}E · {telemetry.frameCount}F</span>
+      </div>
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="34" x2="100" y2="34" className="cortex-waveform-baseline" />
+        <polyline points={points} className="cortex-waveform-signal" />
+      </svg>
+    </div>
+  );
+}
+
+function VisualOverlay({
+  telemetry,
+  paused,
+  runState,
+  pbr,
+}: {
+  telemetry: VisualTelemetry;
+  paused: boolean;
+  runState: RunState;
+  pbr: boolean;
+}) {
+  return (
+    <div
+      className={`cortex-visual-v2${paused ? " is-paused" : ""}`}
+      data-testid="organism-visual-v2"
+      data-visual-dot-globe="fibonacci-360"
+      data-visual-matrix-rain="dom"
+      data-visual-scanlines="hud"
+      data-visual-shards="plane-12-opacity-0.06"
+      data-visual-waveform="runtime-telemetry"
+      data-visual-core-edges="active"
+      data-visual-core-transmission={pbr ? "active" : "hardware-gated"}
+    >
+      <MatrixRain paused={paused} />
+      <div className="cortex-scanlines" data-testid="organism-scanlines" aria-hidden="true" />
+      <div className="cortex-visual-hud" data-testid="organism-hud-overlay" aria-hidden="true">
+        <span className="cortex-hud-corner cortex-hud-corner-nw" />
+        <span className="cortex-hud-corner cortex-hud-corner-ne" />
+        <span className="cortex-hud-corner cortex-hud-corner-sw" />
+        <span className="cortex-hud-corner cortex-hud-corner-se" />
+        <span className="cortex-hud-axis cortex-hud-axis-x" />
+        <span className="cortex-hud-axis cortex-hud-axis-y" />
+        <span className="cortex-hud-readout">CORTEX // {STATE_LABEL[runState].toUpperCase()}</span>
+      </div>
+      <TelemetryWaveform telemetry={telemetry} />
+    </div>
+  );
 }
 
 function Scene({
@@ -525,7 +1035,22 @@ function Scene({
   autoRotate,
   paused,
   resetSignal,
+  cameraPreset,
+  fovDegrees,
+  lightingProfile,
+  exposure,
+  gameplayObjective,
+  gameplayPaused,
+  assetProfile,
+  materialVariant,
+  netcodeGuestConnected,
+  netcodeRunning,
+  netcodeSequence,
   onToggleAutoRotate,
+  onCameraApplied,
+  onLightingApplied,
+  onCoreAssetReady,
+  onCoreAssetError,
 }: {
   runState: RunState;
   nodeCount: number;
@@ -540,44 +1065,75 @@ function Scene({
   autoRotate: boolean;
   paused: boolean;
   resetSignal: number;
+  cameraPreset: CameraPreset;
+  fovDegrees: number;
+  lightingProfile: LightingProfile;
+  exposure: number;
+  gameplayObjective: GameplayObjective;
+  gameplayPaused: boolean;
+  assetProfile: AssetProfile;
+  materialVariant: MaterialVariant;
+  netcodeGuestConnected: boolean;
+  netcodeRunning: boolean;
+  netcodeSequence: number;
   onToggleAutoRotate?: () => void;
+  onCameraApplied?: (state: CameraAppliedState) => void;
+  onLightingApplied?: (state: LightingAppliedState) => void;
+  onCoreAssetReady: () => void;
+  onCoreAssetError: () => void;
 }) {
   const tex = useGlow();
   const sc = STATE_COLOR[runState];
+  const lighting = LIGHTING_PROFILES[lightingProfile];
   return (
     <>
       <color attach="background" args={[ORGANISM_COLORS.bg]} />
       <fog attach="fog" args={[ORGANISM_COLORS.bg, 6.5, 15]} />
+      <LightingRig profile={lightingProfile} exposure={exposure} onApplied={onLightingApplied} />
       {pbr ? (
         <>
-          <ambientLight intensity={0.35} />
-          <pointLight position={[0, 3.5, 3]} intensity={9} distance={14} color={ORGANISM_COLORS.cyan} />
-          <pointLight position={[-4, -2, 2.5]} intensity={7} distance={14} color={ORGANISM_COLORS.violet} />
-          <pointLight position={[4, -2, 2.5]} intensity={7} distance={14} color={ORGANISM_COLORS.magenta} />
+          <ambientLight intensity={lighting.ambient * exposure} />
+          <pointLight position={[0, 3.5, 3]} intensity={lighting.key * exposure} distance={14} color={lighting.keyColor} />
+          <pointLight position={[-4, -2, 2.5]} intensity={lighting.fill * exposure} distance={14} color={lighting.leftColor} />
+          <pointLight position={[4, -2, 2.5]} intensity={lighting.fill * exposure} distance={14} color={lighting.rightColor} />
           <Environment resolution={128} frames={1}>
-            <Lightformer form="circle" intensity={3} color={ORGANISM_COLORS.cyan} position={[0, 3, 2]} scale={3} />
-            <Lightformer form="circle" intensity={2.4} color={ORGANISM_COLORS.violet} position={[-3, -1, 2]} scale={2.5} />
-            <Lightformer form="circle" intensity={2.4} color={ORGANISM_COLORS.magenta} position={[3, -1, 2]} scale={2.5} />
+            <Lightformer form="circle" intensity={3 * exposure} color={lighting.keyColor} position={[0, 3, 2]} scale={3} />
+            <Lightformer form="circle" intensity={2.4 * exposure} color={lighting.leftColor} position={[-3, -1, 2]} scale={2.5} />
+            <Lightformer form="circle" intensity={2.4 * exposure} color={lighting.rightColor} position={[3, -1, 2]} scale={2.5} />
           </Environment>
         </>
       ) : null}
       <Stars tex={tex} />
+      <Shards color={sc} paused={paused} />
+      <DotGlobe color={sc} paused={paused} />
       <Stats onStats={onStats} nodes={nodeCount} />
       <group rotation={[0.32, 0, 0]}>
         <Brain count={nodeCount} tex={tex} />
-        <Core color={sc} tex={tex} pbr={pbr} />
+        <Core
+          color={sc}
+          tex={tex}
+          pbr={pbr}
+          onAssetReady={onCoreAssetReady}
+          onAssetError={onCoreAssetError}
+        />
         {HUBS.map((h) => (
           <Hub key={h.id} hub={h} active={active} onSelect={onSelect} showLabel={showLabels} visible={hubVisible(h, visibleLayers, visibleAgents)} tex={tex} pbr={pbr} />
         ))}
       </group>
+      <GameplayBeacon objective={gameplayObjective} paused={gameplayPaused} />
+      <AssetPolicyPreview profile={assetProfile} variant={materialVariant} paused={paused} pbr={pbr} />
+      <LoopbackPeer connected={netcodeGuestConnected} running={netcodeRunning} sequence={netcodeSequence} paused={paused} />
       <CameraRig
         interactive={interactive}
         autoRotate={autoRotate && !paused}
         resetSignal={resetSignal}
+        cameraPreset={cameraPreset}
+        fovDegrees={fovDegrees}
         onToggleAutoRotate={onToggleAutoRotate}
+        onApplied={onCameraApplied}
       />
       <EffectComposer>
-        <Bloom intensity={1.25} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
+        <Bloom intensity={lighting.bloom * exposure} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
         <Vignette eskil={false} offset={0.25} darkness={0.85} />
       </EffectComposer>
     </>
@@ -597,8 +1153,24 @@ export default function CortexCanvas3D({
   autoRotate = false,
   paused = false,
   resetSignal = 0,
+  cameraPreset = "wide",
+  fovDegrees = 45,
+  lightingProfile = "studio",
+  exposure = 1,
+  gameplayObjective = "collect",
+  gameplayScore = 0,
+  gameplayCheckpoints = 0,
+  gameplayPaused = false,
+  gameplayTicks = 0,
+  assetProfile = "cube",
+  materialVariant = "cyan",
+  netcodeGuestConnected = false,
+  netcodeRunning = false,
+  netcodeSequence = 0,
   onToggleAutoRotate,
   sourceLabel = "SPEC · ORGANISM",
+  visualTelemetry = EMPTY_VISUAL_TELEMETRY,
+  onReady,
 }: {
   runState?: RunState;
   nodeCount?: number;
@@ -612,23 +1184,91 @@ export default function CortexCanvas3D({
   autoRotate?: boolean;
   paused?: boolean;
   resetSignal?: number;
+  cameraPreset?: CameraPreset;
+  fovDegrees?: number;
+  lightingProfile?: LightingProfile;
+  exposure?: number;
+  gameplayObjective?: GameplayObjective;
+  gameplayScore?: number;
+  gameplayCheckpoints?: number;
+  gameplayPaused?: boolean;
+  gameplayTicks?: number;
+  assetProfile?: AssetProfile;
+  materialVariant?: MaterialVariant;
+  netcodeGuestConnected?: boolean;
+  netcodeRunning?: boolean;
+  netcodeSequence?: number;
   onToggleAutoRotate?: () => void;
   sourceLabel?: string;
+  visualTelemetry?: VisualTelemetry;
+  onReady?: () => void;
 }) {
+  const boundedFov = [38, 45, 58].includes(fovDegrees) ? fovDegrees : 45;
+  const boundedExposure = Math.min(1.18, Math.max(0.72, exposure));
   const [pbr] = useState(() => detectHardwareGPU());
+  const [coreAssetStatus, setCoreAssetStatus] = useState<CoreAssetStatus>("loading");
+  const [cameraApplied, setCameraApplied] = useState<CameraAppliedState>({ preset: cameraPreset, fov: boundedFov, position: "pending", framingScale: 1 });
+  const [lightingApplied, setLightingApplied] = useState<LightingAppliedState>({ profile: lightingProfile, exposure: boundedExposure });
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const onScreen = useRenderActive(wrapRef);
+  const renderActive = onScreen && !paused;
+  const onCameraApplied = useCallback((state: CameraAppliedState) => setCameraApplied(state), []);
+  const onLightingApplied = useCallback((state: LightingAppliedState) => setLightingApplied(state), []);
+  const onCoreAssetReady = useCallback(() => setCoreAssetStatus("ready"), []);
+  const onCoreAssetError = useCallback(() => setCoreAssetStatus("error"), []);
   useEffect(() => {
     // Preload the GLB only when the 3D canvas actually mounts (not at import time,
     // so the 2D reduced-motion / no-WebGL path never triggers the fetch).
     useGLTF.preload(CORE_GLB);
   }, []);
   return (
-    <div className="cortex-wrap">
+    <div
+      className="cortex-wrap"
+      ref={wrapRef}
+      data-camera-preset={cameraApplied.preset}
+      data-camera-fov={cameraApplied.fov}
+      data-camera-position={cameraApplied.position}
+      data-camera-framing-scale={cameraApplied.framingScale.toFixed(3)}
+      data-lighting-profile={lightingApplied.profile}
+      data-tone-exposure={lightingApplied.exposure.toFixed(2)}
+      data-camera-lighting-local-only="true"
+      data-gameplay-objective={gameplayObjective}
+      data-gameplay-score={gameplayScore}
+      data-gameplay-checkpoints={gameplayCheckpoints}
+      data-gameplay-paused={String(gameplayPaused)}
+      data-gameplay-ticks={gameplayTicks}
+      data-gameplay-local-only="true"
+      data-asset-profile={assetProfile}
+      data-material-variant={materialVariant}
+      data-asset-catalog-count="3"
+      data-material-variant-count="3"
+      data-remote-asset-count="0"
+      data-uploaded-asset-count="0"
+      data-external-asset-fetch="false"
+      data-binary-asset-upload="false"
+      data-asset-policy-local-only="true"
+      data-netcode-transport="loopback"
+      data-netcode-guest-connected={String(netcodeGuestConnected)}
+      data-netcode-running={String(netcodeRunning)}
+      data-netcode-sequence={netcodeSequence}
+      data-netcode-websocket="false"
+      data-netcode-server-sync="false"
+      data-organism-visual-version="v2"
+      data-visual-telemetry-source={visualTelemetry.sourceKind}
+      data-core-asset-status={coreAssetStatus}
+      data-core-loading-fallback="neutral"
+      data-core-render-source={coreAssetStatus === "ready" ? "glb" : coreAssetStatus === "error" ? "procedural_error" : "neutral"}
+      data-core-procedural-fallback={String(coreAssetStatus === "error")}
+    >
       <Canvas
-        camera={{ position: [0, 0.6, 7], fov: 48 }}
-        dpr={[1, 2]}
-        gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+        camera={{ position: CAMERA_PRESETS[cameraPreset].position, fov: boundedFov }}
+        dpr={[1, 1.5]}
+        frameloop="demand"
+        gl={{ antialias: true, alpha: false, powerPreference: "low-power" }}
         className="cortex3d-canvas"
+        onCreated={onReady}
       >
+        <FrameThrottle active={renderActive} />
         <Scene
           runState={runState}
           nodeCount={nodeCount}
@@ -643,9 +1283,25 @@ export default function CortexCanvas3D({
           autoRotate={autoRotate}
           paused={paused}
           resetSignal={resetSignal}
+          cameraPreset={cameraPreset}
+          fovDegrees={boundedFov}
+          lightingProfile={lightingProfile}
+          exposure={boundedExposure}
+          gameplayObjective={gameplayObjective}
+          gameplayPaused={gameplayPaused}
+          assetProfile={assetProfile}
+          materialVariant={materialVariant}
+          netcodeGuestConnected={netcodeGuestConnected}
+          netcodeRunning={netcodeRunning}
+          netcodeSequence={netcodeSequence}
           onToggleAutoRotate={onToggleAutoRotate}
+          onCameraApplied={onCameraApplied}
+          onLightingApplied={onLightingApplied}
+          onCoreAssetReady={onCoreAssetReady}
+          onCoreAssetError={onCoreAssetError}
         />
       </Canvas>
+      <VisualOverlay telemetry={visualTelemetry} paused={paused} runState={runState} pbr={pbr} />
       <span className="cortex-badge">{sourceLabel} · {pbr ? "PBR/WEBGL" : "WEBGL"}</span>
       <span className="cortex-state">
         <span className={`dot dot-state-${runState}`} />

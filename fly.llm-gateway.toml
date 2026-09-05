@@ -28,3 +28,4 @@ primary_region = "fra"
 [env]
   LLM_GATEWAY_MODE = "deterministic_dry_run"
   LLM_LIVE_PROVIDER_DEFAULT = "false"
+  AGENT_API_INTERNAL_URL = "http://cloud-superbrain-agent-api.flycast:8000"

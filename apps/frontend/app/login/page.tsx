@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Badge, SafetyBadgeRow } from "../../components/ui";
-import { LoginDryRunPanel } from "../../components/batch4-actions";
+import { RealLogin } from "../../components/real-login";
 
-export const metadata = { title: "Login / Onboarding — Cloud Superbrain" };
+export const metadata = { title: "Anmeldung / Einstieg — Cloud Superbrain" };
 
 export default function LoginPage() {
   return (
@@ -14,7 +14,7 @@ export default function LoginPage() {
         </Link>
         <div className="grow" />
         <Link href="/home" className="btn btn-ghost btn-sm">
-          Skip to Home
+          Zum Start
         </Link>
       </header>
 
@@ -23,42 +23,39 @@ export default function LoginPage() {
           <div className="grid cols-2 login-grid">
             <section className="panel panel-pad login-panel">
               <div>
-                <div className="eyebrow">Welcome back</div>
-                <h1 className="login-h1">Sign in to your workspace</h1>
+                <div className="eyebrow">Willkommen zurück</div>
+                <h1 className="login-h1">Am Arbeitsbereich anmelden</h1>
               </div>
 
-              <LoginDryRunPanel />
+              <RealLogin />
 
-              <Link href="/workbench" className="btn btn-primary login-center">
-                Open Workbench after dry-run
-              </Link>
               <p className="login-foot">
-                OAuth and email providers stay dry-run in this proof. No live provider write, no secret output.
+                Signierte Sitzung mit HttpOnly-Cookie und Ablaufprüfung. Externe OAuth-Provider bleiben separat freigabepflichtig.
               </p>
             </section>
 
             <section className="panel panel-pad login-panel">
-              <span className="panel-title">Workspace readiness</span>
+              <span className="panel-title">Bereitschaft des Arbeitsbereichs</span>
               <div className="list login-readiness-list">
                 <div className="lrow">
-                  Self-host or Cloud <span className="meta"><Badge tone="green">ready</Badge></span>
+                  Selbst gehostet oder Cloud <span className="meta"><Badge tone="green">bereit</Badge></span>
                 </div>
                 <div className="lrow">
-                  Local Files API <span className="meta"><Badge tone="cyan">read-only</Badge></span>
+                  API für lokale Dateien <span className="meta"><Badge tone="cyan">nur lesend</Badge></span>
                 </div>
                 <div className="lrow">
-                  Provider writes <span className="meta"><Badge tone="red">closed gate</Badge></span>
+                  Provider-Schreibzugriffe <span className="meta"><Badge tone="red">Gate geschlossen</Badge></span>
                 </div>
                 <div className="lrow">
-                  Open-source license <span className="meta"><Badge tone="violet">free-first</Badge></span>
+                  Lizenz für Open Source <span className="meta"><Badge tone="violet">kostenlos zuerst</Badge></span>
                 </div>
               </div>
               <div>
-                <span className="panel-title login-panel-title">Safety</span>
+                <span className="panel-title login-panel-title">Sicherheit</span>
                 <SafetyBadgeRow />
               </div>
               <p className="login-foot login-foot-spacer">
-                You own your workflow. Build anything. Automate everything.
+                Dein Arbeitsablauf gehört dir. Baue alles. Automatisiere alles.
               </p>
             </section>
           </div>

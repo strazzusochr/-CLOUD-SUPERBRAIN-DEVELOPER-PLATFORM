@@ -1,0 +1,17 @@
+OWNER-RUNBOOK - HISTORICAL_DO_NOT_EXECUTE
+
+Stand der Sperrmarkierung: 2026-08-29
+
+Die Anleitung vom 2026-07-27 ist historisch. Insbesondere nennt sie fuer GitHub OAuth nur
+drei statt der heute erforderlichen fuenf Konfigurationsnamen und behauptet faelschlich,
+lokale Verifier koennten Production Auth oeffnen.
+
+Aktuell verbindlich:
+
+- docs/runbooks/PRODUCTION_OAUTH_FIXPLAN_2026-08-29.md
+- CODEX_UEBERGABE_2026-08-29-SESSION16.md
+- CODEX_ZIELVERFOLGUNG_KURZ.md
+- CODEX_100_PROZENT_ZIEL_2026-08-29.md
+
+Keine Werte, Secrets, Deploys, Gate-Promotionen oder Provideraktivierungen aus der alten
+Anleitung uebernehmen.

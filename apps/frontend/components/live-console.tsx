@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export type LiveEndpoint = { label: string; path: string };
 
@@ -11,12 +11,18 @@ export type LiveEndpoint = { label: string; path: string };
  */
 export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: LiveEndpoint[]; label?: string }) {
   const [selected, setSelected] = useState(endpoints[0]?.path ?? "");
-  const [out, setOut] = useState('Klick "● Live laden", um den Endpoint real abzurufen.');
+  const [out, setOut] = useState('Klick „Aktualisieren" für Live-Daten.');
   const [status, setStatus] = useState("idle");
   const [meta, setMeta] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function load() {
+  function persist(key: string, value: string) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {}
+  }
+
+  const load = useCallback(async () => {
     if (!selected) return;
     setBusy(true);
     setStatus("lädt…");
@@ -41,7 +47,10 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
     } finally {
       setBusy(false);
     }
-  }
+  }, [selected]);
+
+  // Auto-load real data on mount so internals pages show live data immediately.
+  useEffect(() => { const t = setTimeout(() => { void load(); }, 0); return () => clearTimeout(t); }, [load]);
 
   const tone = status.includes("OK") ? "lc-ok" : status === "Fehler" || /^[45]/.test(status) ? "lc-err" : "lc-idle";
 
@@ -49,7 +58,16 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
     <div className="live-console" data-testid="live-console">
       <div className="lc-controls">
         {endpoints.length > 1 ? (
-          <select aria-label={`${label} Endpoint`} value={selected} onChange={(e) => setSelected(e.target.value)} disabled={busy}>
+          <select
+            aria-label={`${label} Endpoint`}
+            value={selected}
+            onChange={(e) => {
+              setSelected(e.target.value);
+              persist(`live-console:selected:${label}`, e.target.value);
+              persist("live-console:last_select", String(Date.now()));
+            }}
+            disabled={busy}
+          >
             {endpoints.map((ep) => (
               <option key={ep.path} value={ep.path}>{ep.label}</option>
             ))}
@@ -57,13 +75,17 @@ export function LiveConsole({ endpoints, label = "Live-Daten" }: { endpoints: Li
         ) : (
           <span className="lc-ep mono">{endpoints[0]?.label}</span>
         )}
-        <button type="button" className="btn btn-sm btn-primary" onClick={load} disabled={busy} data-testid="live-console-load">
-          {busy ? "lädt…" : "● Live laden"}
+        <button type="button" className="btn btn-sm btn-primary" onClick={load} disabled={busy} data-testid="live-console-load" data-endpoint={selected}>
+          {busy ? "lädt…" : "↻ Aktualisieren"}
         </button>
         <button
           type="button"
           className="btn btn-sm btn-ghost"
-          onClick={() => { void navigator.clipboard?.writeText(out); }}
+          onClick={() => {
+            const op = navigator.clipboard?.writeText(out);
+            if (op && typeof op.catch === "function") op.catch(() => undefined);
+            persist("live-console:last_copy", String(Date.now()));
+          }}
           disabled={busy}
         >
           Kopieren

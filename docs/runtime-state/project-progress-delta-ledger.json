@@ -1,0 +1,111 @@
+{
+  "$schema": "../runtime-contracts/project-progress-delta-ledger.schema.json",
+  "contract_version": "project-progress-delta-ledger-v2",
+  "baseline": {
+    "source_sha": "9a3776fffd226271fcd3d01fdefb0405e5303ce0",
+    "projection_sha256": "de6c3568a200c34daac1755c25a24b51d0c792d0752e2f952e58610f3a3dee7a",
+    "overall_percent": 89,
+    "cells": [
+      {
+        "scope": "horizontal",
+        "id": "phase_0",
+        "label": "Phase 0 - Reboot & Goal Lock",
+        "percent": 100
+      },
+      {
+        "scope": "horizontal",
+        "id": "phase_1",
+        "label": "Phase 1 - Foundation Runtime",
+        "percent": 100
+      },
+      {
+        "scope": "horizontal",
+        "id": "phase_2",
+        "label": "Phase 2 - Core Runtime",
+        "percent": 100
+      },
+      {
+        "scope": "horizontal",
+        "id": "phase_3",
+        "label": "Phase 3 - Product Surface & Security",
+        "percent": 44
+      },
+      {
+        "scope": "horizontal",
+        "id": "phase_4",
+        "label": "Phase 4 - Integration & Hardening",
+        "percent": 100
+      },
+      {
+        "scope": "horizontal",
+        "id": "phase_5",
+        "label": "Phase 5 - Release Readiness",
+        "percent": 89
+      },
+      {
+        "scope": "horizontal",
+        "id": "phase_6",
+        "label": "Phase 6 - Scale & 3D Platform",
+        "percent": 90
+      },
+      {
+        "scope": "vertical",
+        "id": "layer_1",
+        "label": "Frontend / Next.js",
+        "percent": 100
+      },
+      {
+        "scope": "vertical",
+        "id": "layer_2",
+        "label": "Orchestrator / LangGraph",
+        "percent": 100
+      },
+      {
+        "scope": "vertical",
+        "id": "layer_3",
+        "label": "Agent Pool",
+        "percent": 100
+      },
+      {
+        "scope": "vertical",
+        "id": "layer_4",
+        "label": "LLM Gateway",
+        "percent": 55
+      },
+      {
+        "scope": "vertical",
+        "id": "layer_5",
+        "label": "MCP Gateway",
+        "percent": 56
+      },
+      {
+        "scope": "vertical",
+        "id": "layer_6",
+        "label": "Memory",
+        "percent": 100
+      },
+      {
+        "scope": "vertical",
+        "id": "layer_7",
+        "label": "Observability",
+        "percent": 100
+      }
+    ]
+  },
+  "entries": [
+    {
+      "entry_id": "l5-56-to-86-rc30-hosted-mcp",
+      "scope": "vertical",
+      "cell_id": "layer_5",
+      "old_percent": 56,
+      "new_percent": 86,
+      "overall_percent": 89,
+      "previous_projection_sha256": "de6c3568a200c34daac1755c25a24b51d0c792d0752e2f952e58610f3a3dee7a",
+      "projection_sha256": "724d930fab05d46515527c5e5c39a5269c458e8c09b60a63267be3c39d0e8228",
+      "source_sha": "532a3c8cfff201f09617c6eb46d0111d56a9dcba",
+      "verifier_command": "python scripts/score_layer5_hosted_mcp_credit.py --score-v1",
+      "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/layer5-hosted-mcp-credit.json",
+      "artifact_sha256": "c12cea9c7793e2db1856b894bdeceb47b89935d507e11a17735df1deb8b3005a"
+    }
+  ]
+}

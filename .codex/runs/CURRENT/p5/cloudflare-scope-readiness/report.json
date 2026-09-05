@@ -1,0 +1,88 @@
+{
+  "contract_version": "cloudflare-owner-scope-readiness-v1",
+  "status": "scope_blocked",
+  "checked_at_utc": "2026-07-26T06:11:56.5046061Z",
+  "execution_scope": "read_only",
+  "runtime": "agent-api-dev-container",
+  "credentials": {
+    "api_token_present": true,
+    "account_id_present": true,
+    "secret_output": false
+  },
+  "checks": [
+    {
+      "resource": "workers",
+      "method": "GET",
+      "endpoint_template": "/accounts/{account_id}/workers/scripts",
+      "http_status": 403,
+      "success": false,
+      "error_codes": [
+        10000
+      ]
+    },
+    {
+      "resource": "d1",
+      "method": "GET",
+      "endpoint_template": "/accounts/{account_id}/d1/database",
+      "http_status": 401,
+      "success": false,
+      "error_codes": [
+        10000
+      ]
+    },
+    {
+      "resource": "queues",
+      "method": "GET",
+      "endpoint_template": "/accounts/{account_id}/queues",
+      "http_status": 403,
+      "success": false,
+      "error_codes": [
+        10000
+      ]
+    },
+    {
+      "resource": "durable_objects",
+      "method": "GET",
+      "endpoint_template": "/accounts/{account_id}/workers/durable_objects/namespaces",
+      "http_status": 403,
+      "success": false,
+      "error_codes": [
+        10000
+      ]
+    },
+    {
+      "resource": "r2",
+      "method": "GET",
+      "endpoint_template": "/accounts/{account_id}/r2/buckets",
+      "http_status": 403,
+      "success": false,
+      "error_codes": [
+        10000
+      ]
+    },
+    {
+      "resource": "vectorize",
+      "method": "GET",
+      "endpoint_template": "/accounts/{account_id}/vectorize/v2/indexes",
+      "http_status": 403,
+      "success": false,
+      "error_codes": [
+        10000
+      ]
+    }
+  ],
+  "assertions": {
+    "only_get_requests_used": true,
+    "cloud_mutation": false,
+    "resource_inventory_verified": false,
+    "o2_prime_scope_ready": false
+  },
+  "next_owner_action": "Provide least-privilege Cloudflare read/deploy scopes for Workers, D1, Queues, Durable Objects and the approved artifact adapter; provide Vectorize Edit separately for O5.",
+  "non_claims": [
+    "The probe did not create, update, deploy or delete any Cloudflare resource.",
+    "HTTP 401/403 does not prove that the named resources are absent; it proves that the current API token cannot inventory them.",
+    "Workers AI remains separately verified through the bounded LLM Gateway path.",
+    "R2 remains disabled for hosted claims until zero-card activation is proven.",
+    "DEV-ONLY; hosted proof still blocked."
+  ]
+}

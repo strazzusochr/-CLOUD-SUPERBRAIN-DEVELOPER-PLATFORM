@@ -1,0 +1,27 @@
+{
+  "binding_mode": "source_checkout_attestation_v1",
+  "candidate_sha": "0ca71d1c6168d64360a7764b725b2b673af00afe",
+  "checked_out_sha": "0ca71d1c6168d64360a7764b725b2b673af00afe",
+  "contract_version": "pr-check-source-checkout-attestation-v1",
+  "control_delta": [
+    "scripts/verify-main-deploy-transition.ps1"
+  ],
+  "control_sha": "cf89266b99c9f9437cebd70c60a49d80614297cf",
+  "event_name": "workflow_dispatch",
+  "github_actions_artifact_upload": true,
+  "non_claims": [
+    "This attestation proves only the exact source checkout boundary for this CI run.",
+    "This attestation does not convert DEV-ONLY evidence into hosted proof.",
+    "This attestation does not claim GHCR publication, production deployment, release promotion, or Owner approval."
+  ],
+  "production_deploy": false,
+  "ref": "refs/heads/codex/organism-visual-v2",
+  "registry_publish": false,
+  "release_promotion": false,
+  "run_attempt": 1,
+  "run_id": 33454908593,
+  "run_sha": "cf89266b99c9f9437cebd70c60a49d80614297cf",
+  "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33454908593",
+  "secret_output": false,
+  "source_prequalification": true
+}

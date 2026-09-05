@@ -1,0 +1,98 @@
+{
+  "artifacts": {
+    "candidate_registry_digests": {
+      "contract_version": "candidate-registry-digests-v1",
+      "path": "candidate-registry-digests.json",
+      "sha256": "636d008a7dd19bf6eb671d0b8096a4d4cbc629f65172fef047d03320ec8c3003"
+    },
+    "candidate_sbom": {
+      "contract_version": "mcp-candidate-sbom-evidence-v2",
+      "path": "candidate-sbom-report.json",
+      "sha256": "aa2619206696cdaa341b3b98d5fee24fe0503d450ba06a6faf8a4c7e532a0012"
+    },
+    "ghcr_manifest": {
+      "contract_version": "ghcr-release-manifest-v1",
+      "path": "ghcr-candidate-manifest.json",
+      "sha256": "1aa59251e853975e1e7f2142dadb059da4253231d372a4347c7babdb6b854545"
+    },
+    "registry_publication_review": {
+      "contract_version": "registry-publication-review-evidence-v1",
+      "path": "registry-publication-review.json",
+      "sha256": "b0ab1c32efcd32761bfaab99417951efc66edfbc55a88263414e95e1fbda0487"
+    },
+    "remote_image_scan": {
+      "contract_version": "remote-image-scan-evidence-v1",
+      "path": "remote-image-scan.json",
+      "sha256": "00b44a282782f3cd6c158f9cbffa1f699ecbee7eb7afce710872e49ee4e27849"
+    }
+  },
+  "cell_id": "layer_5",
+  "contract_version": "layer5-registry-release-credit-evidence-v1",
+  "control_commit_sha": "47d9d2d0892328c679a615a46e6b4d5c6ea9c4b8",
+  "credit_eligible": true,
+  "criteria": [
+    {
+      "evidence_sha256": "1aa59251e853975e1e7f2142dadb059da4253231d372a4347c7babdb6b854545",
+      "id": "immutable_registry_digests",
+      "points": 3,
+      "status": "verified"
+    },
+    {
+      "evidence_sha256": "aa2619206696cdaa341b3b98d5fee24fe0503d450ba06a6faf8a4c7e532a0012",
+      "id": "candidate_sbom",
+      "points": 3,
+      "status": "verified"
+    },
+    {
+      "evidence_sha256": "00b44a282782f3cd6c158f9cbffa1f699ecbee7eb7afce710872e49ee4e27849",
+      "id": "remote_image_scan",
+      "points": 2,
+      "status": "verified"
+    },
+    {
+      "evidence_sha256": "b0ab1c32efcd32761bfaab99417951efc66edfbc55a88263414e95e1fbda0487",
+      "id": "protected_publish",
+      "points": 6,
+      "status": "verified"
+    }
+  ],
+  "new_percent": 100,
+  "old_percent": 86,
+  "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
+  "points_awarded": 14,
+  "production_deploy": false,
+  "provider_writes": false,
+  "registry_publish_performed": true,
+  "registry_summary": {
+    "platform_digest_count": 12,
+    "service_count": 6,
+    "unique_top_digest_count": 6
+  },
+  "release_id": "prod-candidate-2026-09-04-local-rc38",
+  "release_promotion": false,
+  "review_summary": {
+    "environment": "registry-publication",
+    "reviewer": "strazzusochr",
+    "reviewer_distinct_from_triggering_actor": true,
+    "run_attempt": 1,
+    "run_id": "33913249274",
+    "state": "approved"
+  },
+  "sbom_summary": {
+    "bom_format": "CycloneDX",
+    "credit_eligible": true,
+    "sbom_count": 6
+  },
+  "scan_summary": {
+    "critical_vulnerabilities": 0,
+    "high_vulnerabilities": 0,
+    "scan_count": 12,
+    "scanner": "trivy",
+    "scanner_version": "0.72.0",
+    "secret_findings": 0
+  },
+  "scope": "vertical",
+  "secret_output": false,
+  "source_commit_sha": "5668e7cb89eac03a929853f004204b56bd171cb9",
+  "status": "verified"
+}

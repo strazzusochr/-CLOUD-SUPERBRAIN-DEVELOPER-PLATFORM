@@ -64,37 +64,41 @@ export type NavItem = {
 };
 
 export const WORKSPACE_PAGES: NavItem[] = [
-  { id: "home", no: 1, label: "Home", route: "/home", icon: "home", layer: "FE" },
-  { id: "login", no: 2, label: "Login / Onboarding", route: "/login", icon: "login", layer: "FE" },
-  { id: "workbench", no: 3, label: "Main Workbench", route: "/workbench", icon: "workbench", layer: "FE" },
-  { id: "organism", no: 4, label: "Organism / Live", route: "/organism", icon: "organism", layer: "FE" },
-  { id: "organism-replay", no: 5, label: "Organism / Replay", route: "/organism/replay", icon: "evidence", layer: "OBS" },
-  { id: "organism-map", no: 6, label: "Organism / Map", route: "/organism/map", icon: "organism", layer: "FE" },
-  { id: "agents", no: 7, label: "Agents", route: "/agents", icon: "agents", layer: "AP" },
-  { id: "files", no: 8, label: "Files & Knowledge", route: "/files", icon: "files", layer: "MEM" },
-  { id: "files-local", no: 9, label: "Local Files", route: "/files/local", icon: "filesLocal", layer: "MEM" },
-  { id: "tools", no: 10, label: "MCP / Tools", route: "/tools", icon: "tools", layer: "MCP" },
-  { id: "marketplace", no: 11, label: "Marketplace", route: "/marketplace", icon: "marketplace", layer: "LLM" },
-  { id: "observe", no: 12, label: "Observe", route: "/observe", icon: "observe", layer: "OBS" },
-  { id: "games", no: 13, label: "Games", route: "/games", icon: "games", layer: "AP" },
+  { id: "home", no: 1, label: "Start", route: "/home", icon: "home", layer: "FE" },
+  { id: "login", no: 2, label: "Anmeldung / Einstieg", route: "/login", icon: "login", layer: "FE" },
+  { id: "workbench", no: 3, label: "Bauen", route: "/workbench", icon: "workbench", layer: "FE" },
+  { id: "organism", no: 4, label: "Cortex", route: "/organism", icon: "organism", layer: "FE" },
+  { id: "organism-replay", no: 5, label: "Organismus / Wiedergabe", route: "/organism/replay", icon: "evidence", layer: "OBS" },
+  { id: "organism-map", no: 6, label: "Organismus / Karte", route: "/organism/map", icon: "organism", layer: "FE" },
+  { id: "agents", no: 7, label: "Agenten", route: "/agents", icon: "agents", layer: "AP" },
+  { id: "files", no: 8, label: "Wissen & Gedächtnis", route: "/files", icon: "files", layer: "MEM" },
+  { id: "files-local", no: 9, label: "Lokale Dateien", route: "/files/local", icon: "filesLocal", layer: "MEM" },
+  { id: "tools", no: 10, label: "MCP / Werkzeuge", route: "/tools", icon: "tools", layer: "MCP" },
+  { id: "marketplace", no: 11, label: "Marktplatz", route: "/marketplace", icon: "marketplace", layer: "LLM" },
+  { id: "observe", no: 12, label: "Beobachten", route: "/observe", icon: "observe", layer: "OBS" },
+  { id: "games", no: 13, label: "Spiele", route: "/games", icon: "games", layer: "AP" },
   { id: "apps", no: 14, label: "Apps", route: "/apps", icon: "apps", layer: "AP" },
-  { id: "media", no: 15, label: "Media", route: "/media", icon: "media", layer: "LLM" },
-  { id: "docs-output", no: 16, label: "Documents", route: "/docs-output", icon: "docs", layer: "MEM" },
-  { id: "evidence", no: 17, label: "Proof / Evidence", route: "/evidence", icon: "evidence", layer: "OBS" },
-  { id: "diagnostics", no: 18, label: "Diagnostics / Archive", route: "/diagnostics", icon: "diagnostics", layer: "OBS" },
-  { id: "design-system", no: 19, label: "Design System", route: "/design-system", icon: "design", layer: "FE" },
-  { id: "stack", no: 20, label: "Technology Stack", route: "/technology", icon: "stack", layer: "ORC" },
-  { id: "settings", no: 21, label: "Settings / Governance", route: "/settings", icon: "settings", layer: "MCP" },
+  { id: "media", no: 15, label: "Medien", route: "/media", icon: "media", layer: "LLM" },
+  { id: "docs-output", no: 16, label: "Dokumente", route: "/docs-output", icon: "docs", layer: "MEM" },
+  { id: "evidence", no: 17, label: "Prüfung / Nachweise", route: "/evidence", icon: "evidence", layer: "OBS" },
+  { id: "diagnostics", no: 18, label: "Diagnose / Archiv", route: "/diagnostics", icon: "diagnostics", layer: "OBS" },
+  { id: "design-system", no: 19, label: "Designsystem", route: "/design-system", icon: "design", layer: "FE" },
+  { id: "stack", no: 20, label: "Technologie-Stack", route: "/technology", icon: "stack", layer: "ORC" },
+  { id: "settings", no: 21, label: "Einstellungen / Governance", route: "/settings", icon: "settings", layer: "MCP" },
   { id: "open-source", no: 22, label: "Open Source", route: "/open-source", icon: "open", layer: "FE" },
 ];
 
 const byId = Object.fromEntries(WORKSPACE_PAGES.map((item) => [item.id, item])) as Record<string, NavItem>;
 
-/** Primary rail — workbench-first, evidence/diagnostics intentionally low. */
+/** Professional rail: product surfaces first, the cortex visualization, then a
+ *  clearly-separated platform/internals group. */
 export const railGroups: NavItem[][] = [
-  [byId.home, byId.workbench, byId.organism, byId.agents, byId.files, byId.tools, byId.marketplace, byId.observe],
-  [byId.games, byId.apps, byId.media, byId["docs-output"]],
-  [byId.evidence, byId.diagnostics, byId["design-system"], byId.stack, byId.settings],
+  // Build & create — what you actually do
+  [byId.home, byId.workbench, byId.agents, byId.apps, byId.games, byId.media, byId["docs-output"], byId.files],
+  // Visualize the running organism
+  [byId.organism],
+  // Platform & internals
+  [byId.tools, byId.marketplace, byId.observe, byId.evidence, byId.diagnostics, byId.stack, byId["design-system"], byId.settings, byId["open-source"]],
 ];
 
 export const SLOGAN = ["Bau alles.", "Automatisiere alles.", "Behalte Kontrolle."];

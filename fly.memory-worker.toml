@@ -8,9 +8,8 @@ primary_region = "fra"
 #     DATABASE_URL="postgresql://USER:PASS@HOST:5432/DB" \
 #     REDIS_URL="redis://HOST:6379/0"
 #
-# Deploy the prebuilt GHCR image (Fly source-build fails on the repo-root build context):
-#   flyctl deploy -c fly.memory-worker.toml \
-#     --image ghcr.io/strazzusochr/cloud-superbrain-developer-platform/memory-worker:staging
+# Source builds use the repository root; the Dockerfile COPY paths are
+# repository-root relative.
 
 [build]
   dockerfile = "services/memory-worker/Dockerfile"

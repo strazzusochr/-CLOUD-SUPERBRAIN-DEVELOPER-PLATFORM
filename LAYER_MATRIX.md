@@ -1,52 +1,38 @@
-## L1–L7 Layer Matrix (Implementation + Wiring)
+# L1-L7 Layer Matrix (kanonisch)
 
-Diese Matrix beschreibt die real implementierten Verbindungen im aktuellen Stack. Lokal gilt: DEV-ONLY; Hosted Proof ist blocked bis External Gates offen sind.
+Stand: 2026-09-01
 
-### L1 — Daten & Speicher
+Diese Matrix verwendet das verbindliche Mapping aus `AGENTS.md`,
+`docs/system-architecture.md` und `docs/project-progress.manifest.json`.
+Lokale Beweise sind `DEV-ONLY`; sie ersetzen keinen source-identischen Hosted-
+oder Release-Beweis.
 
-- PostgreSQL (pgvector): Persistenz fuer Sessions/Tasks/Memory + Checkpointer
-- Redis: Queue + working memory + rate/session guards
-- Artifacts: `.phase1-artifacts/` fuer Proof-Outputs (ohne Secrets)
+| Layer | Aktive Implementierung | Aktueller Wahrheitsrand |
+| --- | --- | --- |
+| **L1 Frontend / Next.js** | Next.js 16.2.11, React 19, 22 kanonische Workspace-Routen, R3F/three.js-Cortex, Same-Origin-Proxies | 100 % im Manifest; lokale Browserabnahme ist DEV-ONLY. Hosted Source-Parität muss je Kandidat erneut belegt werden. |
+| **L2 Orchestrator / LangGraph** | FastAPI, LangGraph-StateGraph, PostgreSQL-Checkpointer, SSE/Replay, Policy-, Budget-, Retry- und Evidence-Gates | 100 % im Manifest. Die kanonische lokale Ausführung bleibt für viele Pfade deterministisch; Cloudflare-stateful ist ein getrennt source-gebundener Hosted-Pfad. |
+| **L3 Agent Pool** | Planner, Coder, Tester, DevOps; Redis-Queue, Worker, Heartbeats, Ergebnis-Envelopes; begrenzter O4 Agent→MCP-Dateiwrite mit Audit/Readback/Rollback | 100 % im Manifest für den itemisierten Vertrag. Keine Behauptung einer allgemeinen autonomen Softwarelieferung oder beliebiger Tool-Writes. |
+| **L4 LLM Gateway** | OpenAI-kompatible Chat-/Responses-Verträge, Routing-/Policy-/Fallback-/Budget-Grenzen, begrenzter Cloudflare-Workers-AI-Livepfad | 55 % im Manifest. Standardmodus ist `deterministic_dry_run`; vollständige Live-Flotte, dynamisches Routing und Responses-Streaming sind nicht belegt. |
+| **L5 MCP Gateway / Tools** | Safe-Envelopes mit Scope, Timeout, Audit und Versionspins; interne Read-only-Tools; begrenzte source-bound Hosted-MCP-Writes | 86 % im Manifest. Vier Preview-HTTPS-Kriterien sind per Rohreport, statischem Scorer und v2-Delta-Ledger verifiziert; GHCR-Digests, Remote-Scan, Candidate-SBOM-Credit und Protected-Publish bleiben offen. |
+| **L6 Memory** | Redis Working Memory, PostgreSQL/pgvector, Konsolidierung/Purge, Cloudflare D1 Persistenz und begrenzter Vectorize-Semantikbeweis | 100 % im Manifest für den itemisierten Vertrag. Beweise bleiben an ihren jeweiligen lokalen bzw. Hosted-Scope gebunden. |
+| **L7 Observability** | Audit-Feed, Request-/Trace-Korrelation, Metriken, Evidenzartefakte und begrenzte Hosted-OTLP-Ingestion | 100 % im Manifest. Keine Behauptung vollständiger Grafana-/Langfuse-Dashboards, Alerts oder Trace-UX. |
 
-### L2 — Modelle & LLM Gateway
+## Vertikale Verbindung
 
-- LLM Gateway (dry-run): OpenAI-kompatible Endpunkte + SSE Streaming
-- Routing Policy: allow/deny Entscheidungen ohne Live-Provider-Calls
+1. **L1 → L2:** Same-Origin HTTP/SSE aus den Workspace-Flächen an den Orchestrator.
+2. **L2 → L3:** LangGraph erzeugt policy-gegatete Task-Envelopes für die vier Rollen.
+3. **L3 → L4/L5:** Agenten beziehen Modellantworten ausschließlich über L4 und Tools ausschließlich über L5.
+4. **L2/L3/L4/L5 → L6:** Checkpoints, Arbeitsgedächtnis und Langzeitgedächtnis speichern nur über die gebundenen Adapter.
+5. **Alle Layer → L7:** Request-ID, Trace-ID, Audit und Evidence korrelieren jeden zulässigen Effekt.
 
-### L3 — Agent Pool & Worker
+## Horizontale Ausführung
 
-- LangGraph Orchestrator: dry-run Graph + SSE Event Stream
-- agent-worker: Task consumption aus Redis + Status persistence
-- memory-worker: Konsolidierung + Purge/Redaction Proofs
+`Prompt → Orchestrator → Agent Pool → LLM/MCP → Memory → Audit/Evidence → UI-Projektion`
 
-### L4 — API & Gateways
+## Stop-Gates
 
-- agent-api: Contracts/Surfaces fuer Tasks, Memory, Progress, Limits, Security Headers
-- mcp-gateway: dry-run contracts fuer GitHub/Postgres/Filesystem/Playwright/E2B
-- nginx: Routing `/api`, `/mcp`, `/llm` und Frontend ueber `:8081`
+Production-Deploy, Release-Promotion, Registry-Push, Default-Branch-Write,
+Secret-/Scope-Erweiterung, allgemeine Live-MCP-Writes und Live-Provider-
+Aktivierung benötigen die in `AGENTS.md` festgelegte Owner-/Review-Freigabe.
 
-### L5 — Frontend & UI
-
-- Next.js 15 App Router: Workbench, Organism, Diagnostics, Tools, Evidence, usw.
-- Browser Contracts: Marker/Contracts werden via `verify-browser-contract.ps1` geprueft
-
-### L6 — Cloud & Infrastruktur
-
-- Compose dev: lokale Runtime Proofs
-- Compose cloud: pull-based substrate Guards, aber hosted deploy bleibt gated (Owner approval + Secrets)
-
-### L7 — Verification & Governance
-
-- `scripts/verify-phase1.ps1`: Repo/Governance/Security/Manifest Guards
-- `scripts/verify-phase1-runtime.ps1`: Runtime Contracts + Stability Proofs
-- `scripts/verify-browser-contract.ps1`: Browser/UI/Contracts (DEV-ONLY optional)
-- `scripts/verify-external-gates.ps1`: Hosted/Production Claims (BLOCKED ohne echte HTTPS URLs/Tokens)
-
-## Wichtigste Verschachtelungen (Wiring)
-
-- L1 → L3: Redis Queue + Postgres Checkpoints/State (LangGraph) + Memory persistence
-- L2 → L3: LLM SSE (dry-run) → Orchestrator/Agent Streaming → Memory/Task updates
-- L3 → L4: Agent Tasks/Policies → agent-api endpoints + audit events
-- L4 → L5: HTTP/SSE → UI Panels (Workbench/Organism/Diagnostics)
-- L5 → L6: nginx Reverse Proxy / Compose Networking
-- L6 → L7: CI/Verifier-Execution (lokal), hosted verification nach External Gate Freischaltung
+`MARKET_READY:false`; der vierteilige Hosted-MCP-Preview-Slice ist verifiziert, Markt-/Release-Readiness bleibt blockiert.

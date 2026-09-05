@@ -1,0 +1,49 @@
+﻿{
+    "contract_version":  "phase5-production-candidate-local-verification-v2",
+    "evidence_ref":  "phase5_local_production_candidate_verified",
+    "status":  "verified",
+    "verification_scope":  "full_with_browser",
+    "generated_at":  "2026-08-02T19:12:13.9978096Z",
+    "release_id":  "prod-candidate-2026-08-02-local-rc12",
+    "source_commit_sha":  "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+    "service_count":  6,
+    "api_contract_verified":  true,
+    "local_image_identity_verified":  true,
+    "embedded_source_hash_parity_verified":  true,
+    "candidate_runtime_source_parity_verified":  true,
+    "rollback_target":  "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+    "browser_click_verified":  true,
+    "registry_publish":  false,
+    "hosted_staging_parity":  false,
+    "production_deploy":  false,
+    "release_promotion":  false,
+    "secret_output":  false,
+    "command":  "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -AllowLocalhost -EvidenceRunId 81b4edef-8357-4d3d-ac2e-e209e344adb9",
+    "evidence_run_id":  "81b4edef-8357-4d3d-ac2e-e209e344adb9",
+    "raw_log_path":  "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-runtime.log",
+    "raw_log_sha256":  "114F3DA1C9AE6EF37644D381C0761C8ACC60461B1E1A08946DEAD08466C8134F",
+    "observed_success_anchors":  [
+                                     "[phase5-candidate-local] api_contract_verified=true",
+                                     "[phase5-candidate-local] local_image_identity_verified=true",
+                                     "[phase5-candidate-local] embedded_source_hash_parity_verified=true",
+                                     "[phase5-candidate-local] candidate_runtime_source_parity_verified=true",
+                                     "[phase5-candidate-local] browser_click_verified=true",
+                                     "[phase5-candidate-local] playwright_passed=1",
+                                     "[phase5-candidate-local] status=verified service_count=6"
+                                 ],
+    "raw_evidence":  {
+                         "candidate_images":  {
+                                                  "path":  "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/candidate-images.json",
+                                                  "sha256":  "F4C19BB337C255F690317CB6C6824A376EFE48832FD474DDD23C7B4AEA8BA5D4"
+                                              },
+                         "api_contract":  {
+                                              "path":  "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-runtime-api-contract.json",
+                                              "sha256":  "50B10CAF57E57614BE685AF2EE4DFEFD43FF165D7BD30F3506F2BEAB86F03B1F"
+                                          },
+                         "browser_screenshot":  {
+                                                    "path":  "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-runtime-browser.png",
+                                                    "sha256":  "947FAD70D4AEFAFDD0AA732FDCD38830D0CDE2604B43F12C57A635EF456A0099",
+                                                    "size_bytes":  158543
+                                                }
+                     }
+}

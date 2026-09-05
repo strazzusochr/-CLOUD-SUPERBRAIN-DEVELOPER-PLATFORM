@@ -1,23 +1,34 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import os
 import posixpath
 import re
+import stat
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
 MCP_GATEWAY_VERSION = "0.1.0"
 MCP_VERSION_PINNING_CONTRACT_VERSION = "mcp-version-pinning-v1"
 MCP_VERSION_PINNING_EVIDENCE_REF = "mcp_version_pinning_contract_visible"
+FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION = "filesystem-project-progress-read-v1"
+FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF = "filesystem_project_progress_read_verified"
+FILESYSTEM_PROJECT_PROGRESS_PATH = "/app/readonly/project-progress.manifest.json"
+FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES = 65_536
+FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS = tuple(f"phase_{index}" for index in range(7))
+FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS = tuple(f"layer_{index}" for index in range(1, 8))
+MCP_AUDIT_HTTP_TIMEOUT_SECONDS = 10
 
 app = FastAPI(title="Cloud Superbrain MCP Gateway", version=MCP_GATEWAY_VERSION)
 
@@ -45,6 +56,28 @@ class ToolRequest(BaseModel):
     def validate_session_uuid(cls, value: str | None) -> str | None:
         if value is None:
             return None
+        try:
+            return str(UUID(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("session_id must be a valid UUID") from exc
+
+
+class LiveWorkspaceWriteProbeRequest(BaseModel):
+    tool_request_id: str = Field(..., pattern=r"^o4-(runtime|browser|rollback)-[a-f0-9]{32}$")
+    run_id: str = Field(..., pattern=r"^o4-(runtime|browser|rollback)-run-[a-f0-9]{32}$")
+    session_id: str
+    agent_role: str = Field(default="coder", pattern="^coder$")
+    repository: str = Field(..., min_length=1, max_length=160)
+    branch: str = Field(..., min_length=1, max_length=160, pattern=r"^[A-Za-z0-9._/-]+$")
+    channel: str = Field(..., pattern="^(runtime|browser|rollback)$")
+    idempotency_key: str = Field(..., pattern=r"^o4-(runtime|browser|rollback)-[a-f0-9]{32}$")
+    simulate_commit_audit_failure: bool = False
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_uuid(cls, value: str) -> str:
         try:
             return str(UUID(value))
         except (TypeError, ValueError) as exc:
@@ -93,6 +126,13 @@ FILESYSTEM_FORBIDDEN_OPERATIONS = (
     "read_secret",
     "write_secret",
 )
+O4_LIVE_WRITE_CONTRACT_VERSION = "o4-live-agent-mcp-write-v1"
+O4_LIVE_WRITE_EVIDENCE_REF = "o4_live_agent_mcp_write_audit_verified"
+O4_ALLOWED_REPOSITORY = "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
+O4_OWNER_MANIFEST_PATH = "/app/progress/owner-input-manifest.json"
+O4_GIT_HEAD_PATH = "/app/o4-git/HEAD"
+O4_PROBE_DIRECTORY = "o4-live-write"
+O4_MAX_PRIOR_BYTES = 32_768
 
 PLAYWRIGHT_ALLOWED_ACTIONS = ("navigate_to_url", "take_screenshot", "extract_text", "close_browser")
 PLAYWRIGHT_FORBIDDEN_SCHEMES = ("file", "ftp", "data", "javascript")
@@ -196,6 +236,626 @@ def filesystem_workspace_scope_contract() -> dict[str, object]:
             "No filesystem read or write is executed by this contract endpoint.",
             "No host filesystem access outside /tmp/agent-workspace is claimed or allowed.",
         ],
+    }
+
+
+def filesystem_project_progress_contract() -> dict[str, object]:
+    return {
+        "contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+        "public_contract_endpoint": "GET /api/v1/filesystem/project-progress/contract",
+        "internal_execute_endpoint": "GET /internal/v1/filesystem/project-progress",
+        "source": "image_baked_project_progress_manifest",
+        "capability": "read_project_progress",
+        "canonical_query": "canonical-project-progress",
+        "max_source_bytes": FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES,
+        "caller_path_allowed": False,
+        "caller_filename_allowed": False,
+        "caller_operation_allowed": False,
+        "regular_file_required": True,
+        "symlink_allowed": False,
+        "writable_source_allowed": False,
+        "strict_utf8_json_required": True,
+        "required_phase_ids": list(FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS),
+        "required_layer_ids": list(FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS),
+        "audit_before_read_required": True,
+        "audit_after_read_required": True,
+        "timeout_seconds": 3,
+        "retry_budget": 0,
+        "hosted_enabled": False,
+        "live_mcp_writes": False,
+        "live_provider_calls": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
+        "evidence_ref": FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+        "non_claims": [
+            "This adapter reads only the fixed image-baked project progress manifest in exact DEV-ONLY mode.",
+            "No caller path, filename, operation, provider call, MCP write, secret output, hosted use, or production deployment is enabled.",
+        ],
+    }
+
+
+def _strict_json_object(raw: bytes) -> dict[str, object]:
+    try:
+        text = raw.decode("utf-8", errors="strict")
+
+        def reject_duplicate_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+            result: dict[str, object] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate JSON key")
+                result[key] = value
+            return result
+
+        payload = json.loads(
+            text,
+            object_pairs_hook=reject_duplicate_pairs,
+            parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("invalid JSON constant")),
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        raise ValueError("project progress source is not strict UTF-8 JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("project progress source must be an object")
+    return payload
+
+
+def _bounded_progress_items(
+    container: object,
+    expected_ids: tuple[str, ...],
+    label: str,
+) -> list[dict[str, object]]:
+    if not isinstance(container, dict) or set(container) != {"label", "items"}:
+        raise ValueError(f"{label} container schema mismatch")
+    if (
+        not isinstance(container["label"], str)
+        or not container["label"].strip()
+        or len(container["label"]) > 160
+    ):
+        raise ValueError(f"{label} label is invalid")
+    items = container.get("items")
+    if not isinstance(items, list) or len(items) != len(expected_ids):
+        raise ValueError(f"{label} must contain exactly seven items")
+
+    projection: list[dict[str, object]] = []
+    for expected_id, item in zip(expected_ids, items, strict=True):
+        if not isinstance(item, dict) or set(item) != {"id", "label", "percent", "status"}:
+            raise ValueError(f"{label} item schema mismatch")
+        item_id = item.get("id")
+        percent = item.get("percent")
+        if item_id != expected_id or isinstance(percent, bool) or not isinstance(percent, int):
+            raise ValueError(f"{label} item identity or percent is invalid")
+        if not 0 <= percent <= 100:
+            raise ValueError(f"{label} percent is out of range")
+        projected: dict[str, object] = {"id": item_id, "percent": percent}
+        for field, maximum in (("label", 160), ("status", 16_384)):
+            value = item.get(field)
+            if not isinstance(value, str) or not value.strip() or len(value) > maximum:
+                raise ValueError(f"{label} {field} is invalid")
+        projection.append(projected)
+    return projection
+
+
+def _read_filesystem_project_progress_source() -> tuple[dict[str, object], str, int]:
+    configured_path = os.getenv("FILESYSTEM_PROJECT_PROGRESS_PATH", FILESYSTEM_PROJECT_PROGRESS_PATH)
+    source_path = Path(configured_path)
+    try:
+        path_stat = source_path.lstat()
+    except OSError as exc:
+        raise ValueError("project progress source is unavailable") from exc
+    if stat.S_ISLNK(path_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+        raise ValueError("project progress source must be a regular non-symlink file")
+    flags = os.O_RDONLY
+    flags |= getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(source_path, flags)
+    except OSError as exc:
+        raise ValueError("project progress source read failed") from exc
+    source_error: OSError | ValueError | None = None
+    raw = b""
+    try:
+        source_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(source_stat.st_mode):
+            raise ValueError("project progress source must be a regular file")
+        if (source_stat.st_dev, source_stat.st_ino) != (path_stat.st_dev, path_stat.st_ino):
+            raise ValueError("project progress source changed before the bounded read")
+        if source_stat.st_mode & (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH):
+            raise ValueError("project progress source must not be writable")
+        if source_stat.st_size <= 0 or source_stat.st_size > FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES:
+            raise ValueError("project progress source size is outside the fixed bound")
+        chunks: list[bytes] = []
+        remaining = FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES + 1
+        while remaining > 0:
+            chunk = os.read(descriptor, min(8192, remaining))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        raw = b"".join(chunks)
+        completed_stat = os.fstat(descriptor)
+        if (
+            len(raw) != source_stat.st_size
+            or len(raw) > FILESYSTEM_PROJECT_PROGRESS_MAX_BYTES
+            or completed_stat.st_size != source_stat.st_size
+            or completed_stat.st_mtime_ns != source_stat.st_mtime_ns
+        ):
+            raise ValueError("project progress source changed during the bounded read")
+    except (OSError, ValueError) as exc:
+        source_error = exc
+    try:
+        os.close(descriptor)
+    except OSError as exc:
+        if source_error is None:
+            source_error = exc
+    if source_error is not None:
+        raise ValueError("project progress source bounded read failed") from source_error
+
+    payload = _strict_json_object(raw)
+    known_top_level = {
+        "overall_percent",
+        "progress_source",
+        "horizontal",
+        "vertical",
+        "truth_policy",
+        "binding_document",
+        "last_verified",
+        "non_claims",
+    }
+    required_top_level = {"overall_percent", "progress_source", "horizontal", "vertical", "last_verified"}
+    if not required_top_level.issubset(payload) or set(payload).difference(known_top_level):
+        raise ValueError("project progress top-level schema mismatch")
+    if payload.get("progress_source") != "docs/project-progress.manifest.json":
+        raise ValueError("project progress source identity mismatch")
+    overall_percent = payload.get("overall_percent")
+    last_verified = payload.get("last_verified")
+    if isinstance(overall_percent, bool) or not isinstance(overall_percent, int) or not 0 <= overall_percent <= 100:
+        raise ValueError("overall_percent is invalid")
+    if not isinstance(last_verified, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", last_verified):
+        raise ValueError("last_verified is invalid")
+    horizontal = _bounded_progress_items(payload.get("horizontal"), FILESYSTEM_PROJECT_PROGRESS_PHASE_IDS, "horizontal")
+    vertical = _bounded_progress_items(payload.get("vertical"), FILESYSTEM_PROJECT_PROGRESS_LAYER_IDS, "vertical")
+    projection = {
+        "overall_percent": overall_percent,
+        "horizontal": horizontal,
+        "vertical": vertical,
+        "last_verified": last_verified,
+    }
+    return projection, hashlib.sha256(raw).hexdigest(), len(raw)
+
+
+def _filesystem_project_progress_tool_request(trace_id: str) -> ToolRequest:
+    request_id = uuid4().hex
+    return ToolRequest(
+        tool_request_id=f"filesystem-progress-{request_id}",
+        run_id=f"filesystem-progress-run-{request_id}",
+        session_id=str(uuid4()),
+        trace_id=trace_id,
+        agent_role="planner",
+        toolset="filesystem",
+        capability="read_project_progress",
+        intent_summary="Read the fixed image-baked project progress manifest.",
+        input_ref="fixed:image-baked-project-progress",
+        allowed_scope="fixed:image-baked-project-progress",
+        timeout_ms=3_000,
+        retry_budget=0,
+        idempotency_key=None,
+        audit_tags=["read_phase:authorized"],
+        redaction_required=True,
+        expected_output_type="filesystem_project_progress_projection",
+    )
+
+
+def _valid_audit_event_id(event: object) -> str | None:
+    if not isinstance(event, dict):
+        return None
+    event_id = event.get("event_id")
+    try:
+        return str(UUID(str(event_id)))
+    except (TypeError, ValueError):
+        return None
+
+
+def execute_filesystem_project_progress_read(
+    supplied_token: str | None,
+    trace_id: str | None = None,
+) -> dict[str, object]:
+    if os.getenv("SUPERBRAIN_RUNTIME_MODE", "") != "dev-only":
+        raise HTTPException(status_code=403, detail="filesystem project progress adapter is DEV-ONLY")
+    if not o4_internal_auth_valid(supplied_token):
+        raise HTTPException(status_code=401, detail="filesystem project progress service authentication required")
+
+    bounded_trace_id = str(trace_id or f"filesystem-progress-{uuid4()}")
+    if not re.fullmatch(r"[A-Za-z0-9._:-]{1,255}", bounded_trace_id):
+        raise HTTPException(status_code=400, detail="filesystem project progress trace id is invalid")
+    authorization_request = _filesystem_project_progress_tool_request(bounded_trace_id)
+    authorization_result = envelope_result(
+        authorization_request,
+        status="success",
+        sanitized_summary="Authorized the fixed DEV-ONLY project progress read.",
+        evidence_ref=FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+    )
+    authorization_event = post_audit_event(authorization_request, authorization_result)
+    authorization_event_id = _valid_audit_event_id(authorization_event)
+    if not authorization_event_id:
+        raise HTTPException(status_code=503, detail="filesystem project progress authorization audit unavailable")
+
+    try:
+        projection, content_sha256, bytes_read = _read_filesystem_project_progress_source()
+    except ValueError:
+        blocked_request = authorization_request.model_copy(update={"audit_tags": ["read_phase:completed"]})
+        blocked_result = envelope_result(
+            blocked_request,
+            status="blocked",
+            sanitized_summary="The fixed project progress source failed bounded validation; no result returned.",
+            error_class="filesystem_project_progress_validation_failed",
+            evidence_ref=FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+        )
+        post_audit_event(blocked_request, blocked_result)
+        raise HTTPException(status_code=503, detail="filesystem project progress source validation failed") from None
+
+    completion_request = authorization_request.model_copy(update={"audit_tags": ["read_phase:completed"]})
+    completion_result = envelope_result(
+        completion_request,
+        status="success",
+        sanitized_summary="Completed and validated the fixed DEV-ONLY project progress read.",
+        evidence_ref=FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+    )
+    completion_result.update(
+        {
+            "content_sha256": content_sha256,
+            "filesystem_read_performed": True,
+        }
+    )
+    completion_event = post_audit_event(completion_request, completion_result)
+    completion_event_id = _valid_audit_event_id(completion_event)
+    if not completion_event_id:
+        raise HTTPException(status_code=503, detail="filesystem project progress completion audit unavailable")
+
+    return {
+        "contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+        "status": "success",
+        "evidence_ref": FILESYSTEM_PROJECT_PROGRESS_EVIDENCE_REF,
+        "trace_id": bounded_trace_id,
+        **projection,
+        "source_sha256": content_sha256,
+        "bytes_read": bytes_read,
+        "filesystem_read_performed": True,
+        "audit_before_read": True,
+        "audit_after_read": True,
+        "authorization_audit_event_id": authorization_event_id,
+        "completion_audit_event_id": completion_event_id,
+        "live_mcp_writes": False,
+        "live_provider_calls": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
+        "DEV_ONLY": True,
+    }
+
+
+def o4_internal_auth_valid(supplied_token: str | None) -> bool:
+    expected_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
+    return bool(
+        expected_token
+        and isinstance(supplied_token, str)
+        and supplied_token
+        and hmac.compare_digest(supplied_token, expected_token)
+    )
+
+
+def o4_active_branch() -> str:
+    head_path = Path(os.getenv("O4_GIT_HEAD_PATH", O4_GIT_HEAD_PATH))
+    try:
+        head = head_path.read_text(encoding="utf-8-sig").strip()
+    except OSError:
+        return ""
+    prefix = "ref: refs/heads/"
+    return head[len(prefix):] if head.startswith(prefix) else ""
+
+
+def o4_owner_scope_authorized(repository: str, branch: str) -> bool:
+    manifest_path = Path(os.getenv("O4_OWNER_MANIFEST_PATH", O4_OWNER_MANIFEST_PATH))
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    actions = payload.get("actions")
+    if not isinstance(actions, list):
+        return False
+    action = next(
+        (item for item in actions if isinstance(item, dict) and item.get("id") == "O4"),
+        None,
+    )
+    decision = action.get("owner_scope_decision") if isinstance(action, dict) else None
+    if not isinstance(decision, dict):
+        return False
+    audit = decision.get("audit_retention")
+    write_allowlist = decision.get("mcp_write_allowlist")
+    exclusions = decision.get("mcp_write_explicitly_excluded")
+    actual_branch = o4_active_branch()
+    return bool(
+        decision.get("decision") == "approved_as_proposed"
+        and decision.get("gate_state_unchanged") is True
+        and decision.get("repositories_allowed") == [O4_ALLOWED_REPOSITORY]
+        and repository == O4_ALLOWED_REPOSITORY
+        and actual_branch
+        and actual_branch == branch
+        and branch != "main"
+        and ".." not in branch.split("/")
+        and isinstance(decision.get("branches_forbidden"), str)
+        and "main" in decision["branches_forbidden"]
+        and isinstance(write_allowlist, list)
+        and any(str(item).startswith("filesystem:") for item in write_allowlist)
+        and any(str(item).startswith("git:") for item in write_allowlist)
+        and isinstance(exclusions, list)
+        and any(r"C:\Users\immer\.codex" in str(item) for item in exclusions)
+        and any("<SECRETS_DIR>" in str(item) for item in exclusions)
+        and isinstance(audit, dict)
+        and audit.get("persist_every_write") is True
+        and audit.get("secret_values_recorded") is False
+        and audit.get("retention") == "unlimited"
+        and "rolled back" in str(audit.get("fail_closed_rule", "")).lower()
+    )
+
+
+def o4_live_write_contract() -> dict[str, object]:
+    workspace_root = os.getenv("FILESYSTEM_ROOT", FILESYSTEM_WORKSPACE_ROOT)
+    return {
+        "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+        "endpoint": "POST /api/v1/tools/live-write/probe",
+        "mode": "DEV-ONLY bounded verifier probe",
+        "enabled": os.getenv("O4_LIVE_WRITE_PROBE_ENABLED", "").lower() == "true",
+        "toolset": "filesystem",
+        "agent_role": "coder",
+        "repository": O4_ALLOWED_REPOSITORY,
+        "active_branch": o4_active_branch(),
+        "workspace_root": workspace_root,
+        "fixed_probe_directory": O4_PROBE_DIRECTORY,
+        "arbitrary_paths_allowed": False,
+        "main_write_allowed": False,
+        "force_push_allowed": False,
+        "audit_before_write_required": True,
+        "audit_after_write_required": True,
+        "rollback_on_commit_audit_failure": True,
+        "audit_retention": "unlimited",
+        "secret_output": False,
+        "production_deploy": False,
+        "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+        "non_claims": [
+            "This contract authorizes only the fixed DEV-ONLY O4 verifier probe.",
+            "It does not authorize arbitrary paths, main writes, force pushes, provider writes, releases, or production deployment.",
+            "The internal service token is required and is never returned.",
+        ],
+    }
+
+
+def o4_tool_request(request: LiveWorkspaceWriteProbeRequest) -> ToolRequest:
+    return ToolRequest(
+        tool_request_id=request.tool_request_id,
+        run_id=request.run_id,
+        session_id=request.session_id,
+        trace_id=request.run_id,
+        agent_role="coder",
+        toolset="filesystem",
+        capability="write_workspace_probe",
+        intent_summary="Execute the fixed bounded O4 live-write verifier probe.",
+        input_ref=json.dumps(
+            {
+                "channel": request.channel,
+                "repository": request.repository,
+                "branch": request.branch,
+            },
+            separators=(",", ":"),
+        ),
+        allowed_scope=FILESYSTEM_WORKSPACE_ROOT,
+        timeout_ms=10_000,
+        retry_budget=0,
+        idempotency_key=request.idempotency_key,
+        audit_tags=["o4", "live-write", request.channel, "fail-closed"],
+        redaction_required=True,
+        expected_output_type="o4_live_write_proof",
+    )
+
+
+def o4_audit_result(
+    tool_request: ToolRequest,
+    *,
+    status: str,
+    summary: str,
+    phase: str,
+    write_path: str,
+    branch: str,
+    write_result: str,
+    content_sha256: str = "",
+    live_write: bool = False,
+    rollback_performed: bool = False,
+) -> dict[str, object]:
+    result = envelope_result(
+        tool_request,
+        status=status,
+        sanitized_summary=summary,
+        error_class="none" if status == "success" else write_result,
+        evidence_ref=O4_LIVE_WRITE_EVIDENCE_REF,
+    )
+    result.update(
+        {
+            "write_phase": phase,
+            "write_path": write_path,
+            "branch_ref": branch,
+            "write_result": write_result,
+            "content_sha256": content_sha256,
+            "live_mcp_write": live_write,
+            "rollback_performed": rollback_performed,
+            "secret_output": False,
+        }
+    )
+    return result
+
+
+def o4_atomic_write(target: Path, content: bytes) -> None:
+    temporary = target.parent / f".{target.name}.{uuid4().hex}.tmp"
+    try:
+        temporary.write_bytes(content)
+        os.replace(temporary, target)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def execute_o4_live_write(
+    request: LiveWorkspaceWriteProbeRequest,
+    supplied_token: str | None,
+) -> dict[str, object]:
+    if os.getenv("O4_LIVE_WRITE_PROBE_ENABLED", "").lower() != "true":
+        raise HTTPException(status_code=403, detail="O4 live-write verifier is disabled")
+    if not o4_internal_auth_valid(supplied_token):
+        raise HTTPException(status_code=401, detail="O4 internal service authentication required")
+    if request.tool_request_id != request.idempotency_key:
+        raise HTTPException(status_code=400, detail="O4 idempotency binding mismatch")
+    if not request.idempotency_key.startswith(f"o4-{request.channel}-"):
+        raise HTTPException(status_code=400, detail="O4 channel binding mismatch")
+    if request.simulate_commit_audit_failure and (
+        os.getenv("O4_LIVE_WRITE_NEGATIVE_TEST_ENABLED", "").lower() != "true"
+        or request.channel != "rollback"
+    ):
+        raise HTTPException(status_code=403, detail="O4 negative probe is disabled")
+    if not o4_owner_scope_authorized(request.repository, request.branch):
+        raise HTTPException(status_code=403, detail="O4 owner scope or branch policy rejected")
+
+    configured_root = os.getenv("FILESYSTEM_ROOT", FILESYSTEM_WORKSPACE_ROOT)
+    if configured_root != FILESYSTEM_WORKSPACE_ROOT:
+        raise HTTPException(status_code=503, detail="O4 workspace root contract mismatch")
+    workspace_root = Path(configured_root).resolve()
+    target_parent = workspace_root / O4_PROBE_DIRECTORY
+    target = target_parent / f"{request.channel}.json"
+    logical_path = f"{FILESYSTEM_WORKSPACE_ROOT}/{O4_PROBE_DIRECTORY}/{request.channel}.json"
+    tool_request = o4_tool_request(request)
+
+    authorization_audit = post_audit_event(
+        tool_request,
+        o4_audit_result(
+            tool_request,
+            status="success",
+            summary=f"Authorized bounded O4 write to {logical_path}.",
+            phase="authorized",
+            write_path=logical_path,
+            branch=request.branch,
+            write_result="authorized",
+        ),
+    )
+    if not authorization_audit:
+        raise HTTPException(status_code=503, detail="O4 pre-write audit unavailable")
+
+    parent_existed = target_parent.exists()
+    prior_content: bytes | None = None
+    if target.exists():
+        if target.is_symlink() or target.stat().st_size > O4_MAX_PRIOR_BYTES:
+            raise HTTPException(status_code=409, detail="O4 existing probe target is unsafe")
+        prior_content = target.read_bytes()
+
+    content = (
+        json.dumps(
+            {
+                "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+                "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+                "repository": request.repository,
+                "branch": request.branch,
+                "channel": request.channel,
+                "idempotency_key": request.idempotency_key,
+                "agent_role": "coder",
+                "toolset": "filesystem",
+                "live_agent_tool_writes": True,
+                "live_mcp_writes": True,
+                "production_deploy": False,
+                "secret_output": False,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
+    content_sha256 = hashlib.sha256(content).hexdigest()
+
+    try:
+        target_parent.mkdir(parents=True, exist_ok=True)
+        if target_parent.resolve().parent != workspace_root or target.is_symlink():
+            raise RuntimeError("O4 target escaped the fixed workspace")
+        o4_atomic_write(target, content)
+        if hashlib.sha256(target.read_bytes()).hexdigest() != content_sha256:
+            raise RuntimeError("O4 write readback mismatch")
+        commit_audit = None if request.simulate_commit_audit_failure else post_audit_event(
+            tool_request,
+            o4_audit_result(
+                tool_request,
+                status="success",
+                summary=f"Committed and read back bounded O4 write at {logical_path}.",
+                phase="committed",
+                write_path=logical_path,
+                branch=request.branch,
+                write_result="committed",
+                content_sha256=content_sha256,
+                live_write=True,
+            ),
+        )
+        if not commit_audit:
+            raise RuntimeError("O4 commit audit unavailable")
+    except Exception:
+        try:
+            if prior_content is None:
+                if target.exists() and not target.is_symlink():
+                    target.unlink()
+            else:
+                o4_atomic_write(target, prior_content)
+            if not parent_existed and target_parent.exists() and not any(target_parent.iterdir()):
+                target_parent.rmdir()
+            rollback_ok = post_audit_event(
+                tool_request,
+                o4_audit_result(
+                    tool_request,
+                    status="degraded",
+                    summary=f"Rolled back bounded O4 write at {logical_path}.",
+                    phase="rolled_back",
+                    write_path=logical_path,
+                    branch=request.branch,
+                    write_result="audit_commit_failed_rolled_back",
+                    rollback_performed=True,
+                ),
+            )
+        except Exception:
+            rollback_ok = None
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "O4 live-write commit failed",
+                "rollback_performed": True,
+                "rollback_audit_persisted": bool(rollback_ok),
+                "secret_output": False,
+            },
+        ) from None
+
+    return {
+        "contract_version": O4_LIVE_WRITE_CONTRACT_VERSION,
+        "status": "verified",
+        "evidence_ref": O4_LIVE_WRITE_EVIDENCE_REF,
+        "repository": request.repository,
+        "branch": request.branch,
+        "channel": request.channel,
+        "agent_role": "coder",
+        "toolset": "filesystem",
+        "write_path": logical_path,
+        "write_performed": True,
+        "readback_verified": True,
+        "content_sha256": content_sha256,
+        "prewrite_audit_event_id": authorization_audit["event_id"],
+        "mcp_audit_event_id": commit_audit["event_id"],
+        "audit_persisted": True,
+        "audit_fail_closed": True,
+        "rollback_on_audit_failure": True,
+        "live_mcp_writes": True,
+        "live_provider_calls": False,
+        "direct_provider_calls": False,
+        "production_deploy": False,
+        "secret_output": False,
     }
 
 
@@ -419,6 +1079,16 @@ def mcp_version_pinning_contract() -> dict[str, object]:
                 "capability": "plan_workspace_access",
                 "contract_version": "filesystem-workspace-scope-v1",
                 "endpoint": "GET /mcp/api/v1/filesystem/workspace-scope/contract",
+                "live_mutation": False,
+            },
+            {
+                "toolset": "filesystem",
+                "capability": "read_project_progress",
+                "contract_version": FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION,
+                "endpoint": "GET /mcp/api/v1/filesystem/project-progress/contract",
+                "internal_execute_endpoint": "GET /internal/v1/filesystem/project-progress",
+                "dev_only": True,
+                "caller_path_allowed": False,
                 "live_mutation": False,
             },
             {
@@ -679,6 +1349,7 @@ def envelope_result(
 
 def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[str, object] | None:
     base_url = os.getenv("AGENT_API_INTERNAL_URL", "http://agent-api:8000").rstrip("/")
+    service_token = os.getenv("AGENT_API_AUTH_TOKEN", "")
     payload = {
         "tool_request_id": request.tool_request_id,
         "run_id": request.run_id,
@@ -696,14 +1367,29 @@ def post_audit_event(request: ToolRequest, result: dict[str, object]) -> dict[st
         "retry_after_ms": result["retry_after_ms"],
         "audit_tags": request.audit_tags,
     }
+    for field in (
+        "write_phase",
+        "write_path",
+        "branch_ref",
+        "write_result",
+        "content_sha256",
+        "live_mcp_write",
+        "rollback_performed",
+        "secret_output",
+    ):
+        if field in result:
+            payload[field] = result[field]
     http_request = urllib.request.Request(
         f"{base_url}/internal/audit/mcp-tool-events",
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-Superbrain-Agent-Token": service_token,
+        },
         method="POST",
     )
     try:
-        with urllib.request.urlopen(http_request, timeout=2) as response:
+        with urllib.request.urlopen(http_request, timeout=MCP_AUDIT_HTTP_TIMEOUT_SECONDS) as response:
             return json.loads(response.read().decode("utf-8"))
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError):
         return None
@@ -764,6 +1450,32 @@ def postgresql_readonly_query_contract_endpoint() -> dict[str, object]:
 @app.get("/api/v1/filesystem/workspace-scope/contract")
 def filesystem_workspace_scope_contract_endpoint() -> dict[str, object]:
     return filesystem_workspace_scope_contract()
+
+
+@app.get("/api/v1/filesystem/project-progress/contract")
+def filesystem_project_progress_contract_endpoint() -> dict[str, object]:
+    return filesystem_project_progress_contract()
+
+
+@app.get("/internal/v1/filesystem/project-progress")
+def filesystem_project_progress_read_endpoint(
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_trace_id: str | None = Header(default=None),
+) -> dict[str, object]:
+    return execute_filesystem_project_progress_read(x_superbrain_agent_token, x_trace_id)
+
+
+@app.get("/api/v1/tools/live-write/probe/contract")
+def o4_live_write_contract_endpoint() -> dict[str, object]:
+    return o4_live_write_contract()
+
+
+@app.post("/api/v1/tools/live-write/probe")
+def o4_live_write_probe_endpoint(
+    request: LiveWorkspaceWriteProbeRequest,
+    x_superbrain_agent_token: str | None = Header(default=None),
+) -> dict[str, object]:
+    return execute_o4_live_write(request, x_superbrain_agent_token)
 
 
 @app.get("/api/v1/playwright/browser-proof/contract")

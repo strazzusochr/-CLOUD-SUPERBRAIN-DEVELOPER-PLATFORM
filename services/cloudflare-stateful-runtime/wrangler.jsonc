@@ -1,0 +1,120 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloud-superbrain-stateful-runtime",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-20",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "migrations": [
+    {
+      "tag": "v1-cloudflare-native-coordinator",
+      "new_sqlite_classes": [
+        "RuntimeCoordinator"
+      ]
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RUNTIME_COORDINATOR",
+        "class_name": "RuntimeCoordinator"
+      }
+    ]
+  },
+  "queues": {
+    "producers": [
+      {
+        "binding": "RUNTIME_QUEUE",
+        "queue": "cloud-superbrain-runtime-candidate"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "cloud-superbrain-runtime-candidate",
+        "max_batch_size": 10,
+        "max_batch_timeout": 1,
+        "max_retries": 3
+      }
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cloud-superbrain-state-prod",
+      "database_id": "91520f43-5d38-4a31-9d5a-6fca890e1dd6",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "cloud-superbrain-memory-v1"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    "RUNTIME_MODE": "cloudflare_native_hosted_candidate",
+    "CONTRACT_ORIGIN": "https://cloud-superbrain-developer-platform.vercel.app",
+    "MEMORY_EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5",
+    "GITHUB_OAUTH_CLIENT_ID": "Ov23li4cxivUXK6RUJ2C",
+    "OAUTH_PUBLIC_ORIGIN": "https://frontend-seven-psi-78.vercel.app",
+    "GITHUB_OAUTH_REDIRECT_URI": "https://frontend-seven-psi-78.vercel.app/api/v1/auth/callback",
+    "GITHUB_OAUTH_OWNER_IDS": "237145441",
+    "POST_LOGIN_REDIRECT": "/workbench"
+  },
+  "env": {
+    "preview": {
+      "name": "cloud-superbrain-stateful-runtime-preview",
+      "workers_dev": true,
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "RUNTIME_COORDINATOR",
+            "class_name": "RuntimeCoordinator"
+          }
+        ]
+      },
+      "queues": {
+        "producers": [
+          {
+            "binding": "RUNTIME_QUEUE",
+            "queue": "cloud-superbrain-runtime-candidate-preview"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "cloud-superbrain-runtime-candidate-preview",
+            "max_batch_size": 10,
+            "max_batch_timeout": 1,
+            "max_retries": 3
+          }
+        ]
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "cloud-superbrain-state-preview",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "VECTORIZE",
+          "index_name": "cloud-superbrain-memory-v1"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      },
+      "vars": {
+        "RUNTIME_MODE": "cloudflare_native_hosted_candidate",
+        "MEMORY_EMBEDDING_MODEL": "@cf/baai/bge-base-en-v1.5"
+      }
+    }
+  }
+}

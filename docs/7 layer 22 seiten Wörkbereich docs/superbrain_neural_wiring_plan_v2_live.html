@@ -312,7 +312,7 @@ envs.forEach(e=>{
 
 const agents=[
   {n:'planner',col:'#8B5CF6',model:'DeepSeek-V4-Pro:fastest',fb:'Qwen3.6-35B-A3B → Kimi-K2.6',tools:'memory_read · task_router · langgraph',tok:'4096'},
-  {n:'coder',col:'#3B82F6',model:'Qwen3-Coder-Next:fastest',fb:'DeepSeek-V4-Flash → Gemma-4-31B',tools:'memory_read · github_mcp · filesystem_mcp · mcp_gateway',tok:'8192'},
+  {n:'coder',col:'#3B82F6',model:'qwen3.7-plus',fb:'DeepSeek-V4-Flash → Gemma-4-31B',tools:'memory_read · github_mcp · filesystem_mcp · mcp_gateway',tok:'8192'},
   {n:'tester',col:'#22C55E',model:'Gemma-4-26B-A4B:cheapest',fb:'Qwen3.5-9B → Llama-3.1-8B',tools:'memory_read · e2b_mcp · playwright_mcp · filesystem_mcp · mcp_gateway',tok:'4096'},
   {n:'devops',col:'#F59E0B',model:'DeepSeek-V4-Flash:fastest',fb:'Qwen3.6-35B-A3B → Gemma-4-31B',tools:'memory_read · github_mcp · mcp_gateway',tok:'4096'},
   {n:'research 🆕',col:'#A78BFA',model:'zai-org/GLM-5.1:fastest',fb:'DeepSeek-V4-Pro → inclusionAI/Ling-2.6-1T',tools:'memory_read · mcp_gateway',tok:'4096'}
@@ -324,7 +324,7 @@ agents.forEach(a=>{
   ab.appendChild(tr);
 });
 
-const models=['Qwen/Qwen3-Coder-Next:fastest','Qwen/Qwen3.5-9B:cheapest','Qwen/Qwen3.6-35B-A3B:fastest','deepseek-ai/DeepSeek-V4-Flash:fastest','deepseek-ai/DeepSeek-V4-Pro:fastest','google/gemma-4-26B-A4B-it:cheapest','google/gemma-4-31B-it:fastest','inclusionAI/Ling-2.6-1T:fastest','meta-llama/Llama-3.1-8B-Instruct:cheapest','meta-llama/Llama-3.1-8B-Instruct:fastest','moonshotai/Kimi-K2.6:fastest','zai-org/GLM-5.1:fastest'];
+const models=['qwen3.7-plus','Qwen/Qwen3.5-9B:cheapest','Qwen/Qwen3.6-35B-A3B:fastest','deepseek-ai/DeepSeek-V4-Flash:fastest','deepseek-ai/DeepSeek-V4-Pro:fastest','google/gemma-4-26B-A4B-it:cheapest','google/gemma-4-31B-it:fastest','inclusionAI/Ling-2.6-1T:fastest','meta-llama/Llama-3.1-8B-Instruct:cheapest','meta-llama/Llama-3.1-8B-Instruct:fastest','moonshotai/Kimi-K2.6:fastest','zai-org/GLM-5.1:fastest'];
 const mg=document.getElementById('modelGrid');
 models.forEach(m=>{
   const s=document.createElement('span');

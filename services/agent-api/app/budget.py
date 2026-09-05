@@ -7,7 +7,6 @@ from dataclasses import dataclass
 import psycopg
 import redis
 
-from app.clouds import fly_live_budget_items
 from app.db import database_url, redis_url
 
 
@@ -56,10 +55,18 @@ def planned_infra_items() -> list[dict[str, object]]:
         if items:
             return items
     return [
-        {"name": "fly-production-shared-cpu-1x", "monthly_cost_cents": 500, "source": "patched-phase1-plan"},
-        {"name": "fly-staging-shared-cpu-1x", "monthly_cost_cents": 400, "source": "patched-phase1-plan"},
-        {"name": "cloudflare-free-tier", "monthly_cost_cents": 0, "source": "patched-phase1-plan"},
-        {"name": "ghcr-free-tier", "monthly_cost_cents": 0, "source": "patched-phase1-plan"},
+        {
+            "name": "cloudflare-native-zero-card-hosted-runtime",
+            "monthly_cost_cents": 0,
+            "source": "cloudflare_zero_card_projection",
+            "status": "blocked_external_gate",
+        },
+        {
+            "name": "ghcr-unpublished",
+            "monthly_cost_cents": 0,
+            "source": "cloudflare_zero_card_projection",
+            "status": "owner_blocked",
+        },
     ]
 
 
@@ -67,19 +74,9 @@ def get_infra_budget_state() -> InfraBudgetState:
     limit = infra_budget_limit_cents()
     warning = infra_budget_warning_cents()
     planned_items = planned_infra_items()
-    live_items = fly_live_budget_items()
-    if live_items is not None:
-        live_verified = True
-        source = "fly_api_readonly_plus_plan_projection"
-        items = planned_items
-    else:
-        live_verified = False
-        source = (
-            "configured_phase1_projection_fly_api_unavailable"
-            if os.getenv("FLY_API_TOKEN")
-            else "configured_phase1_projection"
-        )
-        items = planned_items
+    live_verified = False
+    source = "cloudflare_zero_card_projection"
+    items = planned_items
     projected = sum(int(item["monthly_cost_cents"]) for item in items)
     percentage = (projected / limit * 100) if limit > 0 else 100.0
     if projected >= limit:
@@ -97,7 +94,7 @@ def get_infra_budget_state() -> InfraBudgetState:
         warning_limit_cents=warning,
         spent_percentage=round(percentage, 2),
         level=level,
-        allow_new_infra=allow,
+        allow_new_infra=False,
         live_verified=live_verified,
         source=source,
         items=items,

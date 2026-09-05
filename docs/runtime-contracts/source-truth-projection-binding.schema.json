@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloud-superbrain.invalid/contracts/source-truth-projection-binding.schema.json",
+  "title": "Source / truth projection binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "contract_version",
+    "runtime_candidate_sha",
+    "truth_projection_sha",
+    "truth_projection_sha256",
+    "source_ancestor_truth_projection",
+    "production_alias_mutated"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../../runtime-contracts/source-truth-projection-binding.schema.json"
+    },
+    "contract_version": {
+      "const": "source-truth-projection-binding-v1"
+    },
+    "runtime_candidate_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "truth_projection_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "truth_projection_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "source_ancestor_truth_projection": {
+      "const": true
+    },
+    "production_alias_mutated": {
+      "const": false
+    }
+  }
+}

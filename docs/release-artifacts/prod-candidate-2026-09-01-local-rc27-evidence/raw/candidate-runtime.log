@@ -1,0 +1,29 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=candidate-runtime
+[phase5-evidence] release_id=prod-candidate-2026-09-01-local-rc27
+[phase5-evidence] source_commit_sha=0ca71d1c6168d64360a7764b725b2b673af00afe
+[phase5-evidence] evidence_run_id=f2fa9c31-efbc-4514-9f66-34ccea085e87
+[phase5-evidence] command=pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\runs\CURRENT\master-goal\phase5\production-candidate-local -AllowLocalhost -EvidenceRunId f2fa9c31-efbc-4514-9f66-34ccea085e87
+npm warn Unknown cli config "--project". This will stop working in the next major version of npm.
+
+> cloud-superbrain-frontend@1.0.0 test:e2e
+> playwright test e2e/phase5-production-candidate.spec.ts
+
+
+Running 1 test using 1 worker
+
+(node:14964) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14964) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 [chromium] › e2e\phase5-production-candidate.spec.ts:8:1 › diagnostics loads the Phase 5 production candidate through a real selection and click (5.4s)
+
+  1 passed (8.3s)
+[phase5-candidate-local] api_contract_verified=true
+[phase5-candidate-local] local_image_identity_verified=true
+[phase5-candidate-local] embedded_source_hash_parity_verified=true
+[phase5-candidate-local] candidate_runtime_source_parity_verified=true
+[phase5-candidate-local] browser_click_verified=true
+[phase5-candidate-local] playwright_passed=1
+[phase5-candidate-local] status=verified service_count=6
+[phase5-evidence] exit_code=0

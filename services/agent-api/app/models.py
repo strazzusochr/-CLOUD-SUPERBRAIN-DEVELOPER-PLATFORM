@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 
+MODEL_STUDIO_CODER_MODEL = "qwen3.7-plus"
+
+
 @dataclass(frozen=True)
 class ModelRoute:
     agent_type: str
@@ -53,14 +56,14 @@ MODEL_ROUTES: tuple[ModelRoute, ...] = (
     ),
     ModelRoute(
         agent_type="coder",
-        primary="Qwen/Qwen3-Coder-Next:fastest",
+        primary=MODEL_STUDIO_CODER_MODEL,
         fallbacks=("deepseek-ai/DeepSeek-V4-Flash:fastest", "google/gemma-4-31B-it:fastest"),
         max_output_tokens=8192,
         context_budget_policy="memory_context_must_not_exceed_30_percent",
         memory_injection_budget_percent=30,
         cost_tier="standard",
         supports_streaming=True,
-        configured_only=False,
+        configured_only=True,
     ),
     ModelRoute(
         agent_type="tester",
@@ -124,7 +127,7 @@ AGENT_PROFILES: tuple[AgentProfile, ...] = (
     AgentProfile(
         agent_type="coder",
         role="Feature implementation on scoped branches with no direct main writes.",
-        primary_model="Qwen/Qwen3-Coder-Next:fastest",
+        primary_model=MODEL_STUDIO_CODER_MODEL,
         fallbacks=("deepseek-ai/DeepSeek-V4-Flash:fastest", "google/gemma-4-31B-it:fastest"),
         max_output_tokens=8192,
         max_execution_seconds=300,
@@ -203,7 +206,17 @@ def model_capability_matrix() -> dict[str, object]:
         "memory_injection_budget_percent_max": 30,
         "routes": [asdict(route) for route in MODEL_ROUTES],
         "agent_profiles": [asdict(profile) for profile in AGENT_PROFILES],
-        "note": "Routes are open-source-first and resolved through the Hugging Face router; live generation remains budget- and policy-gated per request.",
+        "provider_bindings": {
+            MODEL_STUDIO_CODER_MODEL: {
+                "provider": "alibaba_model_studio",
+                "model_slot": "coder_primary",
+                "gateway_only": True,
+                "auth_env": "DASHSCOPE_API_KEY",
+                "live_provider_calls": False,
+                "secret_output": False,
+            }
+        },
+        "note": "Routes are open-source-first and resolved through the Hugging Face router unless an explicitly provider-bound route applies. The qwen3.7-plus coder route uses Alibaba Model Studio through the LLM Gateway; every live generation remains credential-, mode-, budget-, policy-, and audit-gated.",
     }
 
 
@@ -219,6 +232,7 @@ def agent_profile_registry() -> dict[str, object]:
         "profiles": [asdict(profile) for profile in AGENT_PROFILES],
         "non_claims": [
             "Profiles are deterministic runtime contracts; they do not imply live provider credentials are configured.",
+            "The qwen3.7-plus coder profile never calls the Model Studio endpoint directly.",
             "Production deployment actions remain human-review gated.",
         ],
     }

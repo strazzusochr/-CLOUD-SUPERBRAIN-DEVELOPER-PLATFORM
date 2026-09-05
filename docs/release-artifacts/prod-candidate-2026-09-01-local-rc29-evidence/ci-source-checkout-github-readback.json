@@ -1,0 +1,34 @@
+{
+  "contract_version": "github-actions-source-attestation-readback-v1",
+  "repository": "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "secret_output": false,
+  "run": {
+    "conclusion": "success",
+    "event": "workflow_dispatch",
+    "head_branch": "codex/organism-visual-v2",
+    "head_sha": "1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d",
+    "html_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33521553311",
+    "id": 33521553311,
+    "run_attempt": 1,
+    "status": "completed"
+  },
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/artifacts/9806020625/zip",
+    "digest": "sha256:35256de1cad4fc039f35e9115467ca7d8879d26673de64c54d304fbf590039b7",
+    "expired": false,
+    "id": 9806020625,
+    "name": "pr-check-source-checkout-attestation-33521553311-1",
+    "url": "https://api.github.com/repos/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/artifacts/9806020625",
+    "workflow_run": {
+      "head_sha": "1ae1ff55bdbb04cc1d5a16ba0b9f34ab008d818d",
+      "id": 33521553311
+    }
+  },
+  "downloaded_archive_sha256": "35256de1cad4fc039f35e9115467ca7d8879d26673de64c54d304fbf590039b7",
+  "downloaded_attestation_sha256": "B5890312555CCCA2BA7F804C06CFB5CB8C70D102519C255605C8C1B3188AE1F3",
+  "non_claims": [
+    "This readback records only GitHub-reported metadata for one CI run and its artifact.",
+    "It does not convert DEV-ONLY evidence into hosted proof.",
+    "It does not claim GHCR publication, production deployment, release promotion, or production rollout."
+  ]
+}

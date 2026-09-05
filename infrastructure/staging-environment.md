@@ -1,7 +1,7 @@
 # Staging Environment Baseline
 
-Stand: 2026-06-08
-Status: active cloud baseline
+Stand: 2026-07-26
+Status: Cloudflare-native target; hosted proof blocked
 
 ## Ziel
 
@@ -11,24 +11,28 @@ Jede aenderungsrelevante Pipeline laeuft zuerst ueber `staging`.
 ## Zielumgebung
 
 - Vercel Frontend mit HTTPS Preview/Staging
-- Fly.io Runtime-Services fuer Agent API, Worker, MCP Gateway, LLM Gateway, Redis und PostgreSQL/pgvector
+- Cloudflare-native Runtime fuer Workers/LangGraph.js, D1, SQLite Durable
+  Objects und Queues; Artefaktadapter nur nach Zero-Card-Proof
 - GHCR als Image Registry
 - Grafana Cloud als Observability-Ziel
 - gleiche logische Servicetopologie wie spaeter `production`
 - kleinere Ressourcenlimits als `production`
 - Retired legacy providers sind keine aktiven Staging-Defaults
 
-## Aktive Fly-Origin-Apps
+## Hosted Origins
 
-Die drei oeffentlichen Origin-Gates werden durch getrennte Fly.io Apps vorbereitet:
+Die oeffentlichen Origin-Gates duerfen nur auf freigegebene Cloudflare-native
+HTTPS-Dienste zeigen:
 
 | Gate | App | Config | Health |
 | --- | --- | --- | --- |
-| `AGENT_API_BASE_URL` | `cloud-superbrain-agent-api` | `fly.agent-api.toml` | `/api/v1/health` |
-| `MCP_GATEWAY_BASE_URL` | `cloud-superbrain-mcp-gateway` | `fly.mcp-gateway.toml` | `/api/v1/health` |
-| `LLM_GATEWAY_BASE_URL` | `cloud-superbrain-llm-gateway` | `fly.llm-gateway.toml` | `/api/v1/health` |
+| `CLOUDFLARE_STATEFUL_BASE_URL` | Cloudflare-native stateful runtime | Owner-gated O2' plan | `/health` plus stateful verifier |
+| `AGENT_API_BASE_URL` | Approved Agent API boundary | Environment-only configuration | `/api/v1/health` |
+| `MCP_GATEWAY_BASE_URL` | Approved MCP boundary | Environment-only configuration | `/api/v1/health` |
+| `LLM_GATEWAY_BASE_URL` | Approved LLM boundary | Environment-only configuration | `/api/v1/health` |
 
-`fly.toml` bleibt als Default-/Compatibility-Config fuer die Agent-API erhalten; neue Gate-Runs sollen die expliziten `fly.*.toml` Dateien verwenden.
+Fly configs remain historical RC10 provenance only and must not be used by a
+new gate run.
 
 ## Zugriffsregeln
 

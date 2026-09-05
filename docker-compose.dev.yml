@@ -10,6 +10,14 @@ services:
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET:-}
+      LLM_GATEWAY_BASE_URL: http://llm-gateway:4000
+      MCP_GATEWAY_BASE_URL: http://mcp-gateway:9000
+      SUPERBRAIN_RUNTIME_MODE: "dev-only"
+      WORKBENCH_LLM_MODEL: ${WORKBENCH_LLM_MODEL:-gemma-3-1b-it}
+      PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED: ${PRODUCT_ACCEPTANCE_LIVE_PROVIDER_APPROVED:-false}
+      O4_LIVE_WRITE_PROBE_ENABLED: "true"
       EVIDENCE_DIR: /workspace/evidence
       WATCHPACK_POLLING: "true"
     expose:
@@ -30,7 +38,7 @@ services:
       interval: 20s
       timeout: 15s
       retries: 10
-    mem_limit: 1024m
+    mem_limit: 2048m
     cpus: "1.25"
     cap_drop:
       - ALL
@@ -45,11 +53,25 @@ services:
 
   agent-api:
     build:
-      context: ./services/agent-api
-      dockerfile: Dockerfile
+      # Root context so the Dockerfile can bake the manifest/state files
+      # (matches .github/workflows/main-deploy.yml).
+      context: .
+      dockerfile: services/agent-api/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
+      SUPERBRAIN_RUNTIME_MODE: "dev-only"
+      # O1 / production_auth_identity: die Agent API berechnet `github_oauth_configured`
+      # und `credential_issuance_ready` ausschliesslich aus diesen fuenf Werten.
+      # Ohne vollstaendige Verdrahtung bleibt Auth dauerhaft
+      # fail-closed, unabhaengig davon was in der Secrets-Datei oder bei Vercel steht.
+      # Standard ist bewusst leer: kein Wert -> kein Credential-Issuance.
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_REDIRECT_URI: ${GITHUB_OAUTH_REDIRECT_URI:-}
+      GITHUB_OAUTH_OWNER_IDS: ${GITHUB_OAUTH_OWNER_IDS:-}
+      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-}
       REDIS_URL: redis://redis:6379/0
       MCP_GATEWAY_URL: http://mcp-gateway:9000
       LLM_GATEWAY_URL: http://llm-gateway:4000
@@ -66,6 +88,10 @@ services:
       PROMPT_RATE_LIMIT_WINDOW_SECONDS: ${PROMPT_RATE_LIMIT_WINDOW_SECONDS:-3600}
       PROJECT_PROGRESS_MANIFEST_PATH: /app/progress/project-progress.manifest.json
       EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
+      CAPABILITY_GATE_STATE_PATH: /app/progress/capability-gates.json
+      O4_LIVE_WRITE_PROBE_ENABLED: "true"
+      O4_OWNER_MANIFEST_PATH: /app/progress/owner-input-manifest.json
+      O4_GIT_HEAD_PATH: /app/o4-git/HEAD
       PROJECT_STATE_PATH: /app/PROJECT_STATE.md
       EVIDENCE_DIR: /workspace/evidence
       LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-gemma-3-1b-it}
@@ -75,6 +101,7 @@ services:
       AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL: ${AUTONOMOUS_TEAM_EXTERNAL_AGENTS_URL:-http://host.docker.internal:8000/agents}
       AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS: ${AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS:-5}
       CLOUD_PROVIDER_INVENTORY_ENABLED: ${CLOUD_PROVIDER_INVENTORY_ENABLED:-true}
+      # Historical read-only inventory only; never satisfies an active hosted-runtime gate.
       FLY_API_TOKEN: ${FLY_API_TOKEN:-}
       GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
       GRAFANA_CLOUD_URL: ${GRAFANA_CLOUD_URL:-}
@@ -103,6 +130,9 @@ services:
     volumes:
       - ./docs/project-progress.manifest.json:/app/progress/project-progress.manifest.json:ro
       - ./docs/runtime-state/external-gate-summary.json:/app/progress/external-gate-summary.json:ro
+      - ./docs/runtime-state/capability-gates.json:/app/progress/capability-gates.json:ro
+      - ./docs/runtime-state/owner-input-manifest.json:/app/progress/owner-input-manifest.json:ro
+      - ./.git/HEAD:/app/o4-git/HEAD:ro
       - ./PROJECT_STATE.md:/app/PROJECT_STATE.md:ro
       - ./docs/codex-integration/autonomous-agent-roster.json:/app/docs/codex-integration/autonomous-agent-roster.json:ro
       - ./services/agent-api/app:/app/app:ro
@@ -119,9 +149,10 @@ services:
       llm-gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=20)"]
       interval: 20s
-      timeout: 5s
+      timeout: 25s
+      start_period: 30s
       retries: 5
     mem_limit: 768m
     cpus: "1.00"
@@ -137,8 +168,8 @@ services:
 
   agent-worker:
     build:
-      context: ./services/agent-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/agent-worker/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
@@ -171,8 +202,8 @@ services:
 
   memory-worker:
     build:
-      context: ./services/memory-worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/memory-worker/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
@@ -207,18 +238,27 @@ services:
 
   mcp-gateway:
     build:
-      context: ./services/mcp-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/mcp-gateway/Dockerfile
     restart: unless-stopped
     environment:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       E2B_API_KEY: ${E2B_API_KEY:-}
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
+      SUPERBRAIN_RUNTIME_MODE: "dev-only"
       FILESYSTEM_ROOT: /tmp/agent-workspace
+      FILESYSTEM_PROJECT_PROGRESS_PATH: /app/readonly/project-progress.manifest.json
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      O4_LIVE_WRITE_PROBE_ENABLED: "true"
+      O4_LIVE_WRITE_NEGATIVE_TEST_ENABLED: "true"
+      O4_OWNER_MANIFEST_PATH: /app/progress/owner-input-manifest.json
+      O4_GIT_HEAD_PATH: /app/o4-git/HEAD
     expose:
       - "9000"
     volumes:
-      - mcp_workspace:/tmp/agent-workspace
+      - ./.phase1-artifacts/o4-live-write-workspace:/tmp/agent-workspace
+      - ./docs/runtime-state/owner-input-manifest.json:/app/progress/owner-input-manifest.json:ro
+      - ./.git/HEAD:/app/o4-git/HEAD:ro
       - ./services/mcp-gateway/app:/app/app:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/api/v1/health', timeout=3)"]
@@ -239,8 +279,8 @@ services:
 
   llm-gateway:
     build:
-      context: ./services/llm-gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/llm-gateway/Dockerfile
     restart: unless-stopped
     environment:
       AGENT_API_INTERNAL_URL: http://agent-api:8000
@@ -250,7 +290,6 @@ services:
       VERCEL_AGENT_API_ORIGIN: ${VERCEL_AGENT_API_ORIGIN:-}
       VERCEL_MCP_GATEWAY_ORIGIN: ${VERCEL_MCP_GATEWAY_ORIGIN:-}
       VERCEL_LLM_GATEWAY_ORIGIN: ${VERCEL_LLM_GATEWAY_ORIGIN:-}
-      FLY_API_TOKEN: ${FLY_API_TOKEN:-}
       # Default posture is deterministic dry-run (documented architecture). Local llama.cpp is
       # opt-in on demand: set LLM_GATEWAY_MODE=local_openai_live to run the workbench F1 proof.
       LLM_GATEWAY_MODE: ${LLM_GATEWAY_MODE:-deterministic_dry_run}
@@ -261,6 +300,15 @@ services:
       HF_ROUTER_BASE_URL: ${HF_ROUTER_BASE_URL:-https://router.huggingface.co/v1}
       HF_DEFAULT_CHAT_MODEL: ${HF_DEFAULT_CHAT_MODEL:-deepseek-ai/DeepSeek-V4-Flash:fastest}
       HF_ROUTER_TIMEOUT_SECONDS: ${HF_ROUTER_TIMEOUT_SECONDS:-90}
+      ALIBABA_MODEL_STUDIO_BASE_URL: ${ALIBABA_MODEL_STUDIO_BASE_URL:-}
+      ALIBABA_MODEL_STUDIO_CODER_MODEL: ${ALIBABA_MODEL_STUDIO_CODER_MODEL:-qwen3.7-plus}
+      ALIBABA_MODEL_STUDIO_TIMEOUT_SECONDS: ${ALIBABA_MODEL_STUDIO_TIMEOUT_SECONDS:-90}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CF_WORKERS_AI_TOKEN: ${CF_WORKERS_AI_TOKEN:-}
+      CF_WORKERS_AI_BASE_URL: ${CF_WORKERS_AI_BASE_URL:-https://api.cloudflare.com/client/v4}
+      CF_WORKERS_AI_TIMEOUT_SECONDS: ${CF_WORKERS_AI_TIMEOUT_SECONDS:-90}
+      CF_WORKERS_AI_MAX_TOKENS: ${CF_WORKERS_AI_MAX_TOKENS:-8192}
     expose:
       - "4000"
     volumes:
@@ -283,7 +331,7 @@ services:
       - platform
 
   local-llm:
-    image: ghcr.io/ggml-org/llama.cpp:server
+    image: ghcr.io/ggml-org/llama.cpp:server@sha256:4f02c560799a1569be08b0183d52b94b0d4a6e4b88f52f20562d2334c73837d4
     restart: unless-stopped
     command:
       - -hf
@@ -318,7 +366,7 @@ services:
       - platform
 
   postgres:
-    image: pgvector/pgvector:0.8.2-pg16
+    image: pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-superbrain}
@@ -343,7 +391,7 @@ services:
       - platform
 
   redis:
-    image: redis:7.4.2-alpine
+    image: redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru"]
     expose:
@@ -361,7 +409,7 @@ services:
       - platform
 
   nginx:
-    image: nginxinc/nginx-unprivileged:1.27-alpine
+    image: nginxinc/nginx-unprivileged:1.27-alpine@sha256:65e3e85dbaed8ba248841d9d58a899b6197106c23cb0ff1a132b7bfe0547e4c0
     restart: unless-stopped
     ports:
       - "${NGINX_HTTP_PORT:-8081}:8080"

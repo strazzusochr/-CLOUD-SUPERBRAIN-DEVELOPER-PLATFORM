@@ -40,7 +40,7 @@ export const AGENTS: AgentProfile[] = [
   {
     type: "coder",
     role: "Feature implementation on scoped branches with no direct main writes.",
-    model: "Qwen/Qwen3-Coder-Next",
+    model: "qwen3.7-plus",
     fallbacks: ["DeepSeek-V4-Flash", "gemma-4-31B-it"],
     tools: ["memory_read", "github_mcp", "filesystem_mcp", "mcp_gateway"],
     maxExecSec: 300,
@@ -132,31 +132,31 @@ export const API_SURFACES: SurfaceGroup[] = [
 
 /* ------------------------------------------------------------------
  * Project manifest snapshot (PROJECT_STATE.md / docs/project-progress.manifest.json,
- * dated 2026-05-07). Live values come from GET /api/v1/project/progress and
+ * dated 2026-09-04). Live values come from GET /api/v1/project/progress and
  * /api/v1/project/progress/layers — these are the dated manifest figures, shown
  * only on /diagnostics (never on Home/Workbench as a hero).
  * ------------------------------------------------------------------ */
 export const MANIFEST = {
-  snapshot: "2026-05-07",
-  overall: 70,
+  snapshot: "2026-09-04",
+  overall: 89,
   integrity: "verified",
   modules: [
-    { name: "Frontend", layer: 1, pct: 97 },
-    { name: "Orchestrator", layer: 2, pct: 99 },
-    { name: "Agent Pool", layer: 3, pct: 68 },
-    { name: "LLM Gateway", layer: 4, pct: 54 },
-    { name: "MCP Gateway", layer: 5, pct: 55 },
-    { name: "Memory", layer: 6, pct: 72 },
-    { name: "Observability", layer: 7, pct: 99 },
+    { name: "Frontend", layer: 1, pct: 100 },
+    { name: "Orchestrator", layer: 2, pct: 100 },
+    { name: "Agent Pool", layer: 3, pct: 100 },
+    { name: "LLM Gateway", layer: 4, pct: 55 },
+    { name: "MCP Gateway", layer: 5, pct: 86 },
+    { name: "Memory", layer: 6, pct: 100 },
+    { name: "Observability", layer: 7, pct: 100 },
   ],
   phases: [
     { id: "P0", pct: 100 },
     { id: "P1", pct: 100 },
-    { id: "P2", pct: 86 },
-    { id: "P3", pct: 40 },
-    { id: "P4", pct: 99 },
-    { id: "P5", pct: 67 },
-    { id: "P6", pct: 0 },
+    { id: "P2", pct: 100 },
+    { id: "P3", pct: 44 },
+    { id: "P4", pct: 100 },
+    { id: "P5", pct: 89 },
+    { id: "P6", pct: 90 },
   ],
 } as const;
 
@@ -198,7 +198,7 @@ export const SKILLS = [
 /** Models pinned by the agent profiles (primary, per agent). */
 export const MODELS = [
   { id: "deepseek-ai/DeepSeek-V4-Pro", role: "Planner primary" },
-  { id: "Qwen/Qwen3-Coder-Next", role: "Coder primary" },
+  { id: "qwen3.7-plus", role: "Coder primary via LLM Gateway / Alibaba Model Studio" },
   { id: "google/gemma-4-26B-A4B-it", role: "Tester primary" },
   { id: "deepseek-ai/DeepSeek-V4-Flash", role: "DevOps primary" },
 ];

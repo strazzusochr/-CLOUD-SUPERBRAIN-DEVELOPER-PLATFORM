@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 import os
+import re
 import time
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -21,9 +26,22 @@ FLY_TIMEOUT_SECONDS = 5.0
 FLY_CACHE_TTL_SECONDS = 60
 GRAFANA_CLOUD_TIMEOUT_SECONDS = 5.0
 GRAFANA_CLOUD_CACHE_TTL_SECONDS = 60
+GRAFANA_CLOUD_API_URL = "https://grafana.com"
+GRAFANA_CLOUD_REGION_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$")
 CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4"
 CLOUDFLARE_TIMEOUT_SECONDS = 5.0
 CLOUDFLARE_CACHE_TTL_SECONDS = 60
+CLOUDFLARE_NATIVE_REQUIRED_ENV = [
+    "CLOUDFLARE_STATEFUL_BASE_URL",
+    "CLOUDFLARE_ACCOUNT_ID",
+    "CLOUDFLARE_API_TOKEN",
+]
+CLOUDFLARE_NATIVE_REQUIRED_SCOPES = [
+    "workers_scripts_edit",
+    "d1_edit",
+    "durable_objects_edit",
+    "queues_edit",
+]
 VERCEL_API_URL = "https://api.vercel.com"
 GITHUB_API_URL = "https://api.github.com"
 HUGGINGFACE_API_URL = "https://huggingface.co"
@@ -124,13 +142,56 @@ def _fly_graphql(client: httpx.Client, token: str, query: str) -> dict[str, Any]
     return response.json()
 
 
-def _grafana_cloud_get(client: httpx.Client, token: str, url: str, path: str) -> dict[str, Any]:
+def _grafana_cloud_get(
+    client: httpx.Client,
+    token: str,
+    url: str,
+    path: str,
+    params: dict[str, str] | None = None,
+) -> dict[str, Any]:
     response = client.get(
         f"{url}{path}",
         headers={"Authorization": f"Bearer {token}"},
+        params=params,
     )
     response.raise_for_status()
     return response.json()
+
+
+def _grafana_cloud_token_metadata(token: str) -> dict[str, Any]:
+    if not token.startswith("glc_"):
+        raise ValueError("Grafana Cloud API token must start with glc_")
+    encoded = token[4:].replace("-", "+").replace("_", "/")
+    encoded += "=" * ((4 - len(encoded) % 4) % 4)
+    try:
+        payload = json.loads(base64.b64decode(encoded, validate=True).decode("utf-8"))
+    except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Grafana Cloud API token metadata is invalid") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Grafana Cloud API token metadata must be an object")
+    return payload
+
+
+def _grafana_cloud_region(metadata: dict[str, Any]) -> str:
+    token_metadata = metadata.get("m")
+    region = token_metadata.get("r") if isinstance(token_metadata, dict) else None
+    if not isinstance(region, str) or not GRAFANA_CLOUD_REGION_PATTERN.fullmatch(region):
+        raise ValueError("Grafana Cloud API token region is missing or invalid")
+    return region
+
+
+def _grafana_instance_api_url(url: str) -> str:
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower()
+    if (
+        parsed.scheme != "https"
+        or not hostname.endswith(".grafana.net")
+        or parsed.username
+        or parsed.password
+        or (parsed.port not in (None, 443))
+    ):
+        raise ValueError("Grafana instance URL must be an HTTPS grafana.net host")
+    return f"https://{parsed.netloc}"
 
 
 def _cloudflare_get(client: httpx.Client, token: str, path: str) -> dict[str, Any]:
@@ -302,7 +363,7 @@ def fly_live_budget_items() -> list[dict[str, object]] | None:
 def _fetch_grafana_cloud_snapshot() -> dict[str, Any]:
     token = os.getenv("GRAFANA_CLOUD_API_KEY")
     url = os.getenv("GRAFANA_CLOUD_URL")
-    if not token or not url:
+    if not token:
         return {
             "status": "missing_token",
             "live_verified": False,
@@ -317,23 +378,41 @@ def _fetch_grafana_cloud_snapshot() -> dict[str, Any]:
         return dict(_grafana_cache)
 
     try:
-        if token.startswith("glc_"):
-            import base64
-            import json
-            padding = len(token[4:]) % 4
-            b64 = token[4:] + ("=" * padding)
-            payload = json.loads(base64.b64decode(b64).decode("utf-8"))
-            org_id = payload.get("o")
-            name = payload.get("n")
-        else:
-            raise ValueError("Token must start with glc_")
-
-        resources = [{
-            "kind": "organization",
-            "id": org_id,
-            "name": name,
-            "source": "grafana_api_readonly",
-        }]
+        with httpx.Client(timeout=GRAFANA_CLOUD_TIMEOUT_SECONDS) as client:
+            if token.startswith("glc_"):
+                metadata = _grafana_cloud_token_metadata(token)
+                region = _grafana_cloud_region(metadata)
+                _grafana_cloud_get(
+                    client,
+                    token,
+                    GRAFANA_CLOUD_API_URL,
+                    "/api/v1/accesspolicies",
+                    params={"region": region, "pageSize": "1"},
+                )
+                resources = [
+                    {
+                        "kind": "cloud_access_policy_identity",
+                        "region": region,
+                        "source": "grafana_api_readonly",
+                    }
+                ]
+            elif token.startswith("glsa_"):
+                instance_api_url = _grafana_instance_api_url(url)
+                permissions = _grafana_cloud_get(
+                    client,
+                    token,
+                    instance_api_url,
+                    "/api/access-control/user/permissions",
+                )
+                resources = [
+                    {
+                        "kind": "service_account_identity",
+                        "permission_count": len(permissions),
+                        "source": "grafana_api_readonly",
+                    }
+                ]
+            else:
+                raise ValueError("Grafana token must start with glc_ or glsa_")
         snapshot = {
             "status": "verified",
             "live_verified": True,
@@ -357,6 +436,7 @@ def _fetch_grafana_cloud_snapshot() -> dict[str, Any]:
 
 def _cloudflare_env_resource() -> dict[str, object] | None:
     keys = [
+        "CLOUDFLARE_STATEFUL_BASE_URL",
         "CLOUDFLARE_ACCOUNT_ID",
         "CLOUDFLARE_ZONE_ID",
         "CLOUDFLARE_AI_GATEWAY_URL",
@@ -366,15 +446,37 @@ def _cloudflare_env_resource() -> dict[str, object] | None:
         return None
     dashboard = os.getenv("CLOUDFLARE_DASHBOARD_URL") or ""
     ai_gateway = os.getenv("CLOUDFLARE_AI_GATEWAY_URL") or ""
+    stateful_runtime = os.getenv("CLOUDFLARE_STATEFUL_BASE_URL") or ""
     return {
         "kind": "configured_target",
         "account_id": os.getenv("CLOUDFLARE_ACCOUNT_ID"),
         "zone_id": os.getenv("CLOUDFLARE_ZONE_ID"),
+        "stateful_runtime_host": urlparse(stateful_runtime).netloc if stateful_runtime else None,
         "ai_gateway_host": urlparse(ai_gateway).netloc if ai_gateway else None,
         "dashboard_host": urlparse(dashboard).netloc if dashboard else None,
         "dashboard_configured": bool(dashboard),
         "source": "env_metadata_no_secret",
     }
+
+
+def _cloudflare_native_hosted_claim_allowed() -> bool:
+    summary_path = Path(
+        os.getenv("EXTERNAL_GATE_SUMMARY_PATH", "/app/progress/external-gate-summary.json")
+    )
+    try:
+        payload = json.loads(summary_path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    missing = {
+        str(item)
+        for item in payload.get("missing_or_failed_gates", [])
+        if str(item).strip()
+    }
+    return (
+        payload.get("contract_version") == "external-gate-summary-v2"
+        and bool(payload.get("cloudflare_native_zero_card_hosted_runtime_claim_allowed"))
+        and "cloudflare_native_zero_card_hosted_runtime" not in missing
+    )
 
 
 def _cloudflare_token_resource(payload: dict[str, Any]) -> dict[str, object]:
@@ -905,16 +1007,16 @@ def fly_provider() -> dict[str, object]:
     configured = token_configured
     live_verified = bool(snapshot.get("live_verified"))
     if live_verified:
-        status = "live_verified"
+        status = "historical_read_verified"
     elif token_configured:
-        status = "api_error"
+        status = "historical_read_api_error"
     else:
-        status = "action_required"
+        status = "historical_only"
     item = provider(
         provider_id="fly_io",
         label="Fly.io",
-        role="Layer 2/3/6 runtime host for Orchestrator, Agent Pool, and PostgreSQL.",
-        layers=["layer_2", "layer_3", "layer_6", "layer_7"],
+        role="Historical/read-only provider inventory; not an active runtime target.",
+        layers=[],
         required_env=["FLY_API_TOKEN"],
         resources=resources,
         live_verified=live_verified,
@@ -924,10 +1026,12 @@ def fly_provider() -> dict[str, object]:
         non_claims=[
             "No Fly.io token value is returned by this endpoint.",
             "Live Fly.io state is claimed only when FLY_API_TOKEN is present and the read-only GraphQL call succeeds.",
+            "Fly.io is historical_only and cannot satisfy active Layer 2, 3, 6, preflight, completion, or go-live readiness.",
             "No Fly.io app, machine, volume, or secret write is performed by this endpoint.",
         ],
     )
     item["configured"] = configured
+    item["historical_only"] = True
     if snapshot.get("error"):
         item["error"] = snapshot["error"]
     return item
@@ -962,8 +1066,9 @@ def grafana_cloud_provider() -> dict[str, object]:
         last_checked_at=str(snapshot.get("last_checked_at") or utc_now()),
         non_claims=[
             "No Grafana Cloud API key value is returned by this endpoint.",
-            "Grafana Cloud identity is read-only and does not modify dashboards, alerts, or data sources.",
+            "Grafana Cloud identity is verified by a real read-only provider API request.",
             "No organization, stack, dashboard, alert, or data-source write is performed.",
+            "The identity read does not claim telemetry ingestion or configured stack availability.",
         ],
     )
     item["configured"] = configured
@@ -980,10 +1085,16 @@ def cloudflare_provider() -> dict[str, object]:
         resources.append(metadata)
     token_configured = bool(os.getenv("CLOUDFLARE_API_TOKEN"))
     metadata_configured = metadata is not None
-    configured = token_configured or metadata_configured
-    live_verified = bool(snapshot.get("live_verified"))
+    provider_read_live_verified = bool(snapshot.get("live_verified"))
+    hosted_runtime_claim_allowed = _cloudflare_native_hosted_claim_allowed()
+    configured = hosted_runtime_claim_allowed or all(
+        bool(os.getenv(key)) for key in CLOUDFLARE_NATIVE_REQUIRED_ENV
+    )
+    live_verified = hosted_runtime_claim_allowed
     if live_verified:
-        status = str(snapshot.get("status") or "live_verified")
+        status = "live_verified"
+    elif provider_read_live_verified:
+        status = "provider_read_verified_hosted_runtime_blocked"
     elif token_configured:
         status = "api_error"
     elif metadata_configured:
@@ -992,12 +1103,11 @@ def cloudflare_provider() -> dict[str, object]:
         status = "action_required"
     item = provider(
         provider_id="cloudflare_edge",
-        label="Cloudflare Edge / AI Gateway",
-        role="Layer 4 edge, DNS, AI gateway, and provider-cache boundary.",
-        layers=["layer_4", "layer_7"],
-        required_env=["CLOUDFLARE_API_TOKEN"],
+        label="Cloudflare-native Runtime / Workers AI",
+        role="Active Layer 2/3/4/6 runtime target plus Layer 7 gate evidence.",
+        layers=["layer_2", "layer_3", "layer_4", "layer_6", "layer_7"],
+        required_env=CLOUDFLARE_NATIVE_REQUIRED_ENV,
         optional_env=[
-            "CLOUDFLARE_ACCOUNT_ID",
             "CLOUDFLARE_ZONE_ID",
             "CLOUDFLARE_AI_GATEWAY_URL",
             "CLOUDFLARE_DASHBOARD_URL",
@@ -1010,11 +1120,27 @@ def cloudflare_provider() -> dict[str, object]:
         non_claims=[
             "No Cloudflare token value is returned by this endpoint.",
             "The live proof calls Cloudflare read-only token verification and optional account or zone reads only.",
+            "A token/account read does not prove the Cloudflare-native hosted runtime.",
+            "The bounded O6 Workers AI gateway proof does not make Layer 4 equal 100 or prove the hosted stateful runtime.",
+            "O2Core uses D1 bounded-text artifacts, Durable Objects and Queues; R2 is historical-only and unbound.",
             "No DNS, Workers, AI Gateway, cache, or security rule write is performed by this endpoint.",
             "No AI Gateway routing is claimed without the LLM gateway policy proof.",
         ],
     )
     item["configured"] = configured
+    item["provider_read_live_verified"] = provider_read_live_verified
+    item["hosted_runtime_claim_allowed"] = hosted_runtime_claim_allowed
+    item["required_scopes"] = list(CLOUDFLARE_NATIVE_REQUIRED_SCOPES)
+    item["artifact_adapter"] = "cloudflare-d1-bounded-text"
+    item["historical_adapters"] = [
+        {
+            "id": "cloudflare-r2",
+            "status": "historical_only",
+            "active": False,
+            "binding_configured": False,
+        }
+    ]
+    item["hosted_verifier"] = "scripts/verify-cloudflare-stateful-runtime.ps1"
     if snapshot.get("error"):
         item["error"] = snapshot["error"]
     return item
@@ -1257,13 +1383,13 @@ def cloud_provider_state() -> dict[str, object]:
         {
             "layer_id": "layer_2",
             "label": "Orchestrator / LangGraph",
-            "providers": ["fly_io"],
+            "providers": ["cloudflare_edge"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
             "layer_id": "layer_3",
             "label": "Agent Pool",
-            "providers": ["fly_io"],
+            "providers": ["cloudflare_edge"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
@@ -1280,8 +1406,8 @@ def cloud_provider_state() -> dict[str, object]:
         },
         {
             "layer_id": "layer_6",
-            "label": "Memory / PostgreSQL pgvector",
-            "providers": ["fly_io"],
+            "label": "Memory / Cloudflare D1 and stateful bindings",
+            "providers": ["cloudflare_edge"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
@@ -1289,7 +1415,6 @@ def cloud_provider_state() -> dict[str, object]:
             "label": "Observability / Evidence",
             "providers": [
                 "vercel_frontend",
-                "fly_io",
                 "cloudflare_edge",
                 "github_actions",
                 "grafana_cloud",
@@ -1310,7 +1435,8 @@ def cloud_provider_state() -> dict[str, object]:
         "policy_checks": [
             "No secret values are returned by the cloud inventory endpoint.",
             "Cloud providers map to the existing seven architecture layers.",
-            "Live Fly.io reads are read-only and token-gated.",
+            "Fly.io reads are historical_only and never satisfy active layer readiness.",
+            "Cloudflare-native hosted readiness is fail-closed on the canonical v2 gate and hosted verifier.",
             "Vercel, GitHub, GHCR, Hugging Face, GitLab, and Grafana Cloud live checks are read-only and token-gated.",
             "Budget guard remains the source of truth for new infrastructure permission.",
             "Production deployment remains blocked until hosted staging, branch protection, secret scan, and owner review pass.",
@@ -1330,14 +1456,16 @@ def _providers_by_id(providers: list[dict[str, object]]) -> dict[str, dict[str, 
 
 def _provider_blockers(provider: dict[str, object]) -> list[str]:
     provider_id = str(provider.get("id") or "provider")
+    if provider.get("live_verified"):
+        return []
     required_env = [str(item) for item in provider.get("required_env", []) if item]
     missing_required_env = [
         env_key for env_key in required_env if not os.getenv(env_key)
     ]
     if missing_required_env:
         return [f"{provider_id}_requires_{env_key}" for env_key in missing_required_env]
-    if provider.get("live_verified"):
-        return []
+    if provider_id == "cloudflare_edge":
+        return ["cloudflare_native_zero_card_hosted_runtime_not_verified"]
     if provider.get("configured"):
         return [f"{provider_id}_live_read_not_verified"]
     return [f"{provider_id}_configuration_missing"]
@@ -1373,7 +1501,11 @@ def cloud_layer_readiness_state() -> dict[str, object]:
         next_safe_action = (
             "run_hosted_verifier_and_keep_localhost_as_dev_only"
             if layer_id == "layer_1"
-            else "configure_runtime_env_then_refresh_cloud_inventory"
+            else (
+                "run_verify_cloudflare_stateful_runtime_after_owner_gate"
+                if layer_id in {"layer_2", "layer_3", "layer_4", "layer_6"}
+                else "configure_runtime_env_then_refresh_cloud_inventory"
+            )
         )
         layers.append(
             {

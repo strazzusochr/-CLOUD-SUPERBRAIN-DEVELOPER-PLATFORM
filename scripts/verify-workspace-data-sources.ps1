@@ -36,11 +36,9 @@ function Invoke-Json($url) {
 }
 
 function Test-AgentApiRoute($source, $route) {
-  return (
-    $source.Contains("@app.get(`"$route`")") -or
-    $source.Contains("@app.post(`"$route`")") -or
-    $source.Contains("@app.delete(`"$route`")")
-  )
+  $routePattern = [regex]::Escape([string]$route)
+  $decoratorPattern = '(?m)^\s*@app\.(?:get|post|delete)\(\s*["'']{0}["''](?:\s*,[^\r\n)]*)?\s*\)' -f $routePattern
+  return [regex]::IsMatch([string]$source, $decoratorPattern)
 }
 
 if (-not $BaseUrl) {

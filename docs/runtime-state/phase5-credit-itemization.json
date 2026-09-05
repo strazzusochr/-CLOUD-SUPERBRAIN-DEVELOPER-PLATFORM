@@ -1,0 +1,422 @@
+{
+  "contract_version": "phase5-credit-itemization-v2",
+  "mode": "fully_itemized",
+  "credit_blocked_until_candidate_qualified": false,
+  "cell_id": "phase_5",
+  "updated_at_utc": "2026-09-04T00:08:01Z",
+  "checklist_path": "docs/release-checklist.md",
+  "rubric": "phase5-release-readiness-19-v2",
+  "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
+  "active_release_id": "prod-candidate-2026-09-04-local-rc38",
+  "active_source_commit_sha": "5668e7cb89eac03a929853f004204b56bd171cb9",
+  "legacy_gap_reconstruction": {
+    "recorded_percent": 68,
+    "total_item_count": 19,
+    "verified_item_count": 13,
+    "missing_item_count": 6,
+    "missing_item_ids": [
+      "I1",
+      "I2",
+      "I4",
+      "I5",
+      "V1",
+      "O4"
+    ],
+    "reconstructed_percent": 68,
+    "rounded_gap_points": 32,
+    "explanation": "The active checklist has 19 unweighted binary requirements. The evidence state behind the frozen 68 had 13 satisfied items and six named gaps: hosted candidate parity, immutable image publication/verifiability, candidate budget review, production auth closure, candidate observability path binding, and candidate open-question acceptance. 13/19 rounds to 68 and 6/19 rounds to the missing 32."
+  },
+  "rulings_applied": {
+    "E3": "Phase 5 is release-candidate readiness. Local content-addressed verification satisfies I2; GHCR publication remains a post-market Owner gate and receives no separate percentage credit.",
+    "retired_rc1_boundary": "The six sslip.io/Hetzner RC1 markers are frozen historical records, not current checklist requirements and not open work.",
+    "no_gate_mutation": true,
+    "no_registry_credit": true
+  },
+  "current_score": {
+    "total_item_count": 19,
+    "verified_item_count": 17,
+    "blocked_item_count": 2,
+    "blocked_item_ids": [
+      "I1",
+      "I5"
+    ],
+    "computed_percent": 89
+  },
+  "items": [
+    {
+      "id": "C1",
+      "section": "code",
+      "title": "CI/CD pipeline successful for candidate source",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-readiness.json",
+          "claim": "Immutable GitHub Actions run URL, source SHA, and success conclusion are candidate-bound.",
+          "anchor": "\"ci_workflow\": {"
+        }
+      ]
+    },
+    {
+      "id": "C2",
+      "section": "code",
+      "title": "Release tests and smoke probes green",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-readiness.json",
+          "claim": "Runtime, browser, candidate-image, candidate-runtime, and security artifacts are recorded as passed independent chains.",
+          "anchor": "\"local_verification\": {"
+        }
+      ]
+    },
+    {
+      "id": "C3",
+      "section": "code",
+      "title": "ADRs, registers, and handoff truth aligned",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/current-release-candidate.json",
+          "claim": "The current candidate pointer selects the source-bound RC38 qualification while preserving the production non-claim.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-04-local-rc38\""
+        },
+        {
+          "path": "AI_HANDOFF.md",
+          "claim": "Current handoff mirrors RC38, the canonical Phase-5 score, and the remaining Owner gates.",
+          "anchor": "Current RC38 Local Qualification"
+        },
+        {
+          "path": "docs/verification-register.md",
+          "claim": "The evidence register records the RC38 audit, score, and verifier result.",
+          "anchor": "Current RC38 Local Qualification Evidence"
+        }
+      ]
+    },
+    {
+      "id": "C4",
+      "section": "code",
+      "title": "No unexplained manifest/runtime/register drift",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/current-release-candidate.json",
+          "claim": "The active pointer selects the exact source-bound RC38 candidate.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-04-local-rc38\""
+        },
+        {
+          "path": "scripts/verify-current-release-candidate.ps1",
+          "claim": "The current-candidate verifier fails closed on committed runtime-source drift.",
+          "anchor": "active release candidate has committed or staged runtime-source drift outside the exact truth transition"
+        }
+      ]
+    },
+    {
+      "id": "C5",
+      "section": "code",
+      "title": "No unexplained Critical or High finding",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-readiness.json",
+          "claim": "Candidate-scoped npm audit and canonical secret-scan results are recorded with a verification hash.",
+          "anchor": "\"security\": {"
+        }
+      ]
+    },
+    {
+      "id": "I1",
+      "section": "infrastructure",
+      "title": "Candidate-bound hosted staging verified over non-local HTTPS",
+      "status": "blocked_owner",
+      "credit_awarded": false,
+      "blocker_id": "hosted_candidate_parity",
+      "owner_action": "Authorize and provide the candidate-bound hosted staging surface; then run the hosted candidate verifier.",
+      "evidence": [
+        {
+          "path": "docs/runtime-state/frontend-hosted-current.json",
+      "claim": "The hosted frontend RC31-control Preview is source- and archive-bound and routes Agent API, MCP Gateway, and LLM Gateway health to RC31 Preview runtimes, but it is not a full six-service immutable-image candidate-parity proof.",
+      "anchor": "\"source_commit_sha\": \"a8614fd34f67f2e0d749b2d76d78a55c0e3de021\""
+        },
+        {
+          "path": "docs/runtime-state/backend-hosted-current.json",
+          "claim": "The hosted backend is a read-only contract origin and not six-service RC38 parity.",
+          "anchor": "\"read_only_contract_origin\": true"
+        }
+      ]
+    },
+    {
+      "id": "I2",
+      "section": "infrastructure",
+      "title": "Six content-addressed candidate images verified locally",
+      "status": "verified",
+      "credit_awarded": true,
+      "policy_basis": "E3_release_candidate_ready_ghcr_post_market",
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "Six clean-archive images, OCI revisions, embedded source hashes, and planned immutable tags are candidate-bound.",
+          "anchor": "immutable_image_commit_sha:"
+        },
+        {
+          "path": "docs/runtime-state/capability-gates.json",
+          "claim": "docker_registry_publish remains owner_granted=false and live_verified=false.",
+          "anchor": "\"docker_registry_publish\":"
+        }
+      ]
+    },
+    {
+      "id": "I3",
+      "section": "infrastructure",
+      "title": "Rollback target named for candidate",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "RC31 source and the rollback procedure are named without claiming a hosted rollback.",
+          "anchor": "rollback_target_commit_sha:"
+        },
+        {
+          "path": "docs/runbooks/rollback-deploy.md",
+          "claim": "The immutable rollback procedure remains applicable.",
+          "anchor": "# Rollback Deploy Runbook"
+        }
+      ]
+    },
+    {
+      "id": "I4",
+      "section": "infrastructure",
+      "title": "Candidate budget impact reviewed",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-readiness.json",
+          "claim": "RC38 adds no provider, paid tier, card, or recurring infrastructure and remains inside the 20 EUR ceiling.",
+          "anchor": "\"new_recurring_infrastructure\": false"
+        }
+      ]
+    },
+    {
+      "id": "I5",
+      "section": "infrastructure",
+      "title": "Secret, auth, and branch-protection gaps closed or Owner-approved",
+      "status": "blocked_owner",
+      "credit_awarded": false,
+      "blocker_id": "production_auth_identity",
+      "owner_action": "Complete the GitHub OAuth consent/configuration and run the hosted fail-closed auth verifier.",
+      "evidence": [
+        {
+          "path": "docs/runtime-state/capability-gates.json",
+          "claim": "production_auth_identity remains owner_granted=false and live_verified=false.",
+          "anchor": "\"production_auth_identity\":"
+        },
+        {
+          "path": "docs/runtime-state/owner-input-manifest.json",
+          "claim": "O1 records the exact Owner action and no-payment boundary.",
+          "anchor": "Production OAuth identity"
+        }
+      ]
+    },
+    {
+      "id": "V1",
+      "section": "observability",
+      "title": "Health, metrics, and audit paths named",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "The candidate names the exact health, metrics, and audit endpoints.",
+          "anchor": "- Health: `/api/v1/health`"
+        }
+      ]
+    },
+    {
+      "id": "V2",
+      "section": "observability",
+      "title": "Error, rate, session, request, and trace contracts visible",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-readiness.json",
+          "claim": "Candidate-scoped observability contract paths and verification state are recorded.",
+          "anchor": "\"/api/v1/errors/contract\""
+        }
+      ]
+    },
+    {
+      "id": "V3",
+      "section": "observability",
+      "title": "Release proof artifacts linked",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "Candidate, CI, local verification, browser, image, rollback, and readiness proofs are linked.",
+          "anchor": "full_verifier_sweep_proof:"
+        }
+      ]
+    },
+    {
+      "id": "V4",
+      "section": "observability",
+      "title": "Alarm and escalation path documented",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/runbooks/incident-response.md",
+          "claim": "The incident escalation and evidence-preservation path is documented.",
+          "anchor": "# Incident Response Runbook"
+        },
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "RC38 binds the runbook and stop conditions.",
+          "anchor": "- Escalation: `docs/runbooks/incident-response.md`"
+        }
+      ]
+    },
+    {
+      "id": "O1",
+      "section": "operations",
+      "title": "Rollback runbook applicable",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/runbooks/rollback-deploy.md",
+          "claim": "The runbook supports immutable candidate rollback.",
+          "anchor": "# Rollback Deploy Runbook"
+        },
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "The candidate names the exact rollback source.",
+          "anchor": "rollback_target_commit_sha:"
+        }
+      ]
+    },
+    {
+      "id": "O2",
+      "section": "operations",
+      "title": "Incident response and secret rotation runbooks present",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/runbooks/incident-response.md",
+          "claim": "Incident response steps are tracked.",
+          "anchor": "# Incident Response Runbook"
+        },
+        {
+          "path": "docs/runbooks/secret-rotation.md",
+          "claim": "Secret rotation steps are tracked.",
+          "anchor": "# Secret Rotation Runbook"
+        }
+      ]
+    },
+    {
+      "id": "O3",
+      "section": "operations",
+      "title": "Owner review gate documented",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/runtime-state/owner-input-manifest.json",
+          "claim": "O1 remains an explicit Owner gate.",
+          "anchor": "Production OAuth identity"
+        },
+        {
+          "path": "docs/runtime-state/owner-input-manifest.json",
+          "claim": "O3 remains an explicit Owner gate.",
+          "anchor": "GHCR publication"
+        },
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "review_gate=pending and owner_decision=no-release preserve the stop gate.",
+          "anchor": "review_gate: `pending`"
+        }
+      ]
+    },
+    {
+      "id": "O4",
+      "section": "operations",
+      "title": "Release-relevant open questions resolved or explicitly accepted",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-readiness.json",
+          "claim": "The two remaining blockers are explicitly accepted under no-release; no unknown question remains.",
+          "anchor": "\"unknown_questions\": []"
+        }
+      ]
+    },
+    {
+      "id": "O5",
+      "section": "operations",
+      "title": "Production non-claim preserved",
+      "status": "verified",
+      "credit_awarded": true,
+      "evidence": [
+        {
+          "path": "docs/release-artifacts/current-release-candidate.json",
+          "claim": "production_rollout_claimed remains false.",
+          "anchor": "\"production_rollout_claimed\": false"
+        },
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38.md",
+          "claim": "The candidate denies registry publication, promotion, rollout, and production status.",
+          "anchor": "This artifact does not claim a production rollout."
+        }
+      ]
+    }
+  ],
+  "retired_noncriteria": [
+    {
+      "marker": "candidate_browser_bridge_retired_current_hosted_blocked",
+      "status": "retired_noncriterion",
+      "credit_awarded": false
+    },
+    {
+      "marker": "candidate_browser_evidence_retired_current_hosted_blocked",
+      "status": "retired_noncriterion",
+      "credit_awarded": false
+    },
+    {
+      "marker": "candidate_post_rollback_browser_revalidation_retired_current_hosted_blocked",
+      "status": "retired_noncriterion",
+      "credit_awarded": false
+    },
+    {
+      "marker": "candidate_final_browser_e2e_retired_current_hosted_blocked",
+      "status": "retired_noncriterion",
+      "credit_awarded": false
+    },
+    {
+      "marker": "candidate_full_verifier_sweep_retired_current_hosted_blocked",
+      "status": "retired_noncriterion",
+      "credit_awarded": false
+    },
+    {
+      "marker": "candidate_truth_mirror_rebaseline_retired_current_hosted_blocked",
+      "status": "retired_noncriterion",
+      "credit_awarded": false
+    }
+  ],
+  "non_claims": [
+    "The score is release-candidate readiness, not production readiness.",
+    "I2 does not publish to GHCR, verify a registry digest, open docker_registry_publish, or authorize promotion.",
+    "I1 and I5 remain zero-credit Owner blocks.",
+    "The retired RC1 markers are preserved as history and never rebound to RC38.",
+    "This itemization alone cannot make MARKET_READY true."
+  ]
+}

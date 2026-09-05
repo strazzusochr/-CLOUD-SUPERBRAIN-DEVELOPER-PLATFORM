@@ -1,0 +1,25 @@
+{
+  "contract_version": "external-gate-summary-candidate-v1",
+  "is_current": false,
+  "owner_assisted_candidate": true,
+  "supersedes_canonical": false,
+  "canonical_summary_ref": "docs/runtime-state/external-gate-summary.json",
+  "source_artifact": ".phase1-artifacts\\external-gate-audit-20260713-125413.json",
+  "generated_at_utc": "2026-07-13T10:54:13.5872006Z",
+  "candidate_preconditions": [
+    "Requires owner-provided reachable HTTPS backend origins (STAGING_BASE_URL, AGENT_API_BASE_URL, MCP_GATEWAY_BASE_URL, LLM_GATEWAY_BASE_URL) injected into the audit environment.",
+    "Requires owner-provided read-only tokens (BRANCH_PROTECTION_TOKEN/GITHUB_TOKEN, FLY_API_TOKEN) loaded transiently.",
+    "NOT reproducible by the standard token-free bootstrap; the reproducible standard remains blocked (see external-gate-summary.json)."
+  ],
+  "candidate_audit_result": {
+    "status": "verified",
+    "production_deploy_claim_allowed": true,
+    "missing_or_failed_gates": []
+  },
+  "non_claims": [
+    "This candidate is NOT the current canonical gate truth and MUST NOT be displayed or consumed as current.",
+    "Gate permission under owner-assisted inputs is not a production rollout or release-promotion authorization.",
+    "Per R0 (CODEX_UEBERGABE_2026-07-13.md), this token/origin-injected run must never replace the reproducible token-free standard nor set production_deploy_claim_allowed=true as current authority.",
+    "Probe snippets, URLs, logs, and token values are not included; no secret values are written into this artifact."
+  ]
+}

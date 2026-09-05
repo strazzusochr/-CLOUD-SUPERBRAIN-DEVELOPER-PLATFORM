@@ -3,3 +3,18 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
+
+# Canonical evidence is SHA-256 bound. Preserve exact bytes across checkout.
+.codex/runs/CURRENT/capability/hosted-observability/report-20260721-013156.json binary -eol
+.codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json binary -eol
+.codex/runs/CURRENT/capability/live-memory-provider/report-20260721-041032.json binary -eol
+.codex/runs/CURRENT/master-goal/PROOF_LEDGER.md binary -eol
+.codex/runs/CURRENT/master-goal/t3/cloudflare-d1-local-v2/report.json binary -eol
+.codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json binary -eol
+.codex/runs/CURRENT/master-goal/t5/cloudflare-hosted-session-v2/report.json binary -eol
+.codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json binary -eol
+.phase1-artifacts/live-vector-memory-search-proof.json binary -eol
+.phase1-artifacts/o4-live-writes/browser-proof.json binary -eol
+.phase1-artifacts/o4-live-writes/proof.json binary -eol
+.phase1-artifacts/o4-live-writes/runtime-proof.json binary -eol
+docs/release-artifacts/prod-candidate-*-evidence/** binary -eol
