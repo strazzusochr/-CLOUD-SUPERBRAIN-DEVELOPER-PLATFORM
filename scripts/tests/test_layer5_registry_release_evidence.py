@@ -26,6 +26,7 @@ from verify_ghcr_remote_scan import (  # noqa: E402
     TRIVY_BINARY_SHA256,
     TRIVY_VERSION,
     VerificationError as RemoteScanVerificationError,
+    _sanitized_failure_summary,
     build_remote_scan_evidence,
     report_filename,
 )
@@ -348,6 +349,33 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
                     trivy_version=TRIVY_VERSION,
                     trivy_binary_sha256=TRIVY_BINARY_SHA256,
                 )
+
+    def test_remote_scan_failure_summary_is_bounded_and_secret_safe(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            report_path = write_json(
+                Path(temporary) / "failed.trivy.json",
+                {
+                    "Results": [
+                        {
+                            "Secrets": [{"Match": "must-not-be-logged"}],
+                            "Vulnerabilities": [
+                                {
+                                    "VulnerabilityID": "CVE-2026-53612",
+                                    "PkgName": "libuuid",
+                                    "Severity": "HIGH",
+                                }
+                            ],
+                        }
+                    ]
+                },
+            )
+            summary = _sanitized_failure_summary(report_path)
+            self.assertEqual(
+                summary,
+                "findings secrets=1 high=1 critical=0 "
+                "vulnerability_ids=CVE-2026-53612 packages=libuuid",
+            )
+            self.assertNotIn("must-not-be-logged", summary)
 
     def _publication_inputs(self, root: Path) -> dict[str, Path | str]:
         manifest_path, reports_dir, db_path = write_scan_fixture(root)
