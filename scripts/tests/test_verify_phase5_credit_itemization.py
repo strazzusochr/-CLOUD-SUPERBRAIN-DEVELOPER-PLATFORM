@@ -1065,6 +1065,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             'Assert-Equal "no-credit manifest last_verified"',
             'Assert-Equal "no-credit manifest immutable projection"',
             'Assert-Equal "no-credit platform snapshot mirror"',
+            '$platform = Get-Content "apps\\frontend\\lib\\platform.ts" -Raw -Encoding UTF8',
             '$sourcePlatform = Get-GitBlobText',
             '$platformProjectionCanonical = $platformProjection.Replace("`r`n", "`n")',
             '$sourcePlatformCanonical = $sourcePlatform.Replace("`r`n", "`n")',
