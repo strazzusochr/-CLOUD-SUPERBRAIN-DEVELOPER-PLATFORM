@@ -769,6 +769,10 @@ foreach ($required in @(
   "reference-design-conformance-v1",
   "page_count === 22",
   "gotoWorkspaceRoute",
+  "filteredRouteConsoleErrors",
+  "isCorrelatedAnonymousAuthConsoleError",
+  'surface.pageId !== "login"',
+  'resource.status !== 401 || resource.resourceType !== "fetch"',
   '"502", "503", "504"',
   "Browser console errors on",
   "screenshots_dir",
@@ -785,6 +789,8 @@ foreach ($required in @(
     throw "Workspace pages browser runner missing guard: $required"
   }
 }
+node --test scripts\tests\workspace-pages-browser-filter.test.mjs
+Assert-LastExitCode "workspace pages browser console-filter regression tests"
 if (-not (Test-Path "scripts\verify-workspace-responsive-browser.cjs")) {
   throw "Missing workspace responsive browser verifier runner"
 }
