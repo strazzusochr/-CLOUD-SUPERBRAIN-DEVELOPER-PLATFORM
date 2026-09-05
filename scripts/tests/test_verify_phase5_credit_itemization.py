@@ -561,6 +561,17 @@ def v2_candidate_runtime_fixture(
 
 
 class Phase5CreditEvidenceTests(unittest.TestCase):
+    def test_security_writer_scans_archive_from_repository_relative_cwd(self) -> None:
+        writer = (REPO_ROOT / "scripts" / "write-phase5-security-evidence.ps1").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Push-Location -LiteralPath $sourcePath", writer)
+        self.assertIn(
+            "detect --no-git --source . --config .gitleaks.toml --redact --timeout 600",
+            writer,
+        )
+        self.assertNotIn("--source $sourcePath --config", writer)
+
     def assert_rejected(self, callback, expected: str) -> None:
         with self.assertRaisesRegex(SystemExit, expected):
             callback()
@@ -1054,6 +1065,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             'Assert-Equal "no-credit manifest last_verified"',
             'Assert-Equal "no-credit manifest immutable projection"',
             'Assert-Equal "no-credit platform snapshot mirror"',
+            '$platform = Get-Content "apps\\frontend\\lib\\platform.ts" -Raw -Encoding UTF8',
             '$sourcePlatform = Get-GitBlobText',
             '$platformProjectionCanonical = $platformProjection.Replace("`r`n", "`n")',
             '$sourcePlatformCanonical = $sourcePlatform.Replace("`r`n", "`n")',

@@ -1,0 +1,27 @@
+{
+  "binding_mode": "source_checkout_attestation_v1",
+  "candidate_sha": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+  "checked_out_sha": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+  "contract_version": "pr-check-source-checkout-attestation-v1",
+  "control_delta": [
+    "docs/runtime-state/source-qualification-control.json"
+  ],
+  "control_sha": "c0f4663721ba0ac3032716b457bc5fc14658e3be",
+  "event_name": "workflow_dispatch",
+  "github_actions_artifact_upload": true,
+  "non_claims": [
+    "This attestation proves only the exact source checkout boundary for this CI run.",
+    "This attestation does not convert DEV-ONLY evidence into hosted proof.",
+    "This attestation does not claim GHCR publication, production deployment, release promotion, or Owner approval."
+  ],
+  "production_deploy": false,
+  "ref": "refs/heads/codex/rc39-python-base-cve-fix",
+  "registry_publish": false,
+  "release_promotion": false,
+  "run_attempt": 1,
+  "run_id": 33979907937,
+  "run_sha": "c0f4663721ba0ac3032716b457bc5fc14658e3be",
+  "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33979907937",
+  "secret_output": false,
+  "source_prequalification": true
+}

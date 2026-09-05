@@ -116,13 +116,21 @@ try {
     # $ErrorActionPreference = 'Stop' PowerShell turns those into a terminating
     # NativeCommandError before the exit code can be read — a passing scan looked like a crash.
     $previousGitleaksErrorAction = $ErrorActionPreference
+    $gitleaksLocationPushed = $false
     $ErrorActionPreference = "Continue"
     try {
+      # Scan from inside the extracted archive so gitleaks emits repository-relative paths.
+      # Passing the absolute extraction path as --source prefixes every finding with the
+      # temporary directory and silently defeats the path-anchored allowlists in
+      # .gitleaks.toml. The rule set and fail-closed exit-code gate remain unchanged.
+      Push-Location -LiteralPath $sourcePath
+      $gitleaksLocationPushed = $true
       $gitleaksOutput = @(
-        & $gitleaksExecutable detect --no-git --source $sourcePath --config (Join-Path $sourcePath ".gitleaks.toml") --redact --timeout 600 2>&1
+        & $gitleaksExecutable detect --no-git --source . --config .gitleaks.toml --redact --timeout 600 2>&1
       )
       $gitleaksExit = $LASTEXITCODE
     } finally {
+      if ($gitleaksLocationPushed) { Pop-Location }
       $ErrorActionPreference = $previousGitleaksErrorAction
     }
     foreach ($line in $gitleaksOutput) { [void]$lines.Add([string]$line) }

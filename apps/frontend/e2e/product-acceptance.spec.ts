@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { isCorrelatedAnonymousAuthConsoleError, type BrowserResourceError } from "./auth-console-policy.js";
 
 const PRODUCT_PROMPT = "Baue ein 3D-Web-Game mit Three.js: drehbarer Würfel, Punktestand, Tastatursteuerung.";
 const SESSION_COOKIE = "__Host-sb_session";
@@ -158,10 +159,14 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
   const devOnly = ["localhost", "127.0.0.1", "::1"].includes(origin.hostname);
 
   const consoleErrors: string[] = [];
+  const pendingConsoleErrors: Array<{ text: string; locationUrl: string; anonymousAuthWindow: boolean }> = [];
+  const anonymousAuthResourceErrors: BrowserResourceError[] = [];
+  const acceptedAnonymousAuthConsoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const failedRequests: string[] = [];
   let buildPostCount = 0;
   let caughtFailure: unknown = null;
+  const isLoginPage = (): boolean => new URL(page.url()).pathname === "/login";
   const startedAt = new Date().toISOString();
   const report: JsonRecord = {
     contract_version: "product-acceptance-3d-game-v1",
@@ -197,7 +202,13 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
   };
 
   page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(safeMessage(message.text()));
+    if (message.type() === "error") {
+      pendingConsoleErrors.push({
+        text: safeMessage(message.text()),
+        locationUrl: message.location().url,
+        anonymousAuthWindow: isLoginPage(),
+      });
+    }
   });
   page.on("pageerror", (error) => pageErrors.push(safeMessage(error.message)));
   page.on("requestfailed", (request) => {
@@ -206,6 +217,14 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
   });
   page.on("request", (request) => {
     if (responseMatches(request.url(), request.method(), "/api/v1/build")) buildPostCount += 1;
+  });
+  page.on("response", (response) => {
+    if (!isLoginPage() || response.status() !== 401) return;
+    anonymousAuthResourceErrors.push({
+      status: response.status(),
+      url: response.url(),
+      resourceType: response.request().resourceType(),
+    });
   });
 
   try {
@@ -479,6 +498,25 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
       same_artifact_after_reload: reloadedHtmlSha256 === sha256(html),
     };
 
+    for (const item of pendingConsoleErrors) {
+      const matchingResponseCount = anonymousAuthResourceErrors.filter((resource) => resource.url === item.locationUrl).length;
+      const matchedConsoleCount = acceptedAnonymousAuthConsoleErrors.filter((url) => url === item.locationUrl).length;
+      if (
+        item.anonymousAuthWindow
+        && isCorrelatedAnonymousAuthConsoleError({
+          baseUrl,
+          pageId: "login",
+          text: item.text,
+          locationUrl: item.locationUrl,
+          resourceErrors: anonymousAuthResourceErrors,
+        })
+        && matchedConsoleCount < matchingResponseCount
+      ) {
+        acceptedAnonymousAuthConsoleErrors.push(item.locationUrl);
+      } else {
+        consoleErrors.push(item.text);
+      }
+    }
     expect(consoleErrors, `console errors: ${consoleErrors.join(" | ")}`).toEqual([]);
     expect(pageErrors, `page errors: ${pageErrors.join(" | ")}`).toEqual([]);
     expect(buildPostCount).toBe(1);
@@ -493,6 +531,8 @@ test("real prompt builds, runs, interacts, and reloads the persisted 3D game", a
     report.build_post_count = buildPostCount;
     report.console_errors = consoleErrors;
     report.console_error_count = consoleErrors.length;
+    report.expected_anonymous_auth_console_errors = acceptedAnonymousAuthConsoleErrors;
+    report.expected_anonymous_auth_console_error_count = acceptedAnonymousAuthConsoleErrors.length;
     report.page_errors = pageErrors;
     report.page_error_count = pageErrors.length;
     report.failed_requests = failedRequests;

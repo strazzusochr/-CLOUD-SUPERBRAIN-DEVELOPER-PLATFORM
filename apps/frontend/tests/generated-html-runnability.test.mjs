@@ -312,6 +312,31 @@ test("bounding-sphere repair preserves a nested mesh receiver", () => {
   assert.doesNotMatch(repaired, /player\.__superbrainBoundingSphereRadius\(mesh\)/);
 });
 
+test("live Box3 code replaces the nonexistent computeBoundingSphere method", () => {
+  const broken = DOC(`<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script><script>
+    const cube = {};
+    const cubeBox = new THREE.Box3().setFromObject(cube);
+    cubeBox.computeBoundingSphere();
+  </script>`);
+  const repaired = ensureGeneratedHtmlBoundingSpheres(broken);
+  assert.doesNotMatch(repaired, /cubeBox\.computeBoundingSphere\(\)/);
+  assert.match(repaired, /cubeBox\.getBoundingSphere\(new THREE\.Sphere\(\)\)/);
+  const executable = repaired.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+  const runtime = {
+    calls: 0,
+    THREE: {
+      Box3: class {
+        setFromObject() { return this; }
+        getBoundingSphere(target) { runtime.calls += 1; return target; }
+      },
+      Sphere: class {},
+    },
+  };
+  vm.runInNewContext(executable, runtime);
+  assert.equal(runtime.calls, 1, "the repaired Box3 operation must execute exactly once");
+  assert.equal(ensureGeneratedHtmlBoundingSpheres(repaired), repaired, "Box3 repair must be idempotent");
+});
+
 test("the rejection reason names the offending URL so the boundary can report it", () => {
   const html = DOC('<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>');
   const [reason] = findUnrunnableReferences(html);

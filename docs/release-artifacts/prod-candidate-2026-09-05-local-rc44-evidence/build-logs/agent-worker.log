@@ -1,0 +1,49 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 542B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#4 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 25.33kB 0.0s done
+#5 DONE 0.0s
+
+#6 [4/7] COPY services/agent-worker/requirements.txt .
+#6 CACHED
+
+#7 [5/7] RUN pip install --no-cache-dir -r requirements.txt
+#7 CACHED
+
+#8 [6/7] COPY services/agent-worker/app ./app
+#8 CACHED
+
+#9 [2/7] WORKDIR /app
+#9 CACHED
+
+#10 [3/7] RUN apk upgrade --no-cache
+#10 CACHED
+
+#11 [7/7] RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers 0.0s done
+#12 exporting manifest sha256:e181551f9210ebf48bd7339c48153647fda40856beb839bb13270c8b6b2689fc 0.0s done
+#12 exporting config sha256:60e7e9ca669f349f438038d7287153a7231efb4e75533cc0c310983ef5fe8c3f 0.0s done
+#12 exporting attestation manifest sha256:c09572f3e71389dac293b8dd68103ac9777fa4b5d5abad90249eb76cd04097a1 0.0s done
+#12 exporting manifest list sha256:428987aaf535facd2d3cff1c522f3c4b94463aa488bd4c4dc1be05d6d81b0b26
+#12 exporting manifest list sha256:428987aaf535facd2d3cff1c522f3c4b94463aa488bd4c4dc1be05d6d81b0b26 0.0s done
+#12 naming to docker.io/cloud-superbrain-production-candidate/agent-worker:efd6826228c8e0b664a44d9a24ab38677e3b86f8 done
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/agent-worker:efd6826228c8e0b664a44d9a24ab38677e3b86f8 0.0s done
+#12 DONE 0.2s

@@ -262,7 +262,11 @@ try {
       $currentManifestProjection.last_verified = [string]$sourceManifest.last_verified
       Assert-Equal "no-credit manifest immutable projection" ($currentManifestProjection | ConvertTo-Json -Compress -Depth 100) ($sourceManifest | ConvertTo-Json -Compress -Depth 100)
 
-      $platform = Get-Content "apps\frontend\lib\platform.ts" -Raw
+      # Windows PowerShell 5.1 otherwise decodes BOM-less UTF-8 using the
+      # active ANSI code page.  That corrupts non-ASCII source text (for
+      # example the em dash in this file) before the immutable projection
+      # comparison, even though the committed bytes are identical.
+      $platform = Get-Content "apps\frontend\lib\platform.ts" -Raw -Encoding UTF8
       $sourcePlatform = Get-GitBlobText "${candidateSourceSha}:apps/frontend/lib/platform.ts"
       Assert-True "no-credit source platform readable" (-not [string]::IsNullOrWhiteSpace($sourcePlatform))
       $currentSnapshotToken = 'snapshot: "' + $candidateUpdatedDate + '"'

@@ -1,0 +1,36 @@
+﻿{
+    "contract_version":  "phase5-production-candidate-local-verification-v2",
+    "evidence_ref":  "phase5_local_production_candidate_verified",
+    "status":  "verified",
+    "verification_scope":  "runtime_without_browser",
+    "generated_at":  "2026-09-05T17:50:30.0616115Z",
+    "release_id":  "prod-candidate-2026-09-05-local-rc44",
+    "source_commit_sha":  "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+    "service_count":  6,
+    "api_contract_verified":  true,
+    "local_image_identity_verified":  true,
+    "embedded_source_hash_parity_verified":  true,
+    "candidate_runtime_source_parity_verified":  false,
+    "rollback_target":  "5668e7cb89eac03a929853f004204b56bd171cb9",
+    "browser_click_verified":  false,
+    "registry_publish":  false,
+    "hosted_staging_parity":  false,
+    "production_deploy":  false,
+    "release_promotion":  false,
+    "secret_output":  false,
+    "command":  "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -AllowLocalhost -EvidenceRunId f0bb8977-9233-4809-a0dd-07ae33b5f13d",
+    "evidence_run_id":  "f0bb8977-9233-4809-a0dd-07ae33b5f13d",
+    "raw_log_path":  "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/raw/candidate-runtime.log",
+    "raw_log_sha256":  "1B23EFE15F37C4AA6DD9F66A4EAEBA494289F3807F4F346A182A8E0546A2660D",
+    "observed_success_anchors":  "[phase5-candidate-local] status=verified service_count=6",
+    "raw_evidence":  {
+                         "candidate_images":  {
+                                                  "path":  "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/candidate-images.json",
+                                                  "sha256":  "69B258BEC76555E5EF4AF31DC374A68F92669B66E11930DD21F1F2D1D60F7302"
+                                              },
+                         "api_contract":  {
+                                              "path":  "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/raw/candidate-runtime-api-contract.json",
+                                              "sha256":  "50B10CAF57E57614BE685AF2EE4DFEFD43FF165D7BD30F3506F2BEAB86F03B1F"
+                                          }
+                     }
+}
