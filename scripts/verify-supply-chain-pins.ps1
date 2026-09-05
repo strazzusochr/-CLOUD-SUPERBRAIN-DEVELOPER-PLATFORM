@@ -118,7 +118,7 @@ foreach ($key in $expectedActionKeys.Keys) {
 $expectedImageDigests = @{
   "node:24.16.0-alpine" = "sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a"
   "python:3.14-slim" = "sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6"
-  "python:3.14-alpine" = "sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92"
+  "python:3.14.5-alpine3.22" = "sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd"
   "pgvector/pgvector:0.8.2-pg16" = "sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc"
   "redis:7.4.2-alpine" = "sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952"
   "nginx:1.27.4-alpine" = "sha256:4ff102c5d78d254a6f0da062b3cf39eaf07f01eec0927fd21e219d0af8bc0591"
@@ -151,11 +151,11 @@ $imageFiles = @(
 
 $expectedImageOccurrences = @{
   "apps/frontend/Dockerfile|node:24.16.0-alpine" = 4
-  "services/agent-api/Dockerfile|python:3.14-alpine" = 2
-  "services/agent-worker/Dockerfile|python:3.14-alpine" = 1
-  "services/llm-gateway/Dockerfile|python:3.14-alpine" = 1
-  "services/mcp-gateway/Dockerfile|python:3.14-alpine" = 1
-  "services/memory-worker/Dockerfile|python:3.14-alpine" = 1
+  "services/agent-api/Dockerfile|python:3.14.5-alpine3.22" = 2
+  "services/agent-worker/Dockerfile|python:3.14.5-alpine3.22" = 1
+  "services/llm-gateway/Dockerfile|python:3.14.5-alpine3.22" = 1
+  "services/mcp-gateway/Dockerfile|python:3.14.5-alpine3.22" = 1
+  "services/memory-worker/Dockerfile|python:3.14.5-alpine3.22" = 1
   "docker-compose.dev.yml|ghcr.io/ggml-org/llama.cpp:server" = 1
   "docker-compose.dev.yml|pgvector/pgvector:0.8.2-pg16" = 1
   "docker-compose.dev.yml|redis:7.4.2-alpine" = 1

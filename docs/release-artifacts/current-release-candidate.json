@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-09-04-local-rc38",
-  "source_commit_sha": "5668e7cb89eac03a929853f004204b56bd171cb9",
-  "updated_at": "2026-09-04T00:08:01Z",
-  "updated_by": "rc38-dual-bound-local-qualification",
-  "reason": "RC38 selects frozen source 5668e7cb89eac03a929853f004204b56bd171cb9 after Q bbdf952eb369f2ae00310d797333e3e08960a668 bound the exact archive and GitHub Actions run 33817644414 attested both Q as run head and S as the immutable checkout. RC38 remains a no-credit, DEV-ONLY qualification: the required local evidence chains are release-scoped and hosted I1/I5 proof, GHCR publication, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-09-05-local-rc44",
+  "source_commit_sha": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+  "updated_at": "2026-09-05T14:55:00Z",
+  "updated_by": "rc44-no-credit-requalification",
+  "reason": "RC44 selects frozen source efd6826228c8e0b664a44d9a24ab38677e3b86f8 after direct child Q c0f4663721ba0ac3032716b457bc5fc14658e3be bound the exact archive and GitHub Actions run 33979907937 checked Q as run head and S as the immutable checkout. The source retains the Python image base CVE repair and adds a fail-closed shared login-route auth-console policy plus a regression-tested Three.js generated-HTML repair for invalid Box3.computeBoundingSphere calls. This is a no-credit, DEV-ONLY requalification: I1/I5, RC44 GHCR publication, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

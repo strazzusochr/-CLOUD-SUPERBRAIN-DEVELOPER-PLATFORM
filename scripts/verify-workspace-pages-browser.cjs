@@ -74,6 +74,44 @@ function filteredConsoleErrors(errors) {
   return errors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded/i.test(entry));
 }
 
+const EXPECTED_ANONYMOUS_AUTH_PATHS = new Set([
+  "/api/v1/auth/me",
+  "/api/v1/auth/refresh",
+]);
+
+function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors) {
+  if (surface.pageId !== "login") return false;
+  if (!/Failed to load resource: the server responded with a status of 401 \(Unauthorized\)/.test(entry)) return false;
+  const location = entry.match(/ @ (https?:\/\/\S+):\d+$/);
+  if (!location) return false;
+
+  let consoleUrl;
+  let baseOrigin;
+  try {
+    consoleUrl = new URL(location[1]);
+    baseOrigin = new URL(baseUrl).origin;
+  } catch {
+    return false;
+  }
+  if (consoleUrl.origin !== baseOrigin || !EXPECTED_ANONYMOUS_AUTH_PATHS.has(consoleUrl.pathname)) return false;
+
+  return resourceErrors.some((resource) => {
+    if (resource.status !== 401 || resource.resourceType !== "fetch") return false;
+    try {
+      const resourceUrl = new URL(resource.url);
+      return resourceUrl.origin === baseOrigin && resourceUrl.pathname === consoleUrl.pathname;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function filteredRouteConsoleErrors(surface, baseUrl, errors, resourceErrors) {
+  return filteredConsoleErrors(errors).filter(
+    (entry) => !isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors),
+  );
+}
+
 function isLocalNextChunkRace(baseUrl, consoleErrors, resourceErrors) {
   if (!isLocalhost(baseUrl) || consoleErrors.length === 0 || resourceErrors.length === 0) return false;
   if (!consoleErrors.every((entry) => /Failed to load resource.*404/i.test(entry))) return false;
@@ -257,7 +295,7 @@ async function main() {
       await page.screenshot({ path: screenshotPath, fullPage: false, caret: "initial" });
       const screenshotBytes = fs.statSync(screenshotPath).size;
       assert(screenshotBytes > 12000, `Screenshot too small for ${surface.route}: ${screenshotBytes}`);
-      const routeErrors = filteredConsoleErrors(consoleErrors);
+      const routeErrors = filteredRouteConsoleErrors(surface, baseUrl, consoleErrors, resourceErrors);
       const routeResourceErrors = resourceErrors.filter((entry) => (
         ["document", "script", "stylesheet", "image", "font", "media", "manifest"].includes(entry.resourceType)
         && !/favicon/i.test(entry.url)
@@ -328,7 +366,14 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`[workspace-pages-browser] ${error.stack || error.message}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`[workspace-pages-browser] ${error.stack || error.message}`);
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  filteredRouteConsoleErrors,
+  isCorrelatedAnonymousAuthConsoleError,
+};

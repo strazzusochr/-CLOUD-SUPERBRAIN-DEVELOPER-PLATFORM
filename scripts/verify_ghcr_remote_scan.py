@@ -41,6 +41,7 @@ EXPECTED_PLATFORMS = ("linux/amd64", "linux/arm64")
 DIGEST_RE = re.compile(r"sha256:[0-9a-f]{64}")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 SHA40_RE = re.compile(r"[0-9a-f]{40}")
+SAFE_DIAGNOSTIC_TOKEN_RE = re.compile(r"[A-Za-z0-9_.:+-]+")
 
 
 class VerificationError(RuntimeError):
@@ -203,6 +204,36 @@ def _finding_counts(report: Mapping[str, Any], label: str) -> tuple[int, int, in
             elif severity == "CRITICAL":
                 critical += 1
     return secrets, high, critical
+
+
+def _sanitized_failure_summary(report_path: Path) -> str:
+    """Return bounded finding metadata without exposing secret matches or registry details."""
+
+    if not report_path.is_file():
+        return "report=missing"
+    try:
+        report, _ = _read_json(report_path, "failed Trivy report")
+        secrets, high, critical = _finding_counts(report, "failed Trivy report")
+    except VerificationError:
+        return "report=invalid"
+
+    vulnerability_ids: set[str] = set()
+    packages: set[str] = set()
+    for result in report.get("Results", []):
+        for vulnerability in result.get("Vulnerabilities", []):
+            vulnerability_id = vulnerability.get("VulnerabilityID")
+            package = vulnerability.get("PkgName")
+            if isinstance(vulnerability_id, str) and SAFE_DIAGNOSTIC_TOKEN_RE.fullmatch(vulnerability_id):
+                vulnerability_ids.add(vulnerability_id)
+            if isinstance(package, str) and SAFE_DIAGNOSTIC_TOKEN_RE.fullmatch(package):
+                packages.add(package)
+
+    ids_text = ",".join(sorted(vulnerability_ids)[:12]) or "none"
+    packages_text = ",".join(sorted(packages)[:12]) or "none"
+    return (
+        f"findings secrets={secrets} high={high} critical={critical} "
+        f"vulnerability_ids={ids_text} packages={packages_text}"
+    )
 
 
 def build_remote_scan_evidence(
@@ -414,7 +445,8 @@ def execute_remote_scans(
             ) from exc
         _require(
             result.returncode == 0,
-            f"Trivy rejected {item['service']} {item['platform']} (findings or scan failure)",
+            f"Trivy rejected {item['service']} {item['platform']} "
+            f"({_sanitized_failure_summary(output)})",
         )
         _require(output.is_file(), f"Trivy report was not emitted for {item['service']} {item['platform']}")
 

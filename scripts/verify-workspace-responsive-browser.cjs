@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { filteredRouteConsoleErrors } = require("./verify-workspace-pages-browser.cjs");
 
 function parseArgs(argv) {
   const args = { allowLocalhost: false };
@@ -164,9 +165,23 @@ async function runProfile(browser, profile, surfaces, baseUrl, artifactDir) {
   });
   const page = await context.newPage();
   const errors = [];
+  const resourceErrors = [];
   page.on("pageerror", (error) => errors.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`console: ${message.text()}`);
+    if (message.type() === "error") {
+      const location = message.location();
+      const source = location.url ? ` @ ${location.url}:${location.lineNumber ?? 0}` : "";
+      errors.push(`console: ${message.text()}${source}`);
+    }
+  });
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      resourceErrors.push({
+        status: response.status(),
+        url: response.url(),
+        resourceType: response.request().resourceType(),
+      });
+    }
   });
 
   const checks = [];
@@ -185,6 +200,7 @@ async function runProfile(browser, profile, surfaces, baseUrl, artifactDir) {
     for (const surface of clickOrder) {
       console.log(`[responsive-22] profile=${profile.id} click=${surface.route}`);
       errors.length = 0;
+      resourceErrors.length = 0;
       await clickRoute(page, surface, baseUrl);
       const probe = await probeLayout(page, surface, profile.id);
       const isLogin = surface.route === "/login";
@@ -207,7 +223,7 @@ async function runProfile(browser, profile, surfaces, baseUrl, artifactDir) {
         assert(probe.mainLeft >= -2, `Mobile main starts outside the viewport on ${surface.route}: ${probe.mainLeft}`);
         assert(!probe.navigationRailVisible, `Mobile navigation rail must be collapsed on ${surface.route}`);
       }
-      const routeErrors = errors.filter((entry) => !/favicon|ResizeObserver loop limit exceeded/i.test(entry));
+      const routeErrors = filteredRouteConsoleErrors(surface, baseUrl, errors, resourceErrors);
       assert(routeErrors.length === 0, `${profile.id} console errors on ${surface.route}: ${routeErrors.join(" | ")}`);
       checks.push({ ...probe, clickNavigation: true, consoleErrors: [] });
 

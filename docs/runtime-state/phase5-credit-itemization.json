@@ -3,12 +3,12 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-09-04T00:08:01Z",
+  "updated_at_utc": "2026-09-05T14:55:00Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
-  "active_release_id": "prod-candidate-2026-09-04-local-rc38",
-  "active_source_commit_sha": "5668e7cb89eac03a929853f004204b56bd171cb9",
+  "active_release_id": "prod-candidate-2026-09-05-local-rc44",
+  "active_source_commit_sha": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
   "legacy_gap_reconstruction": {
     "recorded_percent": 68,
     "total_item_count": 19,
@@ -80,18 +80,18 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The current candidate pointer selects the source-bound RC38 qualification while preserving the production non-claim.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-04-local-rc38\""
+          "claim": "The current candidate pointer selects the source-bound RC44 no-credit requalification while preserving the production non-claim.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-05-local-rc44\""
         },
         {
-          "path": "AI_HANDOFF.md",
-          "claim": "Current handoff mirrors RC38, the canonical Phase-5 score, and the remaining Owner gates.",
-          "anchor": "Current RC38 Local Qualification"
+          "path": "docs/runtime-state/source-qualification-control.json",
+          "claim": "The direct Q control binds the exact RC44 release, runtime source, and source archive without awarding credit.",
+          "anchor": "\"release_id\": \"prod-candidate-2026-09-05-local-rc44\""
         },
         {
-          "path": "docs/verification-register.md",
-          "claim": "The evidence register records the RC38 audit, score, and verifier result.",
-          "anchor": "Current RC38 Local Qualification Evidence"
+          "path": "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/ci/exact-head-ci-attestation.json",
+          "claim": "The immutable CI attestation binds Q as the run head and S as the exact source checkout with zero failed or skipped jobs.",
+          "anchor": "\"source_commit_sha\": \"efd6826228c8e0b664a44d9a24ab38677e3b86f8\""
         }
       ]
     },
@@ -104,8 +104,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The active pointer selects the exact source-bound RC38 candidate.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-04-local-rc38\""
+          "claim": "The active pointer selects the exact source-bound RC44 candidate.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-05-local-rc44\""
         },
         {
           "path": "scripts/verify-current-release-candidate.ps1",
@@ -416,7 +416,7 @@
     "The score is release-candidate readiness, not production readiness.",
     "I2 does not publish to GHCR, verify a registry digest, open docker_registry_publish, or authorize promotion.",
     "I1 and I5 remain zero-credit Owner blocks.",
-    "The retired RC1 markers are preserved as history and never rebound to RC38.",
+    "The retired RC1 markers are preserved as history and never rebound to RC44.",
     "This itemization alone cannot make MARKET_READY true."
   ]
 }

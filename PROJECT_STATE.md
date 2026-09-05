@@ -148,12 +148,41 @@ Letzte Aktualisierung: 2026-09-03
 - **Aktuelle Verifikation:** Market-Ready-Unit `119/119`; Progress/Phase-5-Unit `60/60`;
   Rubrik `15/15`; OAuth `36/36`; Stateful Worker `69/69`; P6-Static beide PASS;
   Supply-Chain-Pins PASS; PowerShell-Parser PASS; lokaler Next/Docker-Build PASS.
-- **Naechster sicherer Schritt:** Security-Scan und exaktes Pfadinventar abschliessen,
-  ausschliesslich den Produkt-Slice stagen, `S` committen/pushen und Exact-Head-CI abwarten;
-  danach direkten Kindcommit `Q` mit neuer Qualification-Control erzeugen. Bis dahin ist
-  weder S noch Q behauptet.
+- **Naechster sicherer Schritt:** Die fuenf release-scoped lokalen RC44-Ketten aus
+  der unveraenderlichen S-Quelle erzeugen und anschliessend den no-credit Truth-Slice
+  seriell pruefen. Hosted-Gates und Prozente bleiben bis zu ihren eigenen Rohbeweisen
+  unveraendert.
 
 ## AKTUELLER PROJEKTANKER
+
+### Session 2026-09-05 — RC44 No-Credit Requalification
+
+- **RC44 Source / Control:** Release `prod-candidate-2026-09-05-local-rc44`,
+  eingefrorene Produktquelle `efd6826228c8e0b664a44d9a24ab38677e3b86f8` und
+  direkter Qualification-Control-Kindcommit
+  `c0f4663721ba0ac3032716b457bc5fc14658e3be`. GitHub Actions Run
+  `33979907937` ist erfolgreich und attestiert Q als Run-Head sowie S als exakten
+  Source-Checkout; failed jobs `0`, skipped jobs `0`, skipped steps `0`.
+- **Kreditstand bleibt unveraendert:** Overall `89%`, `1264/1400` erfuellt,
+  `136` offen. Horizontal P3 `44`, P5 `89`, P6 `90`; vertikal L4 `55`, L5
+  `86`. `MARKET_READY:false` bleibt verbindlich.
+- **Aenderungsgrenze:** S enthaelt nur die Python-Image-Basisreparatur fuer die
+  sieben beobachteten `libuuid`-HIGH-Funde, die aktualisierte Basis-Pin-Pruefung,
+  sanitisiertes fail-closed Remote-Scan-Diagnoseverhalten und dessen Regressionstest.
+  Zusaetzlich stellt der Security-Writer beim Archivscan repository-relative Pfade
+  her, damit eng begrenzte Pfad-Allowlisten wirken, ohne Regeln abzuschwaechen. Der
+  Kandidatenpruefer liest die BOM-lose UTF-8-Projektion jetzt auch unter Windows
+  PowerShell 5.1 explizit als UTF-8; der zugehoerige Regressionstest ist Teil von S.
+  Der 22-Seiten-Browserpruefer akzeptiert ausschliesslich auf `/login` korrelierte,
+  same-origin anonyme `401`-Antworten von `/api/v1/auth/me` und
+  `/api/v1/auth/refresh`; vier Negativ-/Positivtests verhindern ein breiteres
+  Ausblenden von Browserfehlern.
+- **Owner-Blocker:** I1 `hosted_candidate_parity` und I5
+  `production_auth_identity` bleiben ohne Hosted-Beweis blockiert. RC44-Images sind
+  nicht in GHCR publiziert; die fruehere S2-Publikation ist kein RC44-Beweis.
+- **Non-Claims:** Kein Production-Deploy, keine Promotion, kein P6-Scale-Dispatch,
+  kein Live-Provider-Aufruf und keine manuelle `live_verified`-Promotion.
+  `DEV-ONLY; hosted proof still blocked.`
 
 ### Session 2026-09-04 — RC38 Local Qualification
 
