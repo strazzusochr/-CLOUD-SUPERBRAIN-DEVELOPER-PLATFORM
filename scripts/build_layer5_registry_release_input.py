@@ -94,8 +94,13 @@ def _validate_review(review: Mapping[str, Any], release_id: str, candidate_sha: 
     _require(type(prevent_self_review) is bool, "registry publication prevent_self_review setting is invalid")
     if prevent_self_review:
         _require(reviewer_distinct is True, "registry publication violated its self-review prevention rule")
+    # The collector records the environment's policy, but credit has a stricter
+    # reviewer-separation contract. A valid self-review receipt is not L5 credit.
+    _require(reviewer_distinct is True, "registry publication reviewer separation is required for credit")
     reviewer = approval.get("reviewer")
-    _require(isinstance(reviewer, dict) and reviewer.get("type") == "User" and reviewer.get("login"), "registry publication reviewer is invalid")
+    _require(isinstance(reviewer, dict) and reviewer.get("type") == "User", "registry publication reviewer is invalid")
+    reviewer_login = reviewer.get("login")
+    _require(isinstance(reviewer_login, str) and bool(reviewer_login.strip()), "registry publication reviewer login is invalid")
     jobs = review.get("publish_jobs")
     _require(isinstance(jobs, list) and len(jobs) == 6 and review.get("publish_job_count") == 6, "registry publication must bind six publish jobs")
     _require({job.get("service") for job in jobs if isinstance(job, dict)} == set(EXPECTED_SERVICES), "registry publication job service set mismatch")
@@ -106,6 +111,9 @@ def _validate_review(review: Mapping[str, Any], release_id: str, candidate_sha: 
         _require(isinstance(push, dict) and push.get("status") == "completed" and push.get("conclusion") == "success", "registry publication push step did not execute")
     workflow = review.get("workflow")
     _require(isinstance(workflow, dict), "registry publication workflow binding is missing")
+    actor = workflow.get("triggering_actor")
+    _require(isinstance(actor, str) and bool(actor.strip()), "registry publication triggering actor is invalid")
+    _require(reviewer_login.casefold() != actor.casefold(), "registry publication reviewer separation contradicts recorded identities")
     _require(workflow.get("name") == "main-deploy" and workflow.get("event") == "workflow_dispatch", "registry publication workflow mismatch")
     _require(workflow.get("run_attempt") == 1 and review.get("plan_only") is False, "static or rerun publication evidence is not credit eligible")
     artifact = review.get("artifact")
@@ -335,7 +343,7 @@ def build_layer5_registry_release_input(
             "run_id": review["workflow"]["run_id"],
             "run_attempt": 1,
             "reviewer": review["review"]["reviewer"]["login"],
-            "reviewer_distinct_from_triggering_actor": True,
+            "reviewer_distinct_from_triggering_actor": review["review"]["reviewer_distinct_from_triggering_actor"],
         },
         "registry_publish_performed": True,
         "production_deploy": False,

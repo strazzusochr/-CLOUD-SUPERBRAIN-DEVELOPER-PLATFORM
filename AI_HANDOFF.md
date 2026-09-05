@@ -1,5 +1,83 @@
 # AI Handoff - Cloud Superbrain Developer Platform
 
+## L5 Reviewer-Credit Guard — 2026-09-05 (local, not released)
+
+- Checkout: `D:\_sb_tmp\rc29-control`, branch `codex/rc38-l5-reviewer-credit-guard`,
+  base `af4e5811433dd9d8e0e2c25b5b0b51983ae7563d` (merged PR #39).
+- Frozen runtime S: `5668e7cb89eac03a929853f004204b56bd171cb9`;
+  Q: `bbdf952eb369f2ae00310d797333e3e08960a668`. No refreeze performed.
+- Publication run `33913249274` produced private candidate images and raw review;
+  its overall failure must not be described as a successful run. The raw review
+  records the dispatcher as reviewer with self-review prevention disabled.
+- Defect: `build_layer5_registry_release_input.py` accepted this raw receipt but
+  unconditionally projected reviewer separation as true. The existing L5 scorer
+  rejects false separation. The corrected builder fails closed for credit and
+  projects the validated raw field; builder and scorer cross-check recorded logins
+  case-insensitively. No change to the collector's factual environment-policy logic.
+- Red-first: six failing cases before the fix. Focused suite after fix: 16 tests PASS.
+  Includes fully rebound envelope hashes, not merely an unrelated hash rejection.
+  Real RC38 aggregate is now rejected for reviewer separation. Full local regression:
+  `py -3 -m unittest discover -s scripts/tests -p 'test_*.py' -q` => 228 tests PASS,
+  1224.557 seconds, no skips reported. Phase-5-Credit and project manifest also PASS;
+  I1/I5 remain blocked (17/19). These results do not attest a new CI head.
+- Preserve all raw and derived historical evidence. The invalid aggregate remains at
+  `docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-evidence/registry/layer5-registry-release-credit-evidence.json`,
+  SHA-256 `35ffb7a0033752cdcf952832b39ccc172858316271648093b18e4d9446d942bf`.
+  Raw receipt SHA-256: `b0ab1c32efcd32761bfaab99417951efc66edfbc55a88263414e95e1fbda0487`.
+  Do not run the gate promoter on this aggregate. A PR review of the report is not
+  an independent pre-publication Environment review of the publishing run.
+- Separate remaining blocker: the canonical capability file has protected foreign
+  changes. The promoter requires a tracked, HEAD-clean file. No reset, overwrite,
+  selective truth invention, or manual `live_verified` is permitted.
+- S/T/R closure risk: eight existing script/workflow paths already differ between
+  S and this base. `verify_source_truth_projection_binding.py` rejects such paths
+  before reading the final binding. Preserve this guard; do not add a wildcard
+  exception or pretend the missing final binding is the only issue. Any narrowly
+  attested control-code exception or new qualification requires an explicit decision.
+  Actual read-only probe with runtime S and projection/receipt `af4e5811...` exits 1:
+  `runtime-to-projection transition contains a non-allowlisted path: .github/workflows/main-deploy.yml`.
+  This is a prerequisite probe using the existing merge, not an assertion that T100 exists.
+
+Owner decision `ACT-20260905-OWNER-PROPOSAL-INTEGRATE-L5-AND-PREPARE-S2`
+authorizes exactly these seven paths for one commit, push, and PR #40. This document
+ships inside that same commit, so its commit SHA is intentionally obtained from the
+PR #40 server readback rather than self-referenced in its own bytes. Exact paths:
+
+```text
+scripts/build_layer5_registry_release_input.py
+scripts/score_layer5_registry_release_credit.py
+scripts/tests/test_layer5_registry_release_evidence.py
+scripts/tests/test_new_progress_credit_scorers.py
+PROJECT_STATE.md
+AI_HANDOFF.md
+docs/verification-register.md
+```
+
+Do not include the six pre-existing foreign dirty paths when integrating this patch.
+Do not restart a registry workflow or infer new authority from the consumed PR39 grant.
+
+The same decision selects **Option A: one final S2/Q2 freeze** as the binding recovery
+direction. PR #40 only integrates the L5 guard. It does not create S2/Q2, publish an
+image, open a gate, change a percentage, or authorize a later merge.
+
+### Next Owner boundary (no automatic cloud execution)
+
+1. After PR #40 exists: require exact-head CI, then an independent human review and
+   a fresh scoped merge authorization. This current grant stops after PR creation.
+   Old grants for PR38/PR39 do not authorize PR #40's merge.
+2. Decide how the missing independent pre-publication review can be satisfied without
+   overwriting immutable published tags or retrospectively forging approval. No
+   registry rerun, publication, permission change or rubric weakening is implied.
+3. Resolve ownership of the protected capability-file changes before any gate promotion.
+4. Revalidate exact source/expiry/target grants before hosted OAuth, L4, P6 or staging.
+   No provider call, scale dispatch, deployment, alias change or promotion was made
+   by this fix. Vercel hold must stay in force.
+5. Complete one Prefreeze inventory of every remaining product/workflow change, then
+   create S2 and its direct qualification child Q2 exactly once under a new action ID.
+
+Progress: horizontal 623/700, vertical 641/700, total 1264/1400; 136 open;
+Overall 89, MARKET_READY:false. Local tests are DEV-ONLY; hosted proof still blocked.
+
 ## Current RC38 Local Qualification
 
 Release `prod-candidate-2026-09-04-local-rc38` uses frozen product source

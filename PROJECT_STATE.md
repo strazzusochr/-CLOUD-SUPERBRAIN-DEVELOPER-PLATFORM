@@ -1,5 +1,43 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-05 — L5 REVIEWER-CREDIT GUARD
+
+Dieser Abschnitt hat Vorrang vor den historischen RC38-Local-only-Non-Claims unten.
+Default-Merge von PR #39: `af4e5811433dd9d8e0e2c25b5b0b51983ae7563d`;
+Runtime S und Qualification Q bleiben unveraendert. Kein neuer Release-Freeze.
+Private Registry-Publikation fand im Run `33913249274` statt; das ist noch kein L5-Credit.
+Die Roh-Review meldet `reviewer_distinct_from_triggering_actor=false`, waehrend der
+alte Aggregator im abgeleiteten Report faelschlich `true` ausgab. Der Scorer verweigert
+diese Gutschrift bereits; der lokale Control-Fix bringt Aggregator und Verifier in Einklang.
+Der Collector darf eine nach Environment-Regeln erlaubte Self-Review weiterhin faktisch
+erfassen, aber sie erfuellt nicht den strengeren aktuellen Credit-Vertrag.
+
+Der historische Aggregat-Report mit SHA-256
+`35ffb7a0033752cdcf952832b39ccc172858316271648093b18e4d9446d942bf`
+bleibt unveraendert erhalten und ist **NICHT CREDIT-FAEHIG**. Nicht promoten, nicht
+nachbearbeiten, nicht durch eine nachtraegliche PR-Review als Publish-Review ersetzen.
+Fokussierte lokale Tests: 16/16 PASS; reale Evidence wird erwartungsgemaess abgewiesen.
+Breite lokale Regression: **228/228 PASS** (1224,557 Sekunden), Phase-5-Credit
+und Projektmanifest PASS. Dieser Abschnitt gehoert zum exakt sieben Pfade grossen
+Control-Fix fuer PR #40; dessen Exact-Head-CI ist vor dem PR-Lauf noch nicht belegt.
+Kein neuer Release-PASS. Phase-5 bleibt 17/19 mit I1/I5 blockiert.
+
+Fortschritt unveraendert: **1264/1400 erfuellt, 136 offen**, Overall **89**,
+P3=44, P5=89, P6=90, L4=55, L5=86; `MARKET_READY:false`.
+Sechs fremde Dirty-Dateien bleiben geschuetzt. Gate-, Ledger-, Prozent-, Runtime-,
+Workflow- und Production-Aenderungen gehoeren nicht zu diesem lokalen Fix.
+Weiterer vorbestehender Abschlussblock: der strenge S/T/R-Vertrag erlaubt keine
+Control-Skript-/Workflow-Abweichungen nach S; acht solche Pfade bestehen bereits
+zwischen S und dem PR39-Merge. Eine Freigabe einzelner Control-PRs ist kein automatischer
+S/T/R-Vertragsnachweis. Die read-only Gegenprobe mit dem PR39-Merge als hypothetischer
+Projektion scheitert bereits an `.github/workflows/main-deploy.yml` (nicht allowlistet).
+Dies ist keine T100-Abnahme; es beweist den vorbestehenden Pfadblock vor dem finalen Binding.
+Owner-Entscheidung `ACT-20260905-OWNER-PROPOSAL-INTEGRATE-L5-AND-PREPARE-S2`
+waehlt **Option A: einmaliger finaler S2/Q2-Freeze**. Dieser Control-Fix erzeugt
+weder S2 noch Q2; deren exakter Inhalt und SHA folgen erst nach PR #40, CI, Review,
+Merge und vollstaendigem Prefreeze-Audit. T100 bleibt bis dahin blockiert.
+Details und naechste Owner-Grenze: `AI_HANDOFF.md`, Abschnitt L5 Reviewer-Credit Guard.
+
 ## AKTIVER CHECKPOINT 2026-09-04 — RC38 DUAL-BINDING / LOKALE QUALIFIKATION
 
 Dieser Abschnitt ersetzt die untenstehenden Prefreeze-WIP-Aussagen.
