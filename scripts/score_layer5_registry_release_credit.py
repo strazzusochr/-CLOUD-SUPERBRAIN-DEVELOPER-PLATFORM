@@ -136,6 +136,13 @@ def _validate_supporting_artifacts(
     approval = review.get("review")
     common.require(isinstance(approval, dict) and approval.get("state") == "approved", "registry review state mismatch")
     common.require(approval.get("reviewer_distinct_from_triggering_actor") is True, "registry reviewer separation mismatch")
+    reviewer = approval.get("reviewer")
+    common.require(isinstance(reviewer, dict) and reviewer.get("type") == "User", "registry reviewer identity missing")
+    login = reviewer.get("login")
+    actor = workflow.get("triggering_actor")
+    common.require(isinstance(login, str) and bool(login.strip()), "registry reviewer login missing")
+    common.require(isinstance(actor, str) and bool(actor.strip()), "registry triggering actor missing")
+    common.require(login.casefold() != actor.casefold(), "registry reviewer separation contradicts recorded identities")
     for key in ("production_deploy", "release_promotion", "provider_writes", "secret_output"):
         common.require(review.get(key) is False, f"registry review {key} must be false")
 

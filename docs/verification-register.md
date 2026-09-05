@@ -1,5 +1,24 @@
 # Verification Register - PATCHED
 
+## 2026-09-05 — L5 reviewer-credit false-positive correction (local)
+
+Six red-first cases reproduced acceptance of missing/identical actors and self-review.
+After the local builder/scorer guard: 16 focused unittest tests PASS. The immutable
+RC38 registry aggregate (SHA-256
+`35ffb7a0033752cdcf952832b39ccc172858316271648093b18e4d9446d942bf`)
+now fails the canonical verifier with `registry publication reviewer separation is
+required for credit`. This rejection is expected, not a successful L5 evidence run.
+Raw receipts and aggregate bytes are preserved. Credit remains zero; L5 stays 86,
+Overall 89, total 1264/1400. Full local regression: 228/228 tests PASS (1224.557 s);
+Phase-5-Credit PASS (17/19, I1/I5 blocked); project manifest PASS (overall=89,
+deltas=1, mirrors=2, candidate_source_bound=true, freshness=verified).
+The S-to-existing-PR39-merge prerequisite probe exits 1 at the non-allowlisted
+`.github/workflows/main-deploy.yml`; no final T100 binding exists or is claimed.
+This register entry ships in the same exact seven-path PR #40 control commit; the
+server-side commit SHA and CI result must be read from PR #40. Option A (one final
+S2/Q2 freeze) is selected but not executed. No new CI or release PASS is claimed.
+See `AI_HANDOFF.md` for the protected capability-file and S/T/R closure blockers.
+
 ## Current RC38 Local Qualification Evidence
 
 The active no-credit candidate target is `prod-candidate-2026-09-04-local-rc38` with

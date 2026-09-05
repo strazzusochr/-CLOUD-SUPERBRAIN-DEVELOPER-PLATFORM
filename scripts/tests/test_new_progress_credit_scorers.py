@@ -129,8 +129,9 @@ def l5_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
         "all_publish_jobs_successful": True,
         "all_publish_steps_executed": True,
         "approval_required_before_publish_jobs": True,
-        "workflow": {"event": "workflow_dispatch", "run_attempt": 1},
-        "review": {"state": "approved", "reviewer_distinct_from_triggering_actor": True},
+        "workflow": {"event": "workflow_dispatch", "run_attempt": 1, "triggering_actor": "dispatcher"},
+        "review": {"state": "approved", "reviewer_distinct_from_triggering_actor": True,
+                   "reviewer": {"login": "release-owner", "type": "User"}},
         "production_deploy": False,
         "release_promotion": False,
         "provider_writes": False,
@@ -572,6 +573,26 @@ class NewProgressCreditScorerTests(unittest.TestCase):
         store.values[l5.GATE_PATH]["gates"]["docker_registry_publish"]["live_verified"] = False  # type: ignore[index]
         with self.assertRaisesRegex(common.ScoreError, "gate is not promoted"):
             l5.score_request(req, load_blob=store.load, is_ancestor=lambda _a, _b: True)
+
+    def test_layer5_registry_scorer_rejects_self_review_with_rebound_hashes(self) -> None:
+        for distinct, actor in ((False, "release-owner"), (True, "RELEASE-OWNER"), (True, None)):
+            with self.subTest(distinct=distinct, actor=actor):
+                aggregate, store, req = l5_fixture()
+                refs = aggregate["artifacts"]
+                parent = str(Path(req["artifact_path"]).parent).replace("\\", "/")
+                review_path = parent + "/" + refs["registry_publication_review"]["path"]
+                registry_path = parent + "/" + refs["candidate_registry_digests"]["path"]
+                review = store.values[review_path]
+                review["review"]["reviewer_distinct_from_triggering_actor"] = distinct
+                review["workflow"]["triggering_actor"] = actor
+                refs["registry_publication_review"]["sha256"] = digest(review)
+                registry = store.values[registry_path]
+                registry["publication_review"]["sha256"] = digest(review)
+                refs["candidate_registry_digests"]["sha256"] = digest(registry)
+                aggregate["criteria"][3]["evidence_sha256"] = digest(review)
+                req["artifact_sha256"] = digest(aggregate)
+                with self.assertRaisesRegex(common.ScoreError, "reviewer separation|triggering actor"):
+                    l5.score_request(req, load_blob=store.load, is_ancestor=lambda _a, _b: True)
 
     def test_phase5_scorer_accepts_exact_i1_i5_transition(self) -> None:
         _, store, req = p5_fixture()

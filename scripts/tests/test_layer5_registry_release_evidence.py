@@ -15,7 +15,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from build_layer5_registry_release_input import (  # noqa: E402
     VerificationError as AggregateVerificationError,
     build_layer5_registry_release_input,
+    _validate_review,
 )
+from verify_layer5_registry_release_evidence import validate_layer5_registry_release_evidence
 from collect_ghcr_publication_evidence import (  # noqa: E402
     VerificationError as PublicationVerificationError,
     build_publication_evidence,
@@ -423,6 +425,32 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
                 with self.assertRaisesRegex(PublicationVerificationError, expected):
                     build_publication_evidence(**inputs)
 
+    def test_credit_requires_distinct_reviewer_even_when_environment_allows_self_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            inputs = self._publication_inputs(Path(temporary))
+            review, _ = build_publication_evidence(**inputs)
+            # Environment policy and credit eligibility are separate contracts.
+            review["review"]["prevent_self_review"] = False
+            _validate_review(review, RELEASE_ID, CANDIDATE_SHA, CONTROL_SHA)
+            cases = (
+                (False, "dispatcher", "release-owner"),
+                (True, "release-owner", "release-owner"),
+                (True, "RELEASE-OWNER", "release-owner"),
+                (True, None, "release-owner"),
+                (True, "", "release-owner"),
+                (True, "dispatcher", ""),
+                (1, "dispatcher", "release-owner"),
+                ("true", "dispatcher", "release-owner"),
+            )
+            for distinct, actor, reviewer in cases:
+                with self.subTest(distinct=distinct, actor=actor, reviewer=reviewer):
+                    bad = deepcopy(review)
+                    bad["review"]["reviewer_distinct_from_triggering_actor"] = distinct
+                    bad["workflow"]["triggering_actor"] = actor
+                    bad["review"]["reviewer"]["login"] = reviewer
+                    with self.assertRaises(AggregateVerificationError):
+                        _validate_review(bad, RELEASE_ID, CANDIDATE_SHA, CONTROL_SHA)
+
     def test_layer5_input_is_exact_four_criterion_fourteen_point_transition(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -485,6 +513,34 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
                 ],
             )
             self.assertTrue(aggregate["credit_eligible"])
+
+            aggregate_path = write_json(root / "layer5-registry-release-credit-evidence.json", aggregate)
+            validate_layer5_registry_release_evidence(
+                aggregate_path, expected_release_id=RELEASE_ID,
+                expected_source_sha=CANDIDATE_SHA, expected_control_sha=CONTROL_SHA,
+            )
+            # Reproduce the RC38 bug with fully rebound hashes, not a hash error:
+            # the raw receipt says self-review, while the old projection says true.
+            original_review = deepcopy(review)
+            original_registry = deepcopy(registry)
+            review["review"]["prevent_self_review"] = False
+            review["review"]["reviewer_distinct_from_triggering_actor"] = False
+            review["workflow"]["triggering_actor"] = review["review"]["reviewer"]["login"]
+            write_json(review_path, review)
+            registry["publication_review"]["sha256"] = file_sha(review_path)
+            write_json(registry_path, registry)
+            forged = deepcopy(aggregate)
+            forged["artifacts"]["registry_publication_review"]["sha256"] = file_sha(review_path)
+            forged["artifacts"]["candidate_registry_digests"]["sha256"] = file_sha(registry_path)
+            forged["criteria"][3]["evidence_sha256"] = file_sha(review_path)
+            write_json(aggregate_path, forged)
+            with self.assertRaisesRegex(AggregateVerificationError, "reviewer separation"):
+                validate_layer5_registry_release_evidence(
+                    aggregate_path, expected_release_id=RELEASE_ID,
+                    expected_source_sha=CANDIDATE_SHA, expected_control_sha=CONTROL_SHA,
+                )
+            write_json(review_path, original_review)
+            write_json(registry_path, original_registry)
 
             bad_sbom = deepcopy(json.loads(sbom_path.read_text(encoding="utf-8")))
             bad_sbom["sbom_count"] = 5
