@@ -8,6 +8,7 @@ import unittest
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
@@ -24,6 +25,7 @@ from collect_i1_codespaces_evidence import validate_runtime_snapshot  # noqa: E4
 from verify_i1_codespaces_candidate import (  # noqa: E402
     CommandResult,
     RegistryObservation,
+    _request,
     validate_runtime_provenance,
     verify_registry_readback,
     write_json_exclusive,
@@ -282,7 +284,52 @@ class FakeRegistryRunner:
         return CommandResult(1, "", "unexpected fixture command")
 
 
+class FakeHttpResponse:
+    status = 200
+    headers = {"Content-Type": "application/json"}
+
+    def __init__(self, url: str) -> None:
+        self.url = url
+
+    def __enter__(self) -> "FakeHttpResponse":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def read(self, _limit: int) -> bytes:
+        return b"{}"
+
+    def geturl(self) -> str:
+        return self.url
+
+
+class FakeHttpOpener:
+    def __init__(self) -> None:
+        self.request = None
+
+    def open(self, request, timeout: int) -> FakeHttpResponse:  # type: ignore[no-untyped-def]
+        self.request = request
+        return FakeHttpResponse(request.full_url)
+
+
 class I1CodespacesContractTests(unittest.TestCase):
+    def test_https_probe_uses_codespaces_compatible_versioned_user_agent(self) -> None:
+        opener = FakeHttpOpener()
+        with patch("verify_i1_codespaces_candidate.urllib.request.build_opener", return_value=opener):
+            observation = _request(
+                "https://example-8080.app.github.dev",
+                "/.well-known/cloud-superbrain/i1-provenance.json",
+            )
+
+        self.assertEqual(observation.status, 200)
+        self.assertIsNotNone(opener.request)
+        self.assertEqual(
+            opener.request.get_header("User-agent"),
+            "cloud-superbrain-i1-readonly-verifier/1.0",
+        )
+        self.assertEqual(opener.request.get_header("Accept"), "*/*")
+
     def test_manifest_binds_exact_release_source_and_six_services(self) -> None:
         binding = validate_published_manifest(
             published_manifest(),
