@@ -990,6 +990,11 @@ function providerStreamResponse(env, context, model, probe, started) {
               if (activeFrameFormat === null) activeFrameFormat = validated.frameFormat;
               if (providerFrameFormat === null) providerFrameFormat = validated.frameFormat;
               if (finishReason !== null) {
+                if (
+                  validated.content === ""
+                  && validated.frameFormat === "workers_ai_native_response"
+                  && activeFrameFormat === "workers_ai_native_response"
+                ) continue;
                 throw new GatewayFault("provider_stream_data_after_finish", 502, "The provider stream emitted data after its finish reason.");
               }
               content += validated.content;
