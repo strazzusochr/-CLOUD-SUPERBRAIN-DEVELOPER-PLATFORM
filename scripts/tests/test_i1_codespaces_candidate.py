@@ -404,6 +404,18 @@ class I1CodespacesContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ContractError, "capability allowlist mismatch: redis"):
             _verify_compose(broken, include_tunnel=False)
 
+    def test_ingress_is_the_only_bridge_out_of_the_internal_network(self) -> None:
+        config = _render_compose(REPO_ROOT, include_tunnel=False)
+        broken = deepcopy(config)
+        del broken["services"]["ingress"]["networks"]["edge"]  # type: ignore[index]
+        with self.assertRaisesRegex(ContractError, "ingress network bridge is not exact"):
+            _verify_compose(broken, include_tunnel=False)
+
+        broken = deepcopy(config)
+        broken["services"]["agent-api"]["networks"]["edge"] = None  # type: ignore[index]
+        with self.assertRaisesRegex(ContractError, "service escaped the internal network: agent-api"):
+            _verify_compose(broken, include_tunnel=False)
+
     def test_static_verifier_command_entrypoint_succeeds(self) -> None:
         completed = subprocess.run(
             [sys.executable, str(SCRIPTS_DIR / "verify_i1_codespaces_static.py")],

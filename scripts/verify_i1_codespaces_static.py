@@ -106,6 +106,11 @@ def _verify_compose(config: Mapping[str, Any], *, include_tunnel: bool) -> None:
     if include_tunnel:
         expected.add("cloudflared")
     require(set(services) == expected, "I1 Compose service set is not exact")
+    networks = config.get("networks")
+    require(isinstance(networks, Mapping), "I1 Compose networks are missing")
+    require(set(networks) == {"candidate", "edge"}, "I1 Compose network set is not exact")
+    require(networks["candidate"].get("internal") is True, "I1 candidate network must remain internal")
+    require(networks["edge"].get("internal") is not True, "I1 edge network must permit the single published ingress port")
     for name, raw in services.items():
         require(isinstance(raw, Mapping), f"I1 Compose service is invalid: {name}")
         require("build" not in raw, f"I1 Compose contains a forbidden build: {name}")
@@ -135,6 +140,10 @@ def _verify_compose(config: Mapping[str, Any], *, include_tunnel: bool) -> None:
             )
     ingress = services["ingress"]
     require(isinstance(ingress, Mapping), "I1 ingress service is invalid")
+    require(set(ingress.get("networks", {})) == {"candidate", "edge"}, "I1 ingress network bridge is not exact")
+    for name, raw in services.items():
+        if name not in {"ingress", "evidence-publisher"}:
+            require(set(raw.get("networks", {})) == {"candidate"}, f"I1 service escaped the internal network: {name}")
     ports = ingress.get("ports")
     require(isinstance(ports, list) and len(ports) == 1, "I1 ingress must publish exactly one port")
     port = ports[0]
