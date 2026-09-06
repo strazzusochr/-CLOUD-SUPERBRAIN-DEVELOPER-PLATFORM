@@ -55,10 +55,11 @@ jobs:
           import subprocess
 
           candidate_sha = os.environ["CANDIDATE_SHA"]
-          control_sha = os.environ["CONTROL_SHA"]
-          control_ref = os.environ["CONTROL_REF"]
-          truth_path = pathlib.Path("docs/runtime-state/source-qualification-control.json")
-          capability_path = pathlib.Path("docs/runtime-state/capability-gates.json")
+           control_sha = os.environ["CONTROL_SHA"]
+           control_ref = os.environ["CONTROL_REF"]
+           truth_path = pathlib.Path("docs/runtime-state/source-qualification-control.json")
+           candidate_path = pathlib.Path("docs/release-artifacts/current-release-candidate.json")
+           capability_path = pathlib.Path("docs/runtime-state/capability-gates.json")
 
           if control_ref != "refs/heads/chore/repo-bootstrap":
               raise SystemExit("candidate publication must be dispatched from refs/heads/chore/repo-bootstrap")
@@ -103,9 +104,31 @@ jobs:
               raise SystemExit("source qualification may not claim rollout")
           if truth.get("percentage_credit_awarded") != 0:
               raise SystemExit("source qualification may not award credit")
-          if truth.get("secret_output") is not False:
-              raise SystemExit("source qualification may not report secret output")
-          qualified_archive_sha256 = truth.get("source_archive_sha256")
+           if truth.get("secret_output") is not False:
+               raise SystemExit("source qualification may not report secret output")
+           subprocess.run(
+               ["git", "ls-files", "--error-unmatch", candidate_path.as_posix()],
+               check=True,
+               stdout=subprocess.DEVNULL,
+           )
+           active_candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+           expected_candidate_keys = {
+               "active_release_id",
+               "source_commit_sha",
+               "updated_at",
+               "updated_by",
+               "reason",
+               "production_rollout_claimed",
+           }
+           if set(active_candidate) != expected_candidate_keys:
+               raise SystemExit("active release candidate fields are not exact")
+           if active_candidate.get("active_release_id") != truth.get("release_id"):
+               raise SystemExit("active release candidate does not equal qualified release_id")
+           if active_candidate.get("source_commit_sha") != candidate_sha:
+               raise SystemExit("active release candidate does not equal dispatch candidate_sha")
+           if active_candidate.get("production_rollout_claimed") is not False:
+               raise SystemExit("active release candidate may not claim rollout")
+           qualified_archive_sha256 = truth.get("source_archive_sha256")
           if re.fullmatch(r"[0-9a-f]{64}", str(qualified_archive_sha256)) is None:
               raise SystemExit("source qualification archive SHA-256 is invalid")
           archive_process = subprocess.Popen(

@@ -112,9 +112,12 @@ foreach ($required in @(
   'CONTROL_REF: ${{ github.ref }}',
   'control_ref != "refs/heads/chore/repo-bootstrap"',
   'docs/runtime-state/source-qualification-control.json',
+  'docs/release-artifacts/current-release-candidate.json',
   'docs/runtime-state/capability-gates.json',
   'source-qualification-control-v1',
   'runtime_candidate_sha',
+  'active_release_id',
+  'source_commit_sha',
   'source_archive_sha256',
   'production_rollout_claimed',
   'percentage_credit_awarded',
@@ -129,6 +132,8 @@ foreach ($required in @(
   '["git", "cat-file", "-e", f"{candidate_sha}^{{commit}}"]',
   '["git", "merge-base", "--is-ancestor", candidate_sha, control_sha]',
   'candidate_sha == control_sha',
+  'active release candidate does not equal qualified release_id',
+  'active release candidate does not equal dispatch candidate_sha',
   'control_sha={control_sha}',
   'candidate_sha={candidate_sha}'
 )) {
