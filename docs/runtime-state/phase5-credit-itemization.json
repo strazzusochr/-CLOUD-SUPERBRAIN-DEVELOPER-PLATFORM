@@ -84,9 +84,9 @@
           "anchor": "\"active_release_id\": \"prod-candidate-2026-09-05-local-rc44\""
         },
         {
-          "path": "docs/runtime-state/source-qualification-control.json",
-          "claim": "The direct Q control binds the exact RC44 release, runtime source, and source archive without awarding credit.",
-          "anchor": "\"release_id\": \"prod-candidate-2026-09-05-local-rc44\""
+          "path": "scripts/verify-source-qualification-control.ps1",
+          "claim": "The source-qualification verifier independently recomputes the committed archive hash and binds the exact release and source without awarding credit.",
+          "anchor": "Assert-True \"archive matches source commit\""
         },
         {
           "path": "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/ci/exact-head-ci-attestation.json",

@@ -29,9 +29,9 @@ BASELINE_PERCENT = 55
 CREDITED_PERCENT = 100
 CURRENT_CREDIT_POINTS = 45
 HISTORICAL_CREDIT_POINTS_EXCLUDED = 10
-PROVIDER_CALLS_TOTAL = 6
+PROVIDER_CALLS_TOTAL = 5
 
-REPORT_KEYS = ("current_chain", "stream", "fallback", "budget", "trace", "negative")
+REPORT_KEYS = ("current_chain", "stream", "fallback", "budget", "negative")
 BUILD_INPUT_KEYS = {
     "contract_version",
     "release_id",
@@ -44,8 +44,8 @@ BUILD_INPUT_KEYS = {
 REPORT_SPECS: dict[str, tuple[str, str, int]] = {
     "current_chain": (
         CURRENT_CHAIN_CONTRACT,
-        "L4 current hosted generation, routing allowlist, and completion audit",
-        18,
+        "L4 current hosted generation, routing allowlist, completion audit, and trace correlation",
+        22,
     ),
     "stream": (
         "llm-hosted-stream-parity-evidence-v2",
@@ -61,11 +61,6 @@ REPORT_SPECS: dict[str, tuple[str, str, int]] = {
         "llm-hosted-budget-guard-evidence-v2",
         "L4 hosted budget guard stops before provider execution",
         3,
-    ),
-    "trace": (
-        "llm-hosted-trace-correlation-evidence-v2",
-        "L4 hosted trace ID correlates gateway, provider, and immutable evidence",
-        4,
     ),
     "negative": (
         "llm-hosted-negative-guards-evidence-v2",
@@ -113,7 +108,7 @@ CRITERIA: tuple[dict[str, Any], ...] = (
     {
         "criterion_id": "hosted_trace_correlation",
         "points": 4,
-        "report_key": "trace",
+        "report_key": "current_chain",
         "evidence_ref": "current_hosted_llm_trace_correlation_verified",
         "claim_ids": ["hosted_trace_correlation"],
     },
@@ -296,6 +291,7 @@ def _validate_current_chain(report: dict[str, Any]) -> None:
         {"claim_id": "hosted_generative_source_bound", "points": 10},
         {"claim_id": "hosted_routing_allowlist", "points": 4},
         {"claim_id": "hosted_completion_audit", "points": 4},
+        {"claim_id": "hosted_trace_correlation", "points": 4},
     ]
     require(atomics == expected, "current_chain atomic criteria mismatch")
 
@@ -322,6 +318,13 @@ def _validate_current_chain(report: dict[str, Any]) -> None:
     require_bool(audit.get("readback_verified"), True, "current_chain audit readback_verified")
     require_bool(audit.get("source_bound"), True, "current_chain audit source_bound")
     require(audit.get("provider_call_count") == 1, "current_chain audit provider call count mismatch")
+
+    trace = _required_object(report, "trace", "current_chain")
+    require_lower_hex(trace.get("trace_id"), 32, "current_chain trace ID")
+    require_lower_hex(trace.get("gateway_log_id_sha256"), 64, "current_chain trace gateway log hash")
+    require(isinstance(trace.get("d1_evidence_ref"), str) and trace["d1_evidence_ref"].startswith("d1_audit:"), "current_chain trace D1 evidence missing")
+    require_bool(trace.get("gateway_log_readback_verified"), True, "current_chain trace gateway log readback")
+    require_bool(trace.get("audit_readback_verified"), True, "current_chain trace audit readback")
 
     historical = _required_object(report, "historical_evidence", "current_chain")
     require_exact_keys(
@@ -413,7 +416,6 @@ SPECIFIC_VALIDATORS: dict[str, Callable[[dict[str, Any]], None]] = {
     "stream": _validate_stream,
     "fallback": _validate_fallback,
     "budget": _validate_budget,
-    "trace": _validate_trace,
     "negative": _validate_negative,
 }
 

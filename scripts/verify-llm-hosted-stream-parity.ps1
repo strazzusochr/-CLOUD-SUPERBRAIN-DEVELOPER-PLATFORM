@@ -82,7 +82,7 @@ function Read-OpenAiSse([string]$Content) {
   $frames = @(); $doneCount = 0; $assembled = [Text.StringBuilder]::new(); $dataLines = @($Content -split '\r?\n' | Where-Object { $_ -like "data:*" })
   Require ($dataLines.Count -gt 1) "stream_frames_missing" "Provider stream has no SSE data frames."
   foreach ($line in $dataLines) {
-    $data = ([string]$line).Substring(5).TrimStart()
+    $data = ([string]$line).Substring(5).Trim()
     if ($data -eq "[DONE]") { $doneCount += 1; continue }
     try { $frame = $data | ConvertFrom-Json -ErrorAction Stop } catch { Stop-Blocked "stream_frame_invalid_json" "Provider SSE frame is not valid JSON." }
     Require ([string]$frame.object -eq "chat.completion.chunk") "stream_frame_not_openai_chunk" "Every provider frame must be chat.completion.chunk."
@@ -93,7 +93,7 @@ function Read-OpenAiSse([string]$Content) {
     }
     $frames += $frame
   }
-  Require ($doneCount -eq 1 -and $dataLines[-1].Trim() -eq "data: [DONE]") "stream_done_contract" "The source-bound gateway stream must end with exactly one canonical [DONE]."
+  Require ($doneCount -eq 1 -and $dataLines[-1].Substring(5).Trim() -eq "[DONE]") "stream_done_contract" "The source-bound gateway stream must end with exactly one canonical [DONE] payload as its final data event."
   Require ($frames.Count -gt 0) "stream_frames_missing" "Provider stream has no OpenAI chunk frames."
   return [ordered]@{ content = $assembled.ToString(); frame_count = $frames.Count; done_count = $doneCount }
 }

@@ -80,8 +80,8 @@ def common(contract: str, criterion: str, points: int) -> dict:
 def reports() -> dict[str, dict]:
     current = common(
         "llm-hosted-current-evidence-chain-v2",
-        "L4 current hosted generation, routing allowlist, and completion audit",
-        18,
+        "L4 current hosted generation, routing allowlist, completion audit, and trace correlation",
+        22,
     )
     current.update(
         {
@@ -91,6 +91,7 @@ def reports() -> dict[str, dict]:
                 {"claim_id": "hosted_generative_source_bound", "points": 10},
                 {"claim_id": "hosted_routing_allowlist", "points": 4},
                 {"claim_id": "hosted_completion_audit", "points": 4},
+                {"claim_id": "hosted_trace_correlation", "points": 4},
             ],
             "generation": {
                 "model": "@cf/meta/llama-3.1-8b-instruct-fast",
@@ -117,6 +118,13 @@ def reports() -> dict[str, dict]:
                 "readback_verified": True,
                 "source_bound": True,
                 "provider_call_count": 1,
+            },
+            "trace": {
+                "trace_id": "4" * 32,
+                "gateway_log_id_sha256": "5" * 64,
+                "d1_evidence_ref": "d1_audit:trace",
+                "gateway_log_readback_verified": True,
+                "audit_readback_verified": True,
             },
             "historical_evidence": {
                 "contract_version": "live-llm-bounded-evidence-chain-v1",
@@ -189,25 +197,6 @@ def reports() -> dict[str, dict]:
         }
     )
 
-    trace = common(
-        "llm-hosted-trace-correlation-evidence-v2",
-        "L4 hosted trace ID correlates gateway, provider, and immutable evidence",
-        4,
-    )
-    trace.update(
-        {
-            "live_provider_calls": True,
-            "provider_call_count": 1,
-            "trace": {
-                "trace_id": "4" * 32,
-                "gateway_log_id_sha256": "5" * 64,
-                "d1_evidence_ref": "d1_audit:trace",
-                "gateway_log_readback_verified": True,
-                "audit_readback_verified": True,
-            },
-        }
-    )
-
     negative = common(
         "llm-hosted-negative-guards-evidence-v2",
         "L4 hosted auth, oversize, schema, and policy guards stop before provider execution",
@@ -231,7 +220,6 @@ def reports() -> dict[str, dict]:
         "stream": stream,
         "fallback": fallback,
         "budget": budget,
-        "trace": trace,
         "negative": negative,
     }
 
@@ -328,7 +316,7 @@ class Layer4HostedCurrentEvidenceTests(unittest.TestCase):
 
         self.paths, self.blobs = report_bytes(self.payloads)
         drifted = copy.deepcopy(self.payloads)
-        drifted["trace"]["source"]["commit_sha"] = "f" * 40
+        drifted["current_chain"]["source"]["commit_sha"] = "f" * 40
         paths, blobs = report_bytes(drifted)
         with self.assertRaisesRegex(validator.EvidenceError, "source commit mismatch"):
             validator.build_aggregate(build_input(paths), blobs.__getitem__, checked_at=CHECKED_AT)
@@ -342,7 +330,7 @@ class Layer4HostedCurrentEvidenceTests(unittest.TestCase):
 
     def test_report_paths_must_be_normalized_repository_paths(self) -> None:
         bad_input = build_input(self.paths)
-        bad_input["reports"]["trace"] = "../trace.json"
+        bad_input["reports"]["current_chain"] = "../trace.json"
         with self.assertRaisesRegex(validator.EvidenceError, "normalized repository path"):
             validator.build_aggregate(bad_input, self.load, checked_at=CHECKED_AT)
 
