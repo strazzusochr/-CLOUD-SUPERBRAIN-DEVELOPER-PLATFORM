@@ -2559,7 +2559,29 @@ if ($candidateVerificationExitCode -ne 0) {
 
 Write-Host "[runtime] O4 bounded live Agent/MCP write proof"
 if (Test-O4RuntimeTokenConfigured) {
-  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1 -BaseUrl $baseUrl -AllowLocalhost -RuntimeProof
+  $runtimeO4RelativeDir = Join-Path ".runtime-temp\superbrain-phase1-runtime-o4" ([Guid]::NewGuid().ToString("N"))
+  $runtimeO4TempBase = [IO.Path]::GetFullPath((Join-Path (Get-Location) ".runtime-temp\superbrain-phase1-runtime-o4"))
+  $runtimeO4ArtifactDir = [IO.Path]::GetFullPath((Join-Path (Get-Location) $runtimeO4RelativeDir))
+  $runtimeO4TempPrefix = $runtimeO4TempBase.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+  Assert-True "runtime O4 temporary evidence path is bounded" (
+    $runtimeO4ArtifactDir.StartsWith($runtimeO4TempPrefix, [StringComparison]::OrdinalIgnoreCase)
+  )
+  $runtimeO4ReportPath = Join-Path $runtimeO4RelativeDir "runtime-proof.json"
+  $runtimeO4ExitCode = -1
+  try {
+    powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1 -BaseUrl $baseUrl -AllowLocalhost -RuntimeProof -RuntimeReportPath $runtimeO4ReportPath
+    $runtimeO4ExitCode = $LASTEXITCODE
+  } finally {
+    if (
+      $runtimeO4ArtifactDir.StartsWith($runtimeO4TempPrefix, [StringComparison]::OrdinalIgnoreCase) -and
+      (Test-Path -LiteralPath $runtimeO4ArtifactDir)
+    ) {
+      Remove-Item -LiteralPath $runtimeO4ArtifactDir -Recurse -Force
+    }
+  }
+  if ($runtimeO4ExitCode -ne 0) {
+    throw "Runtime verification failed: fresh O4 bounded live Agent/MCP write proof"
+  }
 } else {
   Write-Host "[runtime] O4 persisted proof revalidation; fresh write OWNER-BLOCKED by AGENT_API_AUTH_TOKEN"
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-o4-live-writes.ps1

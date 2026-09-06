@@ -43,6 +43,16 @@ class BrowserHostedProgressCompletionContractTests(unittest.TestCase):
         self.assertIn('-ArtifactDir $runtimeCandidateArtifactDir', source)
         self.assertIn('Remove-Item -LiteralPath $runtimeCandidateArtifactDir -Recurse -Force', source)
 
+    def test_runtime_o4_proof_uses_bounded_temporary_evidence(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")
+        self.assertIn("superbrain-phase1-runtime-o4", source)
+        self.assertIn('-RuntimeReportPath $runtimeO4ReportPath', source)
+        self.assertIn('Remove-Item -LiteralPath $runtimeO4ArtifactDir -Recurse -Force', source)
+        self.assertNotIn(
+            'scripts\\verify-o4-live-writes.ps1 -BaseUrl $baseUrl -AllowLocalhost -RuntimeProof\n',
+            source.replace("`r`n", "`n"),
+        )
+
     def test_runtime_recreate_loads_only_the_existing_local_service_and_oauth_secrets(self) -> None:
         source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")
         self.assertIn('$runtimeComposeSecretKeys = @(', source)
