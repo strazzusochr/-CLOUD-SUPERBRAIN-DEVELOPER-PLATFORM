@@ -807,6 +807,7 @@ function validateSseEvent(eventBody) {
   }
   let content = "";
   let finishReason = null;
+  let emptyRoleMetadataOnly = true;
   for (const choice of payload.choices) {
     if (!choice || typeof choice !== "object" || !choice.delta || typeof choice.delta !== "object" || Object.hasOwn(choice, "message")) {
       throw new GatewayFault("provider_stream_not_openai_delta", 502, "The provider stream contained a non-delta completion frame.");
@@ -816,7 +817,11 @@ function validateSseEvent(eventBody) {
         throw new GatewayFault("provider_stream_invalid_delta", 502, "The provider stream contained a non-text delta.");
       }
       content += choice.delta.content;
+      if (choice.delta.content !== "") emptyRoleMetadataOnly = false;
     }
+    const deltaKeys = Object.keys(choice.delta);
+    if (deltaKeys.some((key) => key !== "role" && !(key === "content" && choice.delta.content === ""))) emptyRoleMetadataOnly = false;
+    if (choice.delta.role !== undefined && choice.delta.role !== "assistant") emptyRoleMetadataOnly = false;
     if (choice.finish_reason !== undefined && choice.finish_reason !== null) {
       if (
         typeof choice.finish_reason !== "string"
@@ -840,6 +845,7 @@ function validateSseEvent(eventBody) {
     finishReason,
     frameFormat: "openai_chat_completion_chunk",
     terminalMetadataOnly: content === "" && finishReason !== null,
+    emptyRoleMetadataOnly: content === "" && finishReason === null && emptyRoleMetadataOnly,
   };
 }
 
@@ -953,11 +959,11 @@ function providerStreamResponse(env, context, model, probe, started) {
                 continue;
               }
               if (providerFrameFormat !== null && providerFrameFormat !== validated.frameFormat) {
-                if (validated.terminalMetadataOnly && validated.frameFormat === "openai_chat_completion_chunk") {
+                if ((validated.terminalMetadataOnly || validated.emptyRoleMetadataOnly) && validated.frameFormat === "openai_chat_completion_chunk") {
                   if (finishReason !== null) {
                     throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream emitted more than one finish reason.");
                   }
-                  finishReason = validated.finishReason;
+                  if (validated.terminalMetadataOnly) finishReason = validated.finishReason;
                   continue;
                 }
                 throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats mid-response.");
