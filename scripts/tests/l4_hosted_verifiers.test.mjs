@@ -138,6 +138,9 @@ test("stream verifier accepts only real OpenAI chunks, deltas, one DONE, provide
   assert.match(source, /synthetic_terminal_frame_forbidden/);
   assert.match(source, /stream_frame_not_delta/);
   assert.match(source, /doneCount -eq 1/);
+  assert.match(source, /Substring\(5\)\.Trim\(\)/);
+  assert.match(source, /\$dataLines\[-1\]\.Substring\(5\)\.Trim\(\) -eq "\[DONE\]"/);
+  assert.doesNotMatch(source, /\$dataLines\[-1\]\.Trim\(\) -eq "data: \[DONE\]"/);
   assert.match(source, /stream_terminal_provenance_missing/);
   assert.match(source, /finish_reason_eof/);
   assert.match(source, /provider_finish_reason/);
