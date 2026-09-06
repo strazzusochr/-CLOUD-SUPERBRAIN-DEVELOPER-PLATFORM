@@ -81,6 +81,15 @@ function nativeWorkersAiSseWithUsage(content = "verified") {
   ];
 }
 
+function nativeWorkersAiSseWithOpenAiTerminal(content = "verified") {
+  const base = { id: "chatcmpl-provider-stream", object: "chat.completion.chunk", created: 1_788_000_000, model: primaryModel };
+  return [
+    `data: ${JSON.stringify({ response: content })}\n\n`,
+    `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\n`,
+    "data: [DONE]\n\n",
+  ];
+}
+
 function streamFrom(parts, { failAfter = null } = {}) {
   const encoder = new TextEncoder();
   return new ReadableStream({
@@ -462,6 +471,28 @@ test("stream accepts native Workers AI usage-only metadata frames without forwar
   assert.equal(sse.data.at(-1), "[DONE]");
   assert.equal(sse.data.filter((value) => value === "[DONE]").length, 1);
   assert.equal(DB.writes.length, 1);
+});
+
+test("stream accepts an OpenAI-shaped terminal metadata frame after native Workers AI content", async () => {
+  const AI = aiBinding([{ stream: streamFrom(nativeWorkersAiSseWithOpenAiTerminal("verified")) }]);
+  const DB = auditDb();
+  const environment = runtimeEnv(AI, { DB });
+  const response = await worker.fetch(
+    chatRequest(completionBody({ stream: true }), { headers: { "x-request-id": "stream-native-workers-ai-openai-terminal-test" } }),
+    environment,
+  );
+  const sse = await readSse(response);
+  assert.equal(response.status, 200);
+  assert.equal(sse.frames.map((frame) => frame.choices[0]?.delta?.content || "").join(""), "verified");
+  assert.equal(sse.data.filter((value) => value === "[DONE]").length, 1);
+  assert.equal(sse.data.at(-1), "[DONE]");
+  assert.equal(DB.writes.length, 1);
+  const proofResponse = await evidenceReadback(environment, "stream-native-workers-ai-openai-terminal-test", responseTraceId(response));
+  const proof = await proofResponse.json();
+  assert.equal(proofResponse.status, 200);
+  assert.equal(proof.provider_stream_frame_format, "workers_ai_native_response");
+  assert.equal(proof.provider_stream_terminal_mode, "provider_done_marker");
+  assert.equal(proof.provider_finish_reason, "stop");
 });
 
 test("stream rejects synthetic full-completion frames, missing terminal evidence, and post-DONE frames without credit evidence", async () => {
