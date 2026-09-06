@@ -316,6 +316,7 @@ function sanitizedAuditDetails(env, context, details) {
     fallback_used: details.fallback_used === true,
     fallback,
     semantic_probe_verified: details.semantic_probe_verified === true,
+    provider_stream_frame_format: safeAuditText(details.provider_stream_frame_format),
     provider_stream_terminal_mode: safeAuditText(details.provider_stream_terminal_mode),
     provider_finish_reason: safeAuditText(details.provider_finish_reason),
     gateway_attempts: gatewayAttempts,
@@ -757,13 +758,29 @@ function validateSseEvent(eventBody) {
     .map((line) => line.slice(5).replace(/^ /, ""))
     .join("\n");
   if (!data) throw new GatewayFault("provider_stream_invalid_sse", 502, "The provider stream contained an SSE event without data.");
-  if (data === "[DONE]") return { done: true, content: "", finishReason: null };
+  if (data === "[DONE]") return { done: true, content: "", finishReason: null, frameFormat: null };
   let payload;
   try { payload = JSON.parse(data); } catch {
     throw new GatewayFault("provider_stream_invalid_json", 502, "The provider stream contained invalid JSON.");
   }
-  if (!payload || payload.object !== "chat.completion.chunk" || !Array.isArray(payload.choices) || payload.choices.length === 0 || payload.terminal === true) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload) || payload.terminal === true || Object.hasOwn(payload, "error")) {
     throw new GatewayFault("provider_stream_not_openai_chunk", 502, "The provider stream did not return OpenAI-compatible chat.completion.chunk frames.");
+  }
+  if (
+    typeof payload.response === "string"
+    && !Object.hasOwn(payload, "object")
+    && !Object.hasOwn(payload, "choices")
+    && !Object.hasOwn(payload, "tool_calls")
+  ) {
+    return {
+      done: false,
+      content: payload.response,
+      finishReason: null,
+      frameFormat: "workers_ai_native_response",
+    };
+  }
+  if (payload.object !== "chat.completion.chunk" || !Array.isArray(payload.choices) || payload.choices.length === 0) {
+    throw new GatewayFault("provider_stream_not_openai_chunk", 502, "The provider stream did not return a supported Workers AI or OpenAI-compatible chunk.");
   }
   let content = "";
   let finishReason = null;
@@ -790,7 +807,20 @@ function validateSseEvent(eventBody) {
       finishReason = choice.finish_reason;
     }
   }
-  return { done: false, content, finishReason };
+  return { done: false, content, finishReason, frameFormat: "openai_chat_completion_chunk" };
+}
+
+function canonicalOpenAiChunk(context, model, content, chunkIndex, created) {
+  const delta = chunkIndex === 0
+    ? { role: "assistant", content }
+    : { content };
+  return `data: ${JSON.stringify({
+    id: `chatcmpl-${context.requestId}`,
+    object: "chat.completion.chunk",
+    created,
+    model,
+    choices: [{ index: 0, delta, finish_reason: null }],
+  })}\n\n`;
 }
 
 async function readWithDeadline(reader, abortController, deadlineAt) {
@@ -851,6 +881,9 @@ function providerStreamResponse(env, context, model, probe, started) {
       let terminalSeen = false;
       let finishReason = null;
       let terminalMode = null;
+      let providerFrameFormat = null;
+      let chunkIndex = 0;
+      const created = Math.floor(Date.now() / 1000);
       let content = "";
       let attempt = null;
       let fault = null;
@@ -879,11 +912,19 @@ function providerStreamResponse(env, context, model, probe, started) {
               terminalRaw = "data: [DONE]\n\n";
               terminalMode = "provider_done_marker";
             } else {
+              if (providerFrameFormat !== null && providerFrameFormat !== validated.frameFormat) {
+                throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats mid-response.");
+              }
+              providerFrameFormat = validated.frameFormat;
               if (finishReason !== null) {
                 throw new GatewayFault("provider_stream_data_after_finish", 502, "The provider stream emitted data after its finish reason.");
               }
               content += validated.content;
-              controller.enqueue(encoder.encode(event.raw));
+              const outwardRaw = validated.frameFormat === "workers_ai_native_response"
+                ? canonicalOpenAiChunk(context, model, validated.content, chunkIndex, created)
+                : event.raw;
+              controller.enqueue(encoder.encode(outwardRaw));
+              chunkIndex += 1;
               if (validated.finishReason !== null) finishReason = validated.finishReason;
             }
           }
@@ -898,6 +939,7 @@ function providerStreamResponse(env, context, model, probe, started) {
           terminalMode = "finish_reason_eof";
         }
         if (!terminalRaw || !terminalMode) throw new GatewayFault("provider_stream_done_missing", 502, "The provider stream has no verified terminal marker.");
+        if (!providerFrameFormat) throw new GatewayFault("provider_stream_frames_missing", 502, "The provider stream contained no supported data frames.");
         canonicalProbeContent(content, probe);
         attempt = await readGatewayLog(env, {
           logId: started.logId,
@@ -919,6 +961,7 @@ function providerStreamResponse(env, context, model, probe, started) {
           stream: true,
           fallback_used: false,
           semantic_probe_verified: probe === "hosted_stream_parity",
+          provider_stream_frame_format: providerFrameFormat,
           provider_stream_terminal_mode: terminalMode,
           provider_finish_reason: finishReason,
           live_provider_calls: true,
@@ -1205,6 +1248,7 @@ async function handleEvidenceReadback(request, env, context, url) {
     provider_call_count: expectedCount,
     stream: details.stream === true,
     semantic_probe_verified: details.semantic_probe_verified === true,
+    provider_stream_frame_format: details.provider_stream_frame_format,
     provider_stream_terminal_mode: details.provider_stream_terminal_mode,
     provider_finish_reason: details.provider_finish_reason,
     reason_code: details.reason_code,
