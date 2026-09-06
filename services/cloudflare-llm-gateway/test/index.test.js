@@ -536,7 +536,12 @@ test("stream rejects synthetic full-completion frames, missing terminal evidence
     streamFrom([...openAiSse("done"), openAiSse("late")[0]]),
     streamFrom([...openAiSseWithFinishReasonEof("done"), openAiSse("late")[0]]),
     streamFrom([`data: ${JSON.stringify({ response: "blocked", error: "provider-error" })}\n\n`, "data: [DONE]\n\n"]),
-    streamFrom([nativeWorkersAiSse("mixed")[0], ...openAiSse("format")]),
+    streamFrom([
+      nativeWorkersAiSse("mixed")[0],
+      `data: ${JSON.stringify({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }] })}\n\n`,
+      nativeWorkersAiSse("late")[0],
+      "data: [DONE]\n\n",
+    ]),
   ];
   for (const [index, upstream] of malformedStreams.entries()) {
     const DB = auditDb();
