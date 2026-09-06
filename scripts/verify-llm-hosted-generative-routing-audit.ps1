@@ -186,8 +186,8 @@ function Assert-ApprovedRubric {
   $approved = Invoke-Git @("show", "$RubricApprovalCommit`:$script:RubricPath") "rubric_approval_commit_invalid"
   $candidate = Invoke-Git @("show", "$ExpectedSourceCommitSha`:$script:RubricPath") "candidate_rubric_missing"
   foreach ($content in @($approved, $candidate)) {
-    Require ($content -match "(?im)^Status:\s*`?(?:OWNER_)?APPROVED`?\s*$") "rubric_not_owner_approved" "The immutable rubric is not marked APPROVED."
-    Require ($content -match "(?im)^Credit-Anwendung erlaubt:\s*`?true`?\s*$") "rubric_credit_disabled" "The immutable rubric does not allow credit application."
+    Require ($content -match '(?im)^Status:\s*`?(?:OWNER_)?APPROVED`?\s*$') "rubric_not_owner_approved" "The immutable rubric is not marked APPROVED."
+    Require ($content -match '(?im)^Credit-Anwendung erlaubt:\s*`?true`?\s*$') "rubric_credit_disabled" "The immutable rubric does not allow credit application."
   }
   Require (
     (Invoke-Git @("rev-parse", "$RubricApprovalCommit`:$script:RubricPath") "rubric_blob_missing") -ceq
@@ -197,6 +197,7 @@ function Assert-ApprovedRubric {
   Require ($candidate -match "(?im)^\|\s*Aktueller Hosted-Gateway ist source-gebunden generativ erreichbar\s*\|\s*10\s*\|\s*Hosted\s*\|") "rubric_generative_criterion_drift" "The approved rubric lacks the exact 10-point hosted-generation row."
   Require ($candidate -match "(?im)^\|\s*Hosted Routing haelt die freigegebene Provider-Allowlist ein\s*\|\s*4\s*\|.*verify-live-llm-evidence-chain\.ps1") "rubric_routing_criterion_drift" "The approved rubric lacks the exact 4-point hosted-routing row."
   Require ($candidate -match "(?im)^\|\s*Hosted Completion-Audit ist persistent und source-gebunden\s*\|\s*4\s*\|.*verify-live-llm-evidence-chain\.ps1") "rubric_audit_criterion_drift" "The approved rubric lacks the exact 4-point hosted-audit row."
+  Require ($candidate -match "(?im)^\|\s*Hosted Trace-ID korreliert Gateway, Provider und Evidence\s*\|\s*4\s*\|.*verify-llm-hosted-trace-correlation\.ps1") "rubric_trace_criterion_drift" "The approved rubric lacks the exact 4-point hosted-trace row."
 }
 
 function Assert-LiveProviderGate {
@@ -370,8 +371,8 @@ try {
     contract_version = "llm-hosted-current-evidence-chain-v2"
     status = "verified"
     evidence_ref = "current_hosted_llm_generative_routing_audit_verified"
-    criterion = "L4 current hosted generation, routing allowlist, and completion audit"
-    criterion_points = 18
+    criterion = "L4 current hosted generation, routing allowlist, completion audit, and trace correlation"
+    criterion_points = 22
     credit_eligible = $true
     checked_at = [DateTime]::UtcNow.ToString("o")
     rubric_approval_commit = $RubricApprovalCommit
@@ -391,7 +392,8 @@ try {
     criteria = @(
       [ordered]@{ claim_id = "hosted_generative_source_bound"; points = 10 },
       [ordered]@{ claim_id = "hosted_routing_allowlist"; points = 4 },
-      [ordered]@{ claim_id = "hosted_completion_audit"; points = 4 }
+      [ordered]@{ claim_id = "hosted_completion_audit"; points = 4 },
+      [ordered]@{ claim_id = "hosted_trace_correlation"; points = 4 }
     )
     generation = [ordered]@{
       model = $Model
@@ -419,6 +421,13 @@ try {
       source_bound = $true
       provider_call_count = 1
     }
+    trace = [ordered]@{
+      trace_id = $traceId
+      gateway_log_id_sha256 = Get-TextSha256 ([string]$attempt.gateway_log_id)
+      d1_evidence_ref = [string]$proof.evidence_ref
+      gateway_log_readback_verified = $true
+      audit_readback_verified = $true
+    }
     historical_evidence = [ordered]@{
       contract_version = "live-llm-bounded-evidence-chain-v1"
       progress_credit_recommended = 0
@@ -436,7 +445,7 @@ try {
     release_promotion = $false
   }
   $written = Write-ImmutableEvidence $report
-  Write-Host "$script:Prefix status=verified candidate_bound=true generation=10 routing_audit=8 provider_calls=1 gateway_log_readback=true d1_readback=true historical_credit_excluded=10 secret_output=false evidence_sha256=$($written.evidence_sha256) report=$($written.report_path)"
+  Write-Host "$script:Prefix status=verified candidate_bound=true generation=10 routing_audit=8 trace=4 provider_calls=1 gateway_log_readback=true d1_readback=true historical_credit_excluded=10 secret_output=false evidence_sha256=$($written.evidence_sha256) report=$($written.report_path)"
 } catch {
   Write-Error "$script:Prefix status=blocked $($_.Exception.Message)"
   throw

@@ -111,7 +111,7 @@ test("provider-call verifiers require independently read real AI Gateway logs", 
   }
 });
 
-test("current hosted chain proves only the new 10+4+4 source-bound claims and excludes legacy credit", () => {
+test("current hosted chain proves the new 10+4+4+4 source-bound claims in one provider call and excludes legacy credit", () => {
   const source = sourceByName.get("verify-llm-hosted-generative-routing-audit.ps1");
   assert.match(source, /VerifierPath = "scripts\/verify-live-llm-evidence-chain\.ps1"/);
   assert.match(source, /llm-hosted-current-evidence-chain-v2/);
@@ -119,7 +119,8 @@ test("current hosted chain proves only the new 10+4+4 source-bound claims and ex
   assert.match(source, /hosted_generative_source_bound/);
   assert.match(source, /hosted_routing_allowlist/);
   assert.match(source, /hosted_completion_audit/);
-  assert.match(source, /criterion_points = 18/);
+  assert.match(source, /hosted_trace_correlation/);
+  assert.match(source, /criterion_points = 22/);
   assert.match(source, /progress_credit_recommended = 0/);
   assert.match(source, /excluded_from_current_delta = \$true/);
   assert.match(source, /provider_call_count = 1/);
@@ -127,6 +128,8 @@ test("current hosted chain proves only the new 10+4+4 source-bound claims and ex
   assert.match(source, /audit_readback_verified/);
   assert.match(source, /allowed_models_sha256/);
   assert.match(source, /fallback_used = \$false/);
+  assert.match(source, /\$content -match '\(\?im\)\^Status:/);
+  assert.doesNotMatch(source, /\$content -match "\(\?im\)\^Status:/);
 });
 
 test("stream verifier accepts only real OpenAI chunks, deltas, one DONE, provider terminal provenance, and no synthetic content frame", () => {

@@ -108,7 +108,7 @@ CRITERIA: dict[str, dict[str, Any]] = {
     },
     "hosted_trace_correlation": {
         "points": 4,
-        "contract": "llm-hosted-trace-correlation-evidence-v2",
+        "contract": "llm-hosted-current-evidence-chain-v2",
         "evidence_ref": "current_hosted_llm_trace_correlation_verified",
         "claim_ids": ["hosted_trace_correlation"],
     },
@@ -273,15 +273,16 @@ def score_request(
         total += int(spec["points"])
     common.require(observed == set(CRITERIA), "L4 criterion set mismatch")
     common.require(total == 45, "L4 criterion total mismatch")
-    common.require(
-        path_by_criterion["hosted_generative_source_bound"]
-        == path_by_criterion["hosted_routing_and_completion_audit"]
-        and hash_by_criterion["hosted_generative_source_bound"]
-        == hash_by_criterion["hosted_routing_and_completion_audit"],
-        "L4 shared current-chain report binding mismatch",
-    )
+    shared_current_chain = {
+        "hosted_generative_source_bound",
+        "hosted_routing_and_completion_audit",
+        "hosted_trace_correlation",
+    }
+    shared_paths = {path_by_criterion[criterion_id] for criterion_id in shared_current_chain}
+    shared_hashes = {hash_by_criterion[criterion_id] for criterion_id in shared_current_chain}
+    common.require(len(shared_paths) == 1 and len(shared_hashes) == 1, "L4 shared current-chain report binding mismatch")
     for criterion_id, path in path_by_criterion.items():
-        if criterion_id not in {"hosted_generative_source_bound", "hosted_routing_and_completion_audit"}:
+        if criterion_id not in shared_current_chain:
             common.require(
                 path not in {
                     other_path
