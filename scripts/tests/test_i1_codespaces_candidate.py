@@ -24,9 +24,11 @@ from i1_codespaces_contract import (  # noqa: E402
 from collect_i1_codespaces_evidence import validate_runtime_snapshot  # noqa: E402
 from verify_i1_codespaces_candidate import (  # noqa: E402
     CommandResult,
+    HttpObservation,
     RegistryObservation,
     _request,
     validate_runtime_provenance,
+    verify_https_and_sse,
     verify_registry_readback,
     write_json_exclusive,
 )
@@ -329,6 +331,42 @@ class I1CodespacesContractTests(unittest.TestCase):
             "cloud-superbrain-i1-readonly-verifier/1.0",
         )
         self.assertEqual(opener.request.get_header("Accept"), "*/*")
+
+    def test_https_sse_probe_uses_same_origin_deterministic_llm_stream(self) -> None:
+        base_url = "https://example-8080.app.github.dev"
+        provenance = runtime_provenance()
+        responses = [
+            HttpObservation(200, "application/json", f"{base_url}/.well-known/cloud-superbrain/i1-provenance.json", json.dumps(provenance).encode()),
+            HttpObservation(200, "text/html", f"{base_url}/", b"<html></html>"),
+            HttpObservation(200, "application/json", f"{base_url}/api/v1/health", b'{"status":"healthy"}'),
+            HttpObservation(200, "application/json", f"{base_url}/mcp/api/v1/health", b'{"status":"healthy"}'),
+            HttpObservation(200, "application/json", f"{base_url}/llm/api/v1/health", b'{"status":"healthy","live_provider_calls":false}'),
+            HttpObservation(
+                200,
+                "text/event-stream",
+                f"{base_url}/llm/v1/chat/completions",
+                (
+                    'data: {"object":"chat.completion.chunk","live_provider_calls":false,'
+                    '"provider_name":"deterministic-dry-run","audit_persisted":false}\n\n'
+                    'data: {"object":"chat.completion.chunk"}\n\n'
+                    'data: [DONE]\n\n'
+                ).encode(),
+            ),
+        ]
+        with patch("verify_i1_codespaces_candidate._request", side_effect=responses) as request:
+            _, _, sse, _ = verify_https_and_sse(
+                base_url,
+                hosting_provider="github_codespaces",
+                provenance_url_path="/.well-known/cloud-superbrain/i1-provenance.json",
+            )
+
+        self.assertEqual(request.call_args_list[-1].args[1], "/llm/v1/chat/completions")
+        payload = json.loads(request.call_args_list[-1].kwargs["body"])
+        self.assertTrue(payload["stream"])
+        self.assertTrue(payload["metadata"]["deterministic_dry_run"])
+        self.assertFalse(payload["metadata"]["live_provider_calls_allowed"])
+        self.assertEqual(sse["terminal_frame"], "[DONE]")
+        self.assertFalse(sse["live_provider_calls"])
 
     def test_manifest_binds_exact_release_source_and_six_services(self) -> None:
         binding = validate_published_manifest(

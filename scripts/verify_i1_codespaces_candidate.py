@@ -432,18 +432,29 @@ def verify_https_and_sse(
             }
         )
 
-    session_id = str(uuid.uuid4())
+    trace_id = f"i1-codespaces-{uuid.uuid4().hex}"
     request_payload = json.dumps(
         {
-            "project_id": "i1-codespaces-verifier",
-            "prompt": "I1 candidate parity deterministic dry-run proof",
-            "session_id": session_id,
+            "model": "deepseek-ai/DeepSeek-V4-Flash:fastest",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "I1 candidate parity deterministic SSE proof",
+                }
+            ],
+            "stream": True,
+            "metadata": {
+                "trace_id": trace_id,
+                "agent_type": "tester",
+                "deterministic_dry_run": True,
+                "live_provider_calls_allowed": False,
+            },
         },
         separators=(",", ":"),
     ).encode("utf-8")
     stream = _request(
         normalized,
-        "/api/v1/orchestrator/dry-run/stream",
+        "/llm/v1/chat/completions",
         method="POST",
         body=request_payload,
         content_type="application/json",
@@ -453,23 +464,44 @@ def verify_https_and_sse(
     require(stream.status == 200, "SSE endpoint is not HTTP 200")
     require(stream.content_type == "text/event-stream", "SSE endpoint content type mismatch")
     stream_text = stream.body.decode("utf-8", errors="strict")
-    events = re.findall(r"(?m)^event:\s*([^\r\n]+)\s*$", stream_text)
-    event_ids = re.findall(r"(?m)^id:\s*([^\r\n]+)\s*$", stream_text)
-    required_events = {"graph_status", "heartbeat", "agent_status", "done"}
-    require(required_events.issubset(events), "SSE stream is missing required event types")
-    require(events[-1] == "done", "SSE stream has no terminal done event")
-    require("error" not in events, "SSE stream emitted an error event")
-    require(bool(event_ids), "SSE stream contains no event IDs")
-    require("phase2-sse-event-contract-v1" in stream_text, "SSE contract marker is missing")
-    require('"live_provider_calls":true' not in stream_text.replace(" ", "").lower(), "SSE stream reports live provider calls")
+    data_frames = re.findall(r"(?m)^data:\s*([^\r\n]+)\s*$", stream_text)
+    require(len(data_frames) >= 3, "SSE stream contains too few data frames")
+    require(data_frames[-1] == "[DONE]", "SSE stream has no terminal done frame")
+    json_frames: list[Mapping[str, Any]] = []
+    for frame in data_frames[:-1]:
+        try:
+            parsed_frame = json.loads(frame)
+        except json.JSONDecodeError as exc:
+            raise ContractError("SSE stream contains an invalid JSON frame") from exc
+        require(isinstance(parsed_frame, Mapping), "SSE JSON frame must be an object")
+        json_frames.append(parsed_frame)
+    require(
+        all(frame.get("object") == "chat.completion.chunk" for frame in json_frames),
+        "SSE stream contains a non-chat-completion frame",
+    )
+    require(
+        any(frame.get("live_provider_calls") is False for frame in json_frames),
+        "SSE stream does not attest that live provider calls are disabled",
+    )
+    require(
+        not any(frame.get("live_provider_calls") is True for frame in json_frames),
+        "SSE stream reports live provider calls",
+    )
+    require(
+        any(frame.get("provider_name") == "deterministic-dry-run" for frame in json_frames),
+        "SSE stream did not use the deterministic dry-run provider",
+    )
+    audit_values = [frame.get("audit_persisted") for frame in json_frames if "audit_persisted" in frame]
+    require(audit_values and all(type(value) is bool for value in audit_values), "SSE audit status is missing or invalid")
     sse_result = {
-        "path": "/api/v1/orchestrator/dry-run/stream",
+        "path": "/llm/v1/chat/completions",
         "status": 200,
         "content_type": "text/event-stream",
-        "event_types": sorted(set(events)),
-        "event_id_count": len(event_ids),
-        "terminal_event": "done",
-        "contract_version": "phase2-sse-event-contract-v1",
+        "protocol": "openai_compatible_sse",
+        "json_frame_count": len(json_frames),
+        "terminal_frame": "[DONE]",
+        "provider_name": "deterministic-dry-run",
+        "audit_persisted": any(audit_values),
         "live_provider_calls": False,
     }
     return provenance, endpoint_results, sse_result, hashlib.sha256(provenance_response.body).hexdigest()
