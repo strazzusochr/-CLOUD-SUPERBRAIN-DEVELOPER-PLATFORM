@@ -59,6 +59,13 @@ function openAiSseWithFinishReasonEof(content = "verified") {
   return openAiSse(content).slice(0, -1);
 }
 
+function nativeWorkersAiSse(content = "verified") {
+  return [
+    `data: ${JSON.stringify({ response: content })}\n\n`,
+    "data: [DONE]\n\n",
+  ];
+}
+
 function streamFrom(parts, { failAfter = null } = {}) {
   const encoder = new TextEncoder();
   return new ReadableStream({
@@ -360,6 +367,7 @@ test("stream mode forwards only real provider chat.completion.chunk frames and w
   assert.equal(proof.stream, true);
   assert.equal(proof.gateway_log_readback.verified, true);
   assert.equal(proof.audit_readback_verified, true);
+  assert.equal(proof.provider_stream_frame_format, "openai_chat_completion_chunk");
   assert.equal(proof.provider_stream_terminal_mode, "provider_done_marker");
   assert.equal(proof.provider_finish_reason, "stop");
 });
@@ -378,8 +386,34 @@ test("stream canonicalizes provider finish_reason EOF to one DONE after log plus
   const proofResponse = await evidenceReadback(environment, "stream-finish-eof-test", responseTraceId(response));
   const proof = await proofResponse.json();
   assert.equal(proofResponse.status, 200);
+  assert.equal(proof.provider_stream_frame_format, "openai_chat_completion_chunk");
   assert.equal(proof.provider_stream_terminal_mode, "finish_reason_eof");
   assert.equal(proof.provider_finish_reason, "stop");
+  assert.equal(proof.gateway_log_readback.verified, true);
+  assert.equal(proof.audit_readback_verified, true);
+});
+
+test("stream normalizes native Workers AI response frames into OpenAI-compatible chunks", async () => {
+  const AI = aiBinding([{ stream: streamFrom(nativeWorkersAiSse("verified")) }]);
+  const DB = auditDb();
+  const environment = runtimeEnv(AI, { DB });
+  const response = await worker.fetch(
+    chatRequest(completionBody({ stream: true }), { headers: { "x-request-id": "stream-native-workers-ai-test" } }),
+    environment,
+  );
+  const sse = await readSse(response);
+  assert.equal(response.status, 200);
+  assert.equal(sse.data.at(-1), "[DONE]");
+  assert.equal(sse.data.filter((value) => value === "[DONE]").length, 1);
+  assert.ok(sse.frames.length > 0);
+  assert.ok(sse.frames.every((frame) => frame.object === "chat.completion.chunk"));
+  assert.equal(sse.frames.map((frame) => frame.choices[0]?.delta?.content || "").join(""), "verified");
+  assert.equal(DB.writes.length, 1);
+  const proofResponse = await evidenceReadback(environment, "stream-native-workers-ai-test", responseTraceId(response));
+  const proof = await proofResponse.json();
+  assert.equal(proofResponse.status, 200);
+  assert.equal(proof.provider_stream_frame_format, "workers_ai_native_response");
+  assert.equal(proof.provider_stream_terminal_mode, "provider_done_marker");
   assert.equal(proof.gateway_log_readback.verified, true);
   assert.equal(proof.audit_readback_verified, true);
 });
@@ -392,6 +426,8 @@ test("stream rejects synthetic full-completion frames, missing terminal evidence
     streamFrom(noTerminalEvidence),
     streamFrom([...openAiSse("done"), openAiSse("late")[0]]),
     streamFrom([...openAiSseWithFinishReasonEof("done"), openAiSse("late")[0]]),
+    streamFrom([`data: ${JSON.stringify({ response: "blocked", error: "provider-error" })}\n\n`, "data: [DONE]\n\n"]),
+    streamFrom([nativeWorkersAiSse("mixed")[0], ...openAiSse("format")]),
   ];
   for (const [index, upstream] of malformedStreams.entries()) {
     const DB = auditDb();
