@@ -1,0 +1,73 @@
+[
+    {
+        "Architecture": "amd64",
+        "Config": {
+            "Cmd": [
+                "node",
+                "node_modules/next/dist/bin/next",
+                "start",
+                "--hostname",
+                "0.0.0.0",
+                "--port",
+                "3000"
+            ],
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "NODE_VERSION=24.16.0",
+                "YARN_VERSION=1.22.22",
+                "NODE_ENV=production",
+                "NEXT_TELEMETRY_DISABLED=1"
+            ],
+            "ExposedPorts": {
+                "3000/tcp": {}
+            },
+            "Labels": {
+                "org.opencontainers.image.ref.name": "prod-candidate-2026-09-06-local-rc47",
+                "org.opencontainers.image.revision": "351b10e483258de3d52da0ef5c47b6bfb65f3548",
+                "org.opencontainers.image.source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+                "org.opencontainers.image.version": "prod-candidate-2026-09-06-local-rc47"
+            },
+            "User": "appuser",
+            "WorkingDir": "/app"
+        },
+        "Created": "2026-09-06T18:47:24.770390789Z",
+        "Descriptor": {
+            "digest": "sha256:68beea75ffa5d79af8b8eaa2b11f93d219469320c86b22c7e4375429afd89f72",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "size": 2952
+        },
+        "Id": "sha256:68beea75ffa5d79af8b8eaa2b11f93d219469320c86b22c7e4375429afd89f72",
+        "Metadata": {
+            "LastTagTime": "2026-09-06T18:47:24.894187304Z"
+        },
+        "Os": "linux",
+        "Parent": "sha256:8d6dc2ee590e17bdc0aeab8fcbddf1fadde25a1461865f765ab7d1a92fc9ef6c",
+        "RepoDigests": [
+            "cloud-superbrain-production-candidate/frontend@sha256:68beea75ffa5d79af8b8eaa2b11f93d219469320c86b22c7e4375429afd89f72"
+        ],
+        "RepoTags": [
+            "cloud-superbrain-production-candidate/frontend:351b10e483258de3d52da0ef5c47b6bfb65f3548"
+        ],
+        "RootFS": {
+            "Layers": [
+                "sha256:34884abbe92863fce933ed7c39c0e045631af0ed86d5cc0dfbdf9fdca426ce3c",
+                "sha256:6966e360c462d50cda6c02920293f497cf6c749d0a3149307c9088a33530860f",
+                "sha256:6c34518cd3a25d892b7499ffc6d3a41784031b78504017017bd274940cee1b74",
+                "sha256:428ef54c201c2816bd771a609cc8c7b8eba0a8ac3b21a573613a6a41ec070a9a",
+                "sha256:ec8aa196c8a8a2dc91a46054b9e2cd6c8d8734d97612a085d41a6e290af0ff70",
+                "sha256:1608bf9a9a6c6147b2516a0e7c8ef675d8df2a745390cb7531cbbf352f14801b",
+                "sha256:6cba0d167068d8c2d479e2b15243577b988c07a71bfcf4f56ff882087fd3e04a",
+                "sha256:434ab9abe036d6816e207b762a45be9484761781b42efabaa9a2f71a7a619fbe",
+                "sha256:3bc7d43834a93de311b9a1fbe283142a965d304bda777e283483d6528757d2ed",
+                "sha256:e969e786d8c85ee58954215179d558fc3ce51c0fa9d05fa4993ede76d13c3b9d",
+                "sha256:07ebfecac52175c680fd41ef04e4e29c2d21385d8d174bc3baf8ceb3cedff2b3",
+                "sha256:ea0dd440e57c96e023c72b5bbdd226be9235f9f888a94079928e487a2b84720f"
+            ],
+            "Type": "layers"
+        },
+        "Size": 421454496
+    }
+]

@@ -1,0 +1,72 @@
+[
+    {
+        "Architecture": "amd64",
+        "Config": {
+            "Cmd": [
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--no-access-log"
+            ],
+            "Env": [
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "PYTHON_VERSION=3.14.5",
+                "PYTHON_SHA256=7e32597b99e5d9a39abed35de4693fa169df3e5850d4c334337ffd6a19a36db6",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "PYTHONUNBUFFERED=1"
+            ],
+            "ExposedPorts": {
+                "8000/tcp": {}
+            },
+            "Labels": {
+                "org.opencontainers.image.ref.name": "prod-candidate-2026-09-06-local-rc47",
+                "org.opencontainers.image.revision": "351b10e483258de3d52da0ef5c47b6bfb65f3548",
+                "org.opencontainers.image.source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+                "org.opencontainers.image.version": "prod-candidate-2026-09-06-local-rc47"
+            },
+            "User": "appuser",
+            "WorkingDir": "/app"
+        },
+        "Created": "2026-09-06T18:49:36.393489462Z",
+        "Descriptor": {
+            "digest": "sha256:cd2aea36ac3d8a9fa19466ec1d28961e380ea82fd0fa3cb8e0de6428a7dd7604",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "size": 3383
+        },
+        "Id": "sha256:cd2aea36ac3d8a9fa19466ec1d28961e380ea82fd0fa3cb8e0de6428a7dd7604",
+        "Metadata": {
+            "LastTagTime": "2026-09-06T18:49:36.536988726Z"
+        },
+        "Os": "linux",
+        "Parent": "sha256:88c9cb82959e90a8c50e0ce2c37d6fce9366260913b935e0cd7801dc1b761c79",
+        "RepoDigests": [
+            "cloud-superbrain-production-candidate/agent-api@sha256:cd2aea36ac3d8a9fa19466ec1d28961e380ea82fd0fa3cb8e0de6428a7dd7604"
+        ],
+        "RepoTags": [
+            "cloud-superbrain-production-candidate/agent-api:351b10e483258de3d52da0ef5c47b6bfb65f3548"
+        ],
+        "RootFS": {
+            "Layers": [
+                "sha256:0854555d70acaa318b38ee50bc667cb51ff6bf0757624624c7ff3b6fe17459a0",
+                "sha256:ba8d8d533e3d3af1536a5d711ca6e1e4193fb3ac6fa5d1d66b739cedd23a7303",
+                "sha256:d3faa1175628b00a548ce547fe2632a4bf82cb72912e6e1954f095351187de81",
+                "sha256:3106c1137e027aaa6d1baf9e9de35a19d5262ed3de6032593154069f3aab1875",
+                "sha256:ef67a8cf630bde64a77077313e5edee22a50ca1abf748166b42eae64d48f7dbb",
+                "sha256:91f263b4633854a3f775449814366e673c2183740cc47188d0dcd4e26d4144e6",
+                "sha256:b775e7d4811faae993d5f8bdecdbd1334f241e0d6a3c45d125680c0979ea483c",
+                "sha256:3611d2ef5a97e1c6472cd9d777c54544b5face8fbad1bf5d7e29f827b296817c",
+                "sha256:3b781b890759ca613e06c91788e0e2c205ea43188e2ceeba2b01d181827b8412",
+                "sha256:f91cb9876bacb57442b40c038e793dd084d1ddc20ae3465c487c759050df00d4",
+                "sha256:c432247b472a6aa2bc74bd5e7295ff8d7fad10becf678cc4168650cb905c6583",
+                "sha256:e78a7a6ce35de463c923f6161e0c5eb1aefbee1240a00da83e8a74539b251606",
+                "sha256:f26c42ca7d881c82b80d4af275d38dfc0d722b6d7e84af21acc89ef247814bc4",
+                "sha256:ed78ae0b57d8c071deef170278be45ca0304c72c4b854e989681b1fbd5eaad96"
+            ],
+            "Type": "layers"
+        },
+        "Size": 54798263
+    }
+]
