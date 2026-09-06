@@ -925,6 +925,8 @@ function providerStreamResponse(env, context, model, probe, started) {
       let finishReason = null;
       let terminalMode = null;
       let providerFrameFormat = null;
+      let activeFrameFormat = null;
+      let formatTransitions = 0;
       let chunkIndex = 0;
       const created = Math.floor(Date.now() / 1000);
       let content = "";
@@ -962,17 +964,25 @@ function providerStreamResponse(env, context, model, probe, started) {
                 if (validated.finishReason !== null) finishReason = validated.finishReason;
                 continue;
               }
-              if (providerFrameFormat !== null && providerFrameFormat !== validated.frameFormat) {
-                if ((validated.terminalMetadataOnly || validated.emptyRoleMetadataOnly) && validated.frameFormat === "openai_chat_completion_chunk") {
+              if (activeFrameFormat !== null && activeFrameFormat !== validated.frameFormat) {
+                if (formatTransitions >= 1) {
+                  throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats more than once.");
+                }
+                formatTransitions += 1;
+                activeFrameFormat = validated.frameFormat;
+                if (validated.terminalMetadataOnly && validated.frameFormat === "openai_chat_completion_chunk") {
                   if (finishReason !== null) {
                     throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream emitted more than one finish reason.");
                   }
-                  if (validated.terminalMetadataOnly) finishReason = validated.finishReason;
+                  finishReason = validated.finishReason;
                   continue;
                 }
-                throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats mid-response.");
+                if (validated.emptyRoleMetadataOnly && validated.frameFormat === "openai_chat_completion_chunk") {
+                  continue;
+                }
               }
-              providerFrameFormat = validated.frameFormat;
+              if (activeFrameFormat === null) activeFrameFormat = validated.frameFormat;
+              if (providerFrameFormat === null) providerFrameFormat = validated.frameFormat;
               if (finishReason !== null) {
                 throw new GatewayFault("provider_stream_data_after_finish", 502, "The provider stream emitted data after its finish reason.");
               }
