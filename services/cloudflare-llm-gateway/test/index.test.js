@@ -538,7 +538,7 @@ test("stream rejects synthetic full-completion frames, missing terminal evidence
     streamFrom([`data: ${JSON.stringify({ response: "blocked", error: "provider-error" })}\n\n`, "data: [DONE]\n\n"]),
     streamFrom([
       nativeWorkersAiSse("mixed")[0],
-      `data: ${JSON.stringify({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }] })}\n\n`,
+      `data: ${JSON.stringify({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: "format" }, finish_reason: null }] })}\n\n`,
       nativeWorkersAiSse("late")[0],
       "data: [DONE]\n\n",
     ]),
