@@ -28,13 +28,14 @@
     "docker_registry_publish": {
       "owner_granted": true,
       "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
-      "live_verified": false,
-      "evidence_artifact": "",
-      "verified_at_utc": "",
+      "live_verified": true,
+      "evidence_artifact": "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/registry/layer5-registry-release-credit-evidence.json",
+      "verified_at_utc": "2026-09-06T01:05:23.752Z",
       "provider": "ghcr",
       "paid_provider": false,
-      "verifier": "",
-      "note": "Requires an owner release gate before any image is pushed to GHCR."
+      "verifier": "scripts/verify_layer5_registry_release_evidence.py",
+      "note": "Verified from layer5-registry-release-credit-evidence-v1; evidence_sha256=a4d6c211c1cee7c498d24bf276aef34bb0ff3f757a5a54d6ebf2afdcdcd2a2ce",
+      "evidence_sha256": "a4d6c211c1cee7c498d24bf276aef34bb0ff3f757a5a54d6ebf2afdcdcd2a2ce"
     },
     "phase6_scale_runtime": {
       "owner_granted": true,
@@ -53,7 +54,7 @@
       "owner_grant_ref": "docs/runtime-state/owner-input-manifest.json#O4.owner_scope_decision",
       "live_verified": true,
       "evidence_artifact": ".phase1-artifacts/o4-live-writes/proof.json",
-      "verified_at_utc": "2026-08-31T04:38:21.7231870Z",
+      "verified_at_utc": "2026-08-31T04:38:21.723187Z",
       "provider": "local_mcp_gateway_filesystem",
       "paid_provider": false,
       "verifier": "scripts/verify-o4-live-writes.ps1",
@@ -69,7 +70,7 @@
       "owner_grant_ref": "docs/runtime-state/owner-input-manifest.json#O4.owner_scope_decision",
       "live_verified": true,
       "evidence_artifact": ".phase1-artifacts/o4-live-writes/proof.json",
-      "verified_at_utc": "2026-08-31T04:38:21.7231870Z",
+      "verified_at_utc": "2026-08-31T04:38:21.723187Z",
       "provider": "local_mcp_gateway_filesystem",
       "paid_provider": false,
       "verifier": "scripts/verify-o4-live-writes.ps1",
