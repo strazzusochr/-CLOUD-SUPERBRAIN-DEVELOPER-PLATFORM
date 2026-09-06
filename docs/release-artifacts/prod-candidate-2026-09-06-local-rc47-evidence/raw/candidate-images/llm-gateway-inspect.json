@@ -1,0 +1,65 @@
+[
+    {
+        "Architecture": "amd64",
+        "Config": {
+            "Cmd": [
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "4000"
+            ],
+            "Env": [
+                "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "PYTHON_VERSION=3.14.5",
+                "PYTHON_SHA256=7e32597b99e5d9a39abed35de4693fa169df3e5850d4c334337ffd6a19a36db6"
+            ],
+            "ExposedPorts": {
+                "4000/tcp": {}
+            },
+            "Labels": {
+                "org.opencontainers.image.ref.name": "prod-candidate-2026-09-06-local-rc47",
+                "org.opencontainers.image.revision": "351b10e483258de3d52da0ef5c47b6bfb65f3548",
+                "org.opencontainers.image.source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+                "org.opencontainers.image.version": "prod-candidate-2026-09-06-local-rc47"
+            },
+            "User": "appuser",
+            "WorkingDir": "/app"
+        },
+        "Created": "2026-09-06T18:50:46.800437047Z",
+        "Descriptor": {
+            "digest": "sha256:534f6ee4acbc69246801fe5158ab026e24859f37df50298afc99f7e5b051fc07",
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "size": 2489
+        },
+        "Id": "sha256:534f6ee4acbc69246801fe5158ab026e24859f37df50298afc99f7e5b051fc07",
+        "Metadata": {
+            "LastTagTime": "2026-09-06T18:50:46.928642178Z"
+        },
+        "Os": "linux",
+        "Parent": "sha256:125949c579e8a37c540916f3ace260943e765f49e3fb501b98da23a65fe6b16b",
+        "RepoDigests": [
+            "cloud-superbrain-production-candidate/llm-gateway@sha256:534f6ee4acbc69246801fe5158ab026e24859f37df50298afc99f7e5b051fc07"
+        ],
+        "RepoTags": [
+            "cloud-superbrain-production-candidate/llm-gateway:351b10e483258de3d52da0ef5c47b6bfb65f3548"
+        ],
+        "RootFS": {
+            "Layers": [
+                "sha256:0854555d70acaa318b38ee50bc667cb51ff6bf0757624624c7ff3b6fe17459a0",
+                "sha256:ba8d8d533e3d3af1536a5d711ca6e1e4193fb3ac6fa5d1d66b739cedd23a7303",
+                "sha256:d3faa1175628b00a548ce547fe2632a4bf82cb72912e6e1954f095351187de81",
+                "sha256:3106c1137e027aaa6d1baf9e9de35a19d5262ed3de6032593154069f3aab1875",
+                "sha256:2f81629cac00b5e8ccd48e5f2727d7f5724999d047eaf3d9c463dcca380602f4",
+                "sha256:54d649674d4e126f943de9707fe1f27f4a084568ae8f5bf17a7a7423635c6399",
+                "sha256:89eb65047f8ca971af95cdcec5a7d41db80f5edafbcff46dfd5d96e940011e00",
+                "sha256:87ead153ef63e8a109d958275bd43ccb52feeaaf87826aa12796162e8a1b3dd0",
+                "sha256:62893fabb449fd3af809c3ea9b7494580caf45760cb8dc7e8bd6cd7bf71a9faa",
+                "sha256:3147acb3b3fe27d6c1c6ee2f7521a9fd4a61ac5637c02baedd5a6a2c33ebe433"
+            ],
+            "Type": "layers"
+        },
+        "Size": 37376458
+    }
+]
