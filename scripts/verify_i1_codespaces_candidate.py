@@ -356,10 +356,10 @@ def _request(
 ) -> HttpObservation:
     url = urllib.parse.urljoin(base_url + "/", path.lstrip("/"))
     headers = {
-        "Accept": "text/event-stream" if method == "POST" else "application/json, text/html;q=0.8",
+        "Accept": "text/event-stream" if method == "POST" else "*/*",
         "Origin": base_url,
         "Sec-Fetch-Site": "same-origin",
-        "User-Agent": "cloud-superbrain-i1-readonly-verifier/1",
+        "User-Agent": "cloud-superbrain-i1-readonly-verifier/1.0",
     }
     if content_type:
         headers["Content-Type"] = content_type
