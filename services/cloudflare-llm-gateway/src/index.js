@@ -319,6 +319,9 @@ function sanitizedAuditDetails(env, context, details) {
     provider_stream_frame_format: safeAuditText(details.provider_stream_frame_format),
     provider_stream_terminal_mode: safeAuditText(details.provider_stream_terminal_mode),
     provider_finish_reason: safeAuditText(details.provider_finish_reason),
+    provider_stream_active_frame_format: safeAuditText(details.provider_stream_active_frame_format),
+    provider_stream_incoming_frame_format: safeAuditText(details.provider_stream_incoming_frame_format),
+    provider_stream_transition_count: Number.isInteger(details.provider_stream_transition_count) ? details.provider_stream_transition_count : 0,
     gateway_attempts: gatewayAttempts,
     gateway_log_readback_verified: details.gateway_log_readback_verified === true,
     live_provider_calls: details.live_provider_calls === true,
@@ -975,7 +978,11 @@ function providerStreamResponse(env, context, model, probe, started) {
                   continue;
                 }
                 if (formatTransitions >= 1) {
-                  throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats more than once.");
+                  throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats more than once.", {
+                    active_frame_format: activeFrameFormat,
+                    incoming_frame_format: validated.frameFormat,
+                    transition_count: formatTransitions,
+                  });
                 }
                 formatTransitions += 1;
                 activeFrameFormat = validated.frameFormat;
@@ -1055,6 +1062,9 @@ function providerStreamResponse(env, context, model, probe, started) {
           gateway_attempts: attempt ? [attempt] : [],
           gateway_log_readback_verified: false,
           cancellation_requested: true,
+          provider_stream_active_frame_format: fault.facts?.active_frame_format || activeFrameFormat,
+          provider_stream_incoming_frame_format: fault.facts?.incoming_frame_format || "",
+          provider_stream_transition_count: Number.isInteger(fault.facts?.transition_count) ? fault.facts.transition_count : formatTransitions,
         });
         controller.error(new Error(fault.code));
       } finally {
