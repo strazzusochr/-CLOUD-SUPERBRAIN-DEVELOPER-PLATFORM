@@ -819,8 +819,12 @@ function validateSseEvent(eventBody) {
       content += choice.delta.content;
       if (choice.delta.content !== "") emptyRoleMetadataOnly = false;
     }
+    const deltaToolCallsEmpty = !Object.hasOwn(choice.delta, "tool_calls")
+      || choice.delta.tool_calls === null
+      || (Array.isArray(choice.delta.tool_calls) && choice.delta.tool_calls.length === 0);
     const deltaKeys = Object.keys(choice.delta);
-    if (deltaKeys.some((key) => key !== "role" && !(key === "content" && choice.delta.content === ""))) emptyRoleMetadataOnly = false;
+    if (deltaKeys.some((key) => key !== "role" && key !== "tool_calls" && !(key === "content" && choice.delta.content === ""))) emptyRoleMetadataOnly = false;
+    if (!deltaToolCallsEmpty) emptyRoleMetadataOnly = false;
     if (choice.delta.role !== undefined && choice.delta.role !== "assistant") emptyRoleMetadataOnly = false;
     if (choice.finish_reason !== undefined && choice.finish_reason !== null) {
       if (

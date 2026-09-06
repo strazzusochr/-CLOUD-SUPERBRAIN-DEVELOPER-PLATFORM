@@ -48,7 +48,7 @@ function auditDb({ failWrite = false, failRead = false } = {}) {
 function openAiSse(content = "verified") {
   const base = { id: "chatcmpl-provider-stream", object: "chat.completion.chunk", created: 1_788_000_000, model: primaryModel };
   return [
-    `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }] })}\n\n`,
+    `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { role: "assistant", tool_calls: [] }, finish_reason: null }] })}\n\n`,
     `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: { content }, finish_reason: null }] })}\n\n`,
     `data: ${JSON.stringify({ ...base, choices: [{ index: 0, delta: {}, finish_reason: "stop" }] })}\n\n`,
     "data: [DONE]\n\n",
