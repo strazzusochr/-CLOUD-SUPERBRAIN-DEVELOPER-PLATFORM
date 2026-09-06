@@ -770,7 +770,8 @@ function validateSseEvent(eventBody) {
     typeof payload.response === "string"
     && !Object.hasOwn(payload, "object")
     && !Object.hasOwn(payload, "choices")
-    && !Object.hasOwn(payload, "tool_calls")
+    && (!Object.hasOwn(payload, "tool_calls")
+      || (Array.isArray(payload.tool_calls) && payload.tool_calls.length === 0))
   ) {
     return {
       done: false,
