@@ -7,6 +7,63 @@ $baseUrl = "http://localhost:$port"
 $progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manifest.json"
 $progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
 $expectedOverallPercent = [int]$progressManifest.overall_percent
+$localSecretsPath = [IO.Path]::Combine(
+  [Environment]::GetFolderPath("UserProfile"),
+  ".codex",
+  "secrets",
+  "cloud-superbrain.local.env"
+)
+$runtimeComposeSecretKeys = @(
+  "AGENT_API_AUTH_TOKEN",
+  "GITHUB_OAUTH_CLIENT_ID",
+  "GITHUB_OAUTH_CLIENT_SECRET",
+  "GITHUB_OAUTH_REDIRECT_URI",
+  "GITHUB_OAUTH_OWNER_IDS",
+  "JWT_SIGNING_SECRET"
+)
+if (Test-Path -LiteralPath $localSecretsPath -PathType Leaf) {
+  foreach ($line in (Get-Content -LiteralPath $localSecretsPath)) {
+    if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$') {
+      $secretKey = $Matches[1]
+      $secretValue = $Matches[2].Trim().Trim('"')
+      if (
+        $runtimeComposeSecretKeys -contains $secretKey -and
+        [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($secretKey, "Process")) -and
+        -not [string]::IsNullOrWhiteSpace($secretValue)
+      ) {
+        [Environment]::SetEnvironmentVariable($secretKey, $secretValue, "Process")
+      }
+    }
+  }
+}
+$composeArgs = @("-f", "docker-compose.dev.yml")
+if (Test-Path -LiteralPath ".git" -PathType Leaf) {
+  $worktreeHead = (& git rev-parse --path-format=absolute --git-path HEAD 2>$null | Out-String).Trim()
+  if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $worktreeHead -PathType Leaf)) {
+    throw "Runtime verification failed: Git worktree HEAD could not be resolved"
+  }
+  $shimDir = [IO.Path]::GetFullPath((Join-Path (Get-Location) ".codex\psutf8-shim"))
+  [IO.Directory]::CreateDirectory($shimDir) | Out-Null
+  $shimPath = Join-Path $shimDir "worktree-compose.override.yml"
+  $yamlHead = ([IO.Path]::GetFullPath($worktreeHead)).Replace("\", "/").Replace("'", "''")
+  $shim = @"
+services:
+  agent-api:
+    volumes:
+      - type: bind
+        source: '$yamlHead'
+        target: /app/o4-git/HEAD
+        read_only: true
+  mcp-gateway:
+    volumes:
+      - type: bind
+        source: '$yamlHead'
+        target: /app/o4-git/HEAD
+        read_only: true
+"@
+  [IO.File]::WriteAllText($shimPath, $shim, [Text.UTF8Encoding]::new($false))
+  $composeArgs += @("-f", $shimPath)
+}
 
 function Assert-LastExitCode($label) {
   if ($LASTEXITCODE -ne 0) {
@@ -29,6 +86,10 @@ function Assert-True($label, $condition) {
   if (-not $condition) {
     throw "Runtime verification failed: $label"
   }
+}
+
+function Assert-False($label, $condition) {
+  Assert-True $label (-not [bool]$condition)
 }
 
 function Assert-NotContains($label, $value, $forbidden) {
@@ -141,7 +202,7 @@ function Wait-TaskEscalated($taskId) {
 }
 
 Write-Host "[runtime] compose status"
-docker compose -f docker-compose.dev.yml ps
+docker compose @composeArgs ps
 Assert-LastExitCode "compose status"
 
 Write-Host "[runtime] compose resource measurement"
@@ -230,7 +291,7 @@ $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
 $ErrorActionPreference = "Continue"
 $PSNativeCommandUseErrorActionPreference = $false
 try {
-  $nginxRecreateOutput = docker compose -f docker-compose.dev.yml up -d --no-deps --force-recreate nginx 2>&1 | Out-String
+  $nginxRecreateOutput = docker compose @composeArgs up -d --no-deps --force-recreate nginx 2>&1 | Out-String
   $nginxRecreateExitCode = $LASTEXITCODE
 } finally {
   $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
@@ -312,13 +373,38 @@ Assert-Contains "project progress completion cannot set all to 100" $projectProg
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
 $projectProgressCompletionHardBlockers = @($projectProgressCompletionJson.hard_blockers | ForEach-Object { [string]$_ })
-foreach ($requiredBlocker in @(
-  "production_auth_identity_requires_owner_configured_oauth_and_hosted_url",
-  "docker_registry_publish_requires_owner_release_gate"
-)) {
-  Assert-True "project progress completion current blocker present: $requiredBlocker" ($projectProgressCompletionHardBlockers -contains $requiredBlocker)
-}
 $capabilityGateState = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\capability-gates.json") -Raw | ConvertFrom-Json
+$completionGateExpectations = @(
+  [ordered]@{
+    gate_id = "production_auth_identity"
+    blocker = "production_auth_identity_requires_owner_configured_oauth_and_hosted_url"
+  },
+  [ordered]@{
+    gate_id = "docker_registry_publish"
+    blocker = "docker_registry_publish_requires_owner_release_gate"
+  }
+)
+foreach ($expectation in $completionGateExpectations) {
+  $gateProperty = $capabilityGateState.gates.PSObject.Properties[[string]$expectation.gate_id]
+  $gate = if ($null -eq $gateProperty) { $null } else { $gateProperty.Value }
+  $gateOpen = (
+    $null -ne $gate -and
+    [bool]$gate.owner_granted -and
+    [bool]$gate.live_verified -and
+    -not [string]::IsNullOrWhiteSpace([string]$gate.evidence_artifact) -and
+    $gate.paid_provider -is [bool] -and
+    -not [bool]$gate.paid_provider
+  )
+  if ($gateOpen) {
+    Assert-False "project progress completion verified gate blocker absent: $($expectation.blocker)" (
+      $projectProgressCompletionHardBlockers -contains [string]$expectation.blocker
+    )
+  } else {
+    Assert-True "project progress completion closed gate blocker present: $($expectation.blocker)" (
+      $projectProgressCompletionHardBlockers -contains [string]$expectation.blocker
+    )
+  }
+}
 $liveLlmCapability = $capabilityGateState.gates.live_llm_provider_calls
 $liveLlmCapabilityOpen = (
   [bool]$liveLlmCapability.owner_granted -and
@@ -2380,7 +2466,7 @@ Assert-Contains "orchestrator checkpoint completed before restart" $checkpointBe
 
 Write-Host "[runtime] langgraph postgres checkpoint restart recovery"
 $env:NGINX_HTTP_PORT = $port
-docker compose -f docker-compose.dev.yml up -d --force-recreate agent-api nginx
+docker compose @composeArgs up -d --force-recreate agent-api nginx
 Assert-LastExitCode "restart agent-api for checkpoint recovery"
 $healthAfterRestart = Wait-UrlContains "agent-api health after checkpoint restart" "$baseUrl/api/v1/health" '"status":"healthy"' 45
 $checkpointAfter = curl.exe -sS "$baseUrl/api/v1/orchestrator/checkpoints/$threadId"
@@ -2443,7 +2529,9 @@ if ($LASTEXITCODE -ne 0 -or $steadyFaviconStatus -ne "200") {
 }
 
 Write-Host "[runtime] phase5 local production candidate proof"
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -AllowLocalhost -AllowNonCandidateHead -SkipBrowser
+$activeCandidatePointer = Get-Content -LiteralPath "docs\release-artifacts\current-release-candidate.json" -Raw | ConvertFrom-Json
+$activeCandidateEvidenceDir = Join-Path "docs\release-artifacts" ("{0}-evidence" -f [string]$activeCandidatePointer.active_release_id)
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -ArtifactDir $activeCandidateEvidenceDir -AllowLocalhost -AllowNonCandidateHead -SkipBrowser
 Assert-LastExitCode "phase5 local production candidate proof"
 
 Write-Host "[runtime] O4 bounded live Agent/MCP write proof"

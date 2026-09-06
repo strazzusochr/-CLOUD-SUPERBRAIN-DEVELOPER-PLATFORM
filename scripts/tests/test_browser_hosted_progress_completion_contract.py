@@ -12,6 +12,48 @@ VERIFIERS = (
 
 
 class BrowserHostedProgressCompletionContractTests(unittest.TestCase):
+    def test_runtime_completion_blockers_follow_current_capability_gate_state(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")
+        for marker in (
+            "$completionGateExpectations = @(",
+            'gate_id = "production_auth_identity"',
+            'gate_id = "docker_registry_publish"',
+            'blocker = "production_auth_identity_requires_owner_configured_oauth_and_hosted_url"',
+            'blocker = "docker_registry_publish_requires_owner_release_gate"',
+            'Assert-False "project progress completion verified gate blocker absent:',
+            'Assert-True "project progress completion closed gate blocker present:',
+        ):
+            self.assertIn(marker, source)
+
+    def test_runtime_compose_recreates_use_the_worktree_head_override(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")
+        self.assertIn('git rev-parse --path-format=absolute --git-path HEAD', source)
+        self.assertIn('target: /app/o4-git/HEAD', source)
+        self.assertIn('$composeArgs += @("-f", $shimPath)', source)
+        self.assertEqual(source.count("docker compose @composeArgs"), 3)
+        self.assertNotIn("docker compose -f docker-compose.dev.yml", source)
+
+    def test_runtime_candidate_proof_uses_the_active_release_evidence_directory(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")
+        self.assertIn('$activeCandidatePointer = Get-Content -LiteralPath "docs\\release-artifacts\\current-release-candidate.json"', source)
+        self.assertIn('$activeCandidateEvidenceDir = Join-Path "docs\\release-artifacts"', source)
+        self.assertIn('-ArtifactDir $activeCandidateEvidenceDir', source)
+
+    def test_runtime_recreate_loads_only_the_existing_local_service_and_oauth_secrets(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")
+        self.assertIn('$runtimeComposeSecretKeys = @(', source)
+        for key in (
+            "AGENT_API_AUTH_TOKEN",
+            "GITHUB_OAUTH_CLIENT_ID",
+            "GITHUB_OAUTH_CLIENT_SECRET",
+            "GITHUB_OAUTH_REDIRECT_URI",
+            "GITHUB_OAUTH_OWNER_IDS",
+            "JWT_SIGNING_SECRET",
+        ):
+            self.assertIn(f'"{key}"', source)
+        self.assertIn('[Environment]::SetEnvironmentVariable($secretKey, $secretValue, "Process")', source)
+        self.assertNotIn('Write-Host $secretValue', source)
+
     def test_accessibility_evidence_capture_follows_unfiltered_network_assertions(self) -> None:
         source = (REPO_ROOT / "apps" / "frontend" / "e2e" / "organism.spec.ts").read_text(encoding="utf-8")
         body = source.split('test("organism Phase-6 accessibility honors', 1)[1].split('\n  test(', 1)[0]
