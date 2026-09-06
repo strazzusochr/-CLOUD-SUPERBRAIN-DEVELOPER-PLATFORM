@@ -66,6 +66,13 @@ function nativeWorkersAiSse(content = "verified") {
   ];
 }
 
+function nativeWorkersAiSseWithMetadata(content = "verified") {
+  return [
+    `data: ${JSON.stringify({ response: content, tool_calls: [], usage: { completion_tokens: 1 } })}\n\n`,
+    "data: [DONE]\n\n",
+  ];
+}
+
 function streamFrom(parts, { failAfter = null } = {}) {
   const encoder = new TextEncoder();
   return new ReadableStream({
@@ -416,6 +423,21 @@ test("stream normalizes native Workers AI response frames into OpenAI-compatible
   assert.equal(proof.provider_stream_terminal_mode, "provider_done_marker");
   assert.equal(proof.gateway_log_readback.verified, true);
   assert.equal(proof.audit_readback_verified, true);
+});
+
+test("stream accepts native Workers AI response frames with empty tool-call metadata", async () => {
+  const AI = aiBinding([{ stream: streamFrom(nativeWorkersAiSseWithMetadata("verified")) }]);
+  const DB = auditDb();
+  const environment = runtimeEnv(AI, { DB });
+  const response = await worker.fetch(
+    chatRequest(completionBody({ stream: true }), { headers: { "x-request-id": "stream-native-workers-ai-metadata-test" } }),
+    environment,
+  );
+  const sse = await readSse(response);
+  assert.equal(response.status, 200);
+  assert.equal(sse.frames.map((frame) => frame.choices[0]?.delta?.content || "").join(""), "verified");
+  assert.equal(sse.data.at(-1), "[DONE]");
+  assert.equal(DB.writes.length, 1);
 });
 
 test("stream rejects synthetic full-completion frames, missing terminal evidence, and post-DONE frames without credit evidence", async () => {
