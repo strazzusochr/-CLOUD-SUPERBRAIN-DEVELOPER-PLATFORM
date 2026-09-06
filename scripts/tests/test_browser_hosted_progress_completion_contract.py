@@ -37,7 +37,11 @@ class BrowserHostedProgressCompletionContractTests(unittest.TestCase):
         source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")
         self.assertIn('$activeCandidatePointer = Get-Content -LiteralPath "docs\\release-artifacts\\current-release-candidate.json"', source)
         self.assertIn('$activeCandidateEvidenceDir = Join-Path "docs\\release-artifacts"', source)
-        self.assertIn('-ArtifactDir $activeCandidateEvidenceDir', source)
+        self.assertIn('$activeCandidateImages = Join-Path $activeCandidateEvidenceDir "candidate-images.json"', source)
+        self.assertIn('"superbrain-phase1-runtime-candidate"', source)
+        self.assertIn('Copy-Item -LiteralPath $activeCandidateImages', source)
+        self.assertIn('-ArtifactDir $runtimeCandidateArtifactDir', source)
+        self.assertIn('Remove-Item -LiteralPath $runtimeCandidateArtifactDir -Recurse -Force', source)
 
     def test_runtime_recreate_loads_only_the_existing_local_service_and_oauth_secrets(self) -> None:
         source = (REPO_ROOT / "scripts" / "verify-phase1-runtime.ps1").read_text(encoding="utf-8")

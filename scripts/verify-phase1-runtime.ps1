@@ -2531,8 +2531,31 @@ if ($LASTEXITCODE -ne 0 -or $steadyFaviconStatus -ne "200") {
 Write-Host "[runtime] phase5 local production candidate proof"
 $activeCandidatePointer = Get-Content -LiteralPath "docs\release-artifacts\current-release-candidate.json" -Raw | ConvertFrom-Json
 $activeCandidateEvidenceDir = Join-Path "docs\release-artifacts" ("{0}-evidence" -f [string]$activeCandidatePointer.active_release_id)
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -ArtifactDir $activeCandidateEvidenceDir -AllowLocalhost -AllowNonCandidateHead -SkipBrowser
-Assert-LastExitCode "phase5 local production candidate proof"
+$activeCandidateImages = Join-Path $activeCandidateEvidenceDir "candidate-images.json"
+Assert-True "active candidate image evidence exists" (Test-Path -LiteralPath $activeCandidateImages -PathType Leaf)
+$runtimeCandidateTempBase = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) "superbrain-phase1-runtime-candidate"))
+$runtimeCandidateArtifactDir = [IO.Path]::GetFullPath((Join-Path $runtimeCandidateTempBase ([Guid]::NewGuid().ToString("N"))))
+$runtimeCandidateTempPrefix = $runtimeCandidateTempBase.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+Assert-True "runtime candidate temporary evidence path is bounded" (
+  $runtimeCandidateArtifactDir.StartsWith($runtimeCandidateTempPrefix, [StringComparison]::OrdinalIgnoreCase)
+)
+$candidateVerificationExitCode = -1
+try {
+  [IO.Directory]::CreateDirectory($runtimeCandidateArtifactDir) | Out-Null
+  Copy-Item -LiteralPath $activeCandidateImages -Destination (Join-Path $runtimeCandidateArtifactDir "candidate-images.json")
+  powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase5-production-candidate-local.ps1 -BaseUrl $baseUrl -ArtifactDir $runtimeCandidateArtifactDir -AllowLocalhost -AllowNonCandidateHead -SkipBrowser
+  $candidateVerificationExitCode = $LASTEXITCODE
+} finally {
+  if (
+    $runtimeCandidateArtifactDir.StartsWith($runtimeCandidateTempPrefix, [StringComparison]::OrdinalIgnoreCase) -and
+    (Test-Path -LiteralPath $runtimeCandidateArtifactDir)
+  ) {
+    Remove-Item -LiteralPath $runtimeCandidateArtifactDir -Recurse -Force
+  }
+}
+if ($candidateVerificationExitCode -ne 0) {
+  throw "Runtime verification failed: phase5 local production candidate proof"
+}
 
 Write-Host "[runtime] O4 bounded live Agent/MCP write proof"
 if (Test-O4RuntimeTokenConfigured) {
