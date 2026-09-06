@@ -100,6 +100,7 @@ $publishJobMatch = [regex]::Match(
 Assert-True "publish-candidate job block is parseable" $publishJobMatch.Success
 $publishJobBlock = $publishJobMatch.Groups['body'].Value
 Assert-Regex "publish-candidate is gated by successful candidate preflight and CI" $publishJobBlock '(?m)^\s{4}needs:\s*\[candidate-preflight,\s*verify-candidate\]\s*$'
+Assert-Regex "publish-candidate has a bounded 45-minute job timeout" $publishJobBlock '(?m)^\s{4}timeout-minutes:\s*45\s*$'
 Assert-NotRegex "publish-candidate has no job-level always bypass" $publishJobBlock '(?im)^\s{4}if:\s*.*\balways\s*\('
 Write-Host "[main-deploy-transition] OWNER-READ-GATE registry-publication protection rules are external GitHub state; this static verifier does not claim they are configured."
 

@@ -178,6 +178,9 @@ jobs:
     name: Publish immutable ${{ matrix.name }} candidate
     needs: [candidate-preflight, verify-candidate]
     runs-on: ubuntu-latest
+    # A hung multi-architecture build must fail visibly; it must never retain an
+    # environment approval or a runner indefinitely.
+    timeout-minutes: 45
     environment:
       name: registry-publication
       deployment: false
