@@ -38,9 +38,10 @@ class BrowserHostedProgressCompletionContractTests(unittest.TestCase):
         self.assertIn('$activeCandidatePointer = Get-Content -LiteralPath "docs\\release-artifacts\\current-release-candidate.json"', source)
         self.assertIn('$activeCandidateEvidenceDir = Join-Path "docs\\release-artifacts"', source)
         self.assertIn('$activeCandidateImages = Join-Path $activeCandidateEvidenceDir "candidate-images.json"', source)
-        self.assertIn('"superbrain-phase1-runtime-candidate"', source)
+        self.assertIn("superbrain-phase1-runtime-candidate", source)
+        self.assertIn('$runtimeCandidateRelativeDir = Join-Path ".runtime-temp\\superbrain-phase1-runtime-candidate"', source)
         self.assertIn('Copy-Item -LiteralPath $activeCandidateImages', source)
-        self.assertIn('-ArtifactDir $runtimeCandidateArtifactDir', source)
+        self.assertIn('-ArtifactDir $runtimeCandidateRelativeDir', source)
         self.assertIn('Remove-Item -LiteralPath $runtimeCandidateArtifactDir -Recurse -Force', source)
 
     def test_runtime_o4_proof_uses_bounded_temporary_evidence(self) -> None:
