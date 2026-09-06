@@ -965,21 +965,20 @@ function providerStreamResponse(env, context, model, probe, started) {
                 continue;
               }
               if (activeFrameFormat !== null && activeFrameFormat !== validated.frameFormat) {
+                if (validated.terminalMetadataOnly || validated.emptyRoleMetadataOnly) {
+                  if (validated.terminalMetadataOnly) {
+                    if (finishReason !== null) {
+                      throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream emitted more than one finish reason.");
+                    }
+                    finishReason = validated.finishReason;
+                  }
+                  continue;
+                }
                 if (formatTransitions >= 1) {
                   throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats more than once.");
                 }
                 formatTransitions += 1;
                 activeFrameFormat = validated.frameFormat;
-                if (validated.terminalMetadataOnly && validated.frameFormat === "openai_chat_completion_chunk") {
-                  if (finishReason !== null) {
-                    throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream emitted more than one finish reason.");
-                  }
-                  finishReason = validated.finishReason;
-                  continue;
-                }
-                if (validated.emptyRoleMetadataOnly && validated.frameFormat === "openai_chat_completion_chunk") {
-                  continue;
-                }
               }
               if (activeFrameFormat === null) activeFrameFormat = validated.frameFormat;
               if (providerFrameFormat === null) providerFrameFormat = validated.frameFormat;
