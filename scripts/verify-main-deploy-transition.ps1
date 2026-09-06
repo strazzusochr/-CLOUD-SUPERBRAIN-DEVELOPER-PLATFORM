@@ -100,6 +100,7 @@ $publishJobMatch = [regex]::Match(
 Assert-True "publish-candidate job block is parseable" $publishJobMatch.Success
 $publishJobBlock = $publishJobMatch.Groups['body'].Value
 Assert-Regex "publish-candidate is gated by successful candidate preflight and CI" $publishJobBlock '(?m)^\s{4}needs:\s*\[candidate-preflight,\s*verify-candidate\]\s*$'
+Assert-Regex "publish-candidate has a bounded 45-minute job timeout" $publishJobBlock '(?m)^\s{4}timeout-minutes:\s*45\s*$'
 Assert-NotRegex "publish-candidate has no job-level always bypass" $publishJobBlock '(?im)^\s{4}if:\s*.*\balways\s*\('
 Write-Host "[main-deploy-transition] OWNER-READ-GATE registry-publication protection rules are external GitHub state; this static verifier does not claim they are configured."
 
@@ -111,9 +112,12 @@ foreach ($required in @(
   'CONTROL_REF: ${{ github.ref }}',
   'control_ref != "refs/heads/chore/repo-bootstrap"',
   'docs/runtime-state/source-qualification-control.json',
+  'docs/release-artifacts/current-release-candidate.json',
   'docs/runtime-state/capability-gates.json',
   'source-qualification-control-v1',
   'runtime_candidate_sha',
+  'active_release_id',
+  'source_commit_sha',
   'source_archive_sha256',
   'production_rollout_claimed',
   'percentage_credit_awarded',
@@ -128,6 +132,8 @@ foreach ($required in @(
   '["git", "cat-file", "-e", f"{candidate_sha}^{{commit}}"]',
   '["git", "merge-base", "--is-ancestor", candidate_sha, control_sha]',
   'candidate_sha == control_sha',
+  'active release candidate does not equal qualified release_id',
+  'active release candidate does not equal dispatch candidate_sha',
   'control_sha={control_sha}',
   'candidate_sha={candidate_sha}'
 )) {
