@@ -830,7 +830,17 @@ function validateSseEvent(eventBody) {
       finishReason = choice.finish_reason;
     }
   }
-  return { done: false, content, finishReason, frameFormat: "openai_chat_completion_chunk" };
+  // Some Workers AI gateway paths emit native response frames for content and
+  // finish with an OpenAI-shaped empty terminal chunk. That terminal metadata
+  // is safe to consume across the boundary, but an actual content-frame format
+  // change must remain fail-closed.
+  return {
+    done: false,
+    content,
+    finishReason,
+    frameFormat: "openai_chat_completion_chunk",
+    terminalMetadataOnly: content === "" && finishReason !== null,
+  };
 }
 
 function canonicalOpenAiChunk(context, model, content, chunkIndex, created) {
@@ -943,6 +953,13 @@ function providerStreamResponse(env, context, model, probe, started) {
                 continue;
               }
               if (providerFrameFormat !== null && providerFrameFormat !== validated.frameFormat) {
+                if (validated.terminalMetadataOnly && validated.frameFormat === "openai_chat_completion_chunk") {
+                  if (finishReason !== null) {
+                    throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream emitted more than one finish reason.");
+                  }
+                  finishReason = validated.finishReason;
+                  continue;
+                }
                 throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats mid-response.");
               }
               providerFrameFormat = validated.frameFormat;
