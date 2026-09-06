@@ -28,7 +28,7 @@ from verify_i1_codespaces_candidate import (  # noqa: E402
     verify_registry_readback,
     write_json_exclusive,
 )
-from verify_i1_codespaces_static import verify_static_files  # noqa: E402
+from verify_i1_codespaces_static import _render_compose, _verify_compose, verify_static_files  # noqa: E402
 
 
 SOURCE_SHA = "a" * 40
@@ -391,6 +391,30 @@ class I1CodespacesContractTests(unittest.TestCase):
         self.assertTrue(report["codespaces_primary"])
         self.assertTrue(report["named_tunnel_static_only"])
         self.assertTrue(report["workflow_read_only"])
+
+    def test_support_service_capability_allowlist_is_fail_closed(self) -> None:
+        config = _render_compose(REPO_ROOT, include_tunnel=False)
+        broken = deepcopy(config)
+        broken["services"]["postgres"]["cap_add"].remove("SETUID")  # type: ignore[index]
+        with self.assertRaisesRegex(ContractError, "capability allowlist mismatch: postgres"):
+            _verify_compose(broken, include_tunnel=False)
+
+        broken = deepcopy(config)
+        broken["services"]["redis"]["cap_add"].append("DAC_OVERRIDE")  # type: ignore[index]
+        with self.assertRaisesRegex(ContractError, "capability allowlist mismatch: redis"):
+            _verify_compose(broken, include_tunnel=False)
+
+    def test_ingress_is_the_only_bridge_out_of_the_internal_network(self) -> None:
+        config = _render_compose(REPO_ROOT, include_tunnel=False)
+        broken = deepcopy(config)
+        del broken["services"]["ingress"]["networks"]["edge"]  # type: ignore[index]
+        with self.assertRaisesRegex(ContractError, "ingress network bridge is not exact"):
+            _verify_compose(broken, include_tunnel=False)
+
+        broken = deepcopy(config)
+        broken["services"]["agent-api"]["networks"]["edge"] = None  # type: ignore[index]
+        with self.assertRaisesRegex(ContractError, "service escaped the internal network: agent-api"):
+            _verify_compose(broken, include_tunnel=False)
 
     def test_static_verifier_command_entrypoint_succeeds(self) -> None:
         completed = subprocess.run(

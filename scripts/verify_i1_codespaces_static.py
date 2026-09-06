@@ -26,6 +26,12 @@ COLLECTOR = Path("scripts/collect_i1_codespaces_evidence.py")
 HOSTED_VERIFIER = Path("scripts/verify_i1_codespaces_candidate.py")
 WORKFLOW = Path(".github/workflows/i1-codespaces-candidate-verify.yml")
 SUPPORT_SERVICES = ("postgres", "redis", "ingress", "evidence-publisher")
+SUPPORT_CAPABILITIES = {
+    "postgres": {"CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"},
+    "redis": {"CHOWN", "SETGID", "SETUID"},
+    "ingress": set(),
+    "evidence-publisher": set(),
+}
 CONTROL_IMAGE = "mcr.microsoft.com/devcontainers/universal@sha256:dca6a985ffbbc74007a13b6f56ac0fbbc5febae081350b66e865a5549338134b"
 
 
@@ -100,6 +106,11 @@ def _verify_compose(config: Mapping[str, Any], *, include_tunnel: bool) -> None:
     if include_tunnel:
         expected.add("cloudflared")
     require(set(services) == expected, "I1 Compose service set is not exact")
+    networks = config.get("networks")
+    require(isinstance(networks, Mapping), "I1 Compose networks are missing")
+    require(set(networks) == {"candidate", "edge"}, "I1 Compose network set is not exact")
+    require(networks["candidate"].get("internal") is True, "I1 candidate network must remain internal")
+    require(networks["edge"].get("internal") is not True, "I1 edge network must permit the single published ingress port")
     for name, raw in services.items():
         require(isinstance(raw, Mapping), f"I1 Compose service is invalid: {name}")
         require("build" not in raw, f"I1 Compose contains a forbidden build: {name}")
@@ -115,8 +126,24 @@ def _verify_compose(config: Mapping[str, Any], *, include_tunnel: bool) -> None:
                 all(isinstance(volume, Mapping) and volume.get("type") != "bind" for volume in volumes),
                 f"I1 app contains a source bind mount: {name}",
             )
+        if name in SUPPORT_CAPABILITIES:
+            cap_drop = raw.get("cap_drop", [])
+            cap_add = raw.get("cap_add", [])
+            require(cap_drop == ["ALL"], f"I1 support service must drop all capabilities first: {name}")
+            require(
+                set(cap_add) == SUPPORT_CAPABILITIES[name] and len(cap_add) == len(SUPPORT_CAPABILITIES[name]),
+                f"I1 support service capability allowlist mismatch: {name}",
+            )
+            require(
+                raw.get("security_opt") == ["no-new-privileges:true"],
+                f"I1 support service no-new-privileges contract mismatch: {name}",
+            )
     ingress = services["ingress"]
     require(isinstance(ingress, Mapping), "I1 ingress service is invalid")
+    require(set(ingress.get("networks", {})) == {"candidate", "edge"}, "I1 ingress network bridge is not exact")
+    for name, raw in services.items():
+        if name not in {"ingress", "evidence-publisher"}:
+            require(set(raw.get("networks", {})) == {"candidate"}, f"I1 service escaped the internal network: {name}")
     ports = ingress.get("ports")
     require(isinstance(ports, list) and len(ports) == 1, "I1 ingress must publish exactly one port")
     port = ports[0]
