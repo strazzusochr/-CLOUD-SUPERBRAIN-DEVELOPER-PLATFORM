@@ -766,12 +766,34 @@ function validateSseEvent(eventBody) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload) || payload.terminal === true || Object.hasOwn(payload, "error")) {
     throw new GatewayFault("provider_stream_not_openai_chunk", 502, "The provider stream did not return OpenAI-compatible chat.completion.chunk frames.");
   }
+  const emptyToolCalls = !Object.hasOwn(payload, "tool_calls")
+    || payload.tool_calls === null
+    || (Array.isArray(payload.tool_calls) && payload.tool_calls.length === 0);
+  const hasUsageObject = payload.usage && typeof payload.usage === "object" && !Array.isArray(payload.usage);
+  const usageOnly = Boolean(
+    hasUsageObject
+      && !Object.hasOwn(payload, "response")
+      && (!Object.hasOwn(payload, "choices") || (Array.isArray(payload.choices) && payload.choices.length === 0))
+      && emptyToolCalls,
+  );
+  if (usageOnly) {
+    const usageFinishReason = payload.finish_reason ?? null;
+    if (
+      usageFinishReason !== null
+      && (typeof usageFinishReason !== "string"
+        || usageFinishReason.length < 1
+        || usageFinishReason.length > 64
+        || /[^A-Za-z0-9_.:-]/.test(usageFinishReason))
+    ) {
+      throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream contained an invalid usage finish reason.");
+    }
+    return { done: false, metadataOnly: true, content: "", finishReason: usageFinishReason, frameFormat: null };
+  }
   if (
     typeof payload.response === "string"
     && !Object.hasOwn(payload, "object")
     && !Object.hasOwn(payload, "choices")
-    && (!Object.hasOwn(payload, "tool_calls")
-      || (Array.isArray(payload.tool_calls) && payload.tool_calls.length === 0))
+    && emptyToolCalls
   ) {
     return {
       done: false,
@@ -913,6 +935,13 @@ function providerStreamResponse(env, context, model, probe, started) {
               terminalRaw = "data: [DONE]\n\n";
               terminalMode = "provider_done_marker";
             } else {
+              if (validated.metadataOnly) {
+                if (finishReason !== null && validated.finishReason !== null) {
+                  throw new GatewayFault("provider_stream_invalid_finish_reason", 502, "The provider stream emitted more than one usage finish reason.");
+                }
+                if (validated.finishReason !== null) finishReason = validated.finishReason;
+                continue;
+              }
               if (providerFrameFormat !== null && providerFrameFormat !== validated.frameFormat) {
                 throw new GatewayFault("provider_stream_mixed_formats", 502, "The provider stream changed frame formats mid-response.");
               }

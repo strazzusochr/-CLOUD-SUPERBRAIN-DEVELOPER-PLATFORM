@@ -73,6 +73,14 @@ function nativeWorkersAiSseWithMetadata(content = "verified") {
   ];
 }
 
+function nativeWorkersAiSseWithUsage(content = "verified") {
+  return [
+    `data: ${JSON.stringify({ response: content, tool_calls: [] })}\n\n`,
+    `data: ${JSON.stringify({ usage: { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3 }, tool_calls: [] })}\n\n`,
+    "data: [DONE]\n\n",
+  ];
+}
+
 function streamFrom(parts, { failAfter = null } = {}) {
   const encoder = new TextEncoder();
   return new ReadableStream({
@@ -437,6 +445,22 @@ test("stream accepts native Workers AI response frames with empty tool-call meta
   assert.equal(response.status, 200);
   assert.equal(sse.frames.map((frame) => frame.choices[0]?.delta?.content || "").join(""), "verified");
   assert.equal(sse.data.at(-1), "[DONE]");
+  assert.equal(DB.writes.length, 1);
+});
+
+test("stream accepts native Workers AI usage-only metadata frames without forwarding synthetic content", async () => {
+  const AI = aiBinding([{ stream: streamFrom(nativeWorkersAiSseWithUsage("verified")) }]);
+  const DB = auditDb();
+  const environment = runtimeEnv(AI, { DB });
+  const response = await worker.fetch(
+    chatRequest(completionBody({ stream: true }), { headers: { "x-request-id": "stream-native-workers-ai-usage-test" } }),
+    environment,
+  );
+  const sse = await readSse(response);
+  assert.equal(response.status, 200);
+  assert.equal(sse.frames.map((frame) => frame.choices[0]?.delta?.content || "").join(""), "verified");
+  assert.equal(sse.data.at(-1), "[DONE]");
+  assert.equal(sse.data.filter((value) => value === "[DONE]").length, 1);
   assert.equal(DB.writes.length, 1);
 });
 
