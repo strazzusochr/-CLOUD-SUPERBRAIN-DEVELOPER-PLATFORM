@@ -46,8 +46,18 @@ try {
   if ([string]::IsNullOrWhiteSpace($SummaryOutputPath)) {
     $SummaryOutputPath = ".codex\runs\CURRENT\master-goal\phase5\$ReleaseId\security.json"
   }
-  $outputFullPath = [IO.Path]::GetFullPath((Join-Path $repoRoot $OutputPath))
-  $summaryFullPath = [IO.Path]::GetFullPath((Join-Path $repoRoot $SummaryOutputPath))
+  function Resolve-EvidenceOutputPath([string]$PathValue) {
+    # A caller may direct raw evidence to a bounded temporary directory.  On
+    # Linux, blindly passing an absolute path through Join-Path makes it a
+    # child of the repository and can turn the intended filename into a
+    # directory.  Relative defaults remain repository-relative.
+    if ([IO.Path]::IsPathRooted($PathValue)) {
+      return [IO.Path]::GetFullPath($PathValue)
+    }
+    return [IO.Path]::GetFullPath((Join-Path $repoRoot $PathValue))
+  }
+  $outputFullPath = Resolve-EvidenceOutputPath $OutputPath
+  $summaryFullPath = Resolve-EvidenceOutputPath $SummaryOutputPath
   [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($outputFullPath)) | Out-Null
   [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($summaryFullPath)) | Out-Null
 
