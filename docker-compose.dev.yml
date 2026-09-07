@@ -27,7 +27,9 @@ services:
       - ./apps/frontend/components:/app/components:ro
       - ./apps/frontend/lib:/app/lib:ro
       - ./apps/frontend/next.config.mjs:/app/next.config.mjs:ro
-      - ./apps/frontend/next-env.d.ts:/app/next-env.d.ts
+      # Next must never rewrite a developer's generated TypeScript declaration file
+      # through the dev-container bind mount (notably in Codespaces).
+      - ./apps/frontend/next-env.d.ts:/app/next-env.d.ts:ro
       - ./apps/frontend/tsconfig.json:/app/tsconfig.json
       - ./.codex/runs/CURRENT/endziel:/workspace/evidence
     depends_on:
