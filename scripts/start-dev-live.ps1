@@ -38,9 +38,14 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-if (-not (Test-Path -LiteralPath 'D:\_sb_tmp')) { New-Item -ItemType Directory -Force -Path 'D:\_sb_tmp' | Out-Null }
-$env:TEMP = 'D:\_sb_tmp'
-$env:TMP  = 'D:\_sb_tmp'
+$tempRoot = if ($IsWindows) {
+  'D:\_sb_tmp'
+} else {
+  Join-Path ([IO.Path]::GetTempPath()) 'superbrain'
+}
+if (-not (Test-Path -LiteralPath $tempRoot)) { New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null }
+$env:TEMP = $tempRoot
+$env:TMP  = $tempRoot
 
 foreach ($composePath in $ComposeFile) {
   if (-not (Test-Path -LiteralPath $composePath -PathType Leaf)) {
@@ -84,8 +89,9 @@ services:
 }
 
 # --- Freier Speicher: bekannter Stolperstein, tarnt sich als Verifier-Fehler --------------
-$freeGb = [math]::Round((Get-PSDrive -Name D).Free / 1GB, 2)
-Write-Host ("Freier Speicher D: {0} GB" -f $freeGb)
+$tempDrive = (Get-Item -LiteralPath $tempRoot).PSDrive
+$freeGb = [math]::Round($tempDrive.Free / 1GB, 2)
+Write-Host ("Freier Speicher auf {0}: {1} GB" -f $tempDrive.Name, $freeGb)
 if ($freeGb -lt 5) {
   Write-Host 'WARNUNG: unter 5 GB frei. Builds und Verifier scheitern dann mit irreführenden Fehlern.' -ForegroundColor Yellow
 }
