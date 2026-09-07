@@ -78,7 +78,15 @@ try {
   try {
     & git archive --format=tar "--output=$archivePath" $SourceSha
     Assert-True "git archive" ($LASTEXITCODE -eq 0)
-    & tar.exe -xf $archivePath -C $sourcePath
+    # Prefer the Windows executable when it is available, but use the native
+    # POSIX tar binary in the disposable Linux qualification environment.  The
+    # archive and the fail-closed exit-code contract are identical on both.
+    $tarCommand = Get-Command tar.exe -ErrorAction SilentlyContinue
+    if ($null -eq $tarCommand) {
+      $tarCommand = Get-Command tar -ErrorAction SilentlyContinue
+    }
+    Assert-True "tar extraction tool is available" ($null -ne $tarCommand)
+    & $tarCommand.Source -xf $archivePath -C $sourcePath
     Assert-True "archive extraction" ($LASTEXITCODE -eq 0)
 
     [void]$lines.Add("=== npm audit --audit-level=moderate (candidate apps/frontend) ===")
