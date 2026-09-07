@@ -1,0 +1,27 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=security
+[phase5-evidence] release_id=prod-candidate-2026-09-06-local-rc47
+[phase5-evidence] source_commit_sha=351b10e483258de3d52da0ef5c47b6bfb65f3548
+[phase5-evidence] evidence_run_id=cb2241a9-1da9-4c75-8b37-205959bd5da6
+[phase5-evidence] command=pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-phase5-security-evidence.ps1 -ReleaseId prod-candidate-2026-09-06-local-rc47 -SourceSha 351b10e483258de3d52da0ef5c47b6bfb65f3548 -EvidenceRunId cb2241a9-1da9-4c75-8b37-205959bd5da6
+PHASE5_SECURITY_EVIDENCE_V2
+[phase5-security] source_boundary=committed_git_archive_only
+=== npm audit --audit-level=moderate (candidate apps/frontend) ===
+found 0 vulnerabilities
+NPM_AUDIT_EXIT=0
+[phase5-security] npm_audit_verified=true
+=== canonical gitleaks (candidate archive) ===
+[phase5-security] gitleaks_config=.gitleaks.toml
+
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+[90m2:20PM[0m [32mINF[0m [1mscanned ~25381758 bytes (25.38 MB) in 1.97s[0m
+[90m2:20PM[0m [32mINF[0m [1mno leaks found[0m
+GITLEAKS_EXIT=0
+[phase5-security] gitleaks_verified=true
+PHASE5_SECURITY_EXIT=0
+[phase5-evidence] exit_code=0
