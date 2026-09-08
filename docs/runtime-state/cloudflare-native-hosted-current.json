@@ -1,13 +1,13 @@
 {
     "contract_version":  "cloudflare-native-hosted-current-v1",
     "status":  "verified",
-    "verified_at_utc":  "2026-08-26T18:05:37.9193956Z",
+    "verified_at_utc":  "2026-09-08T16:29:48.7185255Z",
     "base_url":  "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
     "runtime_contract_version":  "cloudflare-native-runtime-candidate-v2",
-    "source_commit_sha":  "d0674bfc1367b04d95ca2bf745e89fabf12046ad",
-    "source_archive_sha256":  "aa29e39f8f658b01658552b3a10d71d0e589b2f500f9a2214e0ece35ddae284f",
-    "evidence_artifact":  ".codex/runs/CURRENT/master-goal/t5/cloudflare-hosted-session-rc14/report.json",
-    "evidence_sha256":  "26D9DB7CEA1CC362B43FEF459BC14A05377837E404C54F308BC57BAD047AAC21",
+    "source_commit_sha":  "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "source_archive_sha256":  "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+    "evidence_artifact":  ".codex/runs/CURRENT/phase6/o2core/20260908T162944451Z-150184af-77f0-47a8-9369-9921c53a2d9d/report.json",
+    "evidence_sha256":  "D5412797F8F43DCF87D366EC7028D047C7AC3CFAEE87F72FE8B2715FB5A7EED7",
     "bindings":  [
                      "DB",
                      "RUNTIME_COORDINATOR",
