@@ -3,12 +3,12 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-09-05T14:55:00Z",
+  "updated_at_utc": "2026-09-08T10:02:48Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
-  "active_release_id": "prod-candidate-2026-09-05-local-rc44",
-  "active_source_commit_sha": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+  "active_release_id": "prod-candidate-2026-09-07-local-rc48",
+  "active_source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
   "legacy_gap_reconstruction": {
     "recorded_percent": 68,
     "total_item_count": 19,
@@ -80,8 +80,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The current candidate pointer selects the source-bound RC44 no-credit requalification while preserving the production non-claim.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-05-local-rc44\""
+          "claim": "The current candidate pointer selects the source-bound RC48 no-credit requalification while preserving the production non-claim.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-07-local-rc48\""
         },
         {
           "path": "scripts/verify-source-qualification-control.ps1",
@@ -89,9 +89,9 @@
           "anchor": "Assert-True \"archive matches source commit\""
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/ci/exact-head-ci-attestation.json",
-          "claim": "The immutable CI attestation binds Q as the run head and S as the exact source checkout with zero failed or skipped jobs.",
-          "anchor": "\"source_commit_sha\": \"efd6826228c8e0b664a44d9a24ab38677e3b86f8\""
+          "path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/ci/exact-head-ci-attestation.json",
+          "claim": "The immutable CI attestation binds Q3 as the run head and S3 as the exact source checkout with zero failed or skipped jobs and steps.",
+          "anchor": "\"source_commit_sha\": \"e949cc1a50f21a3c565c2c2f2380a663f2cc4be7\""
         }
       ]
     },
@@ -104,8 +104,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The active pointer selects the exact source-bound RC44 candidate.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-05-local-rc44\""
+          "claim": "The active pointer selects the exact source-bound RC48 candidate.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-07-local-rc48\""
         },
         {
           "path": "scripts/verify-current-release-candidate.ps1",
@@ -416,7 +416,7 @@
     "The score is release-candidate readiness, not production readiness.",
     "I2 does not publish to GHCR, verify a registry digest, open docker_registry_publish, or authorize promotion.",
     "I1 and I5 remain zero-credit Owner blocks.",
-    "The retired RC1 markers are preserved as history and never rebound to RC44.",
+    "The retired RC1 markers are preserved as history and never rebound to RC48.",
     "This itemization alone cannot make MARKET_READY true."
   ]
 }
