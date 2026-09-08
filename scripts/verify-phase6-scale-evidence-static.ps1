@@ -24,6 +24,8 @@ $preferredTestRoot = if (-not [string]::IsNullOrWhiteSpace($env:SUPERBRAIN_TEST_
 $testRoot = [IO.Path]::GetFullPath($preferredTestRoot).TrimEnd('\', '/')
 $tempRoot = Join-Path $testRoot ('phase6-scale-evidence-static-' + [Guid]::NewGuid().ToString('N'))
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
+$script:positiveCases = 0
+$script:negativeCases = 0
 
 function Assert-True([bool]$Condition, [string]$Message) {
   if (-not $Condition) { throw $Message }
@@ -97,22 +99,27 @@ function Invoke-ExpectedPass([string]$Evidence, [string]$Criterion, [string]$Hos
     -HostedStatePath $Hosted `
     -DeploymentPreflightStatePath $script:deploymentPreflightPath `
     -CapabilityStatePath $Capability `
+    -ReleaseCandidatePath $script:releaseCandidateFixturePath `
     -AllowTestPaths `
     -TrustSyntheticGitHubReadbackForTests 2>&1)
   Assert-True ($LASTEXITCODE -eq 0) ("Expected verifier pass, received: " + ($output -join ' | '))
   Assert-True (($output -join "`n") -match 'promotion=false read_only=true') 'Read-only verifier did not report promotion=false.'
+  $script:positiveCases++
 }
 
-function Invoke-ExpectedFailure([string]$Evidence, [string]$Criterion, [string]$Hosted, [string]$Capability, [string]$Label) {
+function Invoke-ExpectedFailure([string]$Evidence, [string]$Criterion, [string]$Hosted, [string]$Capability, [string]$Label, [string]$ExpectedMessage = '') {
   $output = @(& pwsh -NoProfile -File $verifierPath `
     -EvidencePath $Evidence `
     -CriterionPath $Criterion `
     -HostedStatePath $Hosted `
     -DeploymentPreflightStatePath $script:deploymentPreflightPath `
     -CapabilityStatePath $Capability `
+    -ReleaseCandidatePath $script:releaseCandidateFixturePath `
     -AllowTestPaths `
     -TrustSyntheticGitHubReadbackForTests 2>&1)
   Assert-True ($LASTEXITCODE -ne 0) "$Label unexpectedly passed."
+  if ($ExpectedMessage) { Assert-True (($output -join ' ') -match $ExpectedMessage) "$Label failed for an unrelated reason: $($output -join ' ')" }
+  $script:negativeCases++
 }
 
 function Invoke-ExpectedUntrustedFailure([string]$Evidence, [string]$Criterion, [string]$Hosted, [string]$Capability) {
@@ -122,8 +129,10 @@ function Invoke-ExpectedUntrustedFailure([string]$Evidence, [string]$Criterion, 
     -HostedStatePath $Hosted `
     -DeploymentPreflightStatePath $script:deploymentPreflightPath `
     -CapabilityStatePath $Capability `
+    -ReleaseCandidatePath $script:releaseCandidateFixturePath `
     -AllowTestPaths 2>&1)
   Assert-True ($LASTEXITCODE -ne 0) 'A fully self-consistent synthetic GitHub bundle passed without the explicit test-only trust switch.'
+  $script:negativeCases++
 }
 
 $tokens = $null
@@ -195,6 +204,7 @@ try {
   $hostedPath = Join-Path $tempRoot 'cloudflare-native-hosted-current.json'
   $script:deploymentPreflightPath = Join-Path $tempRoot 'phase6-scale-hosted-current.json'
   $capabilityPath = Join-Path $tempRoot 'capability-gates.json'
+  $script:releaseCandidateFixturePath = Join-Path $tempRoot 'current-release-candidate.json'
   # Forward slashes: pr-check runs this on ubuntu-latest, where a backslash is a literal
   # character and -LiteralPath would look for a file whose name contains it.
   Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/phase6-scale-criterion.json') -Destination $criterionPath
@@ -240,6 +250,11 @@ try {
   $repositoryHeadSha = (& git -C $repoRoot rev-parse HEAD).Trim()
   $deployedSourceSha = Resolve-EligibleDeployedSourceParent $repositoryHeadSha
   $sourceArchiveSha256 = Get-GitArchiveSha256 $deployedSourceSha
+  $releaseCandidateFixture = [ordered]@{
+    active_release_id = 'prod-candidate-2026-09-07-local-rc48'
+    source_commit_sha = $deployedSourceSha
+  }
+  Write-Json $script:releaseCandidateFixturePath $releaseCandidateFixture
   $generatedAt = (Get-Date).ToUniversalTime().AddMinutes(-2)
   $hostedVerifiedAt = $generatedAt.AddMinutes(-5)
   $previewVerifiedAt = $hostedVerifiedAt.AddMinutes(-1)
@@ -522,6 +537,12 @@ try {
       gate_identity_sha256 = $gateIdentitySha256
       owner_granted = $true
       owner_grant_ref = $ownerGrantRef
+      release_candidate = [ordered]@{
+        artifact = 'docs/release-artifacts/current-release-candidate.json'
+        file_sha256 = (Get-FileHash -LiteralPath $script:releaseCandidateFixturePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        active_release_id = $releaseCandidateFixture.active_release_id
+        source_commit_sha = $deployedSourceSha
+      }
       health_json_source_binding_verified = $true
       execution_attestation = [ordered]@{
         contract_version = 'phase6-scale-execution-provenance-v1'
@@ -557,6 +578,13 @@ try {
           actor_login = $githubActor
           triggering_actor_login = $githubTriggeringActor
           human_review_verified = $true
+        }
+        post_run_readback = [ordered]@{
+          execution_readback_artifact = ".phase1-artifacts/phase6-scale/$([IO.Path]::GetFileName($evidencePath)).execution-readback.json"
+          execution_readback_sha256_sidecar = ".phase1-artifacts/phase6-scale/$([IO.Path]::GetFileName($evidencePath)).execution-readback.json.sha256"
+          hash_algorithm = 'sha256'
+          readback_deadline_hours = 24
+          tracked_clean_required = $true
         }
         post_run_api_readback_required = $true
         verified = $false
@@ -664,6 +692,39 @@ try {
   Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
   Invoke-ExpectedUntrustedFailure $evidencePath $criterionPath $hostedPath $capabilityPath
   $capabilityHashBefore = (Get-FileHash -LiteralPath $capabilityPath -Algorithm SHA256).Hash
+  Invoke-ExpectedPass $evidencePath $criterionPath $hostedPath $capabilityPath
+
+  # Runtime-shaped identity/readback fields are mandatory, never merely tolerated.
+  foreach ($field in @('artifact', 'file_sha256', 'active_release_id', 'source_commit_sha')) {
+    $original = $validEvidence.source_binding.release_candidate[$field]
+    $validEvidence.source_binding.release_candidate[$field] = if ($field -eq 'file_sha256') { '0' * 64 } else { 'wrong' }
+    Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+    Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath "release candidate $field tamper" 'Release candidate|Active release identity'
+    $validEvidence.source_binding.release_candidate[$field] = $original
+  }
+  foreach ($field in @('execution_readback_artifact', 'execution_readback_sha256_sidecar', 'hash_algorithm', 'readback_deadline_hours', 'tracked_clean_required')) {
+    $original = $validEvidence.source_binding.execution_attestation.post_run_readback[$field]
+    $validEvidence.source_binding.execution_attestation.post_run_readback[$field] = switch ($field) {
+      'readback_deadline_hours' { 25 }
+      'tracked_clean_required' { $false }
+      default { 'wrong' }
+    }
+    Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+    Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath "post-run readback $field tamper" '(?i)post-run readback'
+    $validEvidence.source_binding.execution_attestation.post_run_readback[$field] = $original
+  }
+  $originalDelta = $validEvidence.source_binding.execution_attestation.control_delta
+  foreach ($badPath in @('services/agent-api/app/main.py', '.github/workflows/main-deploy.yml', 'docs/release-artifacts/wrong-release-evidence/report.json', '../escape.json')) {
+    $validEvidence.source_binding.execution_attestation.control_delta = @($originalDelta) + $badPath
+    Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+    Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'unauthorized source/control path'
+  }
+  $validEvidence.source_binding.execution_attestation.control_delta = $originalDelta
+  $validEvidence.source_binding.execution_attestation.control_delta = @($originalDelta) + @($originalDelta)
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
+  Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'duplicate source/control path' '(?i)delta.*duplicate|delta mismatch'
+  $validEvidence.source_binding.execution_attestation.control_delta = $originalDelta
+  Write-EvidenceBundle $evidencePath $validEvidence $executionReadbackPath $executionReadback
   Invoke-ExpectedPass $evidencePath $criterionPath $hostedPath $capabilityPath
   $capabilityHashAfter = (Get-FileHash -LiteralPath $capabilityPath -Algorithm SHA256).Hash
   Assert-True ($capabilityHashBefore -eq $capabilityHashAfter) 'Read-only verification mutated capability state.'
@@ -869,7 +930,7 @@ try {
   Write-Json $capabilityPath $capability
   Invoke-ExpectedFailure $evidencePath $criterionPath $hostedPath $capabilityPath 'capability-state identity tamper'
 
-  Write-Host '[phase6-scale-evidence-static] PASS: v2 parser, one-shot GitHub run, protected Environment human review, artifact/readback within 24 hours, ten-minute deployment window, literal-success/count/ordinal/hash/latency/audit/source tamper rejection, read-only proof, and rollback-safe promotion guards'
+  Write-Host "[phase6-scale-evidence-static] PASS: positive=$script:positiveCases negative=$script:negativeCases; runtime-shaped v2 schema, one-shot GitHub run, protected human review, 24h readback, 10min deployment, count/ordinal/hash/latency/audit/source tamper rejection; HTTP=0 promotion=false"
 } finally {
   $resolvedTemp = [IO.Path]::GetFullPath($tempRoot)
   Assert-True ($resolvedTemp.StartsWith($testRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) 'Refusing unsafe temp cleanup.'

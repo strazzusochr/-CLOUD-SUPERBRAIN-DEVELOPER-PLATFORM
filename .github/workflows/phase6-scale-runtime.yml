@@ -250,12 +250,15 @@ jobs:
               ForEach-Object { $_.FullName }
           )
           & pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase6-scale-runtime.ps1 -AllowHostedWrites
-          if ($LASTEXITCODE -ne 0) { throw "Phase6 scale runtime verifier failed with exit $LASTEXITCODE." }
+          $runtimeExitCode = $LASTEXITCODE
           $after = @(
             Get-ChildItem -LiteralPath $artifactRoot -Filter 'scale-evidence-*.json' -File |
               ForEach-Object { $_.FullName }
           )
           $created = @($after | Where-Object { $before -cnotcontains $_ })
+          if ($created.Count -eq 0 -and $runtimeExitCode -ne 0) {
+            throw "Phase6 scale runtime verifier failed before evidence creation with exit $runtimeExitCode."
+          }
           if ($created.Count -ne 1) { throw 'Runtime verifier did not create exactly one immutable evidence report.' }
           $evidencePath = $created[0]
           $sidecarPath = "$evidencePath.sha256"
@@ -264,9 +267,13 @@ jobs:
           }
           "evidence_path=$evidencePath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "sidecar_path=$sidecarPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          # A failed criterion still has immutable diagnostic evidence. Expose its exact
+          # pair before failing the step; never convert a failed runtime into success.
+          if ($runtimeExitCode -ne 0) { throw "Phase6 scale runtime verifier failed with exit $runtimeExitCode; immutable failure evidence retained." }
           Write-Host '[phase6-scale-workflow] provisional_evidence=true promotion=false registry_write=false production_deploy=false secret_output=false'
 
       - name: Upload immutable provisional evidence pair
+        if: ${{ always() && steps.scale-proof.outputs.evidence_path != '' && steps.scale-proof.outputs.sidecar_path != '' && steps.preflight.outputs.environment_review_path != '' && steps.preflight.outputs.environment_review_sidecar_path != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: phase6-scale-execution-evidence-${{ github.run_id }}-${{ github.run_attempt }}
@@ -276,6 +283,7 @@ jobs:
             ${{ steps.preflight.outputs.environment_review_path }}
             ${{ steps.preflight.outputs.environment_review_sidecar_path }}
           if-no-files-found: error
+          include-hidden-files: true
           compression-level: 0
           retention-days: 30
           overwrite: false

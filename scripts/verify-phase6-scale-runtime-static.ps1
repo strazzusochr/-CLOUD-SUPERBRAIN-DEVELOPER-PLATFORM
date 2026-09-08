@@ -13,6 +13,7 @@ if (@($parseErrors).Count -gt 0) {
 }
 
 $source = Get-Content -LiteralPath $sourcePath -Raw
+$contractSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'phase6-control-contract.ps1') -Raw
 # Forward slashes: this verifier runs in pr-check on ubuntu-latest, where a backslash is a
 # literal character and the path would never resolve. PowerShell accepts "/" on Windows too.
 $workflowPath = Join-Path (Split-Path -Parent $PSScriptRoot) '.github/workflows/phase6-scale-runtime.yml'
@@ -59,33 +60,10 @@ $environmentReviewTimestampProbe = [DateTimeOffset]::UtcNow.UtcDateTime.ToString
 if ($environmentReviewTimestampProbe -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z$') {
   throw 'Phase6 Environment-review timestamp writer did not emit canonical UTC Z form.'
 }
-$hostedControlProbe = Get-Content -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/cloudflare-native-hosted-current.json') -Raw | ConvertFrom-Json @dateProbeParameters
-$controlHeadProbe = (& git -C $repoRoot rev-parse HEAD).Trim()
-[string[]]$controlDeltaProbe = @(& git -C $repoRoot diff --name-only --diff-filter=ACM ([string]$hostedControlProbe.source_commit_sha) $controlHeadProbe --)
-if ($LASTEXITCODE -ne 0 -or $controlDeltaProbe.Count -eq 0) {
-  throw 'Phase6 static control-delta probe could not resolve the source-to-control path set.'
-}
-[Array]::Sort($controlDeltaProbe, [StringComparer]::Ordinal)
-$controlDeltaProbeBytes = [Text.Encoding]::UTF8.GetBytes(($controlDeltaProbe -join "`n"))
-$controlDeltaProbeSha = [Security.Cryptography.SHA256]::Create()
-try {
-  $controlDeltaProbeHash = (($controlDeltaProbeSha.ComputeHash($controlDeltaProbeBytes) | ForEach-Object { $_.ToString('x2') }) -join '')
-} finally {
-  $controlDeltaProbeSha.Dispose()
-}
-if ($controlDeltaProbe.Count -ne 76 -or $controlDeltaProbeHash -cne '33e60134fd6ddd6bcfcace1f1007a77ec43bbc0eca39a2d3a5c653c6bb7ec30f') {
-  throw 'Phase6 source-to-control path set differs from the audited 76-path RC48 control head.'
-}
-$forbiddenRuntimeDeltaProbe = @($controlDeltaProbe | Where-Object {
-  $_ -match '^(?:api|infrastructure|memory|monitoring|observability|public|services|tools)/' -or
-  ($_ -match '^apps/frontend/' -and $_ -cnotin @('apps/frontend/lib/endpoint-snapshot.json', 'apps/frontend/lib/platform.ts')) -or
-  ($_ -match '^\.github/workflows/' -and $_ -cne '.github/workflows/phase6-scale-runtime.yml')
-})
-if ($forbiddenRuntimeDeltaProbe.Count -ne 0) {
-  throw 'Phase6 audited control delta contains a runtime, frontend-code, or unrelated-workflow path.'
-}
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'verify-phase6-contract-chain-static.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Phase6 complete writer/reader/control chain failed offline.' }
 function Assert-Contains([string]$Needle, [string]$Label) {
-  if (-not $source.Contains($Needle)) { throw "missing source contract: $Label" }
+  if (-not $source.Contains($Needle) -and -not $contractSource.Contains($Needle)) { throw "missing source contract: $Label" }
 }
 
 function Require([bool]$Condition, [string]$Message) {
@@ -157,10 +135,10 @@ Assert-Contains 'deployment_id = [string]$hostedEvidence.deployment_id' "deploym
 Assert-Contains 'merge-base --is-ancestor' "deployed source ancestor binding"
 Assert-Contains 'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080' "contract-origin loop-fix lower bound"
 Assert-Contains 'source_control_allowlist_v1' "source/control allowlist binding mode"
-Assert-Contains '$unexpectedControlDelta.Count -eq 0' "source/control path allowlist"
-Assert-Contains '$activeReleaseEvidencePrefix = "docs/release-artifacts/$activeReleaseId-evidence/"' "active release-scoped evidence prefix"
-Assert-Contains '33e60134fd6ddd6bcfcace1f1007a77ec43bbc0eca39a2d3a5c653c6bb7ec30f' "audited RC48 control-delta path-set fingerprint"
-Assert-Contains '$controlDeltaPathSetSha256 -ceq $expectedControlDeltaPathSetSha256' "control-delta path-set fingerprint enforcement"
+Assert-Contains 'Assert-Phase6ControlDelta -Paths $controlDelta -SafePaths $safeControlDelta' "shared fail-closed source/control path contract"
+Assert-Contains '$prefix = "docs/release-artifacts/$ReleaseId-evidence/"' "active release-scoped evidence prefix"
+Assert-Contains '973e4271145d46e0dd93925dd6d9a65b2c3ab8554b01f33ae9af362d617b4b42' "audited RC48 control-delta path-set fingerprint"
+Assert-Contains '$hash -cne (Get-Phase6AuditedDeltaHash)' "control-delta path-set fingerprint enforcement"
 Assert-Contains 'scripts/collect-phase6-scale-execution-readback.ps1' "post-run collector control allowlist"
 Assert-Contains 'scripts/write-phase6-scale-deployment-preflight.ps1' "deployment-preflight writer control allowlist"
 Assert-Contains 'scripts/write-phase6-scale-deployment-preflight-static.ps1' "deployment-preflight writer test control allowlist"
