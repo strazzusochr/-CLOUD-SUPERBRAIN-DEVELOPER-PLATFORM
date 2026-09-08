@@ -954,7 +954,13 @@ Assert-True ([string]$executionReadback.sidecar_declared_evidence_sha256 -eq $ev
 if (-not $AllowTestPaths) {
   Assert-LiveGithubExecutionProvenance $executionBinding $executionReadback $resolvedEvidence $companionPath $evidenceSha256 $resolvedEnvironmentReview $resolvedEnvironmentReviewSidecar $environmentReviewSha256 $environmentReviewSidecarSha256
   $currentEvidenceHead = Get-RepositoryHeadSha
+  # Exact post-run repair envelope: authenticated artifact transport, the
+  # position-independent static verifier, and the critical Next.js RCE patch
+  # that became mandatory before the evidence PR could pass protected CI.
   $transportRepairPaths = @(
+    'apps/frontend/next-env.d.ts',
+    'apps/frontend/package-lock.json',
+    'apps/frontend/package.json',
     'scripts/collect-phase6-scale-execution-readback.ps1',
     'scripts/verify-phase6-contract-chain-static.ps1',
     'scripts/verify-phase6-scale-evidence-static.ps1',
