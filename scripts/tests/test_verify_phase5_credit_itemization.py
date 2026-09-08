@@ -1092,15 +1092,24 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         }
         self.assertEqual(verifier.POST_QUALIFICATION_SECURITY_OVERLAY_PATHS, expected_paths)
 
-        source_package = {"name": "frontend", "dependencies": {"next": "16.2.11", "react": "^19.2.7"}}
+        source_package = {
+            "name": "frontend",
+            "dependencies": {"next": "16.2.11", "react": "^19.2.7"},
+            "overrides": {"sharp": "0.35.3", "postcss": "8.5.23"},
+        }
         index_package = copy.deepcopy(source_package)
         index_package["dependencies"]["next"] = verifier.POST_QUALIFICATION_SECURITY_OVERLAY_VERSION
+        index_package["overrides"]["sharp"] = verifier.POST_QUALIFICATION_SECURITY_OVERLAY_SHARP_VERSION
         index_lock = {
             "packages": {
                 "": {"dependencies": {"next": verifier.POST_QUALIFICATION_SECURITY_OVERLAY_VERSION}},
                 "node_modules/next": {
                     "version": verifier.POST_QUALIFICATION_SECURITY_OVERLAY_VERSION,
                     "integrity": "sha512-/Ztf6CeRH+ejEXUrYtqI4gkS66eFIHuSwqi60RgcpWKodxFZx2/dqVCMKBwILfAHXQ+F1b1vAudgj3mnxqtoIA==",
+                },
+                "node_modules/sharp": {
+                    "version": verifier.POST_QUALIFICATION_SECURITY_OVERLAY_SHARP_VERSION,
+                    "integrity": "sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==",
                 },
             }
         }
@@ -1132,7 +1141,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         ):
             self.assert_rejected(
                 lambda: verifier.require_post_qualification_security_overlay("a" * 40),
-                "package.json changed outside the exact Next.js patch",
+                "package.json changed outside the exact Next.js and sharp patch",
             )
 
     def test_candidate_runtime_accepts_only_exact_no_credit_requalification_truth(self) -> None:
