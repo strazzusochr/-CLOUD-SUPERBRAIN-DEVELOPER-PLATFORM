@@ -22,7 +22,7 @@ GATE_VERIFIER = "scripts/verify_layer5_registry_release_evidence.py"
 ARTIFACT_CONTRACTS = {
     "ghcr_manifest": "ghcr-release-manifest-v1",
     "candidate_registry_digests": "candidate-registry-digests-v1",
-    "remote_image_scan": "ghcr-remote-image-scan-evidence-v1",
+    "remote_image_scan": "remote-image-scan-evidence-v1",
     "candidate_sbom": "mcp-candidate-sbom-evidence-v2",
     "registry_publication_review": "registry-publication-review-evidence-v1",
 }
