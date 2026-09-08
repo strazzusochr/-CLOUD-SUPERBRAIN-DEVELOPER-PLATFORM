@@ -446,7 +446,7 @@ $canonicalHostedVerifiedAt = Get-StrictUtcTimestamp $hostedState.verified_at_utc
 $canonicalEvidenceCheckedAt = Get-StrictUtcTimestamp $canonicalHostedEvidence.checked_at "canonical O2Core evidence timestamp"
 $deploymentPreflightVerifiedAt = Get-StrictUtcTimestamp $deploymentPreflightState.verified_at_utc "Phase6 deployment-preflight state timestamp"
 $previewGuardVerifiedAt = Get-StrictUtcTimestamp $deploymentPreflightState.preview_guard_verified_at_utc "Phase6 Preview-guard timestamp"
-$deploymentTimestampProperties = @("verified_at_utc", "checked_at") | Where-Object { Has-Property $hostedEvidence $_ }
+$deploymentTimestampProperties = @(@("verified_at_utc", "checked_at") | Where-Object { Has-Property $hostedEvidence $_ })
 Require ($deploymentTimestampProperties.Count -eq 1) "hosted deployment evidence must expose exactly one verification timestamp"
 $deploymentCheckedAt = Get-StrictUtcTimestamp $hostedEvidence.($deploymentTimestampProperties[0]) "hosted deployment evidence timestamp"
 $preflightNow = [DateTimeOffset](Get-Date).ToUniversalTime()

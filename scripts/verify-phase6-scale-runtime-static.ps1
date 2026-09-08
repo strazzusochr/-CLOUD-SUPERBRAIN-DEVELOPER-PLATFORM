@@ -64,6 +64,7 @@ Assert-Contains 'Blocked "-AllowHostedWrites is missing; zero HTTP requests issu
 Assert-Contains 'Blocked "phase6_scale_runtime has no recorded Owner grant; zero HTTP requests issued"' "recorded Owner gate guard"
 Assert-Contains "ConvertFrom-Json).Parameters.ContainsKey('DateKind')" "PowerShell 7.5 invariant JSON date parsing"
 Assert-Contains '$convertParameters.DateKind = ''String''' "UTC timestamp strings preserved during JSON parsing"
+Assert-Contains '$deploymentTimestampProperties = @(@("verified_at_utc", "checked_at") | Where-Object { Has-Property $hostedEvidence $_ })' "single-property timestamp selection remains an array under StrictMode"
 Assert-Contains '$expectedCriterionSha256 = "edeeac95fac6fefe1dcde5b77a5d8b236685f28adf66f357706aed26971ed85f"' "locked criterion byte hash"
 Assert-Contains 'caller-supplied criterion files are forbidden for a hosted write run' "canonical criterion path guard"
 Assert-Contains 'caller-supplied hosted-state files are forbidden for a hosted write run' "canonical hosted-state path guard"
