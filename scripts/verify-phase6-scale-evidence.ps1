@@ -16,6 +16,7 @@ param(
   [string]$HostedStatePath,
   [string]$DeploymentPreflightStatePath,
   [string]$CapabilityStatePath,
+  [string]$ReleaseCandidatePath,
   [string]$ExecutionReadbackPath,
   [switch]$Promote,
   [switch]$ValidateOnly,
@@ -27,6 +28,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'phase6-control-contract.ps1')
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\', '/')
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot '.phase1-artifacts\phase6-scale')).TrimEnd('\', '/')
@@ -49,11 +51,13 @@ $canonicalHostedState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtim
 $canonicalDeploymentPreflightState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\phase6-scale-hosted-current.json'))
 $canonicalCapabilityState = [IO.Path]::GetFullPath((Join-Path $repoRoot 'docs\runtime-state\capability-gates.json'))
 $canonicalRuntimeVerifier = [IO.Path]::GetFullPath((Join-Path $repoRoot 'scripts\verify-phase6-scale-runtime.ps1'))
+$canonicalReleaseCandidate = Join-Path $repoRoot 'docs/release-artifacts/current-release-candidate.json'
 $minimumLoopFixCommit = 'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080'
 if (-not $CriterionPath) { $CriterionPath = $canonicalCriterion }
 if (-not $HostedStatePath) { $HostedStatePath = $canonicalHostedState }
 if (-not $DeploymentPreflightStatePath) { $DeploymentPreflightStatePath = $canonicalDeploymentPreflightState }
 if (-not $CapabilityStatePath) { $CapabilityStatePath = $canonicalCapabilityState }
+if (-not $ReleaseCandidatePath) { $ReleaseCandidatePath = $canonicalReleaseCandidate }
 
 function Assert-True([bool]$Condition, [string]$Message) {
   if (-not $Condition) { throw $Message }
@@ -152,10 +156,10 @@ function Assert-LiveGithubExecutionProvenance(
     Assert-True ($liveArtifactResponse.final_uri.AbsoluteUri -ceq $artifactApiUrl) 'GitHub artifact API redirected unexpectedly.'
     Assert-True ($workflowRunsResponse.final_uri.AbsoluteUri -ceq $workflowRunsApiUrl) 'GitHub one-shot workflow-run API redirected unexpectedly.'
     Assert-True ($approvalsResponse.final_uri.AbsoluteUri -ceq $approvalsApiUrl) 'GitHub Environment-review API redirected unexpectedly.'
-    $liveRun = ([Text.Encoding]::UTF8.GetString($liveRunResponse.bytes) | ConvertFrom-Json -Depth 20)
-    $liveArtifact = ([Text.Encoding]::UTF8.GetString($liveArtifactResponse.bytes) | ConvertFrom-Json -Depth 20)
-    $workflowRuns = ([Text.Encoding]::UTF8.GetString($workflowRunsResponse.bytes) | ConvertFrom-Json -Depth 20)
-    $approvalHistory = @([Text.Encoding]::UTF8.GetString($approvalsResponse.bytes) | ConvertFrom-Json -Depth 20)
+    $liveRun = ConvertFrom-Phase6Json ([Text.Encoding]::UTF8.GetString($liveRunResponse.bytes)) 20
+    $liveArtifact = ConvertFrom-Phase6Json ([Text.Encoding]::UTF8.GetString($liveArtifactResponse.bytes)) 20
+    $workflowRuns = ConvertFrom-Phase6Json ([Text.Encoding]::UTF8.GetString($workflowRunsResponse.bytes)) 20
+    $approvalHistory = @(ConvertFrom-Phase6Json ([Text.Encoding]::UTF8.GetString($approvalsResponse.bytes)) 20)
     foreach ($field in @('id', 'run_attempt', 'event', 'status', 'conclusion', 'head_branch', 'head_sha', 'html_url', 'created_at', 'updated_at')) {
       Assert-True ([string]$liveRun.$field -ceq [string]$CapturedReadback.run.$field) "Live GitHub run $field differs from the captured readback."
     }
@@ -465,6 +469,7 @@ $resolvedCriterion = Resolve-InputFile $CriterionPath 'Scale criterion' $canonic
 $resolvedHostedState = Resolve-InputFile $HostedStatePath 'Hosted state' $canonicalHostedState
 $resolvedDeploymentPreflightState = Resolve-InputFile $DeploymentPreflightStatePath 'Phase6 deployment-preflight state' $canonicalDeploymentPreflightState
 $resolvedCapabilityState = Resolve-InputFile $CapabilityStatePath 'Capability state' $canonicalCapabilityState
+$resolvedReleaseCandidate = Resolve-InputFile $ReleaseCandidatePath 'Release candidate' $canonicalReleaseCandidate
 if ($Promote) {
   Assert-True (-not $AllowTestPaths) 'Promotion is forbidden in test-path mode.'
 }
@@ -674,7 +679,7 @@ $sourceProperties = @(
   'worker_version_id', 'deployment_id', 'preview_guard_verified', 'preview_guard_verified_at_utc',
   'preview_worker_version_id', 'preview_deployment_id', 'verifier_script_sha256', 'repository_head_sha',
   'capability_state_sha256', 'gate_identity_sha256', 'owner_granted', 'owner_grant_ref',
-  'health_json_source_binding_verified', 'execution_attestation'
+  'health_json_source_binding_verified', 'release_candidate', 'execution_attestation'
 )
 Assert-ExactProperties $evidence.source_binding $sourceProperties 'source binding'
 Assert-True ([string]$evidence.source_binding.hosted_state_contract_version -eq [string]$hostedState.contract_version) 'Hosted state contract binding mismatch.'
@@ -699,12 +704,23 @@ Assert-True ([string]$evidence.source_binding.preview_worker_version_id -ceq [st
 Assert-Boolean $evidence.source_binding 'owner_granted' $true 'source binding'
 Assert-BoundedIdentifier ([string]$evidence.source_binding.owner_grant_ref) 256 'Evidence Owner grant reference'
 Assert-Boolean $evidence.source_binding 'health_json_source_binding_verified' $true 'source binding'
+$releaseBinding = $evidence.source_binding.release_candidate
+Assert-ExactProperties $releaseBinding @('artifact', 'file_sha256', 'active_release_id', 'source_commit_sha') 'release candidate binding'
+Assert-True ([string]$releaseBinding.artifact -ceq 'docs/release-artifacts/current-release-candidate.json') 'Release candidate artifact path mismatch.'
+Assert-True ([string]$releaseBinding.file_sha256 -cmatch '^[0-9a-f]{64}$' -and [string]$releaseBinding.file_sha256 -ceq (Get-FileSha256 $resolvedReleaseCandidate)) 'Release candidate file hash mismatch.'
+$releaseCandidate = Read-JsonFile $resolvedReleaseCandidate 'Release candidate'
+Assert-True ([string]$releaseBinding.active_release_id -ceq [string]$releaseCandidate.active_release_id) 'Active release identity mismatch.'
+Assert-True ([string]$releaseBinding.source_commit_sha -ceq [string]$releaseCandidate.source_commit_sha -and [string]$releaseBinding.source_commit_sha -ceq [string]$hostedState.source_commit_sha) 'Release candidate source mismatch.'
+if (-not $AllowTestPaths) {
+  Assert-TrackedCleanAgainstHead 'docs/release-artifacts/current-release-candidate.json'
+  Assert-TrackedCleanAgainstHead 'scripts/phase6-control-contract.ps1'
+}
 $executionBinding = $evidence.source_binding.execution_attestation
 Assert-ExactProperties $executionBinding @(
   'contract_version', 'status', 'binding_mode', 'github_actions', 'repository', 'run_id', 'run_attempt',
   'run_url', 'event_name', 'ref', 'head_sha', 'workflow', 'workflow_ref', 'job',
   'source_commit_sha', 'control_delta', 'artifact_name', 'environment_review',
-  'post_run_api_readback_required', 'verified'
+  'post_run_readback', 'post_run_api_readback_required', 'verified'
 ) 'execution attestation binding'
 Assert-True ([string]$executionBinding.contract_version -eq 'phase6-scale-execution-provenance-v1') 'Execution-attestation binding contract mismatch.'
 Assert-True ([string]$executionBinding.status -eq 'provisional_pending_github_readback') 'Execution-attestation binding status is not provisional.'
@@ -725,35 +741,33 @@ Assert-True ([string]$executionBinding.source_commit_sha -eq [string]$hostedStat
 Assert-True ([string]$executionBinding.head_sha -ne [string]$executionBinding.source_commit_sha) 'Execution control and deployed-source commits must have distinct roles.'
 & git -C $repoRoot merge-base --is-ancestor ([string]$executionBinding.source_commit_sha) ([string]$executionBinding.head_sha)
 Assert-True ($LASTEXITCODE -eq 0) 'Deployed source is not an ancestor of the execution-control commit.'
-$recordedControlDelta = @($executionBinding.control_delta | ForEach-Object { [string]$_ } | Sort-Object -Unique)
+$rawControlDelta = @($executionBinding.control_delta)
+Assert-True (@($rawControlDelta | Where-Object { $_ -isnot [string] }).Count -eq 0) 'Recorded source-to-control delta must contain strings only.'
+[string[]]$recordedControlDelta = @($rawControlDelta)
 $workflowPathMatch = [regex]::Match([string]$executionBinding.workflow_ref, '/(?<path>\.github/workflows/phase6-scale-runtime\.ya?ml)@')
 Assert-True ($workflowPathMatch.Success) 'Execution workflow_ref does not identify the dedicated Phase6 scale workflow.'
-$allowedControlPaths = @(
-  [string]$workflowPathMatch.Groups['path'].Value,
-  'docs/runtime-state/phase6-scale-criterion.json',
-  'docs/runtime-state/cloudflare-native-hosted-current.json',
-  'docs/runtime-state/phase6-scale-hosted-current.json',
-  'docs/runtime-state/capability-gates.json',
-  ([string]$evidence.source_binding.hosted_runtime_evidence_artifact).Replace('\', '/'),
-  ([string]$evidence.source_binding.deployment_evidence_artifact).Replace('\', '/'),
-  (([string]$evidence.source_binding.deployment_evidence_artifact).Replace('\', '/') + '.sha256'),
-  'scripts/verify-phase6-scale-runtime.ps1',
-  'scripts/verify-phase6-scale-runtime-static.ps1',
-  'scripts/verify-phase6-scale-evidence.ps1',
-  'scripts/verify-phase6-scale-evidence-static.ps1',
-  'scripts/collect-phase6-scale-execution-readback.ps1',
-  'scripts/write-phase6-scale-deployment-preflight.ps1',
-  'scripts/write-phase6-scale-deployment-preflight-static.ps1'
-) | Sort-Object -Unique
 $controlDeltaPaths = @(if ($AllowTestPaths) {
   @($recordedControlDelta)
 } else {
   $controlDeltaEntries = @(Get-GitDelta ([string]$executionBinding.source_commit_sha) ([string]$executionBinding.head_sha) 'Source-to-control delta')
-  @($controlDeltaEntries.path | Sort-Object -Unique)
+  @($controlDeltaEntries.path)
 })
+[string[]]$controlDeltaPaths = @($controlDeltaPaths)
+[Array]::Sort($controlDeltaPaths, [StringComparer]::Ordinal)
 Assert-True ($controlDeltaPaths.Count -gt 0 -and ($controlDeltaPaths -join "`n") -ceq ($recordedControlDelta -join "`n")) 'Recorded source-to-control delta mismatch.'
-$forbiddenControlPaths = @($controlDeltaPaths | Where-Object { $allowedControlPaths -cnotcontains $_ })
-Assert-True ($forbiddenControlPaths.Count -eq 0) "Source-to-control delta contains non-control paths: $($forbiddenControlPaths -join ',')"
+$null = Assert-Phase6ControlDelta -Paths $controlDeltaPaths -SafePaths $controlDeltaPaths `
+  -ReleaseId ([string]$releaseBinding.active_release_id) `
+  -HostedEvidencePath ([string]$evidence.source_binding.hosted_runtime_evidence_artifact) `
+  -DeploymentEvidencePath ([string]$evidence.source_binding.deployment_evidence_artifact) `
+  -RequireAuditedFingerprint (-not $AllowTestPaths)
+$postRunReadback = $executionBinding.post_run_readback
+Assert-ExactProperties $postRunReadback @('execution_readback_artifact', 'execution_readback_sha256_sidecar', 'hash_algorithm', 'readback_deadline_hours', 'tracked_clean_required') 'post-run readback binding'
+$expectedReadbackArtifact = ".phase1-artifacts/phase6-scale/$evidenceLeaf.execution-readback.json"
+Assert-True ([string]$postRunReadback.execution_readback_artifact -ceq $expectedReadbackArtifact) 'Post-run readback artifact path mismatch.'
+Assert-True ([string]$postRunReadback.execution_readback_sha256_sidecar -ceq "$expectedReadbackArtifact.sha256") 'Post-run readback sidecar path mismatch.'
+Assert-True ([string]$postRunReadback.hash_algorithm -ceq 'sha256') 'Post-run readback hash algorithm mismatch.'
+Assert-Integer $postRunReadback 'readback_deadline_hours' 24 'post-run readback binding'
+Assert-Boolean $postRunReadback 'tracked_clean_required' $true 'post-run readback binding'
 Assert-BoundedText ([string]$executionBinding.workflow) 256 'Execution workflow'
 Assert-BoundedText ([string]$executionBinding.workflow_ref) 512 'Execution workflow ref'
 Assert-BoundedText ([string]$executionBinding.job) 256 'Execution job'

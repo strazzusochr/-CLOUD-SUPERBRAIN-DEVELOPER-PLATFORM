@@ -20,6 +20,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'phase6-control-contract.ps1')
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $canonicalCriterionPath = Join-Path $repoRoot "docs\runtime-state\phase6-scale-criterion.json"
@@ -553,34 +554,15 @@ Require ($environmentReviewSidecarRaw -match '^([0-9a-f]{64})  ([^\\/\r\n]+)\r?\
 Require ($matches[1] -ceq $environmentReviewSha256 -and $matches[2] -ceq $expectedEnvironmentReviewLeaf) "Environment-review digest sidecar does not bind the review bytes"
 $environmentReviewSidecarSha256 = (Get-FileHash -LiteralPath $environmentReviewSidecarPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
-$allowedControlDelta = @(
-  $githubWorkflowPath,
-  "docs/runtime-state/phase6-scale-criterion.json",
-  "docs/runtime-state/cloudflare-native-hosted-current.json",
-  "docs/runtime-state/phase6-scale-hosted-current.json",
-  "docs/runtime-state/capability-gates.json",
-  $releaseCandidateRelativePath,
-  $canonicalHostedEvidenceRelativePath.Replace('\', '/'),
-  $hostedEvidenceRelativePath.Replace('\', '/'),
-  $hostedEvidenceSidecarRelativePath.Replace('\', '/'),
-  "scripts/verify-phase6-scale-runtime.ps1",
-  "scripts/verify-phase6-scale-runtime-static.ps1",
-  "scripts/verify-phase6-scale-evidence.ps1",
-  "scripts/verify-phase6-scale-evidence-static.ps1",
-  "scripts/collect-phase6-scale-execution-readback.ps1",
-  "scripts/write-phase6-scale-deployment-preflight.ps1",
-  "scripts/write-phase6-scale-deployment-preflight-static.ps1"
-) | Sort-Object -Unique
+$activeReleaseId = [string]$releaseCandidate.active_release_id
+Assert-TrackedHeadBytes 'scripts/phase6-control-contract.ps1' 'shared Phase6 control contract' $repositoryHeadSha
 $controlDelta = @(& git.exe -C $repoRoot diff --name-only --diff-filter=ACDMRTUXB ([string]$hostedState.source_commit_sha) $repositoryHeadSha --)
 Require ($LASTEXITCODE -eq 0) "source/control delta cannot be resolved"
 $safeControlDelta = @(& git.exe -C $repoRoot diff --name-only --diff-filter=ACM ([string]$hostedState.source_commit_sha) $repositoryHeadSha --)
 Require ($LASTEXITCODE -eq 0) "source/control safe delta cannot be resolved"
-$controlDelta = @($controlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-$safeControlDelta = @($safeControlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-Require ($controlDelta.Count -gt 0) "source/control delta is empty and cannot contain post-deployment evidence"
-Require ($controlDelta.Count -eq $safeControlDelta.Count -and (@(Compare-Object $controlDelta $safeControlDelta -CaseSensitive).Count -eq 0)) "source/control delta contains a delete, rename, type change, or unmerged path"
-$unexpectedControlDelta = @($controlDelta | Where-Object { $allowedControlDelta -cnotcontains $_ })
-Require ($unexpectedControlDelta.Count -eq 0) "source/control delta contains a non-allowlisted runtime path"
+$controlDelta = @(Assert-Phase6ControlDelta -Paths $controlDelta -SafePaths $safeControlDelta `
+  -ReleaseId $activeReleaseId -HostedEvidencePath $canonicalHostedEvidenceRelativePath `
+  -DeploymentEvidencePath $hostedEvidenceRelativePath)
 
 # This authorization preflight intentionally precedes HttpClient construction and
 # every call site. A missing token or Owner switch therefore produces zero HTTP.

@@ -13,6 +13,7 @@ if (@($parseErrors).Count -gt 0) {
 }
 
 $source = Get-Content -LiteralPath $sourcePath -Raw
+$contractSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'phase6-control-contract.ps1') -Raw
 # Forward slashes: this verifier runs in pr-check on ubuntu-latest, where a backslash is a
 # literal character and the path would never resolve. PowerShell accepts "/" on Windows too.
 $workflowPath = Join-Path (Split-Path -Parent $PSScriptRoot) '.github/workflows/phase6-scale-runtime.yml'
@@ -59,8 +60,10 @@ $environmentReviewTimestampProbe = [DateTimeOffset]::UtcNow.UtcDateTime.ToString
 if ($environmentReviewTimestampProbe -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z$') {
   throw 'Phase6 Environment-review timestamp writer did not emit canonical UTC Z form.'
 }
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'verify-phase6-contract-chain-static.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Phase6 complete writer/reader/control chain failed offline.' }
 function Assert-Contains([string]$Needle, [string]$Label) {
-  if (-not $source.Contains($Needle)) { throw "missing source contract: $Label" }
+  if (-not $source.Contains($Needle) -and -not $contractSource.Contains($Needle)) { throw "missing source contract: $Label" }
 }
 
 function Require([bool]$Condition, [string]$Message) {
@@ -132,7 +135,10 @@ Assert-Contains 'deployment_id = [string]$hostedEvidence.deployment_id' "deploym
 Assert-Contains 'merge-base --is-ancestor' "deployed source ancestor binding"
 Assert-Contains 'c24b7bfddc37cfa0c16d1ebc7f70829417ac4080' "contract-origin loop-fix lower bound"
 Assert-Contains 'source_control_allowlist_v1' "source/control allowlist binding mode"
-Assert-Contains '$unexpectedControlDelta.Count -eq 0' "source/control path allowlist"
+Assert-Contains 'Assert-Phase6ControlDelta -Paths $controlDelta -SafePaths $safeControlDelta' "shared fail-closed source/control path contract"
+Assert-Contains '$prefix = "docs/release-artifacts/$ReleaseId-evidence/"' "active release-scoped evidence prefix"
+Assert-Contains '973e4271145d46e0dd93925dd6d9a65b2c3ab8554b01f33ae9af362d617b4b42' "audited RC48 control-delta path-set fingerprint"
+Assert-Contains '$hash -cne (Get-Phase6AuditedDeltaHash)' "control-delta path-set fingerprint enforcement"
 Assert-Contains 'scripts/collect-phase6-scale-execution-readback.ps1' "post-run collector control allowlist"
 Assert-Contains 'scripts/write-phase6-scale-deployment-preflight.ps1' "deployment-preflight writer control allowlist"
 Assert-Contains 'scripts/write-phase6-scale-deployment-preflight-static.ps1' "deployment-preflight writer test control allowlist"

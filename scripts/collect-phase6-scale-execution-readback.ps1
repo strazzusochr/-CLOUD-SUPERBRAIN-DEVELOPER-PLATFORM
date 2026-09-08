@@ -12,6 +12,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'phase6-control-contract.ps1')
 
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\', '/')
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot '.phase1-artifacts\phase6-scale')).TrimEnd('\', '/')
@@ -74,7 +75,7 @@ $sidecarRaw = Get-Content -LiteralPath $sidecarPath -Raw
 Require ($sidecarRaw -match '^([0-9a-f]{64})  ([^\\/\r\n]+)\r?\n?$') 'Evidence digest sidecar format is invalid.'
 Require ($matches[1] -eq $evidenceSha256 -and $matches[2] -ceq [IO.Path]::GetFileName($resolvedEvidence)) 'Evidence digest sidecar does not bind the evidence bytes.'
 
-$evidence = Get-Content -LiteralPath $resolvedEvidence -Raw | ConvertFrom-Json -Depth 30
+$evidence = ConvertFrom-Phase6Json (Get-Content -LiteralPath $resolvedEvidence -Raw) 30
 Require ([string]$evidence.contract_version -eq 'phase6-scale-evidence-v2') 'Evidence contract is not Phase6 scale v2.'
 Require ([string]$evidence.result -eq 'provisional_pending_github_readback') 'Evidence is not awaiting GitHub readback.'
 $binding = $evidence.source_binding.execution_attestation
@@ -109,8 +110,8 @@ try {
   $artifactListResponse = Get-HttpBytes $client $artifactsApiUrl 4194304 'GitHub artifact-list API readback'
   Require ($runResponse.final_uri.AbsoluteUri -ceq $runApiUrl) 'GitHub run API redirected unexpectedly.'
   Require ($artifactListResponse.final_uri.AbsoluteUri -ceq $artifactsApiUrl) 'GitHub artifact-list API redirected unexpectedly.'
-  $run = [Text.Encoding]::UTF8.GetString($runResponse.bytes) | ConvertFrom-Json -Depth 20
-  $artifactList = [Text.Encoding]::UTF8.GetString($artifactListResponse.bytes) | ConvertFrom-Json -Depth 20
+  $run = ConvertFrom-Phase6Json ([Text.Encoding]::UTF8.GetString($runResponse.bytes)) 20
+  $artifactList = ConvertFrom-Phase6Json ([Text.Encoding]::UTF8.GetString($artifactListResponse.bytes)) 20
   $artifacts = @($artifactList.artifacts | Where-Object { [string]$_.name -ceq $expectedArtifactName })
   Require ($artifacts.Count -eq 1) 'GitHub did not return exactly one bound execution artifact.'
   $artifact = $artifacts[0]
@@ -152,7 +153,7 @@ try {
 
   $readback = [ordered]@{
     contract_version = 'github-actions-phase6-scale-execution-readback-v1'
-    collected_at_utc = [DateTimeOffset]::UtcNow.ToString('o')
+    collected_at_utc = [DateTimeOffset]::UtcNow.UtcDateTime.ToString('o', [Globalization.CultureInfo]::InvariantCulture)
     repository = $repository
     run = [ordered]@{
       id = [long]$run.id; run_attempt = [int]$run.run_attempt; event = [string]$run.event

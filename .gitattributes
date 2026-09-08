@@ -19,3 +19,4 @@
 .phase1-artifacts/o4-live-writes/runtime-proof.json binary -eol
 docs/release-artifacts/prod-candidate-*-evidence/** binary -eol
 .codex/runs/CURRENT/phase6/** binary -eol
+.phase1-artifacts/phase6-scale/** binary -eol
