@@ -53,11 +53,33 @@ class ProjectProgressTruthTests(unittest.TestCase):
         self.baseline_snapshot["/api/v1/project/progress"] = copy.deepcopy(
             self.baseline_manifest
         )
-        self.baseline_platform = self.platform.replace(
-            '{ name: "MCP Gateway", layer: 5, pct: 86 }',
-            '{ name: "MCP Gateway", layer: 5, pct: 56 }',
-            1,
-        )
+        self.baseline_platform = self.platform
+        for item in self.manifest["horizontal"]["items"]:
+            phase_number = int(item["id"].split("_")[1])
+            baseline_percent = baseline_horizontal[item["id"]]
+            if item["percent"] != baseline_percent:
+                current_token = f'{{ id: "P{phase_number}", pct: {item["percent"]} }}'
+                baseline_token = f'{{ id: "P{phase_number}", pct: {baseline_percent} }}'
+                self.assertEqual(self.baseline_platform.count(current_token), 1)
+                self.baseline_platform = self.baseline_platform.replace(
+                    current_token, baseline_token, 1
+                )
+        for item in self.manifest["vertical"]["items"]:
+            layer_number = int(item["id"].split("_")[1])
+            baseline_percent = baseline_vertical[item["id"]]
+            if item["percent"] != baseline_percent:
+                current_token = (
+                    f'{{ name: "{item["label"]}", layer: {layer_number}, '
+                    f'pct: {item["percent"]} }}'
+                )
+                baseline_token = (
+                    f'{{ name: "{item["label"]}", layer: {layer_number}, '
+                    f'pct: {baseline_percent} }}'
+                )
+                self.assertEqual(self.baseline_platform.count(current_token), 1)
+                self.baseline_platform = self.baseline_platform.replace(
+                    current_token, baseline_token, 1
+                )
         self.assertNotEqual(self.baseline_platform, self.platform)
 
     def assert_rejected(self, callback, expected: str) -> None:
@@ -500,7 +522,10 @@ class ProjectProgressTruthTests(unittest.TestCase):
         for index, cell_id in ((3, "layer_4"), (4, "layer_5")):
             with self.subTest(cell_id=cell_id):
                 raised = copy.deepcopy(self.manifest)
-                raised["vertical"]["items"][index]["percent"] += 1
+                current_percent = raised["vertical"]["items"][index]["percent"]
+                raised["vertical"]["items"][index]["percent"] = (
+                    current_percent + 1 if current_percent < 100 else current_percent - 1
+                )
                 self.assert_rejected(
                     lambda raised=raised: self.validate(manifest=raised),
                     "progress projection differs from the replayed v2 delta ledger",
