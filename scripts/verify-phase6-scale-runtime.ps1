@@ -31,6 +31,7 @@ $releaseCandidatePath = Join-Path $repoRoot $releaseCandidateRelativePath
 $canonicalArtifactRoot = [IO.Path]::GetFullPath((Join-Path $repoRoot ".phase1-artifacts\phase6-scale")).TrimEnd('\', '/')
 $protectedEnvironmentName = "phase6-scale-hosted-writes"
 $expectedCriterionSha256 = "edeeac95fac6fefe1dcde5b77a5d8b236685f28adf66f357706aed26971ed85f"
+$expectedControlDeltaPathSetSha256 = "33e60134fd6ddd6bcfcace1f1007a77ec43bbc0eca39a2d3a5c653c6bb7ec30f"
 $minimumLoopFixCommit = "c24b7bfddc37cfa0c16d1ebc7f70829417ac4080"
 if (-not $CriterionPath) { $CriterionPath = $canonicalCriterionPath }
 if (-not $HostedStatePath) { $HostedStatePath = $canonicalHostedStatePath }
@@ -553,16 +554,34 @@ Require ($environmentReviewSidecarRaw -match '^([0-9a-f]{64})  ([^\\/\r\n]+)\r?\
 Require ($matches[1] -ceq $environmentReviewSha256 -and $matches[2] -ceq $expectedEnvironmentReviewLeaf) "Environment-review digest sidecar does not bind the review bytes"
 $environmentReviewSidecarSha256 = (Get-FileHash -LiteralPath $environmentReviewSidecarPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
+$activeReleaseId = [string]$releaseCandidate.active_release_id
+$activeReleaseEvidencePrefix = "docs/release-artifacts/$activeReleaseId-evidence/"
 $allowedControlDelta = @(
+  ".gitattributes",
   $githubWorkflowPath,
+  "PROJECT_STATE.md",
+  "apps/frontend/lib/endpoint-snapshot.json",
+  "apps/frontend/lib/platform.ts",
+  "docs/project-progress.manifest.json",
   "docs/runtime-state/phase6-scale-criterion.json",
   "docs/runtime-state/cloudflare-native-hosted-current.json",
   "docs/runtime-state/phase6-scale-hosted-current.json",
   "docs/runtime-state/capability-gates.json",
+  "docs/runtime-state/external-gate-summary.json",
+  "docs/runtime-state/phase5-credit-itemization.json",
+  "docs/runtime-state/project-progress-delta-ledger.json",
+  "docs/runtime-state/source-qualification-control.json",
   $releaseCandidateRelativePath,
+  "docs/release-artifacts/$activeReleaseId-readiness.json",
+  "docs/release-artifacts/$activeReleaseId.md",
   $canonicalHostedEvidenceRelativePath.Replace('\', '/'),
   $hostedEvidenceRelativePath.Replace('\', '/'),
   $hostedEvidenceSidecarRelativePath.Replace('\', '/'),
+  "scripts/score_layer5_registry_release_credit.py",
+  "scripts/tests/test_new_progress_credit_scorers.py",
+  "scripts/tests/test_verify_phase5_credit_itemization.py",
+  "scripts/tests/test_verify_project_progress_manifest.py",
+  "scripts/verify_phase5_credit_itemization.py",
   "scripts/verify-phase6-scale-runtime.ps1",
   "scripts/verify-phase6-scale-runtime-static.ps1",
   "scripts/verify-phase6-scale-evidence.ps1",
@@ -575,11 +594,18 @@ $controlDelta = @(& git.exe -C $repoRoot diff --name-only --diff-filter=ACDMRTUX
 Require ($LASTEXITCODE -eq 0) "source/control delta cannot be resolved"
 $safeControlDelta = @(& git.exe -C $repoRoot diff --name-only --diff-filter=ACM ([string]$hostedState.source_commit_sha) $repositoryHeadSha --)
 Require ($LASTEXITCODE -eq 0) "source/control safe delta cannot be resolved"
-$controlDelta = @($controlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
-$safeControlDelta = @($safeControlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+$controlDelta = [string[]]@($controlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+$safeControlDelta = [string[]]@($safeControlDelta | ForEach-Object { ([string]$_).Replace('\', '/') } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+[Array]::Sort($controlDelta, [StringComparer]::Ordinal)
+[Array]::Sort($safeControlDelta, [StringComparer]::Ordinal)
 Require ($controlDelta.Count -gt 0) "source/control delta is empty and cannot contain post-deployment evidence"
 Require ($controlDelta.Count -eq $safeControlDelta.Count -and (@(Compare-Object $controlDelta $safeControlDelta -CaseSensitive).Count -eq 0)) "source/control delta contains a delete, rename, type change, or unmerged path"
-$unexpectedControlDelta = @($controlDelta | Where-Object { $allowedControlDelta -cnotcontains $_ })
+$controlDeltaPathSetSha256 = Get-StringSha256 ($controlDelta -join "`n")
+Require ($controlDeltaPathSetSha256 -ceq $expectedControlDeltaPathSetSha256) "source/control delta path-set fingerprint differs from the audited RC48 control head"
+$unexpectedControlDelta = @($controlDelta | Where-Object {
+  $allowedControlDelta -cnotcontains $_ -and
+    -not $_.StartsWith($activeReleaseEvidencePrefix, [StringComparison]::Ordinal)
+})
 Require ($unexpectedControlDelta.Count -eq 0) "source/control delta contains a non-allowlisted runtime path"
 
 # This authorization preflight intentionally precedes HttpClient construction and
