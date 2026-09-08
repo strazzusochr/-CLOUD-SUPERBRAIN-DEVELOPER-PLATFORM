@@ -74,14 +74,64 @@ function Assert-Rejected([scriptblock]$Action, [string]$Label) {
 $candidate = ConvertFrom-Phase6Json (Get-Content -LiteralPath (Join-Path $repoRoot 'docs/release-artifacts/current-release-candidate.json') -Raw)
 $hosted = ConvertFrom-Phase6Json (Get-Content -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/cloudflare-native-hosted-current.json') -Raw)
 $deployment = ConvertFrom-Phase6Json (Get-Content -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/phase6-scale-hosted-current.json') -Raw)
-$actualDelta = @(& git -C $repoRoot diff --name-only --diff-filter=ACDMRTUXB ([string]$hosted.source_commit_sha) HEAD --)
-if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve source/control delta for the integration test.' }
-# Before the fix commit exists, test its exact prospective control-only extension.
-# After commit these entries are already present; nothing is filtered out of HEAD.
-$fixExtension = @('scripts/phase6-control-contract.ps1', 'scripts/verify-phase6-contract-chain-static.ps1',
-  'scripts/verify-phase6-scale-evidence.ps1', 'scripts/verify-phase6-scale-evidence-static.ps1',
-  'scripts/collect-phase6-scale-execution-readback.ps1')
-[string[]]$auditedDelta = @(@($actualDelta) + $fixExtension | Select-Object -Unique)
+$sourceSha = [string]$hosted.source_commit_sha
+$trackedScaleEvidence = @(& git -C $repoRoot ls-files -- '.phase1-artifacts/phase6-scale/scale-evidence-*.json')
+if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate tracked Phase6 scale evidence.' }
+$trackedScaleEvidence = @($trackedScaleEvidence | Where-Object { $_ -cnotmatch '\.execution-readback\.json$' })
+
+if ($trackedScaleEvidence.Count -gt 1) {
+  throw 'Static control-position probe found ambiguous tracked Phase6 scale evidence.'
+}
+
+if ($trackedScaleEvidence.Count -eq 1) {
+  # Once immutable evidence exists, HEAD is intentionally later than the live-run control.
+  # Reconstruct the audited S -> control prefix from the evidence instead of treating the
+  # subsequent evidence commit as runtime drift.
+  $evidenceRelativePath = [string]$trackedScaleEvidence[0]
+  if ($evidenceRelativePath -cnotmatch '^\.phase1-artifacts/phase6-scale/scale-evidence-[A-Za-z0-9-]+\.json$') {
+    throw 'Tracked Phase6 scale evidence path is noncanonical.'
+  }
+  $scaleEvidence = ConvertFrom-Phase6Json (Get-Content -LiteralPath (Join-Path $repoRoot $evidenceRelativePath) -Raw)
+  if ([string]$scaleEvidence.contract_version -cne 'phase6-scale-evidence-v2') {
+    throw 'Tracked Phase6 scale evidence contract is invalid.'
+  }
+  $attestation = $scaleEvidence.source_binding.execution_attestation
+  if ([string]$attestation.contract_version -cne 'phase6-scale-execution-provenance-v1' -or
+      [string]$attestation.source_commit_sha -cne $sourceSha -or
+      [string]$attestation.head_sha -cnotmatch '^[0-9a-f]{40}$') {
+    throw 'Tracked Phase6 scale execution attestation cannot identify the audited control prefix.'
+  }
+  $controlHead = [string]$attestation.head_sha
+  & git -C $repoRoot cat-file -e "$controlHead^{commit}" 2>$null
+  if ($LASTEXITCODE -ne 0) { throw 'Recorded Phase6 control commit is unavailable.' }
+  & git -C $repoRoot merge-base --is-ancestor $sourceSha $controlHead
+  if ($LASTEXITCODE -ne 0) { throw 'Recorded Phase6 control commit does not descend from the hosted source.' }
+  & git -C $repoRoot merge-base --is-ancestor $controlHead HEAD
+  if ($LASTEXITCODE -ne 0) { throw 'Recorded Phase6 control commit is not an ancestor of the current evidence head.' }
+
+  [string[]]$actualDelta = @(& git -C $repoRoot diff --name-only --diff-filter=ACDMRTUXB $sourceSha $controlHead --)
+  if ($LASTEXITCODE -ne 0) { throw 'Cannot reconstruct the recorded source/control delta.' }
+  if (@($attestation.control_delta | Where-Object { $_ -isnot [string] }).Count -ne 0) {
+    throw 'Recorded Phase6 control delta contains a non-string path.'
+  }
+  [string[]]$recordedDelta = @($attestation.control_delta)
+  [Array]::Sort($actualDelta, [StringComparer]::Ordinal)
+  [Array]::Sort($recordedDelta, [StringComparer]::Ordinal)
+  if ($actualDelta.Count -ne $recordedDelta.Count -or
+      ($actualDelta -join "`n") -cne ($recordedDelta -join "`n")) {
+    throw 'Recorded Phase6 control delta differs from the reconstructed Git prefix.'
+  }
+  [string[]]$auditedDelta = @($actualDelta)
+} else {
+  [string[]]$actualDelta = @(& git -C $repoRoot diff --name-only --diff-filter=ACDMRTUXB $sourceSha HEAD --)
+  if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve source/control delta for the integration test.' }
+  # Before the transport repair exists, test its exact prospective control-only extension.
+  # Once those files exist, Select-Object keeps the audited path set stable.
+  $fixExtension = @('scripts/phase6-control-contract.ps1', 'scripts/verify-phase6-contract-chain-static.ps1',
+    'scripts/verify-phase6-scale-evidence.ps1', 'scripts/verify-phase6-scale-evidence-static.ps1',
+    'scripts/collect-phase6-scale-execution-readback.ps1')
+  [string[]]$auditedDelta = @(@($actualDelta) + $fixExtension | Select-Object -Unique)
+}
 [Array]::Sort($auditedDelta, [StringComparer]::Ordinal)
 $policy = @{ ReleaseId=[string]$candidate.active_release_id; HostedEvidencePath=[string]$hosted.evidence_artifact; DeploymentEvidencePath=[string]$deployment.evidence_artifact }
 $accepted = @(Assert-Phase6ControlDelta -Paths $auditedDelta -SafePaths $auditedDelta @policy)

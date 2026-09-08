@@ -1084,6 +1084,66 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertLess(source.index(install), source.index(oauth))
         self.assertLess(source.index(oauth), source.index(stateful_test))
 
+    def test_post_qualification_security_overlay_is_exact_and_no_credit(self) -> None:
+        expected_paths = verifier.NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS | {
+            "apps/frontend/next-env.d.ts",
+            "apps/frontend/package-lock.json",
+            "apps/frontend/package.json",
+        }
+        self.assertEqual(verifier.POST_QUALIFICATION_SECURITY_OVERLAY_PATHS, expected_paths)
+
+        source_package = {
+            "name": "frontend",
+            "dependencies": {"next": "16.2.11", "react": "^19.2.7"},
+            "overrides": {"sharp": "0.35.3", "postcss": "8.5.23"},
+        }
+        index_package = copy.deepcopy(source_package)
+        index_package["dependencies"]["next"] = verifier.POST_QUALIFICATION_SECURITY_OVERLAY_VERSION
+        index_package["overrides"]["sharp"] = verifier.POST_QUALIFICATION_SECURITY_OVERLAY_SHARP_VERSION
+        index_lock = {
+            "packages": {
+                "": {"dependencies": {"next": verifier.POST_QUALIFICATION_SECURITY_OVERLAY_VERSION}},
+                "node_modules/next": {
+                    "version": verifier.POST_QUALIFICATION_SECURITY_OVERLAY_VERSION,
+                    "integrity": "sha512-/Ztf6CeRH+ejEXUrYtqI4gkS66eFIHuSwqi60RgcpWKodxFZx2/dqVCMKBwILfAHXQ+F1b1vAudgj3mnxqtoIA==",
+                },
+                "node_modules/sharp": {
+                    "version": verifier.POST_QUALIFICATION_SECURITY_OVERLAY_SHARP_VERSION,
+                    "integrity": "sha512-n++8XWcj+jCOr2IOl7h8LbKnGBDY4aPbmprMONBNFdn0ImXqpGVv5zliDs0V9HbmbCQLpbuo2ej9rAoOQTvMDA==",
+                },
+            }
+        }
+        overlay_text = {
+            path: (REPO_ROOT / path).read_text(encoding="utf-8")
+            for path in verifier.POST_QUALIFICATION_SECURITY_OVERLAY_SHA256
+        }
+
+        def load_index_json(path: str) -> dict[str, object]:
+            return copy.deepcopy(index_package if path.endswith("package.json") else index_lock)
+
+        with (
+            patch.object(verifier, "load_git_json", return_value=source_package),
+            patch.object(verifier, "load_index_json", side_effect=load_index_json),
+            patch.object(verifier, "load_index_text", side_effect=lambda path: overlay_text[path]),
+        ):
+            verifier.require_post_qualification_security_overlay("a" * 40)
+
+        tampered_package = copy.deepcopy(index_package)
+        tampered_package["dependencies"]["react"] = "*"
+        with (
+            patch.object(verifier, "load_git_json", return_value=source_package),
+            patch.object(
+                verifier,
+                "load_index_json",
+                side_effect=lambda path: tampered_package if path.endswith("package.json") else index_lock,
+            ),
+            patch.object(verifier, "load_index_text", side_effect=lambda path: overlay_text[path]),
+        ):
+            self.assert_rejected(
+                lambda: verifier.require_post_qualification_security_overlay("a" * 40),
+                "package.json changed outside the exact Next.js and sharp patch",
+            )
+
     def test_candidate_runtime_accepts_only_exact_no_credit_requalification_truth(self) -> None:
         source = (
             REPO_ROOT / "scripts" / "verify-phase5-production-candidate-local.ps1"
