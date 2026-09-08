@@ -5,8 +5,9 @@
   Default mode is read-only. Promotion requires -Promote plus the exact current
   capability-state and phase6 gate identity hashes. The Owner grant must already
   exist in canonical capability-gates.json before the live run; this verifier
-  never creates, replaces, or derives that grant. No token or provider/Worker HTTP
-  is used; anonymous GitHub execution/artifact readback is required in live mode.
+  never creates, replaces, or derives that grant. No provider/Worker HTTP is used.
+  GitHub's artifact ZIP endpoint is read through an explicitly authorized,
+  already authenticated GitHub CLI without exporting or persisting credentials.
 #>
 [CmdletBinding()]
 param(
@@ -22,6 +23,8 @@ param(
   [switch]$ValidateOnly,
   [string]$ExpectedCapabilityStateSha256,
   [string]$ExpectedGateIdentitySha256,
+  [string]$ExpectedPostRunTransportRepairSha,
+  [switch]$UseGitHubCliCredentialForArtifactDownload,
   [switch]$AllowTestPaths,
   [switch]$TrustSyntheticGitHubReadbackForTests
 )
@@ -118,6 +121,74 @@ function Get-HttpBytes([Net.Http.HttpClient]$Client, [string]$Url, [long]$Maximu
   }
 }
 
+function Get-GitHubArtifactArchiveBytes(
+  [string]$Repository,
+  [long]$ArtifactId,
+  [long]$MaximumBytes,
+  [string]$Label
+) {
+  Assert-True ($UseGitHubCliCredentialForArtifactDownload) 'Authenticated artifact download requires the explicit GitHub CLI credential switch.'
+  Assert-True ($Repository -match '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') 'GitHub artifact repository binding is invalid.'
+  Assert-True ($ArtifactId -gt 0) 'GitHub artifact ID is invalid.'
+  $ghCommand = Get-Command gh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  Assert-True ($null -ne $ghCommand -and -not [string]::IsNullOrWhiteSpace([string]$ghCommand.Source)) 'Authenticated GitHub CLI is unavailable.'
+  $endpoint = "repos/$Repository/actions/artifacts/$ArtifactId/zip"
+  Assert-True ($endpoint -ceq "repos/$Repository/actions/artifacts/$ArtifactId/zip") 'GitHub artifact endpoint binding changed.'
+
+  $startInfo = [Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = [string]$ghCommand.Source
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  foreach ($argument in @(
+    'api', '--hostname', 'github.com', '--method', 'GET',
+    '--header', 'Accept: application/vnd.github+json',
+    '--header', 'X-GitHub-Api-Version: 2022-11-28',
+    $endpoint
+  )) { [void]$startInfo.ArgumentList.Add($argument) }
+  $startInfo.Environment['GH_PROMPT_DISABLED'] = '1'
+  [void]$startInfo.Environment.Remove('GH_TOKEN')
+  [void]$startInfo.Environment.Remove('GITHUB_TOKEN')
+  [void]$startInfo.Environment.Remove('GH_DEBUG')
+  $startInfo.Environment['GH_HTTP_TIMEOUT'] = '60'
+
+  $process = [Diagnostics.Process]::new()
+  $process.StartInfo = $startInfo
+  $memory = [IO.MemoryStream]::new()
+  try {
+    Assert-True ($process.Start()) "$Label could not start the GitHub CLI."
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $buffer = [byte[]]::new(81920)
+    $total = 0L
+    while ($true) {
+      $readTask = $process.StandardOutput.BaseStream.ReadAsync($buffer, 0, $buffer.Length)
+      if (-not $readTask.Wait(60000)) {
+        try { $process.Kill($true) } catch { }
+        throw "$Label exceeded the 60-second transport timeout."
+      }
+      $read = $readTask.Result
+      if ($read -le 0) { break }
+      $total += $read
+      if ($total -gt $MaximumBytes) {
+        try { $process.Kill($true) } catch { }
+        throw "$Label exceeds the maximum download size."
+      }
+      $memory.Write($buffer, 0, $read)
+    }
+    if (-not $process.WaitForExit(5000)) {
+      try { $process.Kill($true) } catch { }
+      throw "$Label did not terminate after completing its response."
+    }
+    [void]$stderrTask.GetAwaiter().GetResult()
+    Assert-True ($process.ExitCode -eq 0) "$Label failed through the authenticated GitHub CLI (exit=$($process.ExitCode)); response details are suppressed."
+    return $memory.ToArray()
+  } finally {
+    $memory.Dispose()
+    $process.Dispose()
+  }
+}
+
 function Assert-LiveGithubExecutionProvenance(
   $Binding,
   $CapturedReadback,
@@ -190,19 +261,14 @@ function Assert-LiveGithubExecutionProvenance(
       [string]$matchingReview.user.id -ceq [string]$reviewBinding.reviewer_id -and
       [string]$matchingReview.user.type -ceq [string]$reviewBinding.reviewer_type) 'Live GitHub reviewer identity differs from the evidence binding.'
 
-    $archiveResponse = Get-HttpBytes $client ([string]$liveArtifact.archive_download_url) 33554432 'GitHub execution artifact'
-    $archiveHost = $archiveResponse.final_uri.Host.ToLowerInvariant()
-    Assert-True (
-      $archiveHost -eq 'api.github.com' -or
-      $archiveHost.EndsWith('.actions.githubusercontent.com') -or
-      $archiveHost.EndsWith('.githubusercontent.com') -or
-      $archiveHost.EndsWith('.blob.core.windows.net')
-    ) 'GitHub artifact download redirected to an unexpected host.'
-    $archiveSha256 = Get-BytesSha256 $archiveResponse.bytes
+    $expectedArchiveUrl = "https://api.github.com/repos/$repository/actions/artifacts/$artifactId/zip"
+    Assert-True ([string]$liveArtifact.archive_download_url -ceq $expectedArchiveUrl) 'GitHub artifact archive URL binding mismatch.'
+    $archiveBytes = Get-GitHubArtifactArchiveBytes $repository $artifactId 33554432 'GitHub execution artifact'
+    $archiveSha256 = Get-BytesSha256 $archiveBytes
     Assert-True ([string]$liveArtifact.digest -ceq "sha256:$archiveSha256") 'Live GitHub artifact digest does not match the downloaded archive.'
     Assert-True ([string]$CapturedReadback.downloaded_archive_sha256 -eq $archiveSha256) 'Captured archive digest differs from the live GitHub download.'
 
-    $archiveStream = [IO.MemoryStream]::new($archiveResponse.bytes, $false)
+    $archiveStream = [IO.MemoryStream]::new($archiveBytes, $false)
     try {
       $zip = [IO.Compression.ZipArchive]::new($archiveStream, [IO.Compression.ZipArchiveMode]::Read, $false)
       try {
@@ -477,6 +543,8 @@ Assert-True (-not ($Promote -and $ValidateOnly)) 'Choose either promotion or non
 Assert-True (-not $TrustSyntheticGitHubReadbackForTests -or $AllowTestPaths) 'Synthetic GitHub trust is restricted to explicit test-path mode.'
 if ($AllowTestPaths) {
   Assert-True ($TrustSyntheticGitHubReadbackForTests) 'Synthetic GitHub readback is untrusted unless the explicit test-only switch is present.'
+} else {
+  Assert-True ($UseGitHubCliCredentialForArtifactDownload) 'Explicit GitHub CLI read-only credential authorization is required for the artifact ZIP endpoint.'
 }
 
 $evidenceLeaf = [IO.Path]::GetFileName($resolvedEvidence)
@@ -886,7 +954,29 @@ Assert-True ([string]$executionReadback.sidecar_declared_evidence_sha256 -eq $ev
 if (-not $AllowTestPaths) {
   Assert-LiveGithubExecutionProvenance $executionBinding $executionReadback $resolvedEvidence $companionPath $evidenceSha256 $resolvedEnvironmentReview $resolvedEnvironmentReviewSidecar $environmentReviewSha256 $environmentReviewSidecarSha256
   $currentEvidenceHead = Get-RepositoryHeadSha
-  $evidenceHeadDelta = @(Get-GitDelta ([string]$executionBinding.head_sha) $currentEvidenceHead 'Control-to-evidence delta')
+  $transportRepairPaths = @(
+    'scripts/collect-phase6-scale-execution-readback.ps1',
+    'scripts/verify-phase6-contract-chain-static.ps1',
+    'scripts/verify-phase6-scale-evidence-static.ps1',
+    'scripts/verify-phase6-scale-evidence.ps1'
+  )
+  $deltaBase = [string]$executionBinding.head_sha
+  if (-not [string]::IsNullOrWhiteSpace($ExpectedPostRunTransportRepairSha)) {
+    Assert-True ($ExpectedPostRunTransportRepairSha -match '^[0-9a-f]{40}$') 'Post-run transport-repair SHA is invalid.'
+    & git -C $repoRoot cat-file -e "$ExpectedPostRunTransportRepairSha^{commit}" 2>$null
+    Assert-True ($LASTEXITCODE -eq 0) 'Post-run transport-repair commit is unavailable.'
+    & git -C $repoRoot merge-base --is-ancestor ([string]$executionBinding.head_sha) $ExpectedPostRunTransportRepairSha
+    Assert-True ($LASTEXITCODE -eq 0) 'Post-run transport repair does not descend from the execution-control SHA.'
+    & git -C $repoRoot merge-base --is-ancestor $ExpectedPostRunTransportRepairSha $currentEvidenceHead
+    Assert-True ($LASTEXITCODE -eq 0) 'Post-run transport repair is not an ancestor of the evidence head.'
+    $repairDelta = @(Get-GitDelta ([string]$executionBinding.head_sha) $ExpectedPostRunTransportRepairSha 'Post-run transport-repair delta')
+    $repairPaths = @($repairDelta.path | Sort-Object -Unique)
+    Assert-True ($repairPaths.Count -eq $transportRepairPaths.Count -and
+      @(Compare-Object $transportRepairPaths $repairPaths -CaseSensitive).Count -eq 0) 'Post-run transport repair changed paths outside the exact reviewed transport set.'
+    Assert-True (@($repairDelta.status | Where-Object { $_ -cne 'M' }).Count -eq 0) 'Post-run transport repair may only modify the existing reviewed transport files.'
+    $deltaBase = $ExpectedPostRunTransportRepairSha
+  }
+  $evidenceHeadDelta = @(Get-GitDelta $deltaBase $currentEvidenceHead 'Transport-repair-to-evidence delta')
   $evidenceHeadPaths = @($evidenceHeadDelta.path | Sort-Object -Unique)
   $relativeEvidenceForHead = [IO.Path]::GetRelativePath($repoRoot, $resolvedEvidence).Replace('\', '/')
   $relativeSidecarForHead = [IO.Path]::GetRelativePath($repoRoot, $companionPath).Replace('\', '/')

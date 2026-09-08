@@ -1,13 +1,18 @@
 #Requires -Version 7.0
 <#
   Collects the post-run GitHub API/artifact companion for one provisional
-  Phase-6 scale report. This command performs anonymous read-only HTTPS GETs
-  only. It never reads a token and never promotes a capability gate.
+  Phase-6 scale report. GitHub's artifact ZIP endpoint requires authentication
+  even for public repositories, so the archive GET is explicitly delegated to
+  an already authenticated GitHub CLI. This script never exports, prints, or
+  persists the credential and never promotes a capability gate.
 #>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
-  [string]$EvidencePath
+  [string]$EvidencePath,
+  [Parameter(Mandatory = $true)]
+  [string]$ExpectedPostRunTransportRepairSha,
+  [switch]$UseGitHubCliCredentialForArtifactDownload
 )
 
 Set-StrictMode -Version Latest
@@ -37,7 +42,7 @@ function Get-HttpBytes([Net.Http.HttpClient]$Client, [string]$Url, [long]$Maximu
   try {
     $response = $Client.SendAsync($request, [Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
     try {
-      Require ([int]$response.StatusCode -ge 200 -and [int]$response.StatusCode -le 299) "$Label failed with HTTP $([int]$response.StatusCode). Anonymous access is required; no token fallback is permitted."
+      Require ([int]$response.StatusCode -ge 200 -and [int]$response.StatusCode -le 299) "$Label failed with HTTP $([int]$response.StatusCode)."
       if ($null -ne $response.Content.Headers.ContentLength) {
         Require ([long]$response.Content.Headers.ContentLength -le $MaximumBytes) "$Label exceeds its bounded download size."
       }
@@ -58,6 +63,74 @@ function Get-HttpBytes([Net.Http.HttpClient]$Client, [string]$Url, [long]$Maximu
       }
     } finally { $response.Dispose() }
   } finally { $request.Dispose() }
+}
+
+function Get-GitHubArtifactArchiveBytes(
+  [string]$Repository,
+  [long]$ArtifactId,
+  [long]$MaximumBytes,
+  [string]$Label
+) {
+  Require ($UseGitHubCliCredentialForArtifactDownload) 'Authenticated artifact download requires the explicit GitHub CLI credential switch.'
+  Require ($Repository -match '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') 'GitHub artifact repository binding is invalid.'
+  Require ($ArtifactId -gt 0) 'GitHub artifact ID is invalid.'
+  $ghCommand = Get-Command gh -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  Require ($null -ne $ghCommand -and -not [string]::IsNullOrWhiteSpace([string]$ghCommand.Source)) 'Authenticated GitHub CLI is unavailable.'
+  $endpoint = "repos/$Repository/actions/artifacts/$ArtifactId/zip"
+  Require ($endpoint -ceq "repos/$Repository/actions/artifacts/$ArtifactId/zip") 'GitHub artifact endpoint binding changed.'
+
+  $startInfo = [Diagnostics.ProcessStartInfo]::new()
+  $startInfo.FileName = [string]$ghCommand.Source
+  $startInfo.UseShellExecute = $false
+  $startInfo.CreateNoWindow = $true
+  $startInfo.RedirectStandardOutput = $true
+  $startInfo.RedirectStandardError = $true
+  foreach ($argument in @(
+    'api', '--hostname', 'github.com', '--method', 'GET',
+    '--header', 'Accept: application/vnd.github+json',
+    '--header', 'X-GitHub-Api-Version: 2022-11-28',
+    $endpoint
+  )) { [void]$startInfo.ArgumentList.Add($argument) }
+  $startInfo.Environment['GH_PROMPT_DISABLED'] = '1'
+  [void]$startInfo.Environment.Remove('GH_TOKEN')
+  [void]$startInfo.Environment.Remove('GITHUB_TOKEN')
+  [void]$startInfo.Environment.Remove('GH_DEBUG')
+  $startInfo.Environment['GH_HTTP_TIMEOUT'] = '60'
+
+  $process = [Diagnostics.Process]::new()
+  $process.StartInfo = $startInfo
+  $memory = [IO.MemoryStream]::new()
+  try {
+    Require ($process.Start()) "$Label could not start the GitHub CLI."
+    $stderrTask = $process.StandardError.ReadToEndAsync()
+    $buffer = [byte[]]::new(81920)
+    $total = 0L
+    while ($true) {
+      $readTask = $process.StandardOutput.BaseStream.ReadAsync($buffer, 0, $buffer.Length)
+      if (-not $readTask.Wait(60000)) {
+        try { $process.Kill($true) } catch { }
+        throw "$Label exceeded the 60-second transport timeout."
+      }
+      $read = $readTask.Result
+      if ($read -le 0) { break }
+      $total += $read
+      if ($total -gt $MaximumBytes) {
+        try { $process.Kill($true) } catch { }
+        throw "$Label exceeds its bounded download size."
+      }
+      $memory.Write($buffer, 0, $read)
+    }
+    if (-not $process.WaitForExit(5000)) {
+      try { $process.Kill($true) } catch { }
+      throw "$Label did not terminate after completing its response."
+    }
+    [void]$stderrTask.GetAwaiter().GetResult()
+    Require ($process.ExitCode -eq 0) "$Label failed through the authenticated GitHub CLI (exit=$($process.ExitCode)); response details are suppressed."
+    return $memory.ToArray()
+  } finally {
+    $memory.Dispose()
+    $process.Dispose()
+  }
 }
 
 $resolvedEvidence = if ([IO.Path]::IsPathRooted($EvidencePath)) {
@@ -90,6 +163,30 @@ $expectedRunUrl = "https://github.com/$([string]$binding.repository)/actions/run
 Require ([string]$binding.run_url -ceq $expectedRunUrl) 'GitHub run URL binding mismatch.'
 $expectedArtifactName = "phase6-scale-execution-evidence-$([long]$binding.run_id)-$([int]$binding.run_attempt)"
 Require ([string]$binding.artifact_name -ceq $expectedArtifactName) 'GitHub artifact-name binding mismatch.'
+Require ($UseGitHubCliCredentialForArtifactDownload) 'Explicit GitHub CLI read-only credential authorization is required for the artifact ZIP endpoint.'
+Require ($ExpectedPostRunTransportRepairSha -match '^[0-9a-f]{40}$') 'Post-run transport-repair SHA is invalid.'
+& git -C $repoRoot cat-file -e "$ExpectedPostRunTransportRepairSha^{commit}" 2>$null
+Require ($LASTEXITCODE -eq 0) 'Post-run transport-repair commit is unavailable.'
+& git -C $repoRoot merge-base --is-ancestor ([string]$binding.head_sha) $ExpectedPostRunTransportRepairSha
+Require ($LASTEXITCODE -eq 0) 'Post-run transport repair does not descend from the execution-control SHA.'
+& git -C $repoRoot merge-base --is-ancestor $ExpectedPostRunTransportRepairSha HEAD
+Require ($LASTEXITCODE -eq 0) 'Post-run transport repair is not an ancestor of the current checkout.'
+$expectedTransportRepairPaths = @(
+  'scripts/collect-phase6-scale-execution-readback.ps1',
+  'scripts/verify-phase6-contract-chain-static.ps1',
+  'scripts/verify-phase6-scale-evidence-static.ps1',
+  'scripts/verify-phase6-scale-evidence.ps1'
+)
+$transportRepairDelta = @(& git -C $repoRoot -c core.quotepath=false diff --no-renames --name-status ([string]$binding.head_sha) $ExpectedPostRunTransportRepairSha --)
+Require ($LASTEXITCODE -eq 0) 'Post-run transport-repair delta cannot be resolved.'
+$transportRepairPaths = @()
+foreach ($line in $transportRepairDelta) {
+  Require ([string]$line -match '^M\t(?<path>[^\t\r\n]+)$') "Post-run transport repair contains a non-modification path: $line"
+  $transportRepairPaths += ([string]$matches.path).Replace('\', '/')
+}
+$transportRepairPaths = @($transportRepairPaths | Sort-Object -Unique)
+Require ($transportRepairPaths.Count -eq $expectedTransportRepairPaths.Count -and
+  @(Compare-Object $expectedTransportRepairPaths $transportRepairPaths -CaseSensitive).Count -eq 0) 'Post-run transport repair changed paths outside the exact reviewed transport set.'
 
 Add-Type -AssemblyName System.Net.Http
 Add-Type -AssemblyName System.IO.Compression
@@ -121,13 +218,13 @@ try {
   Require ([string]$run.html_url -ceq $expectedRunUrl) 'GitHub run HTML URL mismatch.'
   Require ($artifact.expired -eq $false -and [string]$artifact.digest -match '^sha256:[0-9a-f]{64}$') 'GitHub artifact is expired or lacks a digest.'
   Require ([long]$artifact.workflow_run.id -eq $runId -and [string]$artifact.workflow_run.head_sha -eq [string]$binding.head_sha) 'GitHub artifact workflow binding mismatch.'
-  $archiveResponse = Get-HttpBytes $client ([string]$artifact.archive_download_url) 33554432 'GitHub execution artifact download'
-  $archiveHost = $archiveResponse.final_uri.Host.ToLowerInvariant()
-  Require ($archiveHost -eq 'api.github.com' -or $archiveHost.EndsWith('.actions.githubusercontent.com') -or $archiveHost.EndsWith('.githubusercontent.com') -or $archiveHost.EndsWith('.blob.core.windows.net')) 'GitHub artifact redirected to an unexpected host.'
-  $archiveSha256 = Get-BytesSha256 $archiveResponse.bytes
+  $expectedArchiveUrl = "https://api.github.com/repos/$repository/actions/artifacts/$([long]$artifact.id)/zip"
+  Require ([string]$artifact.archive_download_url -ceq $expectedArchiveUrl) 'GitHub artifact archive URL binding mismatch.'
+  $archiveBytes = Get-GitHubArtifactArchiveBytes $repository ([long]$artifact.id) 33554432 'GitHub execution artifact download'
+  $archiveSha256 = Get-BytesSha256 $archiveBytes
   Require ([string]$artifact.digest -ceq "sha256:$archiveSha256") 'GitHub artifact digest differs from the downloaded archive.'
 
-  $archiveStream = [IO.MemoryStream]::new($archiveResponse.bytes, $false)
+  $archiveStream = [IO.MemoryStream]::new($archiveBytes, $false)
   try {
     $zip = [IO.Compression.ZipArchive]::new($archiveStream, [IO.Compression.ZipArchiveMode]::Read, $false)
     try {
@@ -199,4 +296,4 @@ try {
   throw
 }
 
-Write-Host "[phase6-scale-readback] collected=true evidence_sha256=$evidenceSha256 readback_sha256=$readbackSha256 anonymous_github_api=true token_used=false promotion=false"
+Write-Host "[phase6-scale-readback] collected=true evidence_sha256=$evidenceSha256 readback_sha256=$readbackSha256 credential_mode=github_cli_readonly token_output=false token_persisted=false promotion=false"
