@@ -17,6 +17,7 @@ except ImportError:  # Direct execution from the repository root.
 
 SCORER_COMMAND = "python scripts/score_layer5_registry_release_credit.py --score-v1"
 AGGREGATE_CONTRACT = "layer5-registry-release-credit-evidence-v1"
+REQUALIFICATION_CONTRACT = "layer5-registry-release-credit-requalification-v1"
 GATE_PATH = "docs/runtime-state/capability-gates.json"
 GATE_VERIFIER = "scripts/verify_layer5_registry_release_evidence.py"
 ARTIFACT_CONTRACTS = {
@@ -36,6 +37,24 @@ EXPECTED_SERVICES = {
 }
 
 ScoreError = common.ScoreError
+
+
+def _validate_gate_binding(
+    source_sha: str,
+    artifact_path: str,
+    artifact_sha256: str,
+    *,
+    load_blob: Callable[[str, str], bytes],
+) -> None:
+    capability = common.decode_json(load_blob(source_sha, GATE_PATH), "capability gates")
+    common.require(capability.get("contract_version") == "capability-gate-state-v1", "capability gate contract mismatch")
+    gate = capability.get("gates", {}).get("docker_registry_publish", {})
+    common.require(gate.get("owner_granted") is True and gate.get("live_verified") is True, "registry gate is not promoted")
+    common.require(gate.get("provider") == "ghcr" and gate.get("paid_provider") is False, "registry gate provider mismatch")
+    common.require(isinstance(gate.get("owner_grant_ref"), str) and gate["owner_grant_ref"].strip(), "registry gate Owner reference missing")
+    common.require(gate.get("verifier") == GATE_VERIFIER, "registry gate verifier mismatch")
+    common.require(str(gate.get("evidence_artifact", "")).replace("\\", "/") == artifact_path, "registry gate evidence path mismatch")
+    common.require(str(gate.get("evidence_sha256", "")).lower() == artifact_sha256, "registry gate evidence hash mismatch")
 
 
 def _child_path(aggregate_path: str, value: Any, context: str) -> str:
@@ -157,7 +176,7 @@ def score_request(
     load_blob: Callable[[str, str], bytes] = common.git_blob,
     is_ancestor: Callable[[str, str], bool] = common.git_is_ancestor,
 ) -> dict[str, Any]:
-    evidence_source, artifact_path, aggregate = common.validate_request_artifact(
+    request_source, request_artifact_path, request_artifact = common.validate_request_artifact(
         request,
         scorer_command=SCORER_COMMAND,
         scope="vertical",
@@ -166,6 +185,88 @@ def score_request(
         new_percent=100,
         load_blob=load_blob,
     )
+    evidence_source = request_source
+    artifact_path = request_artifact_path
+    artifact_sha256 = request["artifact_sha256"]
+    aggregate = request_artifact
+    if request_artifact.get("contract_version") == REQUALIFICATION_CONTRACT:
+        common.require(
+            re.fullmatch(
+                r"docs/release-artifacts/[^/]+-evidence/registry/layer5-registry-release-credit-requalification\.json",
+                request_artifact_path,
+            )
+            is not None,
+            "unexpected L5 registry requalification path",
+        )
+        common.require_exact_keys(
+            request_artifact,
+            {
+                "contract_version",
+                "status",
+                "scope",
+                "cell_id",
+                "old_percent",
+                "new_percent",
+                "points_awarded",
+                "credit_eligible",
+                "current_candidate",
+                "historical_evidence",
+                "requalification_read_only",
+                "registry_write_performed",
+                "production_deploy",
+                "release_promotion",
+                "provider_writes",
+                "secret_output",
+            },
+            "L5 registry requalification",
+        )
+        common.require(request_artifact.get("status") == "verified", "L5 registry requalification is not verified")
+        common.require(request_artifact.get("scope") == "vertical" and request_artifact.get("cell_id") == "layer_5", "L5 registry requalification cell mismatch")
+        common.require((request_artifact.get("old_percent"), request_artifact.get("new_percent"), request_artifact.get("points_awarded")) == (86, 100, 14), "L5 registry requalification transition mismatch")
+        common.require(request_artifact.get("credit_eligible") is True and request_artifact.get("requalification_read_only") is True, "L5 registry requalification is not credit eligible")
+        for key in ("registry_write_performed", "production_deploy", "release_promotion", "provider_writes", "secret_output"):
+            common.require(request_artifact.get(key) is False, f"L5 registry requalification {key} must be false")
+
+        current_candidate = common.require_exact_keys(
+            request_artifact.get("current_candidate"),
+            {"release_id", "source_commit_sha"},
+            "L5 registry requalification current candidate",
+        )
+        common.validate_candidate_pointer(
+            evidence_source_sha=request_source,
+            candidate_source_sha=current_candidate["source_commit_sha"],
+            release_id=current_candidate["release_id"],
+            load_blob=load_blob,
+            is_ancestor=is_ancestor,
+        )
+        historical = common.require_exact_keys(
+            request_artifact.get("historical_evidence"),
+            {"contract_version", "source_sha", "path", "sha256"},
+            "L5 registry historical evidence",
+        )
+        common.require(historical["contract_version"] == AGGREGATE_CONTRACT, "L5 registry historical contract mismatch")
+        historical_source = common.require_lower_hex(historical["source_sha"], 40, "L5 registry historical source SHA")
+        common.require(historical_source != request_source and is_ancestor(historical_source, request_source), "L5 registry historical evidence is not a strict requalification ancestor")
+        historical_path = common.validate_repo_path(historical["path"], "L5 registry historical evidence path")
+        historical_sha256 = common.require_lower_hex(historical["sha256"], 64, "L5 registry historical evidence SHA-256")
+        historical_payload, _ = common.load_hashed_json(
+            historical_source,
+            historical_path,
+            historical_sha256,
+            context="L5 registry historical evidence",
+            load_blob=load_blob,
+        )
+        _validate_gate_binding(
+            request_source,
+            historical_path,
+            historical_sha256,
+            load_blob=load_blob,
+        )
+        evidence_source = historical_source
+        artifact_path = historical_path
+        artifact_sha256 = historical_sha256
+        aggregate = historical_payload
+
     common.require(re.fullmatch(r"docs/release-artifacts/[^/]+-evidence/registry/layer5-registry-release-credit-evidence\.json", artifact_path) is not None, "unexpected L5 registry aggregate path")
     common.require(aggregate.get("contract_version") == AGGREGATE_CONTRACT, "L5 registry aggregate contract mismatch")
     common.require(aggregate.get("status") == "verified" and aggregate.get("credit_eligible") is True, "L5 registry aggregate is not verified")
@@ -215,15 +316,12 @@ def score_request(
         common.require(criterion == {"id": criterion_id, "points": points, "status": "verified", "evidence_sha256": digest}, f"L5 registry criterion {criterion_id} mismatch")
     common.require(seen == set(expected_criteria), "L5 registry criterion set incomplete")
 
-    capability = common.decode_json(load_blob(evidence_source, GATE_PATH), "capability gates")
-    common.require(capability.get("contract_version") == "capability-gate-state-v1", "capability gate contract mismatch")
-    gate = capability.get("gates", {}).get("docker_registry_publish", {})
-    common.require(gate.get("owner_granted") is True and gate.get("live_verified") is True, "registry gate is not promoted")
-    common.require(gate.get("provider") == "ghcr" and gate.get("paid_provider") is False, "registry gate provider mismatch")
-    common.require(isinstance(gate.get("owner_grant_ref"), str) and gate["owner_grant_ref"].strip(), "registry gate Owner reference missing")
-    common.require(gate.get("verifier") == GATE_VERIFIER, "registry gate verifier mismatch")
-    common.require(str(gate.get("evidence_artifact", "")).replace("\\", "/") == artifact_path, "registry gate evidence path mismatch")
-    common.require(str(gate.get("evidence_sha256", "")).lower() == request["artifact_sha256"], "registry gate evidence hash mismatch")
+    _validate_gate_binding(
+        evidence_source,
+        artifact_path,
+        artifact_sha256,
+        load_blob=load_blob,
+    )
     return common.scorer_result(request)
 
 

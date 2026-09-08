@@ -68,11 +68,13 @@ def request(command: str, cell: str, old: int, new: int, path: str, payload: dic
 class BlobStore:
     def __init__(self, values: dict[str, object]) -> None:
         self.values = values
+        self.sources = {EVIDENCE: self.values}
 
     def load(self, source: str, path: str) -> bytes:
-        if source != EVIDENCE or path not in self.values:
+        values = self.sources.get(source)
+        if values is None or path not in values:
             raise common.ScoreError(f"missing fixture blob: {path}")
-        value = self.values[path]
+        value = values[path]
         return value if isinstance(value, bytes) else encoded(value)
 
 
@@ -232,6 +234,55 @@ def l5_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
     }
     values[l5.GATE_PATH] = gate
     return aggregate, BlobStore(values), request(l5.SCORER_COMMAND, "layer_5", 86, 100, aggregate_path, aggregate)
+
+
+def l5_requalification_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
+    historical_source = "d" * 40
+    current_candidate_source = "e" * 40
+    historical_aggregate, historical_store, _ = l5_fixture()
+    historical_path = f"docs/release-artifacts/{RELEASE}-evidence/registry/layer5-registry-release-credit-evidence.json"
+    current_release = "prod-candidate-2026-09-03-local-rc100"
+    wrapper_path = f"docs/release-artifacts/{current_release}-evidence/registry/layer5-registry-release-credit-requalification.json"
+    wrapper: dict[str, object] = {
+        "contract_version": l5.REQUALIFICATION_CONTRACT,
+        "status": "verified",
+        "scope": "vertical",
+        "cell_id": "layer_5",
+        "old_percent": 86,
+        "new_percent": 100,
+        "points_awarded": 14,
+        "credit_eligible": True,
+        "current_candidate": {
+            "release_id": current_release,
+            "source_commit_sha": current_candidate_source,
+        },
+        "historical_evidence": {
+            "contract_version": l5.AGGREGATE_CONTRACT,
+            "source_sha": historical_source,
+            "path": historical_path,
+            "sha256": digest(historical_aggregate),
+        },
+        "requalification_read_only": True,
+        "registry_write_performed": False,
+        "production_deploy": False,
+        "release_promotion": False,
+        "provider_writes": False,
+        "secret_output": False,
+    }
+    current_gate = copy.deepcopy(historical_store.values[l5.GATE_PATH])
+    store = BlobStore(
+        {
+            wrapper_path: wrapper,
+            common.CURRENT_CANDIDATE_PATH: {
+                "active_release_id": current_release,
+                "source_commit_sha": current_candidate_source,
+                "production_rollout_claimed": False,
+            },
+            l5.GATE_PATH: current_gate,
+        }
+    )
+    store.sources[historical_source] = copy.deepcopy(historical_store.values)
+    return wrapper, store, request(l5.SCORER_COMMAND, "layer_5", 86, 100, wrapper_path, wrapper)
 
 
 def p5_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
@@ -571,6 +622,19 @@ class NewProgressCreditScorerTests(unittest.TestCase):
         result = l5.score_request(req, load_blob=store.load, is_ancestor=lambda _a, _b: True)
         self.assertTrue(result["credit_allowed"])
         self.assertEqual((result["old_percent"], result["new_percent"]), (86, 100))
+
+    def test_layer5_registry_scorer_accepts_forward_requalification_of_immutable_evidence(self) -> None:
+        _, store, req = l5_requalification_fixture()
+        result = l5.score_request(req, load_blob=store.load, is_ancestor=lambda _a, _b: True)
+        self.assertTrue(result["credit_allowed"])
+        self.assertEqual(result["source_sha"], EVIDENCE)
+
+    def test_layer5_registry_scorer_rejects_requalification_hash_drift(self) -> None:
+        wrapper, store, req = l5_requalification_fixture()
+        wrapper["historical_evidence"]["sha256"] = "f" * 64  # type: ignore[index]
+        req["artifact_sha256"] = digest(wrapper)
+        with self.assertRaisesRegex(common.ScoreError, "historical evidence hash mismatch"):
+            l5.score_request(req, load_blob=store.load, is_ancestor=lambda _a, _b: True)
 
     def test_layer5_registry_scorer_rejects_unpromoted_gate(self) -> None:
         _, store, req = l5_fixture()
