@@ -15,6 +15,7 @@ import progress_credit_scorer_common as common  # noqa: E402
 import score_layer5_registry_release_credit as l5  # noqa: E402
 import score_phase3_oauth_credit as p3  # noqa: E402
 import score_phase5_market_ready_credit as p5  # noqa: E402
+import verify_ghcr_remote_scan as remote_scan  # noqa: E402
 
 
 CANDIDATE = "a" * 40
@@ -517,6 +518,9 @@ def p3_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
 
 
 class NewProgressCreditScorerTests(unittest.TestCase):
+    def test_layer5_remote_scan_contract_matches_canonical_producer(self) -> None:
+        self.assertEqual(l5.ARTIFACT_CONTRACTS["remote_image_scan"], remote_scan.CONTRACT_VERSION)
+
     def test_phase3_scorer_accepts_exact_oauth_transition(self) -> None:
         _, store, req = p3_fixture()
         result = p3.score_request(req, load_blob=store.load, is_ancestor=lambda _a, _b: True)
