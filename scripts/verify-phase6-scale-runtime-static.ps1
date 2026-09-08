@@ -46,6 +46,15 @@ foreach ($stateRelativePath in @(
     throw "Phase6 evidence byte hash differs from its canonical state: $stateRelativePath"
   }
 }
+$dateProbeParameters = @{ Depth = 10; ErrorAction = 'Stop' }
+if ((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')) {
+  $dateProbeParameters.DateKind = 'String'
+}
+$criterionDateProbe = Get-Content -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/phase6-scale-criterion.json') -Raw | ConvertFrom-Json @dateProbeParameters
+if ($criterionDateProbe.declared_at_utc -isnot [string] -or
+    [string]$criterionDateProbe.declared_at_utc -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?Z$') {
+  throw 'Phase6 static JSON parsing did not preserve the criterion UTC timestamp as an invariant string.'
+}
 function Assert-Contains([string]$Needle, [string]$Label) {
   if (-not $source.Contains($Needle)) { throw "missing source contract: $Label" }
 }
@@ -53,6 +62,8 @@ function Assert-Contains([string]$Needle, [string]$Label) {
 Assert-Contains 'Blocked "$authEnvName is missing (the value is never printed); zero HTTP requests issued"' "missing-token zero-request guard"
 Assert-Contains 'Blocked "-AllowHostedWrites is missing; zero HTTP requests issued"' "Owner-write zero-request guard"
 Assert-Contains 'Blocked "phase6_scale_runtime has no recorded Owner grant; zero HTTP requests issued"' "recorded Owner gate guard"
+Assert-Contains "ConvertFrom-Json).Parameters.ContainsKey('DateKind')" "PowerShell 7.5 invariant JSON date parsing"
+Assert-Contains '$convertParameters.DateKind = ''String''' "UTC timestamp strings preserved during JSON parsing"
 Assert-Contains '$expectedCriterionSha256 = "edeeac95fac6fefe1dcde5b77a5d8b236685f28adf66f357706aed26971ed85f"' "locked criterion byte hash"
 Assert-Contains 'caller-supplied criterion files are forbidden for a hosted write run' "canonical criterion path guard"
 Assert-Contains 'caller-supplied hosted-state files are forbidden for a hosted write run' "canonical hosted-state path guard"

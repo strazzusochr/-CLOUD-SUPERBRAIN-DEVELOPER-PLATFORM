@@ -86,9 +86,17 @@ function Get-Percentile([double[]]$Values, [double]$Percentile) {
   return [Math]::Round([double]$sorted[$index], 1)
 }
 
+function ConvertFrom-JsonStrict([string]$Value, [int]$Depth = 1024) {
+  $convertParameters = @{ Depth = $Depth; ErrorAction = 'Stop' }
+  if ((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')) {
+    $convertParameters.DateKind = 'String'
+  }
+  return ($Value | ConvertFrom-Json @convertParameters)
+}
+
 function ConvertFrom-JsonSafe([string]$Value) {
   try {
-    return ($Value | ConvertFrom-Json -ErrorAction Stop)
+    return (ConvertFrom-JsonStrict $Value)
   } catch {
     return $null
   }
@@ -219,11 +227,11 @@ foreach ($trackedTruthRelativePath in @(
 $actualCriterionSha256 = (Get-FileHash -LiteralPath $CriterionPath -Algorithm SHA256).Hash.ToLowerInvariant()
 Require ($actualCriterionSha256 -eq $expectedCriterionSha256) "criterion bytes differ from the pre-declared locked criterion"
 
-$criterion = Get-Content -LiteralPath $CriterionPath -Raw | ConvertFrom-Json
-$hostedState = Get-Content -LiteralPath $HostedStatePath -Raw | ConvertFrom-Json
-$deploymentPreflightState = Get-Content -LiteralPath $DeploymentPreflightStatePath -Raw | ConvertFrom-Json
-$capabilityGates = Get-Content -LiteralPath $capabilityGatesPath -Raw | ConvertFrom-Json
-$releaseCandidate = Get-Content -LiteralPath $releaseCandidatePath -Raw | ConvertFrom-Json
+$criterion = ConvertFrom-JsonStrict (Get-Content -LiteralPath $CriterionPath -Raw)
+$hostedState = ConvertFrom-JsonStrict (Get-Content -LiteralPath $HostedStatePath -Raw)
+$deploymentPreflightState = ConvertFrom-JsonStrict (Get-Content -LiteralPath $DeploymentPreflightStatePath -Raw)
+$capabilityGates = ConvertFrom-JsonStrict (Get-Content -LiteralPath $capabilityGatesPath -Raw)
+$releaseCandidate = ConvertFrom-JsonStrict (Get-Content -LiteralPath $releaseCandidatePath -Raw)
 
 Require ([string]$criterion.contract_version -eq "phase6-scale-criterion-v2") "unexpected criterion contract_version"
 Require ([bool]$criterion.declared_before_first_run) "criterion was not declared before the first run"
@@ -356,7 +364,7 @@ Require ($LASTEXITCODE -eq 0) "canonical O2Core hosted evidence is not tracked"
 Require ($LASTEXITCODE -eq 0) "canonical O2Core hosted evidence has uncommitted changes"
 $canonicalHostedEvidenceSha256 = (Get-FileHash -LiteralPath $canonicalHostedEvidencePath -Algorithm SHA256).Hash.ToLowerInvariant()
 Require ($canonicalHostedEvidenceSha256 -eq ([string]$hostedState.evidence_sha256).ToLowerInvariant()) "canonical O2Core hosted evidence SHA-256 mismatch"
-$canonicalHostedEvidence = Get-Content -LiteralPath $canonicalHostedEvidencePath -Raw | ConvertFrom-Json
+$canonicalHostedEvidence = ConvertFrom-JsonStrict (Get-Content -LiteralPath $canonicalHostedEvidencePath -Raw)
 Require ([string]$canonicalHostedEvidence.contract_version -eq "cloudflare-d1-stateful-runtime-hosted-proof-v1" -and [string]$canonicalHostedEvidence.status -eq "verified") "canonical O2Core hosted evidence contract is invalid"
 Require ([string]$canonicalHostedEvidence.base_url -ceq [string]$hostedState.base_url) "canonical O2Core hosted evidence base URL mismatch"
 Require ([string]$canonicalHostedEvidence.source_commit_sha -ceq [string]$hostedState.source_commit_sha -and [string]$canonicalHostedEvidence.source_archive_sha256 -ceq [string]$hostedState.source_archive_sha256) "canonical O2Core hosted evidence source binding mismatch"
@@ -381,7 +389,7 @@ $hostedEvidenceSha256 = (Get-FileHash -LiteralPath $hostedEvidencePath -Algorith
 Require ($hostedEvidenceSha256 -eq ([string]$deploymentPreflightState.evidence_sha256).ToLowerInvariant()) "hosted deployment evidence SHA-256 mismatch"
 $hostedEvidenceSidecarLine = (Get-Content -LiteralPath $hostedEvidenceSidecarPath -Raw).Trim()
 Require ($hostedEvidenceSidecarLine -ceq "$hostedEvidenceSha256  $([IO.Path]::GetFileName($hostedEvidencePath))") "hosted deployment evidence digest sidecar mismatch"
-$hostedEvidence = Get-Content -LiteralPath $hostedEvidencePath -Raw | ConvertFrom-Json
+$hostedEvidence = ConvertFrom-JsonStrict (Get-Content -LiteralPath $hostedEvidencePath -Raw)
 Assert-ExactProperties $hostedEvidence @(
   "contract_version", "verified_at_utc", "status", "purpose", "base_url", "source_commit_sha",
   "source_archive_sha256", "source_bundle_sha256", "worker_version_id", "deployment_id", "health_status",
@@ -509,7 +517,7 @@ Require ([string]::IsNullOrEmpty([string]$environmentReviewSidecarItem.LinkType)
 $environmentReviewRaw = Get-Content -LiteralPath $environmentReviewPath -Raw
 Require ($environmentReviewRaw -notmatch '(?i)(?:sk-|ghp_|github_pat_|glpat-|cfat_|vck_|hf_)[A-Za-z0-9_-]{12,}') "Environment-review artifact contains secret-shaped material"
 Require ($environmentReviewRaw -notmatch '(?i)\"(?:authorization|cookie|password|private_key|client_secret|token|credential|comment)\"\s*:') "Environment-review artifact contains a forbidden free-text or credential field"
-try { $environmentReview = $environmentReviewRaw | ConvertFrom-Json -Depth 10 -ErrorAction Stop }
+try { $environmentReview = ConvertFrom-JsonStrict $environmentReviewRaw 10 }
 catch { Fail "Environment-review artifact is not valid JSON" }
 Assert-ExactProperties $environmentReview @(
   "contract_version", "captured_at_utc", "repository", "run_id", "run_attempt", "head_sha",
