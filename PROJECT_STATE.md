@@ -1,5 +1,25 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC88 P6 HOSTED SCALE CREDIT
+
+### Session 2026-09-09 — RC88 P6 evidenzgebundener Credit
+
+- **RC48 Source / Control:** Release `prod-candidate-2026-09-07-local-rc48`,
+  eingefrorene Produktquelle `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7` und
+  Qualification-Control `79a186af68e9c54653894de818422976a2f2fb04` bleiben unveraendert.
+- **P6-Beweis:** GitHub Actions Run `34274985659`, Attempt `1`, belegt exakt
+  `900/900` erfolgreiche Worker-Requests und `244/244` Edge-Kontrollen bei
+  null Provideraufrufen. Der unabhaengige Artifact-Readback und der hashgebundene
+  Promoter verifizieren Evidence SHA-256
+  `3c945ce502525ea367334b117e21d14b30f8a2c20cefd61700a0a06f562ca81f`.
+- **Kreditstand:** P6 `90 -> 100`, Overall `89 -> 90`; aktuell Overall `90%`.
+  Damit sind `1333/1400`
+  Matrixpunkte erfuellt und `67` offen. P3 `44`, P5 `89`, L4 `100`, L5 `100`.
+  `MARKET_READY:false`; I1 und I5 bleiben getrennt blockiert.
+- **Non-Claims:** Kein zweiter Scale-Lauf, kein Production-Deploy, keine
+  Production-Promotion, keine Vercel-Production-Mutation und keine manuelle
+  Prozentanhebung. Der Credit stammt ausschliesslich aus Ledger und freigegebenem Scorer.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-08 — RC48 L4 / L5 CREDIT
 
 ### Session 2026-09-08 — RC48 L4 und L5 evidenzgebundener Credit

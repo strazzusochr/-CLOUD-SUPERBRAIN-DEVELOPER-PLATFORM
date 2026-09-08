@@ -381,21 +381,50 @@ def validate_current_truth(
     approval_gate_snapshot: dict[str, object] | None = None,
 ) -> None:
     manifest = load_json(repo_root, MANIFEST_PATH, "progress manifest")
-    require(manifest.get("overall_percent") == 89, "rubric draft must not change overall percent")
-    require(progress_cell(manifest, "horizontal", "phase_3") == 44, "rubric draft must not change P3")
-    require(progress_cell(manifest, "horizontal", "phase_6") == 90, "rubric draft must not change P6")
+    overall_percent = manifest.get("overall_percent")
+    require(type(overall_percent) is int, "manifest overall percent must be an integer")
+    phase3_percent = progress_cell(manifest, "horizontal", "phase_3")
+    phase6_percent = progress_cell(manifest, "horizontal", "phase_6")
+    require(phase3_percent in {44, 100}, "P3 may advance only through its approved 44 to 100 transition")
+    require(phase6_percent in {90, 100}, "P6 may advance only through its approved 90 to 100 transition")
 
     ledger = load_json(repo_root, LEDGER_PATH, "progress delta ledger")
     require(ledger.get("contract_version") == "project-progress-delta-ledger-v2", "delta ledger contract drifted")
     entries = ledger.get("entries")
     require(isinstance(entries, list), "delta ledger entries must be an array")
+    rubric_cell_transitions = {
+        ("horizontal", "phase_3"): (
+            44,
+            100,
+            "python scripts/score_phase3_oauth_credit.py --score-v1",
+        ),
+        ("horizontal", "phase_6"): (
+            90,
+            100,
+            "python scripts/score_phase6_scale_credit.py --score-v1",
+        ),
+    }
+    seen_rubric_transitions: set[tuple[str, str]] = set()
     for index, entry in enumerate(entries):
         require(isinstance(entry, dict), f"delta ledger entry[{index}] must be an object")
-        require(
-            (entry.get("scope"), entry.get("cell_id"))
-            not in {("horizontal", "phase_3"), ("horizontal", "phase_6")},
-            "rubric approval must not add a P3 or P6 progress delta",
-        )
+        cell_key = (entry.get("scope"), entry.get("cell_id"))
+        if cell_key not in rubric_cell_transitions:
+            continue
+        expected_old, expected_new, expected_command = rubric_cell_transitions[cell_key]
+        require(cell_key not in seen_rubric_transitions, f"duplicate progress transition for {cell_key[1]}")
+        require(entry.get("old_percent") == expected_old, f"{cell_key[1]} old percent drifted")
+        require(entry.get("new_percent") == expected_new, f"{cell_key[1]} new percent drifted")
+        require(entry.get("verifier_command") == expected_command, f"{cell_key[1]} scorer binding drifted")
+        seen_rubric_transitions.add(cell_key)
+
+    require(
+        phase3_percent == (100 if ("horizontal", "phase_3") in seen_rubric_transitions else 44),
+        "P3 current truth does not match its evidence-credit ledger transition",
+    )
+    require(
+        phase6_percent == (100 if ("horizontal", "phase_6") in seen_rubric_transitions else 90),
+        "P6 current truth does not match its evidence-credit ledger transition",
+    )
 
     gates = load_json(repo_root, GATES_PATH, "current capability gates")
     gate_map = gates.get("gates")
@@ -433,9 +462,18 @@ def validate_current_truth(
     block = re.search(r"export const MANIFEST\s*=\s*\{(?P<body>.*?)\}\s*as const;", platform_text, re.DOTALL)
     require(block is not None, "platform.ts missing MANIFEST mirror")
     body = block.group("body")
-    require(re.search(r"\boverall:\s*89\b", body) is not None, "platform mirror overall must remain 89")
-    require(re.search(r'\{\s*id:\s*"P3"\s*,\s*pct:\s*44\s*\}', body) is not None, "platform mirror P3 must remain 44")
-    require(re.search(r'\{\s*id:\s*"P6"\s*,\s*pct:\s*90\s*\}', body) is not None, "platform mirror P6 must remain 90")
+    require(
+        re.search(rf"\boverall:\s*{overall_percent}\b", body) is not None,
+        "platform mirror overall differs from current evidence-credit truth",
+    )
+    require(
+        re.search(rf'\{{\s*id:\s*"P3"\s*,\s*pct:\s*{phase3_percent}\s*\}}', body) is not None,
+        "platform mirror P3 differs from current evidence-credit truth",
+    )
+    require(
+        re.search(rf'\{{\s*id:\s*"P6"\s*,\s*pct:\s*{phase6_percent}\s*\}}', body) is not None,
+        "platform mirror P6 differs from current evidence-credit truth",
+    )
 
     criterion_path = repo_root / PHASE6_CRITERION_PATH
     require(criterion_path.is_file(), f"missing {PHASE6_CRITERION_PATH.as_posix()}")
