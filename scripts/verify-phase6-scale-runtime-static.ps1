@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $sourcePath = Join-Path $PSScriptRoot "verify-phase6-scale-runtime.ps1"
 $tokens = $null
 $parseErrors = $null
-[void][Management.Automation.Language.Parser]::ParseFile($sourcePath, [ref]$tokens, [ref]$parseErrors)
+$runtimeAst = [Management.Automation.Language.Parser]::ParseFile($sourcePath, [ref]$tokens, [ref]$parseErrors)
 if (@($parseErrors).Count -gt 0) {
   throw "phase6 scale verifier has PowerShell parse errors: $($parseErrors[0].Message)"
 }
@@ -57,6 +57,44 @@ if ($criterionDateProbe.declared_at_utc -isnot [string] -or
 }
 function Assert-Contains([string]$Needle, [string]$Label) {
   if (-not $source.Contains($Needle)) { throw "missing source contract: $Label" }
+}
+
+function Require([bool]$Condition, [string]$Message) {
+  if (-not $Condition) { throw $Message }
+}
+
+$environmentIntegerParserAst = @($runtimeAst.FindAll({
+  param($node)
+  $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+    $node.Name -ceq 'Get-NonNegativeEnvironmentInteger'
+}, $true))
+if ($environmentIntegerParserAst.Count -ne 1) {
+  throw 'Phase6 runtime must define exactly one environment-integer parser.'
+}
+Invoke-Expression $environmentIntegerParserAst[0].Extent.Text
+
+$validEnvironmentIntegers = @{
+  '0' = 0L
+  '1' = 1L
+  '34261743153' = 34261743153L
+  '9223372036854775807' = [long]::MaxValue
+}
+foreach ($entry in $validEnvironmentIntegers.GetEnumerator()) {
+  $parsedEnvironmentInteger = Get-NonNegativeEnvironmentInteger $entry.Key 'static environment integer probe'
+  if ($parsedEnvironmentInteger -isnot [long] -or $parsedEnvironmentInteger -ne $entry.Value) {
+    throw "Phase6 environment-integer parser changed value or type for '$($entry.Key)'."
+  }
+}
+foreach ($invalidEnvironmentInteger in @('', '-1', '+1', '01', ' 1', '1 ', '1.0', '9e1', '9223372036854775808')) {
+  $rejected = $false
+  try {
+    $null = Get-NonNegativeEnvironmentInteger $invalidEnvironmentInteger 'static environment integer probe'
+  } catch {
+    $rejected = $true
+  }
+  if (-not $rejected) {
+    throw "Phase6 environment-integer parser accepted invalid input '$invalidEnvironmentInteger'."
+  }
 }
 
 Assert-Contains 'Blocked "$authEnvName is missing (the value is never printed); zero HTTP requests issued"' "missing-token zero-request guard"
@@ -147,6 +185,8 @@ if ($source.Contains('$failures.Add("edge_control_failure")')) {
   throw "edge control is attribution-only and must not decide the Worker pass criterion"
 }
 Assert-Contains 'Get-NonNegativeInteger' "strict non-negative integer parsing"
+Assert-Contains 'Get-NonNegativeEnvironmentInteger (Get-RequiredEnvironment "GITHUB_RUN_ID")' "GitHub run ID canonical Int64 text parsing"
+Assert-Contains 'Get-NonNegativeEnvironmentInteger (Get-RequiredEnvironment "GITHUB_RUN_ATTEMPT")' "GitHub run-attempt canonical Int64 text parsing"
 Assert-Contains 'response accounting is not exact' "exact response accounting"
 Assert-Contains '$literalSuccessCount = [int]($validHealthJsonCount + $validCreatedIds.Count + $literalCleanupSuccessCount)' "literal success recomputation"
 Assert-Contains 'http_429_counted_as_success = $false' "429 excluded from literal success"
