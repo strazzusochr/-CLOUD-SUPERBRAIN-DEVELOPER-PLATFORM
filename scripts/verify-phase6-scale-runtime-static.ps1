@@ -145,6 +145,10 @@ foreach ($requiredWorkflowContract in @(
   'actions: read',
   'environment: phase6-scale-hosted-writes',
   'timeout-minutes: 35',
+  'Enable Windows Git long paths',
+  'git config --global core.longpaths true',
+  'git config --global --get core.longpaths',
+  'Windows Git long-path support was not enabled.',
   'persist-credentials: false',
   'docs/runtime-state/cloudflare-native-hosted-current.json',
   'docs/runtime-state/phase6-scale-hosted-current.json',
@@ -168,6 +172,11 @@ foreach ($requiredWorkflowContract in @(
   if (-not $workflowSource.Contains($requiredWorkflowContract)) {
     throw "Phase6 scale workflow is missing contract: $requiredWorkflowContract"
   }
+}
+$longPathsOffset = $workflowSource.IndexOf('- name: Enable Windows Git long paths')
+$checkoutOffset = $workflowSource.IndexOf('- name: Checkout exact execution-control commit')
+if ($longPathsOffset -lt 0 -or $checkoutOffset -lt 0 -or $longPathsOffset -ge $checkoutOffset) {
+  throw 'Windows Git long-path support must be enabled fail-closed before checkout.'
 }
 $githubApiReads = @([regex]::Matches($workflowSource, '\.GetAsync\(')).Count
 if ($githubApiReads -ne 2 -or -not $workflowSource.Contains('$handler.AllowAutoRedirect = $false')) {
