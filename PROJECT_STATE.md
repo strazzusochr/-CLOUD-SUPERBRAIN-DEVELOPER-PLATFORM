@@ -1,8 +1,8 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-## AKTUELLER CONTROL-CHECKPOINT 2026-09-08 — RC48 L4 HOSTED CREDIT
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-08 — RC48 L4 / L5 CREDIT
 
-### Session 2026-09-08 — RC48 L4 Hosted-LLM Credit
+### Session 2026-09-08 — RC48 L4 und L5 evidenzgebundener Credit
 
 - **RC48 Source / Control:** Release `prod-candidate-2026-09-07-local-rc48`,
   eingefrorene Produktquelle `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7` und
@@ -11,8 +11,8 @@
   `34154969045` ist erfolgreich und attestiert Q3 als Run-Head sowie S3 als
   exakten Source-Checkout; failed jobs `0`, skipped jobs `0`, skipped steps `0`.
 - **Kreditstand:** Overall `89%` bleibt wegen der horizontalen Rechenregel;
-  `1309/1400` Matrixpunkte sind erfuellt und `91` bleiben offen. Horizontal P3
-  `44`, P5 `89`, P6 `90`; vertikal L4 `100`, L5 `86`.
+  `1323/1400` Matrixpunkte sind erfuellt und `77` bleiben offen. Horizontal P3
+  `44`, P5 `89`, P6 `90`; vertikal L4 `100`, L5 `100`.
   `MARKET_READY:false` bleibt verbindlich.
 - **L4 Hosted-Beweis:** Preview-Worker und alle fuenf aktuellen L4-Reports sind
   an S3 gebunden. Exakt fuenf freigegebene Workers-AI-Aufrufe wurden ausgefuehrt:
@@ -22,13 +22,21 @@
   `f1f749caa73a212579b80e2698e9da3a6542ee14c484f52c6e1765f0de85038f`;
   der freigegebene Scorer bestaetigt L4 `55 -> 100` und historische Doppelgutschrift
   bleibt ausgeschlossen.
+- **L5 Registry-Beweis:** Der unveraenderliche RC44-Aggregatbeweis mit SHA-256
+  `a4d6c211c1cee7c498d24bf276aef34bb0ff3f757a5a54d6ebf2afdcdcd2a2ce`
+  belegt sechs private immutable GHCR-Digests, sechs digestgebundene SBOMs,
+  zwoelf saubere Plattform-Scans und den geschuetzten Publish-Review. Die
+  read-only RC48-Requalifikation im Merge `6e777c9a97650220e635737835a690d37dc3c1bf`
+  bindet diesen historischen Beweis vorwaerts; der Scorer bestaetigt L5
+  `86 -> 100`. Keine erneute Registry-Publikation wurde ausgefuehrt.
 - **Lokale Qualifikation:** Die fuenf release-scoped Ketten Runtime, Browser,
   Candidate-Images, Candidate-Runtime und Security muessen vor Commit aus der
   unveraenderlichen S3-Quelle bestehen. Sie vergeben keinen Hosted- oder
   Prozentcredit.
 - **Owner-Blocker:** I1 `hosted_candidate_parity` und I5
   `production_auth_identity` bleiben ohne ihre getrennten Hosted-Beweise
-  blockiert. RC48/S3-Images sind durch diesen Uebergang nicht in GHCR publiziert.
+  blockiert. Offen bleiben P3 `+56`, P5 `+11` und P6 `+10`. RC48/S3-Images sind
+  durch diesen Uebergang nicht in GHCR publiziert.
 - **Non-Claims:** Kein Production-Deploy, keine Promotion, kein P6-Scale-Dispatch,
   keine Direktprovider-Aufrufe, keine manuelle `live_verified`-Promotion und keine
   weiteren Provider-Aufrufe ausserhalb der exakt fuenf L4-Proben. I1/I5 und die

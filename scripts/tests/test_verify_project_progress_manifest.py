@@ -541,9 +541,11 @@ class ProjectProgressTruthTests(unittest.TestCase):
         self.assertNotEqual(p6_edited, self.platform)
         self.assert_rejected(lambda: self.validate(platform=p6_edited), "horizontal mirror differs")
 
+        layer_percent = self.manifest["vertical"]["items"][4]["percent"]
+        edited_layer_percent = layer_percent - 1 if layer_percent == 100 else layer_percent + 1
         layer_edited = self.platform.replace(
-            '{ name: "MCP Gateway", layer: 5, pct: 86 }',
-            '{ name: "MCP Gateway", layer: 5, pct: 87 }',
+            f'{{ name: "MCP Gateway", layer: 5, pct: {layer_percent} }}',
+            f'{{ name: "MCP Gateway", layer: 5, pct: {edited_layer_percent} }}',
             1,
         )
         self.assertNotEqual(layer_edited, self.platform)

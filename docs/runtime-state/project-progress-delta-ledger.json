@@ -120,6 +120,20 @@
       "verifier_command": "python scripts/score_layer4_hosted_llm_credit.py --score-v1",
       "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/hosted-layer/layer4-hosted-llm-current-evidence.json",
       "artifact_sha256": "f1f749caa73a212579b80e2698e9da3a6542ee14c484f52c6e1765f0de85038f"
+    },
+    {
+      "entry_id": "l5-86-to-100-rc48-registry-requalification",
+      "scope": "vertical",
+      "cell_id": "layer_5",
+      "old_percent": 86,
+      "new_percent": 100,
+      "overall_percent": 89,
+      "previous_projection_sha256": "9d0ca5e621e37e9a50ec0323b5d0500ca7c1b866e95926e0bec692788b0ba536",
+      "projection_sha256": "7a42fa44bee86d4d38fcc570feca8d9fc9439e4cf10f299f8b4ea998128b81cc",
+      "source_sha": "6e777c9a97650220e635737835a690d37dc3c1bf",
+      "verifier_command": "python scripts/score_layer5_registry_release_credit.py --score-v1",
+      "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/registry/layer5-registry-release-credit-requalification.json",
+      "artifact_sha256": "79843f35ad5a78e68a36e6b6490683879c79d794355f0f073aa4ba44f2e99d9d"
     }
   ]
 }
