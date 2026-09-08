@@ -55,6 +55,10 @@ if ($criterionDateProbe.declared_at_utc -isnot [string] -or
     [string]$criterionDateProbe.declared_at_utc -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?Z$') {
   throw 'Phase6 static JSON parsing did not preserve the criterion UTC timestamp as an invariant string.'
 }
+$environmentReviewTimestampProbe = [DateTimeOffset]::UtcNow.UtcDateTime.ToString('o', [Globalization.CultureInfo]::InvariantCulture)
+if ($environmentReviewTimestampProbe -cnotmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z$') {
+  throw 'Phase6 Environment-review timestamp writer did not emit canonical UTC Z form.'
+}
 function Assert-Contains([string]$Needle, [string]$Label) {
   if (-not $source.Contains($Needle)) { throw "missing source contract: $Label" }
 }
@@ -187,6 +191,10 @@ if ($source.Contains('$failures.Add("edge_control_failure")')) {
 Assert-Contains 'Get-NonNegativeInteger' "strict non-negative integer parsing"
 Assert-Contains 'Get-NonNegativeEnvironmentInteger (Get-RequiredEnvironment "GITHUB_RUN_ID")' "GitHub run ID canonical Int64 text parsing"
 Assert-Contains 'Get-NonNegativeEnvironmentInteger (Get-RequiredEnvironment "GITHUB_RUN_ATTEMPT")' "GitHub run-attempt canonical Int64 text parsing"
+if (-not $workflowSource.Contains("captured_at_utc = `$reviewCapturedAt.UtcDateTime.ToString('o', [Globalization.CultureInfo]::InvariantCulture)") -or
+    $workflowSource.Contains("captured_at_utc = `$reviewCapturedAt.ToString('o')")) {
+  throw 'Phase6 workflow must emit the Environment-review timestamp in canonical UTC Z form.'
+}
 Assert-Contains 'response accounting is not exact' "exact response accounting"
 Assert-Contains '$literalSuccessCount = [int]($validHealthJsonCount + $validCreatedIds.Count + $literalCleanupSuccessCount)' "literal success recomputation"
 Assert-Contains 'http_429_counted_as_success = $false' "429 excluded from literal success"
