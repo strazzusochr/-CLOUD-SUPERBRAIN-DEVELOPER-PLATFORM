@@ -111,6 +111,22 @@ Assert-Rejected { Assert-Phase6ControlDelta -Paths $auditedDelta[1..80] -SafePat
 
 # Exercise the actual collector serializer, not a separately handwritten fixture.
 $collectorAst = Read-ScriptAst 'collect-phase6-scale-execution-readback.ps1'
+$collectorSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'collect-phase6-scale-execution-readback.ps1') -Raw
+$evidenceSource = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'verify-phase6-scale-evidence.ps1') -Raw
+foreach ($transportSource in @($collectorSource, $evidenceSource)) {
+  foreach ($requiredTransportContract in @(
+    'UseGitHubCliCredentialForArtifactDownload',
+    'ExpectedPostRunTransportRepairSha',
+    "Environment.Remove('GH_TOKEN')",
+    "Environment.Remove('GITHUB_TOKEN')",
+    "'--hostname', 'github.com', '--method', 'GET'"
+  )) {
+    if (-not $transportSource.Contains($requiredTransportContract)) { throw "Missing authenticated read-only transport contract: $requiredTransportContract" }
+  }
+  if ($transportSource -match '(?i)DefaultRequestHeaders\.Authorization|Bearer\s|\$env:(?:GITHUB_TOKEN|GH_TOKEN)') {
+    throw 'Authenticated read-only transport must stay inside GitHub CLI and must not export or directly handle a token.'
+  }
+}
 $writer = @($collectorAst.FindAll({ param($node) $node -is [Management.Automation.Language.AssignmentStatementAst] -and $node.Left.Extent.Text -ceq '$readback' }, $true))
 if ($writer.Count -ne 1) { throw 'Collector readback writer is ambiguous.' }
 $repository = 'fixture/repository'

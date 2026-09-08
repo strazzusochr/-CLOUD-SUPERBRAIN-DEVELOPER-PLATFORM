@@ -149,17 +149,24 @@ foreach ($collectorContract in @(
   'application/vnd.github+json',
   'downloaded_archive_sha256',
   '[IO.FileMode]::CreateNew',
-  'token_used=false promotion=false'
+  'UseGitHubCliCredentialForArtifactDownload',
+  'ExpectedPostRunTransportRepairSha',
+  'credential_mode=github_cli_readonly token_output=false token_persisted=false promotion=false',
+  "Environment.Remove('GH_TOKEN')",
+  "Environment.Remove('GITHUB_TOKEN')",
+  "'--hostname', 'github.com', '--method', 'GET'"
 )) {
   Assert-True ($collectorSource.Contains($collectorContract)) "Execution-readback collector is missing contract: $collectorContract"
 }
-Assert-True ($collectorSource -notmatch '(?i)DefaultRequestHeaders\.Authorization|GITHUB_TOKEN|GH_TOKEN|Bearer\s') 'Execution-readback collector must never read or send a GitHub token.'
+Assert-True ($collectorSource -notmatch '(?i)DefaultRequestHeaders\.Authorization|Bearer\s|\$env:(?:GITHUB_TOKEN|GH_TOKEN)') 'Execution-readback collector must delegate auth to GitHub CLI without exporting or directly handling a token.'
 $source = Get-Content -LiteralPath $verifierPath -Raw
 foreach ($required in @(
   "if (-not `$Promote)",
   'Assert-True (-not $AllowTestPaths)',
   'ExpectedCapabilityStateSha256',
   'ExpectedGateIdentitySha256',
+  'ExpectedPostRunTransportRepairSha',
+  'UseGitHubCliCredentialForArtifactDownload',
   '[switch]$ValidateOnly',
   "Assert-Boolean `$gate 'owner_granted' `$true",
   'Assert-TrackedCleanAgainstHead',
@@ -187,7 +194,16 @@ foreach ($required in @(
   Assert-True ($source.Contains($required)) "Missing promotion safety contract: $required"
 }
 Assert-True ($source.Contains('Assert-LiveGithubExecutionProvenance')) 'Deep verifier lacks independent live GitHub provenance validation.'
-Assert-True ($source -notmatch '(?i)DefaultRequestHeaders\.Authorization|Bearer\s|GITHUB_TOKEN|GH_TOKEN') 'Deep verifier must not read or send a GitHub token.'
+foreach ($transportPath in @(
+  'scripts/collect-phase6-scale-execution-readback.ps1',
+  'scripts/verify-phase6-contract-chain-static.ps1',
+  'scripts/verify-phase6-scale-evidence-static.ps1',
+  'scripts/verify-phase6-scale-evidence.ps1'
+)) {
+  Assert-True ($source.Contains("'$transportPath'")) "Deep verifier is missing reviewed post-run transport path: $transportPath"
+}
+Assert-True ($source.Contains("Environment.Remove('GH_TOKEN')") -and $source.Contains("Environment.Remove('GITHUB_TOKEN')")) 'Deep verifier must exclude inherited token environments from the GitHub CLI child.'
+Assert-True ($source -notmatch '(?i)DefaultRequestHeaders\.Authorization|Bearer\s|\$env:(?:GITHUB_TOKEN|GH_TOKEN)') 'Deep verifier must delegate auth to GitHub CLI without exporting or directly handling a token.'
 Assert-True (-not $source.Contains('$candidateGate.owner_granted =')) 'Promoter must not synthesize owner_granted.'
 Assert-True (-not $source.Contains('$candidateGate.owner_grant_ref =')) 'Promoter must not synthesize owner_grant_ref.'
 $candidateValidationIndex = $source.IndexOf("Assert-True ([string]`$writtenCandidate.gates.phase6_scale_runtime.evidence_sha256")
