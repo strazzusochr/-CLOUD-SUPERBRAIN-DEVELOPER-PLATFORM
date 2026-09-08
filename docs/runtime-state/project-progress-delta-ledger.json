@@ -106,6 +106,20 @@
       "verifier_command": "python scripts/score_layer5_hosted_mcp_credit.py --score-v1",
       "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/layer5-hosted-mcp-credit.json",
       "artifact_sha256": "c12cea9c7793e2db1856b894bdeceb47b89935d507e11a17735df1deb8b3005a"
+    },
+    {
+      "entry_id": "l4-55-to-100-rc48-hosted-llm",
+      "scope": "vertical",
+      "cell_id": "layer_4",
+      "old_percent": 55,
+      "new_percent": 100,
+      "overall_percent": 89,
+      "previous_projection_sha256": "724d930fab05d46515527c5e5c39a5269c458e8c09b60a63267be3c39d0e8228",
+      "projection_sha256": "9d0ca5e621e37e9a50ec0323b5d0500ca7c1b866e95926e0bec692788b0ba536",
+      "source_sha": "d68e08c3df6b206f73454cf152117e1546fac1f9",
+      "verifier_command": "python scripts/score_layer4_hosted_llm_credit.py --score-v1",
+      "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/hosted-layer/layer4-hosted-llm-current-evidence.json",
+      "artifact_sha256": "f1f749caa73a212579b80e2698e9da3a6542ee14c484f52c6e1765f0de85038f"
     }
   ]
 }

@@ -1,8 +1,8 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-## AKTUELLER CONTROL-CHECKPOINT 2026-09-08 — RC48 NO-CREDIT REQUALIFICATION
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-08 — RC48 L4 HOSTED CREDIT
 
-### Session 2026-09-08 — RC48 No-Credit Requalification
+### Session 2026-09-08 — RC48 L4 Hosted-LLM Credit
 
 - **RC48 Source / Control:** Release `prod-candidate-2026-09-07-local-rc48`,
   eingefrorene Produktquelle `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7` und
@@ -10,9 +10,18 @@
   `79a186af68e9c54653894de818422976a2f2fb04`. GitHub Actions Run
   `34154969045` ist erfolgreich und attestiert Q3 als Run-Head sowie S3 als
   exakten Source-Checkout; failed jobs `0`, skipped jobs `0`, skipped steps `0`.
-- **Kreditstand bleibt unveraendert:** Overall `89%`, `1264/1400` erfuellt,
-  `136` offen. Horizontal P3 `44`, P5 `89`, P6 `90`; vertikal L4 `55`, L5
-  `86`. `MARKET_READY:false` bleibt verbindlich.
+- **Kreditstand:** Overall `89%` bleibt wegen der horizontalen Rechenregel;
+  `1309/1400` Matrixpunkte sind erfuellt und `91` bleiben offen. Horizontal P3
+  `44`, P5 `89`, P6 `90`; vertikal L4 `100`, L5 `86`.
+  `MARKET_READY:false` bleibt verbindlich.
+- **L4 Hosted-Beweis:** Preview-Worker und alle fuenf aktuellen L4-Reports sind
+  an S3 gebunden. Exakt fuenf freigegebene Workers-AI-Aufrufe wurden ausgefuehrt:
+  Generativ `1`, Stream-Paritaet `2`, Fallback `2`; Budget- und Negativguards
+  blieben pre-provider bei `0`. Der unveraenderliche Aggregatbeweis im Merge
+  `d68e08c3df6b206f73454cf152117e1546fac1f9` hat SHA-256
+  `f1f749caa73a212579b80e2698e9da3a6542ee14c484f52c6e1765f0de85038f`;
+  der freigegebene Scorer bestaetigt L4 `55 -> 100` und historische Doppelgutschrift
+  bleibt ausgeschlossen.
 - **Lokale Qualifikation:** Die fuenf release-scoped Ketten Runtime, Browser,
   Candidate-Images, Candidate-Runtime und Security muessen vor Commit aus der
   unveraenderlichen S3-Quelle bestehen. Sie vergeben keinen Hosted- oder
@@ -21,8 +30,9 @@
   `production_auth_identity` bleiben ohne ihre getrennten Hosted-Beweise
   blockiert. RC48/S3-Images sind durch diesen Uebergang nicht in GHCR publiziert.
 - **Non-Claims:** Kein Production-Deploy, keine Promotion, kein P6-Scale-Dispatch,
-  kein Live-Provider-Aufruf und keine manuelle `live_verified`-Promotion.
-  `DEV-ONLY; hosted proof still blocked.`
+  keine Direktprovider-Aufrufe, keine manuelle `live_verified`-Promotion und keine
+  weiteren Provider-Aufrufe ausserhalb der exakt fuenf L4-Proben. I1/I5 und die
+  uebrigen Markt-Gates bleiben blockiert.
 
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-05 — L5 REVIEWER-CREDIT GUARD
 
