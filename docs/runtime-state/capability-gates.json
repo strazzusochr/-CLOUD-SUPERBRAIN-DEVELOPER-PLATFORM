@@ -40,14 +40,14 @@
     "phase6_scale_runtime": {
       "owner_granted": true,
       "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime",
-      "live_verified": false,
-      "evidence_artifact": "",
-      "evidence_sha256": "",
-      "verified_at_utc": "",
-      "provider": "",
+      "live_verified": true,
+      "evidence_artifact": ".phase1-artifacts/phase6-scale/scale-evidence-20260908T202957508Z-4f932c7ec0034c37be6faa90d1f71d19.json",
+      "evidence_sha256": "3c945ce502525ea367334b117e21d14b30f8a2c20cefd61700a0a06f562ca81f",
+      "verified_at_utc": "2026-09-08T20:29:57.5087349Z",
+      "provider": "cloudflare-workers-d1-zero-card",
       "paid_provider": false,
-      "verifier": "",
-      "note": "Requires a separate scale budget and a real runtime proof under load."
+      "verifier": "scripts/verify-phase6-scale-evidence.ps1",
+      "note": "Verified from phase6-scale-evidence-v2; evidence_sha256=3c945ce502525ea367334b117e21d14b30f8a2c20cefd61700a0a06f562ca81f"
     },
     "live_mcp_writes": {
       "owner_granted": true,
