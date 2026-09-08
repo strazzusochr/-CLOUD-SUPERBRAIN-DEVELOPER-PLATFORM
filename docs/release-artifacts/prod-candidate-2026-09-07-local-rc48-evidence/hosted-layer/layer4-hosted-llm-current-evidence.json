@@ -1,0 +1,136 @@
+{
+  "contract_version": "layer4-hosted-llm-current-evidence-v1",
+  "status": "verified",
+  "evidence_ref": "current_hosted_llm_seven_criteria_credit_bound",
+  "checked_at": "2026-09-08T14:06:16.068Z",
+  "scope": "vertical",
+  "cell_id": "layer_4",
+  "release_id": "prod-candidate-2026-09-07-local-rc48",
+  "source": {
+    "commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "archive_sha256": "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+    "gateway_tree_sha": "d1ac6cce21891b461b2fd60987eccb23bf77f6d5",
+    "runtime_blob": "53e604e595ddbaf9d28ef2891d2b58ae2aa67840",
+    "wrangler_blob": "c10dac05d7661d0af7f5e2ec96ee8cfc07a008e4",
+    "rubric_blob": "e10c55f96ef9760964e91bf3a161e7175216e1c1",
+    "capability_blob": "242edf7874a945fcffc0c1011440173c605e5600"
+  },
+  "rubric_approval_commit": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "authority": {
+    "owner_grant_ref_sha256": "8760e72bfd33971548c472a43987bffa5711a786e3f62665a4d62d84ef887853",
+    "gate_evidence_path": ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+    "gate_evidence_blob": "b91407a2fc0a61065371853321a10b944f71a2c4"
+  },
+  "gates": {
+    "live_llm_owner_granted": true,
+    "live_llm_live_verified": true,
+    "paid_provider": false
+  },
+  "baseline_percent": 55,
+  "credited_percent": 100,
+  "credit_points_total": 45,
+  "historical_credit": {
+    "included_in_baseline_points": 10,
+    "excluded_from_delta": true,
+    "forbidden_report_contracts": [
+      "live-llm-bounded-evidence-chain-v1"
+    ],
+    "legacy_progress_credit_recommended": 0
+  },
+  "criteria": [
+    {
+      "criterion_id": "hosted_generative_source_bound",
+      "points": 10,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/generative/20260908T140314296Z-e949cc1a50f2-bf5d15e1/report.json",
+      "report_sha256": "41e3bcfe2e63440305ebfb473f86208beb730d4c9d9362f2d82d2294deff92f8",
+      "report_contract": "llm-hosted-current-evidence-chain-v2",
+      "evidence_ref": "current_hosted_llm_generative_verified",
+      "claim_ids": [
+        "hosted_generative_source_bound"
+      ]
+    },
+    {
+      "criterion_id": "hosted_stream_semantic_parity",
+      "points": 10,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/stream/20260908T140349924Z-e949cc1a50f2-bce44482/report.json",
+      "report_sha256": "470822d9ca67194303192bbc750e59ec8e8b1eefc9694e080142fed2777edce4",
+      "report_contract": "llm-hosted-stream-parity-evidence-v2",
+      "evidence_ref": "current_hosted_llm_stream_parity_verified",
+      "claim_ids": [
+        "hosted_stream_semantic_parity"
+      ]
+    },
+    {
+      "criterion_id": "hosted_routing_and_completion_audit",
+      "points": 8,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/generative/20260908T140314296Z-e949cc1a50f2-bf5d15e1/report.json",
+      "report_sha256": "41e3bcfe2e63440305ebfb473f86208beb730d4c9d9362f2d82d2294deff92f8",
+      "report_contract": "llm-hosted-current-evidence-chain-v2",
+      "evidence_ref": "current_hosted_llm_routing_completion_audit_verified",
+      "claim_ids": [
+        "hosted_routing_allowlist",
+        "hosted_completion_audit"
+      ]
+    },
+    {
+      "criterion_id": "hosted_fallback_bounded_audited",
+      "points": 3,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/fallback/20260908T140427677Z-e949cc1a50f2-9c31d4aa/report.json",
+      "report_sha256": "f33c99b8e1b1ae371f9018ccc8d13e76de4fd98dc800c5f90956b5667f933d05",
+      "report_contract": "llm-hosted-fallback-evidence-v2",
+      "evidence_ref": "current_hosted_llm_fallback_verified",
+      "claim_ids": [
+        "hosted_fallback_bounded_audited"
+      ]
+    },
+    {
+      "criterion_id": "hosted_budget_guard_pre_provider",
+      "points": 3,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/budget/20260908T140035265Z-e949cc1a50f2-bf594116/report.json",
+      "report_sha256": "db0e16adb07fedd587bc9f41e10c4e778de09f54f963088df6252982a8a1c024",
+      "report_contract": "llm-hosted-budget-guard-evidence-v2",
+      "evidence_ref": "current_hosted_llm_budget_guard_verified",
+      "claim_ids": [
+        "hosted_budget_guard_pre_provider"
+      ]
+    },
+    {
+      "criterion_id": "hosted_trace_correlation",
+      "points": 4,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/generative/20260908T140314296Z-e949cc1a50f2-bf5d15e1/report.json",
+      "report_sha256": "41e3bcfe2e63440305ebfb473f86208beb730d4c9d9362f2d82d2294deff92f8",
+      "report_contract": "llm-hosted-current-evidence-chain-v2",
+      "evidence_ref": "current_hosted_llm_trace_correlation_verified",
+      "claim_ids": [
+        "hosted_trace_correlation"
+      ]
+    },
+    {
+      "criterion_id": "hosted_negative_guards_pre_provider",
+      "points": 7,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/negative/20260908T140029091Z-e949cc1a50f2-d356e1d1/report.json",
+      "report_sha256": "041319cacca054b939e9e0567d1a3de6acb765ee166650c27991314a4a41322c",
+      "report_contract": "llm-hosted-negative-guards-evidence-v2",
+      "evidence_ref": "current_hosted_llm_negative_guards_verified",
+      "claim_ids": [
+        "hosted_auth_guard",
+        "hosted_oversize_guard",
+        "hosted_schema_policy_guard"
+      ]
+    }
+  ],
+  "provider_calls_total_observed": 5,
+  "live_provider_calls_verified": true,
+  "hosted_audit_write_verified": true,
+  "direct_provider_calls": false,
+  "provider_writes": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "secret_output": false,
+  "non_claims": [
+    "Credit is limited to the seven current hosted L4 criteria (45 points).",
+    "The historical bounded evidence chain remains included in the 55-point baseline and receives no delta credit.",
+    "No paid provider, direct provider call, production deploy, release promotion, or secret output is claimed.",
+    "Raw verifier evidence must be immutable, candidate-source-bound, and secret-redacted."
+  ]
+}
