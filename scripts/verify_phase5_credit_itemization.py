@@ -99,6 +99,17 @@ NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS = {
     "apps/frontend/lib/endpoint-snapshot.json",
     "docs/runtime-state/external-gate-summary.json",
 }
+POST_QUALIFICATION_SECURITY_OVERLAY_PATHS = NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS | {
+    "apps/frontend/next-env.d.ts",
+    "apps/frontend/package-lock.json",
+    "apps/frontend/package.json",
+}
+POST_QUALIFICATION_SECURITY_OVERLAY_VERSION = "16.3.4"
+POST_QUALIFICATION_SECURITY_OVERLAY_SHA256 = {
+    "apps/frontend/next-env.d.ts": "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b",
+    "apps/frontend/package-lock.json": "dfcaa70af77127237c714ecb5c3da3f4ffa854bc8d51c0cbe9c98a5186a0195f",
+    "apps/frontend/package.json": "526c2bf56ffda5086546e4fbd6c60931215c586bbeabea46a133568f7927669c",
+}
 CURRENT_RELEASE_CANDIDATE_REPO_PATH = "docs/release-artifacts/current-release-candidate.json"
 PHASE5_ITEMIZATION_REPO_PATH = "docs/runtime-state/phase5-credit-itemization.json"
 PROJECT_PROGRESS_MANIFEST_REPO_PATH = "docs/project-progress.manifest.json"
@@ -1522,6 +1533,45 @@ def canonical_text_sha256(value: str) -> str:
     return hashlib.sha256(value.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")).hexdigest()
 
 
+def require_post_qualification_security_overlay(source_sha: str) -> None:
+    source_package = load_git_json(source_sha, "apps/frontend/package.json")
+    index_package = load_index_json("apps/frontend/package.json")
+    source_dependencies = source_package.get("dependencies")
+    index_dependencies = index_package.get("dependencies")
+    require(isinstance(source_dependencies, dict), "candidate frontend dependencies are invalid")
+    require(isinstance(index_dependencies, dict), "security-overlay frontend dependencies are invalid")
+    require(source_dependencies.get("next") == "16.2.11", "security overlay must start from the qualified Next.js version")
+    require(
+        index_dependencies.get("next") == POST_QUALIFICATION_SECURITY_OVERLAY_VERSION,
+        "security overlay must select the reviewed patched Next.js version",
+    )
+    expected_package = json.loads(json.dumps(source_package))
+    expected_package["dependencies"]["next"] = POST_QUALIFICATION_SECURITY_OVERLAY_VERSION
+    require(index_package == expected_package, "security overlay package.json changed outside the exact Next.js patch")
+
+    index_lock = load_index_json("apps/frontend/package-lock.json")
+    lock_packages = index_lock.get("packages")
+    require(isinstance(lock_packages, dict), "security-overlay package lock is invalid")
+    lock_root = lock_packages.get("")
+    lock_next = lock_packages.get("node_modules/next")
+    require(isinstance(lock_root, dict) and isinstance(lock_root.get("dependencies"), dict), "security-overlay package lock root is invalid")
+    require(isinstance(lock_next, dict), "security-overlay Next.js lock entry is missing")
+    require(
+        lock_root["dependencies"].get("next") == POST_QUALIFICATION_SECURITY_OVERLAY_VERSION
+        and lock_next.get("version") == POST_QUALIFICATION_SECURITY_OVERLAY_VERSION,
+        "security-overlay package lock does not bind the patched Next.js version",
+    )
+    require(
+        lock_next.get("integrity") == "sha512-/Ztf6CeRH+ejEXUrYtqI4gkS66eFIHuSwqi60RgcpWKodxFZx2/dqVCMKBwILfAHXQ+F1b1vAudgj3mnxqtoIA==",
+        "security-overlay Next.js lock integrity is invalid",
+    )
+    for path, expected_sha256 in POST_QUALIFICATION_SECURITY_OVERLAY_SHA256.items():
+        require(
+            canonical_text_sha256(load_index_text(path)) == expected_sha256,
+            f"security-overlay bytes differ from the reviewed patch: {path}",
+        )
+
+
 def phase5_credit_projection(payload: dict[str, Any]) -> dict[str, Any]:
     items = payload.get("items", [])
     projected_items: list[dict[str, Any]] = []
@@ -2149,7 +2199,11 @@ def require_runtime_source_parity(
     if not changed_paths:
         return
 
-    if changed_paths in (NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS, NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS):
+    if changed_paths in (
+        NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,
+        NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,
+        POST_QUALIFICATION_SECURITY_OVERLAY_PATHS,
+    ):
         source_manifest = load_git_json(source_sha, PROJECT_PROGRESS_MANIFEST_REPO_PATH)
         index_manifest = load_index_json(PROJECT_PROGRESS_MANIFEST_REPO_PATH)
         progress_credit_changed = (
@@ -2158,9 +2212,11 @@ def require_runtime_source_parity(
         )
         if progress_credit_changed:
             require(
-                changed_paths == NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,
-                "evidence-credit transition requires the exact five-path runtime truth set",
+                changed_paths in (NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS, POST_QUALIFICATION_SECURITY_OVERLAY_PATHS),
+                "evidence-credit transition requires the exact runtime truth set, optionally plus the reviewed security overlay",
             )
+            if changed_paths == POST_QUALIFICATION_SECURITY_OVERLAY_PATHS:
+                require_post_qualification_security_overlay(source_sha)
             require_evidence_credited_progress_transition(
                 source_sha,
                 manifest,
@@ -2169,11 +2225,14 @@ def require_runtime_source_parity(
                 hosted_transition_verified=hosted_transition_verified,
                 auth_transition_verified=auth_transition_verified,
             )
+            overlay_mode = "_security_overlay" if changed_paths == POST_QUALIFICATION_SECURITY_OVERLAY_PATHS else ""
             print(
-                "[phase5-credit] runtime_source_parity_mode=evidence_credited_progress_delta "
+                f"[phase5-credit] runtime_source_parity_mode=evidence_credited_progress_delta{overlay_mode} "
                 "progress_credit_changed=true phase5_credit_changed=false"
             )
         else:
+            if changed_paths == POST_QUALIFICATION_SECURITY_OVERLAY_PATHS:
+                require_post_qualification_security_overlay(source_sha)
             require_no_credit_requalification(
                 source_sha,
                 manifest,
@@ -2181,8 +2240,9 @@ def require_runtime_source_parity(
                 computed_percent,
                 same_day_transition=(changed_paths == NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS),
             )
+            overlay_mode = "_security_overlay" if changed_paths == POST_QUALIFICATION_SECURITY_OVERLAY_PATHS else ""
             print(
-                "[phase5-credit] runtime_source_parity_mode=no_credit_requalification "
+                f"[phase5-credit] runtime_source_parity_mode=no_credit_requalification{overlay_mode} "
                 "progress_credit_changed=false"
             )
         return

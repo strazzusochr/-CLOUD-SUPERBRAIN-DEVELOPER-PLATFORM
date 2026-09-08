@@ -964,7 +964,9 @@ if (-not $AllowTestPaths) {
     'scripts/collect-phase6-scale-execution-readback.ps1',
     'scripts/verify-phase6-contract-chain-static.ps1',
     'scripts/verify-phase6-scale-evidence-static.ps1',
-    'scripts/verify-phase6-scale-evidence.ps1'
+    'scripts/verify-phase6-scale-evidence.ps1',
+    'scripts/tests/test_verify_phase5_credit_itemization.py',
+    'scripts/verify_phase5_credit_itemization.py'
   )
   $deltaBase = [string]$executionBinding.head_sha
   if (-not [string]::IsNullOrWhiteSpace($ExpectedPostRunTransportRepairSha)) {
