@@ -577,7 +577,12 @@ def validate_registry_release_transition(gate: Any, source_sha: str) -> bool:
     require(evidence.get("scope") == "vertical" and evidence.get("cell_id") == "layer_5", "registry evidence cell mismatch")
     require(evidence.get("old_percent") == 86 and evidence.get("new_percent") == 100, "registry evidence transition mismatch")
     require(evidence.get("points_awarded") == 14 and evidence.get("credit_eligible") is True, "registry evidence credit total mismatch")
-    require(evidence.get("source_commit_sha") == source_sha, "registry evidence source mismatch")
+    evidence_source_sha = evidence.get("source_commit_sha")
+    require(
+        isinstance(evidence_source_sha, str)
+        and re.fullmatch(r"[0-9a-f]{40}", evidence_source_sha) is not None,
+        "registry evidence source SHA is invalid",
+    )
     release_id = evidence.get("release_id")
     control_sha = evidence.get("control_commit_sha")
     require(
@@ -590,7 +595,7 @@ def validate_registry_release_transition(gate: Any, source_sha: str) -> bool:
         "registry evidence control SHA is invalid",
     )
     require(
-        progress_truth.git_commit_is_ancestor(ROOT, source_sha, control_sha),
+        progress_truth.git_commit_is_ancestor(ROOT, evidence_source_sha, control_sha),
         "registry evidence control must descend from the candidate source",
     )
 
@@ -602,7 +607,7 @@ def validate_registry_release_transition(gate: Any, source_sha: str) -> bool:
         "--expected-release-id",
         release_id,
         "--expected-source-sha",
-        source_sha,
+        evidence_source_sha,
         "--expected-control-sha",
         control_sha,
         "--validate-only",
@@ -621,7 +626,12 @@ def validate_registry_release_transition(gate: Any, source_sha: str) -> bool:
     marker = "[layer5-registry-release-evidence] PASS credit_eligible=true points=14 transition=86->100"
     require(completed.returncode == 0, "registry evidence failed dedicated validation")
     require(marker in completed.stdout, "registry evidence verifier omitted the read-only validation marker")
-    return True
+    # A registry publication is immutable evidence for the source it actually
+    # published.  When a later no-credit candidate becomes active, retain and
+    # validate the historical gate record but never project it onto the new
+    # candidate.  The new candidate remains registry-unverified until its own
+    # source-bound publication is promoted.
+    return evidence_source_sha == source_sha
 
 
 def require_exact_lines(lines: list[str], expected: list[str], label: str) -> None:
