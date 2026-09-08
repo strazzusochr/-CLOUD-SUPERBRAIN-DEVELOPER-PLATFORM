@@ -1,0 +1,17 @@
+{
+  "contract_version": "github-actions-phase6-environment-review-v1",
+  "captured_at_utc": "2026-09-08T20:29:26.8169158Z",
+  "repository": "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "run_id": 34274985659,
+  "run_attempt": 1,
+  "head_sha": "2c1223903d47f07ac8c0d30cce2a312119a85ef3",
+  "environment_name": "phase6-scale-hosted-writes",
+  "environment_id": 20873315555,
+  "review_state": "approved",
+  "reviewer_login": "strazzusochr",
+  "reviewer_id": 237145441,
+  "reviewer_type": "User",
+  "actor_login": "strazzusochr",
+  "triggering_actor_login": "strazzusochr",
+  "secret_output": false
+}
