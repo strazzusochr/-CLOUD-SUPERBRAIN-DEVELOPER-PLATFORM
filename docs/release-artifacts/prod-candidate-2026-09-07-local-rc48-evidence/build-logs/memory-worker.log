@@ -1,0 +1,50 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 544B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B 0.0s done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#4 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 11.32kB 0.0s done
+#5 DONE 0.1s
+
+#6 [2/7] WORKDIR /app
+#6 CACHED
+
+#7 [4/7] COPY services/memory-worker/requirements.txt .
+#7 CACHED
+
+#8 [3/7] RUN apk upgrade --no-cache
+#8 CACHED
+
+#9 [5/7] RUN pip install --no-cache-dir -r requirements.txt
+#9 CACHED
+
+#10 [6/7] COPY services/memory-worker/app ./app
+#10 CACHED
+
+#11 [7/7] RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers 0.0s done
+#12 exporting manifest sha256:7c46afac840bfe5975ac7b362bb5b6eb281306d1bc36bbb32db84ae23f4a4e5e 0.0s done
+#12 exporting config sha256:1b41c0a4711f52f11b5e594c87bddfab0b34e72ba2e6fa27f1a9d2855e59cc09 0.0s done
+#12 exporting attestation manifest sha256:b9ef8cba18c98ca7373058dfbc1e581ea45e0e6c71ff25dee8a062dd3113d65b 0.0s done
+#12 exporting manifest list sha256:8a05ce321f67f60ea7edd220c40e173b90fe52ee6789b53720a560107ceb220c 0.0s done
+#12 naming to docker.io/cloud-superbrain-production-candidate/memory-worker:e949cc1a50f21a3c565c2c2f2380a663f2cc4be7 done
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/memory-worker:e949cc1a50f21a3c565c2c2f2380a663f2cc4be7 0.0s done
+#12 DONE 0.2s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/2mfkav8jwcg4u7vh57z4j5znp

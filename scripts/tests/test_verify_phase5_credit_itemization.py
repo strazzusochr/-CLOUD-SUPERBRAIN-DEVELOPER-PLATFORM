@@ -710,6 +710,56 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "dedicated registry evidence verifier",
         )
 
+    def test_registry_evidence_for_an_older_source_is_validated_but_not_reused(self) -> None:
+        historical_source = "c" * 40
+        control_sha = "d" * 40
+        evidence_sha = "A" * 64
+        gate = {
+            "owner_granted": True,
+            "live_verified": True,
+            "paid_provider": False,
+            "provider": "ghcr",
+            "owner_grant_ref": "owner-approved-registry-publication",
+            "verifier": verifier.REGISTRY_RELEASE_VERIFIER_PATH,
+            "evidence_artifact": "docs/release-artifacts/historical-registry.json",
+            "evidence_sha256": evidence_sha,
+        }
+        evidence = {
+            "contract_version": verifier.REGISTRY_RELEASE_CONTRACT,
+            "status": "verified",
+            "scope": "vertical",
+            "cell_id": "layer_5",
+            "old_percent": 86,
+            "new_percent": 100,
+            "points_awarded": 14,
+            "credit_eligible": True,
+            "source_commit_sha": historical_source,
+            "release_id": "prod-candidate-2026-09-05-local-rc44",
+            "control_commit_sha": control_sha,
+        }
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=(
+                "[layer5-registry-release-evidence] PASS credit_eligible=true "
+                "points=14 transition=86->100\n"
+            ),
+            stderr="",
+        )
+
+        with (
+            patch.object(verifier, "require_tracked_repo_path", side_effect=lambda path, _label: path),
+            patch.object(verifier, "run_git", return_value=subprocess.CompletedProcess([], 0, "", "")),
+            patch.object(verifier, "sha256_file", return_value=evidence_sha),
+            patch.object(verifier, "load_json", return_value=evidence),
+            patch.object(verifier.progress_truth, "git_commit_is_ancestor", return_value=True),
+            patch.object(verifier.subprocess, "run", return_value=completed) as run,
+        ):
+            self.assertFalse(verifier.validate_registry_release_transition(gate, SOURCE_SHA))
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[command.index("--expected-source-sha") + 1], historical_source)
+
     def test_phase5_89_to_100_requires_atomic_i1_and_i5_evidence_transition(self) -> None:
         source = json.loads(verifier.ITEMIZATION_PATH.read_text(encoding="utf-8"))
         current = copy.deepcopy(source)
