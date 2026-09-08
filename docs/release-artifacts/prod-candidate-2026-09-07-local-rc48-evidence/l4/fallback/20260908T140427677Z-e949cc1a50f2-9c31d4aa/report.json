@@ -1,0 +1,49 @@
+{
+  "manifest_updated": false,
+  "production_deploy": false,
+  "status": "verified",
+  "release_promotion": false,
+  "delta_ledger_entry_created": false,
+  "source": {
+    "commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "archive_sha256": "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+    "gateway_tree_sha": "d1ac6cce21891b461b2fd60987eccb23bf77f6d5",
+    "verifier_blob": "3262c638579e34df427a301664cb0c01cc43c4e7",
+    "runtime_blob": "53e604e595ddbaf9d28ef2891d2b58ae2aa67840",
+    "wrangler_blob": "c10dac05d7661d0af7f5e2ec96ee8cfc07a008e4",
+    "rubric_blob": "e10c55f96ef9760964e91bf3a161e7175216e1c1",
+    "capability_blob": "242edf7874a945fcffc0c1011440173c605e5600"
+  },
+  "contract_version": "llm-hosted-fallback-evidence-v2",
+  "base_url": "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev",
+  "hosted_audit_write": true,
+  "criterion_points": 3,
+  "criterion": "L4 hosted fallback is bounded and audited",
+  "provider_writes": false,
+  "rubric_approval_commit": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "fallback": {
+    "reason_code": "verification_probe_forced_primary_rejection_after_provider_response",
+    "primary_model": "@cf/meta/llama-3.1-8b-instruct-fast",
+    "selected_model": "@cf/qwen/qwen2.5-coder-32b-instruct",
+    "provider_attempt_count": 2,
+    "gateway_log_id_sha256": [
+      "2d34f344544f45867e295d46bbf0a3dfefe8614c7695aed070b1cb7ce74b852d",
+      "73c19e15f7995e708d5e3a149bdd3135f9baad1d4c22eac4e5bf076cc0a8d8cb"
+    ],
+    "d1_evidence_ref": "d1_audit:llm-audit-117dd750-4e4e-43a9-8c90-0e777b3b308e",
+    "gateway_log_readback_verified": true,
+    "audit_readback_verified": true,
+    "response_sha256": "b0d69e8088ab8759ae7e0d6c3516834dc8373a5ed67afac42a9261a0095f2335"
+  },
+  "direct_provider_calls": false,
+  "live_provider_calls": true,
+  "provider_call_count": 2,
+  "authority": {
+    "owner_grant_ref_sha256": "8760e72bfd33971548c472a43987bffa5711a786e3f62665a4d62d84ef887853",
+    "gate_evidence_path": ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+    "gate_evidence_blob": "b91407a2fc0a61065371853321a10b944f71a2c4"
+  },
+  "checked_at": "2026-09-08T14:04:27.6562418Z",
+  "secret_output": false,
+  "credit_eligible": true
+}

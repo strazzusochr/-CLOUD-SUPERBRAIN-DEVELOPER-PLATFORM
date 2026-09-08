@@ -1,0 +1,60 @@
+{
+  "criterion": "L4 hosted stream and non-stream are semantically equal",
+  "semantic_parity": true,
+  "stream": {
+    "request_id_sha256": "13e26c9bd65d820cb4e0bf77ea09c6c546d9941084c7c3d5e49c43b2c28be75c",
+    "trace_id_sha256": "ebb5192c6ddc0feb8ff75d720127905de5d095359512e0d760025990da6ec6ca",
+    "gateway_log_id_sha256": "f284c52f0009e422ce0eb01a81144b8f2c8edb61b72fad79999e9b8dae4944d3",
+    "d1_evidence_ref": "d1_audit:llm-audit-2c0c08e0-6c03-4bb2-b6d8-01deee874b21",
+    "response_sha256": "50c789e977708c640b478e69a08a4a1fb111d9668adf3af4689dc69983d31ed3",
+    "frame_count": 3,
+    "done_count": 1,
+    "provider_frame_format": "openai_chat_completion_chunk",
+    "provider_terminal_mode": "provider_done_marker",
+    "provider_finish_reason": "stop",
+    "synthetic_terminal_frame": false,
+    "gateway_log_readback_verified": true,
+    "audit_readback_verified": true
+  },
+  "production_deploy": false,
+  "secret_output": false,
+  "criterion_points": 10,
+  "hosted_audit_write": true,
+  "authority": {
+    "owner_grant_ref_sha256": "8760e72bfd33971548c472a43987bffa5711a786e3f62665a4d62d84ef887853",
+    "gate_evidence_path": ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+    "gate_evidence_blob": "b91407a2fc0a61065371853321a10b944f71a2c4"
+  },
+  "live_provider_calls": true,
+  "base_url": "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev",
+  "delta_ledger_entry_created": false,
+  "credit_eligible": true,
+  "contract_version": "llm-hosted-stream-parity-evidence-v2",
+  "release_promotion": false,
+  "nonstream": {
+    "request_id_sha256": "3f990e54034050b93afb2c7a8e7df7f5d02e897f2a8596709c2e742de996515a",
+    "trace_id_sha256": "ed31661dfef3b40cd89e92633d4558a61ed2c4f6ae0153d0a15889d1d933a097",
+    "gateway_log_id_sha256": "db0b168ea9c7a8dd21d4050ae5714405ed952bc66c46d943d690fc2fe3d1f0b0",
+    "d1_evidence_ref": "d1_audit:llm-audit-25c53d07-9f38-4855-9659-d819a4ff7d50",
+    "response_sha256": "ec24c11bf6e12d43dd71c667b76916222778204dd0a70654436bdcf6059de3cc",
+    "gateway_log_readback_verified": true,
+    "audit_readback_verified": true
+  },
+  "provider_writes": false,
+  "direct_provider_calls": false,
+  "status": "verified",
+  "provider_call_count": 2,
+  "rubric_approval_commit": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "manifest_updated": false,
+  "checked_at": "2026-09-08T14:03:49.8942331Z",
+  "source": {
+    "commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "archive_sha256": "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+    "gateway_tree_sha": "d1ac6cce21891b461b2fd60987eccb23bf77f6d5",
+    "verifier_blob": "3736237cb93b5e1c27c92866cad6fa2a2981e730",
+    "runtime_blob": "53e604e595ddbaf9d28ef2891d2b58ae2aa67840",
+    "wrangler_blob": "c10dac05d7661d0af7f5e2ec96ee8cfc07a008e4",
+    "rubric_blob": "e10c55f96ef9760964e91bf3a161e7175216e1c1",
+    "capability_blob": "242edf7874a945fcffc0c1011440173c605e5600"
+  }
+}

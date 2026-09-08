@@ -1,0 +1,59 @@
+{
+  "contract_version": "cloudflare-llm-gateway-hosted-readonly-v1",
+  "status": "verified",
+  "evidence_ref": "cloudflare_workers_ai_llm_gateway_preview_readonly_source_parity_verified",
+  "checked_at": "2026-09-08T13:59:45.4944398Z",
+  "transport": "public_https_get_only",
+  "base_url": "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev",
+  "source": {
+    "deployed_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "deployed_archive_sha256": "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+    "deployed_tree_sha": "d1ac6cce21891b461b2fd60987eccb23bf77f6d5",
+    "current_head_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "current_tree_sha": "d1ac6cce21891b461b2fd60987eccb23bf77f6d5",
+    "blob_parity": true,
+    "worktree_clean": true,
+    "blobs": {
+      "services/cloudflare-llm-gateway/.gitignore": "398e723b4ff9cc0e661258c9b8af1c83bd5a2850",
+      "services/cloudflare-llm-gateway/package-lock.json": "a312d80c19cbc4e2e7c6b8815a7f93e297547df7",
+      "services/cloudflare-llm-gateway/package.json": "666a58e1586d7707685644e40a5f5472c8c91935",
+      "services/cloudflare-llm-gateway/src/index.js": "53e604e595ddbaf9d28ef2891d2b58ae2aa67840",
+      "services/cloudflare-llm-gateway/test/index.test.js": "15394f62c517da03ead8c595c2ed3be49b8dcca0",
+      "services/cloudflare-llm-gateway/wrangler.jsonc": "c10dac05d7661d0af7f5e2ec96ee8cfc07a008e4"
+    }
+  },
+  "health": {
+    "path": "/api/v1/health",
+    "http_status": 200,
+    "response_sha256": "3a855e1817101903111ebae3419593b9d30ed74a88cc2632d61594b77f4b5323",
+    "status": "healthy",
+    "provider": "cloudflare-workers-ai",
+    "ai_binding_configured": true,
+    "gateway_auth_configured": true,
+    "live_provider_calls_available": true,
+    "live_provider_calls": false,
+    "direct_provider_calls": false,
+    "secret_output": false
+  },
+  "models": {
+    "path": "/v1/models",
+    "http_status": 200,
+    "response_sha256": "f1f7db6440ec0af72e689e0bf937088bde5d77735c1b85a6a7bd35feee090560",
+    "ids": [
+      "@cf/meta/llama-3.1-8b-instruct-fast",
+      "@cf/qwen/qwen2.5-coder-32b-instruct"
+    ],
+    "live_provider_calls": false
+  },
+  "token_used": false,
+  "inference_executed": false,
+  "provider_write": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "secret_output": false,
+  "non_claims": [
+    "The proof reads the public Preview Worker only and does not claim a Production Worker deployment.",
+    "Workers AI availability is configuration evidence; no inference request is sent.",
+    "No authentication token, provider mutation, release action, or production deployment is performed."
+  ]
+}
