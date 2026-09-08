@@ -54,6 +54,13 @@ class ProjectProgressTruthTests(unittest.TestCase):
             self.baseline_manifest
         )
         self.baseline_platform = self.platform
+        if self.manifest["overall_percent"] != baseline_projection["overall_percent"]:
+            current_token = f'overall: {self.manifest["overall_percent"]}'
+            baseline_token = f'overall: {baseline_projection["overall_percent"]}'
+            self.assertEqual(self.baseline_platform.count(current_token), 1)
+            self.baseline_platform = self.baseline_platform.replace(
+                current_token, baseline_token, 1
+            )
         for item in self.manifest["horizontal"]["items"]:
             phase_number = int(item["id"].split("_")[1])
             baseline_percent = baseline_horizontal[item["id"]]
@@ -511,12 +518,16 @@ class ProjectProgressTruthTests(unittest.TestCase):
         self.assert_rejected(lambda: self.validate(manifest=raised), "progress projection differs from the replayed v2 delta ledger")
 
     def test_hand_raised_p6_fails_without_evidence_delta(self) -> None:
-        raised = copy.deepcopy(self.manifest)
-        raised["horizontal"]["items"][6]["percent"] += 1
-        raised["overall_percent"] = round(
-            sum(item["percent"] for item in raised["horizontal"]["items"]) / 7
+        ledger_without_p6 = copy.deepcopy(self.ledger)
+        ledger_without_p6["entries"] = [
+            entry for entry in ledger_without_p6["entries"]
+            if not (entry["scope"] == "horizontal" and entry["cell_id"] == "phase_6")
+        ]
+        self.assertNotEqual(ledger_without_p6, self.ledger)
+        self.assert_rejected(
+            lambda: self.validate(ledger=ledger_without_p6),
+            "progress projection differs from the replayed v2 delta ledger",
         )
-        self.assert_rejected(lambda: self.validate(manifest=raised), "progress projection differs from the replayed v2 delta ledger")
 
     def test_hand_raised_vertical_cells_fail_without_evidence_delta(self) -> None:
         for index, cell_id in ((3, "layer_4"), (4, "layer_5")):
@@ -537,7 +548,12 @@ class ProjectProgressTruthTests(unittest.TestCase):
         self.assert_rejected(lambda: self.validate(snapshot=edited), "endpoint snapshot project-progress mirror differs")
 
     def test_platform_horizontal_and_vertical_mirror_edits_fail(self) -> None:
-        p6_edited = self.platform.replace('{ id: "P6", pct: 90 }', '{ id: "P6", pct: 91 }', 1)
+        p6_percent = self.manifest["horizontal"]["items"][6]["percent"]
+        p6_edited = self.platform.replace(
+            f'{{ id: "P6", pct: {p6_percent} }}',
+            f'{{ id: "P6", pct: {p6_percent - 1} }}',
+            1,
+        )
         self.assertNotEqual(p6_edited, self.platform)
         self.assert_rejected(lambda: self.validate(platform=p6_edited), "horizontal mirror differs")
 

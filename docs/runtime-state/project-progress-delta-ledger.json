@@ -134,6 +134,20 @@
       "verifier_command": "python scripts/score_layer5_registry_release_credit.py --score-v1",
       "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/registry/layer5-registry-release-credit-requalification.json",
       "artifact_sha256": "79843f35ad5a78e68a36e6b6490683879c79d794355f0f073aa4ba44f2e99d9d"
+    },
+    {
+      "entry_id": "p6-90-to-100-rc88-hosted-scale",
+      "scope": "horizontal",
+      "cell_id": "phase_6",
+      "old_percent": 90,
+      "new_percent": 100,
+      "overall_percent": 90,
+      "previous_projection_sha256": "7a42fa44bee86d4d38fcc570feca8d9fc9439e4cf10f299f8b4ea998128b81cc",
+      "projection_sha256": "6e6c7d97b119bc46664735853bb13ec3a55a3ed45590316dbf992f273d8fdf54",
+      "source_sha": "750e66382f41930133a3ed9e3e33ca89dd359803",
+      "verifier_command": "python scripts/score_phase6_scale_credit.py --score-v1",
+      "artifact_path": ".phase1-artifacts/phase6-scale/scale-evidence-20260908T202957508Z-4f932c7ec0034c37be6faa90d1f71d19.json",
+      "artifact_sha256": "3c945ce502525ea367334b117e21d14b30f8a2c20cefd61700a0a06f562ca81f"
     }
   ]
 }

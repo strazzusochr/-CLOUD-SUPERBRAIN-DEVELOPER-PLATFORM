@@ -279,7 +279,7 @@ class CreditRubricDraftTests(unittest.TestCase):
 
         def changed_snapshot_overall() -> str:
             payload = json.loads(snapshot)
-            payload["/api/v1/project/progress"]["overall_percent"] = 90
+            payload["/api/v1/project/progress"]["overall_percent"] += 1
             return json.dumps(payload)
 
         def changed_ledger_target(cell_id: str) -> str:
@@ -292,14 +292,34 @@ class CreditRubricDraftTests(unittest.TestCase):
             )
             return json.dumps(payload)
 
+        def ledger_without_p6_transition() -> str:
+            payload = json.loads(ledger)
+            payload["entries"] = [
+                entry for entry in payload["entries"]
+                if not (entry.get("scope") == "horizontal" and entry.get("cell_id") == "phase_6")
+            ]
+            return json.dumps(payload)
+
+        def ledger_with_p6_scorer_drift() -> str:
+            payload = json.loads(ledger)
+            p6_entries = [
+                entry for entry in payload["entries"]
+                if entry.get("scope") == "horizontal" and entry.get("cell_id") == "phase_6"
+            ]
+            self.assertEqual(len(p6_entries), 1)
+            p6_entries[0]["verifier_command"] = "python scripts/fabricated.py --score-v1"
+            return json.dumps(payload)
+
         cases = (
-            {verifier.MANIFEST_PATH: self.mutate(manifest, '"overall_percent": 89', '"overall_percent": 90')},
+            {verifier.MANIFEST_PATH: self.mutate(manifest, '"overall_percent": 90', '"overall_percent": 91')},
             {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 44', '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 45')},
-            {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 90', '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 100')},
+            {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 100', '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 99')},
             {verifier.LEDGER_PATH: changed_ledger_target("phase_3")},
             {verifier.LEDGER_PATH: changed_ledger_target("phase_6")},
+            {verifier.LEDGER_PATH: ledger_without_p6_transition()},
+            {verifier.LEDGER_PATH: ledger_with_p6_scorer_drift()},
             {verifier.ENDPOINT_SNAPSHOT_PATH: changed_snapshot_overall()},
-            {verifier.PLATFORM_PATH: self.mutate(platform, 'overall: 89', 'overall: 90')},
+            {verifier.PLATFORM_PATH: self.mutate(platform, 'overall: 90', 'overall: 91')},
             {verifier.PHASE6_CRITERION_PATH: self.mutate(criterion, '"max_p95_ms": 1500', '"max_p95_ms": 99999')},
         )
         for overrides in cases:
