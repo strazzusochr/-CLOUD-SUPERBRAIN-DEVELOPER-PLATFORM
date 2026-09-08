@@ -126,6 +126,18 @@ function Get-NonNegativeInteger($Value, [string]$Label) {
   return [long]$Value
 }
 
+function Get-NonNegativeEnvironmentInteger([string]$Value, [string]$Label) {
+  Require (-not [string]::IsNullOrEmpty($Value) -and $Value -cmatch '^(?:0|[1-9][0-9]*)$') "$Label must be a canonical non-negative decimal integer"
+  $parsed = 0L
+  Require ([Int64]::TryParse(
+    $Value,
+    [Globalization.NumberStyles]::None,
+    [Globalization.CultureInfo]::InvariantCulture,
+    [ref]$parsed
+  )) "$Label is outside the Int64 range"
+  return $parsed
+}
+
 function Get-StrictUtcTimestamp($Value, [string]$Label) {
   $text = [string]$Value
   Require ($text -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?Z$') "$Label must be an explicit UTC timestamp"
@@ -471,9 +483,9 @@ Require (($preflightNow - $deploymentPreflightVerifiedAt) -le $maximumDeployment
 Require ((Get-RequiredEnvironment "GITHUB_ACTIONS") -ceq "true") "phase6 scale execution requires GitHub Actions"
 $githubRepository = Get-RequiredEnvironment "GITHUB_REPOSITORY"
 Require ($githubRepository -match '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') "GITHUB_REPOSITORY is invalid"
-$githubRunId = Get-NonNegativeInteger (Get-RequiredEnvironment "GITHUB_RUN_ID") "GITHUB_RUN_ID"
+$githubRunId = Get-NonNegativeEnvironmentInteger (Get-RequiredEnvironment "GITHUB_RUN_ID") "GITHUB_RUN_ID"
 Require ($githubRunId -gt 0) "GITHUB_RUN_ID must be positive"
-$githubRunAttempt = Get-NonNegativeInteger (Get-RequiredEnvironment "GITHUB_RUN_ATTEMPT") "GITHUB_RUN_ATTEMPT"
+$githubRunAttempt = Get-NonNegativeEnvironmentInteger (Get-RequiredEnvironment "GITHUB_RUN_ATTEMPT") "GITHUB_RUN_ATTEMPT"
 Require ($githubRunAttempt -eq 1) "Phase6 scale execution forbids reruns; GITHUB_RUN_ATTEMPT must equal 1"
 $githubSha = (Get-RequiredEnvironment "GITHUB_SHA").ToLowerInvariant()
 Require ($githubSha -match '^[0-9a-f]{40}$' -and $githubSha -ceq $repositoryHeadSha) "GitHub execution SHA is not the exact repository HEAD"
