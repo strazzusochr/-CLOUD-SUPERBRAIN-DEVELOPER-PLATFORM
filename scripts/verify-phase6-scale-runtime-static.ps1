@@ -20,6 +20,32 @@ if (-not (Test-Path -LiteralPath $workflowPath -PathType Leaf)) {
   throw 'dedicated Phase6 scale workflow is missing'
 }
 $workflowSource = Get-Content -LiteralPath $workflowPath -Raw
+$attributesPath = Join-Path (Split-Path -Parent $PSScriptRoot) '.gitattributes'
+if (-not (Test-Path -LiteralPath $attributesPath -PathType Leaf)) {
+  throw '.gitattributes is missing'
+}
+$attributesSource = Get-Content -LiteralPath $attributesPath -Raw
+if (-not $attributesSource.Contains('.codex/runs/CURRENT/phase6/** binary -eol')) {
+  throw 'Phase6 SHA-256-bound evidence must be binary to preserve exact bytes across Windows and Linux checkouts.'
+}
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$repoRootPrefix = ([IO.Path]::GetFullPath($repoRoot)).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+foreach ($stateRelativePath in @(
+  'docs/runtime-state/cloudflare-native-hosted-current.json',
+  'docs/runtime-state/phase6-scale-hosted-current.json'
+)) {
+  $state = Get-Content -LiteralPath (Join-Path $repoRoot $stateRelativePath) -Raw | ConvertFrom-Json
+  $evidencePath = [IO.Path]::GetFullPath((Join-Path $repoRoot ([string]$state.evidence_artifact)))
+  if (-not $evidencePath.StartsWith($repoRootPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+      -not (Test-Path -LiteralPath $evidencePath -PathType Leaf)) {
+    throw "Phase6 evidence path is absent or escapes the repository: $stateRelativePath"
+  }
+  $expectedEvidenceHash = ([string]$state.evidence_sha256).ToLowerInvariant()
+  $actualEvidenceHash = (Get-FileHash -LiteralPath $evidencePath -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($expectedEvidenceHash -cnotmatch '^[0-9a-f]{64}$' -or $actualEvidenceHash -cne $expectedEvidenceHash) {
+    throw "Phase6 evidence byte hash differs from its canonical state: $stateRelativePath"
+  }
+}
 function Assert-Contains([string]$Needle, [string]$Label) {
   if (-not $source.Contains($Needle)) { throw "missing source contract: $Label" }
 }
