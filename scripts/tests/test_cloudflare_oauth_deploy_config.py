@@ -214,6 +214,44 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
         self.assertLess(production_oauth_guard, owner_binding)
         self.assertLess(owner_binding, deploy)
 
+    def test_production_oauth_frontend_transition_accepts_absorbed_overlay_fail_closed(self) -> None:
+        command = (
+            f". '{DEPLOY_WRAPPER.as_posix()}'; "
+            "$legacy = @('apps/frontend/lib/endpoint-snapshot.json', 'apps/frontend/lib/platform.ts', "
+            "'apps/frontend/next-env.d.ts', 'apps/frontend/package-lock.json', 'apps/frontend/package.json'); "
+            "$truth = @('apps/frontend/lib/endpoint-snapshot.json', 'apps/frontend/lib/platform.ts'); "
+            "$cases = [ordered]@{ "
+            "legacy = Test-ProductionOAuthFrontendTransition -NormalizedDelta $legacy -LegacyOverlayPaths $legacy -QualificationTruthPaths $truth -SelectedSourceHasPinnedOverlay $false -TrackedSourceHasPinnedOverlay $true; "
+            "absorbed_exact = Test-ProductionOAuthFrontendTransition -NormalizedDelta @() -LegacyOverlayPaths $legacy -QualificationTruthPaths $truth -SelectedSourceHasPinnedOverlay $true -TrackedSourceHasPinnedOverlay $true; "
+            "absorbed_truth = Test-ProductionOAuthFrontendTransition -NormalizedDelta $truth -LegacyOverlayPaths $legacy -QualificationTruthPaths $truth -SelectedSourceHasPinnedOverlay $true -TrackedSourceHasPinnedOverlay $true; "
+            "unexpected_runtime = Test-ProductionOAuthFrontendTransition -NormalizedDelta @('apps/frontend/components/real-login.tsx') -LegacyOverlayPaths $legacy -QualificationTruthPaths $truth -SelectedSourceHasPinnedOverlay $true -TrackedSourceHasPinnedOverlay $true; "
+            "unpinned_selected = Test-ProductionOAuthFrontendTransition -NormalizedDelta @() -LegacyOverlayPaths $legacy -QualificationTruthPaths $truth -SelectedSourceHasPinnedOverlay $false -TrackedSourceHasPinnedOverlay $true; "
+            "unpinned_tracked = Test-ProductionOAuthFrontendTransition -NormalizedDelta @() -LegacyOverlayPaths $legacy -QualificationTruthPaths $truth -SelectedSourceHasPinnedOverlay $true -TrackedSourceHasPinnedOverlay $false; "
+            "partial_legacy = Test-ProductionOAuthFrontendTransition -NormalizedDelta @('apps/frontend/package.json') -LegacyOverlayPaths $legacy -QualificationTruthPaths $truth -SelectedSourceHasPinnedOverlay $false -TrackedSourceHasPinnedOverlay $true "
+            "}; $cases | ConvertTo-Json -Compress"
+        )
+        completed = subprocess.run(
+            ["pwsh", "-NoProfile", "-Command", command],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        result = json.loads(completed.stdout.strip().splitlines()[-1])
+        self.assertEqual(
+            result,
+            {
+                "legacy": True,
+                "absorbed_exact": True,
+                "absorbed_truth": True,
+                "unexpected_runtime": False,
+                "unpinned_selected": False,
+                "unpinned_tracked": False,
+                "partial_legacy": False,
+            },
+        )
+
     def test_production_oauth_mode_does_not_weaken_phase6_or_synthesize_live_verified(self) -> None:
         phase6 = self.wrapper.split("function Invoke-Phase6ProductionDeploy", 1)[1].split(
             "function Invoke-LlmGatewayCandidateDeploy", 1
