@@ -3,6 +3,33 @@
 import { useEffect, useRef, useState } from "react";
 
 type User = { name: string; provider: string } | null;
+type OauthBoundaryPromiseRef = { current: Promise<boolean> | null };
+
+export async function readOauthBoundaryReady(fetcher: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const response = await fetcher("/api/v1/auth/contract", { cache: "no-store" });
+    if (!response.ok) return false;
+    const contract = await response.json().catch(() => null);
+    return (
+      contract?.credential_issuance_ready === true
+      && contract?.owner_activation_granted === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function sharedOauthBoundaryReady(
+  promiseRef: OauthBoundaryPromiseRef,
+  fetcher: typeof fetch = fetch,
+): Promise<boolean> {
+  // React development StrictMode repeats effect setup/cleanup. Keep exactly one
+  // parsed readiness promise per mounted component so both effect subscribers
+  // observe the same read without sharing a one-shot Response body. A genuine
+  // remount receives a new ref and therefore performs a fresh boundary read.
+  promiseRef.current ??= readOauthBoundaryReady(fetcher);
+  return promiseRef.current;
+}
 
 function githubUser(payload: unknown): User {
   if (
@@ -66,29 +93,20 @@ export function RealLogin() {
   const [error, setError] = useState("");
   const [oauthReady, setOauthReady] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const oauthBoundaryPromiseRef = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
     rootRef.current?.setAttribute("data-hydrated", "true");
     let alive = true;
     (async () => {
-      let oauthBoundaryReady = false;
-      try {
-        const response = await fetch("/api/v1/auth/contract", { cache: "no-store" });
-        const contract = await response.json();
-        oauthBoundaryReady = (
-          response.ok
-          && contract?.credential_issuance_ready === true
-          && contract?.owner_activation_granted === true
-        );
-      } catch {
-        oauthBoundaryReady = false;
-      }
+      const oauthBoundaryReady = await sharedOauthBoundaryReady(oauthBoundaryPromiseRef);
       if (!alive) return;
       setOauthReady(oauthBoundaryReady);
 
       if (oauthBoundaryReady) {
         try {
           const githubIdentity = await oauthIdentityWithRefresh();
+          if (!alive) return;
           if (alive && githubIdentity) {
             setUser(githubIdentity);
             return;
