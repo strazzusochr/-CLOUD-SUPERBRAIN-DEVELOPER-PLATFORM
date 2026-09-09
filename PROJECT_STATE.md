@@ -1,5 +1,32 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC93 PRODUCTION FRONTEND ORIGIN
+
+- **Runtime bleibt eingefroren:** Release `prod-candidate-2026-09-07-local-rc48`,
+  Produktquelle `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`; PR #93 hat die
+  owner-approved Cloudflare-native Auth-Architektur ohne Produktcodeaenderung
+  in Merge `5767ede103a1236b2b29240fecaabafd82d4faea` festgehalten.
+- **Frontend Production-Origin:** Vercel-Redeploy
+  `dpl_3eGYgrcQUHcV6Xi6yFG4N7i1qrM8` ist READY, target `production`, und
+  serverseitig exakt an S3 gebunden. Der autoritative Alias-Readback bindet
+  `frontend-seven-psi-78.vercel.app` an dasselbe Deployment; Root und Health
+  liefern 200. Der Vercel-Production-Branch bleibt auf
+  `codex/vercel-production-hold-rc38`, Auto-Domain-Zuweisung bleibt aus.
+- **Echter Browserbeweis:** Google Chrome `148.0.7778.96`, 22 Routen, zwei
+  Viewports und 44 Command-Palette-Klicks; Overflow, Overlay-Kollisionen und
+  Console-Errors jeweils 0. Der dynamische Frontend-Verifier inklusive 32
+  Hosted-Reads, Alias-/Content-Paritaet und zweifachem Metadaten-Read besteht.
+- **Verifierkorrektur:** Vercels Deployment-Snapshot behielt nach der expliziten
+  Alias-Zuweisung eine veraltete `alias`-Liste. Der Verifier nutzt fuer Production
+  deshalb den autoritativen `/v4/aliases/<host>`-Readback und bindet Alias,
+  Projekt, Deployment-ID, Deployment-Host und Zuweisungszeit fail-closed.
+- **Kreditstand unveraendert:** Overall `90`, `1333/1400` erfuellt, `67` offen;
+  P3 `44`, P5 `89`, P6 `100`, L4/L5 `100`. Kein manueller Credit,
+  `MARKET_READY:false`.
+- **Naechster Gate-Schritt:** diesen Frontend-Origin-Beweis per PR integrieren;
+  danach erst den Production-OAuth-Worker aus S3 ueber den zugelassenen Wrapper
+  deployen und die getrennte Zwei-Tokenfamilien-Abnahme ausfuehren.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC88 P6 HOSTED SCALE CREDIT
 
 ### Session 2026-09-09 — RC88 P6 evidenzgebundener Credit

@@ -1,5 +1,26 @@
 # AI Handoff - Cloud Superbrain Developer Platform
 
+## RC93 Production Frontend Origin — 2026-09-09
+
+- Frozen runtime source remains `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`;
+  this slice changes frontend-origin evidence and its fail-closed verifier only.
+- Vercel deployment `dpl_3eGYgrcQUHcV6Xi6yFG4N7i1qrM8` is READY with target
+  `production` and exact Git source S3. The authoritative alias endpoint binds
+  `frontend-seven-psi-78.vercel.app` to it. The hold branch remains
+  `codex/vercel-production-hold-rc38`; automatic custom-domain assignment is off.
+- Real Chrome proof: 22 routes, two viewports, 44 command-palette clicks,
+  0 overflow failures, 0 overlay collisions and 0 console errors. The full
+  `-SkipBrowser` verifier additionally passed 32 hosted reads, immutable/alias
+  content parity and two authenticated metadata brackets.
+- Vercel's deployment `alias` array remained stale after explicit alias assignment.
+  The verifier now queries `/v4/aliases/<canonical-host>` and binds alias, project,
+  deployment ID, deployment host and alias timestamp. The old permissive-looking
+  snapshot assertion was removed; no check was weakened.
+- Progress remains 1333/1400, 67 open, Overall 90, `MARKET_READY:false`.
+  Next: merge this evidence slice after exact-head CI and human review, then use
+  `scripts/deploy-cloudflare-stateful-runtime.ps1 -ProductionOAuthIdentity` with
+  its exact S3/frontend-evidence bindings. Do not set `live_verified` manually.
+
 ## L5 Reviewer-Credit Guard — 2026-09-05 (local, not released)
 
 - Checkout: `D:\_sb_tmp\rc29-control`, branch `codex/rc38-l5-reviewer-credit-guard`,

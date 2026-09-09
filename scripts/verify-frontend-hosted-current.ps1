@@ -154,18 +154,33 @@ function Get-AuthenticatedDeployment([object]$Config, [string]$ExpectedTarget, [
   $configuredDeploymentHost = ConvertTo-ExactHost ([string]$Config.immutable_deployment_url) "configured immutable deployment URL"
   $actualDeploymentHost = ConvertTo-ExactHost ([string]$deployment.url) "Vercel frontend deployment URL"
   Assert-Equal $actualDeploymentHost $configuredDeploymentHost "Vercel frontend deployment URL host"
+  $canonicalAliasAssignedAt = ConvertTo-UtcInstant $deployment.aliasAssignedAt "Vercel frontend deployment aliasAssignedAt"
 
   if ($ExpectedTarget -eq "production") {
     $configuredAliasHost = ConvertTo-ExactHost ([string]$Config.production_alias) "configured production alias"
-    $actualAliasHosts = @(
-      foreach ($aliasValue in @($deployment.alias)) {
-        if (-not [string]::IsNullOrWhiteSpace([string]$aliasValue)) {
-          ConvertTo-ExactHost ([string]$aliasValue) "Vercel frontend deployment alias"
-        }
-      }
-    )
-    Assert-True ($actualAliasHosts.Count -gt 0) "Vercel frontend deployment aliases are missing"
-    Assert-True ($actualAliasHosts -contains $configuredAliasHost) "Configured production alias is not assigned to the Vercel frontend deployment"
+    $aliasLookupExit = -1
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      $aliasRaw = @(& vercel.cmd api "/v4/aliases/$configuredAliasHost" `
+        --scope $vercelScope --raw 2>$null)
+      $aliasLookupExit = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorAction
+    }
+    Assert-True ($aliasLookupExit -eq 0) "Authenticated Vercel frontend canonical alias lookup failed"
+    Assert-True ($aliasRaw.Count -gt 0) "Authenticated Vercel frontend canonical alias response was empty"
+    try {
+      $canonicalAlias = ConvertFrom-JsonPreservingDates ($aliasRaw -join "`n")
+    } catch {
+      throw "Authenticated Vercel frontend canonical alias response was not valid JSON"
+    }
+    Assert-Equal ([string]$canonicalAlias.alias) $configuredAliasHost "Vercel frontend canonical alias"
+    Assert-Equal ([string]$canonicalAlias.projectId) ([string]$Config.vercel_project_id) "Vercel frontend canonical alias project id"
+    Assert-Equal ([string]$canonicalAlias.deployment.id) ([string]$Config.deployment_id) "Vercel frontend canonical alias deployment id"
+    $canonicalAliasDeploymentHost = ConvertTo-ExactHost ([string]$canonicalAlias.deployment.url) "Vercel frontend canonical alias deployment URL"
+    Assert-Equal $canonicalAliasDeploymentHost $actualDeploymentHost "Vercel frontend canonical alias deployment URL host"
+    $canonicalAliasAssignedAt = ConvertTo-UtcInstant $canonicalAlias.createdAt "Vercel frontend canonical alias createdAt"
   }
 
   $shaCandidates = [ordered]@{
@@ -203,7 +218,7 @@ function Get-AuthenticatedDeployment([object]$Config, [string]$ExpectedTarget, [
   return [pscustomobject]@{
     Deployment = $deployment
     CreatedAt = ConvertTo-UtcInstant $deployment.createdAt "Vercel frontend deployment createdAt"
-    AliasAssignedAt = ConvertTo-UtcInstant $deployment.aliasAssignedAt "Vercel frontend deployment aliasAssignedAt"
+    AliasAssignedAt = $canonicalAliasAssignedAt
   }
 }
 
