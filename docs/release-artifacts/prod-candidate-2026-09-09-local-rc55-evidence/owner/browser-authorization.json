@@ -1,0 +1,27 @@
+{
+  "record_type": "user_authorization_not_execution_evidence",
+  "recorded_at_utc": "2026-09-09T14:55:04Z",
+  "authorization_ref": "CONFIRM_RC55_S9_Q9_BROWSER_FULL_EXACTLY_3_PROVIDER_CALLS",
+  "authorization_source": "explicit_user_message_in_current_codex_task",
+  "release_id": "prod-candidate-2026-09-09-local-rc55",
+  "runtime_source_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+  "qualification_sha": "4f9cef19cb3fee9d926c2981fb2bb5fc82138cd3",
+  "source_archive_sha256": "e8b82ea18e4ab493b2d3de1e63ad601756805f13f68305d55a23c3d121d9f5fc",
+  "scope": "DEV-ONLY canonical browser qualification and local O4 proof probes",
+  "provider_call_limit": 3,
+  "provider_path": "existing_llm_gateway_only",
+  "allowed_provider_call_distribution": {
+    "product_acceptance": 1,
+    "registered_22_page_build_controls": 2
+  },
+  "local_o4_write_and_cleanup_probes_allowed": true,
+  "source_ci_success_required_before_execution": true,
+  "automatic_provider_retries_allowed": false,
+  "production_deploy_allowed": false,
+  "production_oauth_acceptance_allowed": false,
+  "registry_publication_allowed": false,
+  "secret_creation_allowed": false,
+  "secret_output": false,
+  "percentage_credit_awarded": 0,
+  "execution_result_claimed": false
+}

@@ -44,6 +44,39 @@ function Assert-True([string]$Label, [bool]$Condition) {
   Write-Host "[worker-deploy] $Label"
 }
 
+function Test-ProductionOAuthFrontendTransition(
+  [AllowEmptyCollection()][string[]]$NormalizedDelta = @(),
+  [string[]]$LegacyOverlayPaths,
+  [string[]]$QualificationTruthPaths,
+  [bool]$SelectedSourceHasPinnedOverlay,
+  [bool]$TrackedSourceHasPinnedOverlay
+) {
+  $delta = @($NormalizedDelta)
+  $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+  foreach ($path in $delta) {
+    if (
+      [string]::IsNullOrWhiteSpace($path) -or
+      $path -cne $path.Trim() -or
+      $path.Contains("\") -or
+      -not $seen.Add($path)
+    ) {
+      return $false
+    }
+  }
+
+  $legacyOverlayTransition = (
+    $TrackedSourceHasPinnedOverlay -and
+    $delta.Count -eq $LegacyOverlayPaths.Count -and
+    @($LegacyOverlayPaths | Where-Object { $delta -cnotcontains $_ }).Count -eq 0
+  )
+  $absorbedOverlayTransition = (
+    $SelectedSourceHasPinnedOverlay -and
+    $TrackedSourceHasPinnedOverlay -and
+    @($delta | Where-Object { $QualificationTruthPaths -cnotcontains $_ }).Count -eq 0
+  )
+  return ($legacyOverlayTransition -or $absorbedOverlayTransition)
+}
+
 function Get-PlainTextVar([object]$Vars, [string]$Name) {
   $property = $Vars.PSObject.Properties[$Name]
   if ($null -eq $property -or $property.Value -isnot [string]) { return "" }
@@ -1965,13 +1998,27 @@ try {
     $normalizedFrontendRuntimeDelta = @(
       $frontendRuntimeDelta | ForEach-Object { ([string]$_).Replace("\", "/") }
     )
+    $pinnedFrontendOverlayHashes = [ordered]@{
+      "apps/frontend/next-env.d.ts" = "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
+      "apps/frontend/package-lock.json" = "9f86f41ef29745bb256500289529479459ed404bd3aee1901bba9d5f68e05570"
+      "apps/frontend/package.json" = "15f2841043146fe2efde1e984e2b1be420229dc17c3c16c93c9116fe92198817"
+    }
+    $selectedSourceHasPinnedOverlay = @(
+      $pinnedFrontendOverlayHashes.GetEnumerator() |
+        Where-Object { (Get-GitBlobSha256 $repoRoot "$resolved`:$($_.Key)") -cne $_.Value }
+    ).Count -eq 0
+    $trackedSourceHasPinnedOverlay = @(
+      $pinnedFrontendOverlayHashes.GetEnumerator() |
+        Where-Object { (Get-GitBlobSha256 $repoRoot "$trackedFrontendSourceSha`:$($_.Key)") -cne $_.Value }
+    ).Count -eq 0
     Assert-True "production OAuth frontend source uses the exact reviewed security overlay" (
       $unexpectedFrontendRuntimeDelta.Count -eq 0 -and
-      $normalizedFrontendRuntimeDelta.Count -eq $productionOAuthFrontendPaths.Count -and
-      @($productionOAuthFrontendPaths | Where-Object { $normalizedFrontendRuntimeDelta -notcontains $_ }).Count -eq 0 -and
-      (Get-GitBlobSha256 $repoRoot "$trackedFrontendSourceSha`:apps/frontend/next-env.d.ts") -ceq "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b" -and
-      (Get-GitBlobSha256 $repoRoot "$trackedFrontendSourceSha`:apps/frontend/package-lock.json") -ceq "9f86f41ef29745bb256500289529479459ed404bd3aee1901bba9d5f68e05570" -and
-      (Get-GitBlobSha256 $repoRoot "$trackedFrontendSourceSha`:apps/frontend/package.json") -ceq "15f2841043146fe2efde1e984e2b1be420229dc17c3c16c93c9116fe92198817"
+      (Test-ProductionOAuthFrontendTransition `
+        -NormalizedDelta $normalizedFrontendRuntimeDelta `
+        -LegacyOverlayPaths $productionOAuthFrontendPaths `
+        -QualificationTruthPaths $allowedFrontendQualificationTruthPaths `
+        -SelectedSourceHasPinnedOverlay $selectedSourceHasPinnedOverlay `
+        -TrackedSourceHasPinnedOverlay $trackedSourceHasPinnedOverlay)
     )
   } else {
     Assert-True "frontend runtime delta is limited to qualification truth paths" (
