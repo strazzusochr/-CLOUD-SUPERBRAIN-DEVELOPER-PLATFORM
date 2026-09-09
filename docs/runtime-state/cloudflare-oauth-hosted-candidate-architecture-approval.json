@@ -1,0 +1,12 @@
+{
+  "contract_version": "cloudflare-oauth-hosted-candidate-architecture-approval-v1",
+  "status": "owner_approved",
+  "owner_approved": true,
+  "selected_architecture": "cloudflare_native",
+  "target": "production",
+  "callback_origin": "https://frontend-seven-psi-78.vercel.app",
+  "source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+  "auth_runtime_evidence_ref": "docs/runtime-state/cloudflare-oauth-hosted-current.json",
+  "auth_runtime_verifier_ref": "scripts/verify-cloudflare-oauth-hosted-current.ps1",
+  "secret_output": false
+}
