@@ -712,8 +712,8 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             )
             completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
         self.assertNotEqual(completed.returncode, 0)
-        normalized_error = " ".join(completed.stderr.split())
-        self.assertIn("two token exchanges and two user-identity reads", normalized_error)
+        self.assertIn("two token exchanges and two", completed.stderr)
+        self.assertIn("user-identity reads for token families A and B", completed.stderr)
 
     def test_source_and_hashed_deployment_parity_fail_closed(self) -> None:
         directory, root, candidate_sha = self.make_repo()
