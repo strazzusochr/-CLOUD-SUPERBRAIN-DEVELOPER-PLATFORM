@@ -1214,11 +1214,16 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             self.assertIn(path, current_paths)
         for marker in (
             "$noCreditRequalificationSameDayPaths = @(",
+            "$postQualificationSecurityOverlayPaths = @(",
             '"PROJECT_STATE.md"',
             '"apps/frontend/lib/endpoint-snapshot.json"',
+            '"apps/frontend/next-env.d.ts"',
+            '"apps/frontend/package-lock.json"',
+            '"apps/frontend/package.json"',
             '"docs/runtime-state/external-gate-summary.json"',
             "$isNoCreditRequalificationSameDay = Test-ExactPathSet",
-            "$isNoCreditRequalification = $isNoCreditRequalification -or $isNoCreditRequalificationSameDay",
+            "$isPostQualificationSecurityOverlay = Test-ExactPathSet",
+            "$isPostQualificationSecurityOverlay",
             "$evidenceCreditTransition = $false",
             "evidence_credit_transition=",
         ):

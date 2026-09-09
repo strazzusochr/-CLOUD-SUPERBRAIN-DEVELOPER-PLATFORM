@@ -233,6 +233,16 @@ $noCreditRequalificationSameDayPaths = @(
   "apps/frontend/lib/endpoint-snapshot.json",
   "docs/runtime-state/external-gate-summary.json"
 )
+$postQualificationSecurityOverlayPaths = @(
+  "PROJECT_STATE.md",
+  "apps/frontend/lib/endpoint-snapshot.json",
+  "apps/frontend/lib/platform.ts",
+  "apps/frontend/next-env.d.ts",
+  "apps/frontend/package-lock.json",
+  "apps/frontend/package.json",
+  "docs/project-progress.manifest.json",
+  "docs/runtime-state/external-gate-summary.json"
+)
 function Test-ExactPathSet($Actual, $Expected) {
   $unexpected = @($Actual | Where-Object { $Expected -notcontains $_ })
   $missing = @($Expected | Where-Object { $Actual -notcontains $_ })
@@ -275,7 +285,12 @@ if ($runtimeChangedPaths.Count -gt 0) {
   $isQualificationTruthTransition = Test-ExactPathSet $runtimeChangedPaths $qualificationTruthPaths
   $isNoCreditRequalification = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationPaths
   $isNoCreditRequalificationSameDay = Test-ExactPathSet $runtimeChangedPaths $noCreditRequalificationSameDayPaths
-  $isNoCreditRequalification = $isNoCreditRequalification -or $isNoCreditRequalificationSameDay
+  $isPostQualificationSecurityOverlay = Test-ExactPathSet $runtimeChangedPaths $postQualificationSecurityOverlayPaths
+  $isNoCreditRequalification = (
+    $isNoCreditRequalification -or
+    $isNoCreditRequalificationSameDay -or
+    $isPostQualificationSecurityOverlay
+  )
   if (-not $dualBindingTransition -and -not $isQualificationTruthTransition -and -not $isNoCreditRequalification) {
     throw "Verification failed: active release candidate has committed or staged runtime-source drift outside the exact truth transition."
   }

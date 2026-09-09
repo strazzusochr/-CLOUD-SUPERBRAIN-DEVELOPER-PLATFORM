@@ -29,6 +29,7 @@ param(
   [string]$HostedMcpOwnerGrantCommitSha = "",
   [string]$CandidateFrontendEvidenceCommitSha = "",
   [switch]$DeployLlmGateway,
+  [switch]$ProductionOAuthIdentity,
   [switch]$Phase6Production,
   [string]$Phase6ControlCommitSha = "",
   [switch]$Phase6PreviewLoopGuard,
@@ -70,6 +71,38 @@ function Get-CanonicalVercelOrigin([string]$Label, [string]$Value) {
   $canonical = "https://$($parsed.DnsSafeHost)"
   Assert-True "$Label contains no explicit port, path, query, fragment, credentials, or case drift" ($Value -ceq $canonical)
   return $canonical
+}
+
+function Invoke-RedirectFreeJsonRead([string]$Uri) {
+  $handler = [System.Net.Http.HttpClientHandler]::new()
+  $handler.AllowAutoRedirect = $false
+  $client = [System.Net.Http.HttpClient]::new($handler, $true)
+  $client.Timeout = [TimeSpan]::FromSeconds(30)
+  $request = [System.Net.Http.HttpRequestMessage]::new(
+    [System.Net.Http.HttpMethod]::Get,
+    $Uri
+  )
+  $response = $null
+  try {
+    $response = $client.SendAsync(
+      $request,
+      [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead
+    ).GetAwaiter().GetResult()
+    $body = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+    $json = $null
+    if (-not [string]::IsNullOrWhiteSpace($body)) {
+      try { $json = $body | ConvertFrom-Json }
+      catch { throw "Worker deploy precondition failed: redirect-free response body is not valid JSON" }
+    }
+    return [pscustomobject]@{
+      StatusCode = [int]$response.StatusCode
+      Json = $json
+    }
+  } finally {
+    if ($null -ne $response) { $response.Dispose() }
+    $request.Dispose()
+    $client.Dispose()
+  }
 }
 
 function Get-GitArchiveSha256([string]$RepositoryRoot, [string]$ResolvedCommit) {
@@ -1702,8 +1735,13 @@ Push-Location $repoRoot
 try {
   Assert-True "DryRun and ValidateOnly are mutually exclusive" (-not ($DryRun -and $ValidateOnly))
   if ($UseCandidateCloudflareToken) {
-    Assert-True "candidate Cloudflare token is limited to exactly one phase6 deploy mode" (
-      $Phase6PreviewLoopGuard.IsPresent -xor $Phase6Production.IsPresent
+    $candidateTokenModes = @(
+      $Phase6PreviewLoopGuard.IsPresent,
+      $Phase6Production.IsPresent,
+      $ProductionOAuthIdentity.IsPresent
+    ) | Where-Object { $_ }
+    Assert-True "candidate Cloudflare token is limited to exactly one explicit deploy mode" (
+      $candidateTokenModes.Count -eq 1
     )
     Assert-True "candidate Cloudflare token is forbidden in ValidateOnly mode" (-not $ValidateOnly)
     $candidateCloudflareCredentials = Get-CandidateCloudflareCredentialSet
@@ -1712,6 +1750,7 @@ try {
   if ($Phase6PreviewLoopGuard) {
     Assert-True "phase6 preview loop-guard mode excludes production, LLM, and candidate activation arguments" (
       -not $Phase6Production -and
+      -not $ProductionOAuthIdentity -and
       -not $DeployLlmGateway -and
       -not $EnableHostedMcpWrites -and
       [string]::IsNullOrWhiteSpace($Phase6ControlCommitSha) -and
@@ -1733,6 +1772,7 @@ try {
   if ($Phase6Production) {
     Assert-True "phase6 production mode excludes preview, LLM, and hosted MCP activation arguments" (
       -not $Phase6PreviewLoopGuard -and
+      -not $ProductionOAuthIdentity -and
       -not $DeployLlmGateway -and
       -not $EnableHostedMcpWrites -and
       [string]::IsNullOrWhiteSpace($CandidateFrontendOrigin) -and
@@ -1750,12 +1790,31 @@ try {
       $candidateCloudflareCredentials
     return
   }
+  if ($ProductionOAuthIdentity) {
+    Assert-True "production OAuth mode excludes phase6, LLM, and hosted MCP activation arguments" (
+      -not $Phase6PreviewLoopGuard -and
+      -not $Phase6Production -and
+      -not $DeployLlmGateway -and
+      -not $EnableHostedMcpWrites -and
+      [string]::IsNullOrWhiteSpace($Phase6ControlCommitSha) -and
+      [string]::IsNullOrWhiteSpace($CandidateBranch) -and
+      [string]::IsNullOrWhiteSpace($LayerCreditRubricApprovalSha) -and
+      [string]::IsNullOrWhiteSpace($HostedMcpOwnerGrantCommitSha)
+    )
+    Assert-True "production OAuth mode requires a committed frontend evidence control SHA" (
+      $CandidateFrontendEvidenceCommitSha -cmatch "^[0-9a-f]{40}$"
+    )
+    Assert-True "production OAuth mode requires the canonical frontend production alias" (
+      $CandidateFrontendOrigin -ceq "https://frontend-seven-psi-78.vercel.app"
+    )
+  }
   Assert-True "phase6 control commit is absent outside production mode" (
     [string]::IsNullOrWhiteSpace($Phase6ControlCommitSha)
   )
 
   if ($DeployLlmGateway) {
     Assert-True "LLM deploy mode excludes stateful-runtime-only arguments" (
+      -not $ProductionOAuthIdentity -and
       -not $EnableHostedMcpWrites -and
       [string]::IsNullOrWhiteSpace($CandidateFrontendOrigin) -and
       [string]::IsNullOrWhiteSpace($CandidateBranch) -and
@@ -1843,6 +1902,11 @@ try {
   Assert-True "frontend evidence control commit is an ancestor-descendant continuation of the selected source" (
     $LASTEXITCODE -eq 0
   )
+  if ($ProductionOAuthIdentity) {
+    Assert-True "production OAuth control commit is an ancestor-descendant continuation of the selected source" (
+      $LASTEXITCODE -eq 0
+    )
+  }
 
   $frontendEvidencePath = "docs/runtime-state/frontend-hosted-current.json"
   $trackedFrontendEvidence = @(& git show "$frontendEvidenceCommit`:$frontendEvidencePath" 2>$null)
@@ -1876,6 +1940,18 @@ try {
     "apps/frontend/lib/endpoint-snapshot.json",
     "apps/frontend/lib/platform.ts"
   )
+  $productionOAuthFrontendPaths = @(
+    "apps/frontend/lib/endpoint-snapshot.json",
+    "apps/frontend/lib/platform.ts",
+    "apps/frontend/next-env.d.ts",
+    "apps/frontend/package-lock.json",
+    "apps/frontend/package.json"
+  )
+  $allowedFrontendRuntimePaths = if ($ProductionOAuthIdentity) {
+    $productionOAuthFrontendPaths
+  } else {
+    $allowedFrontendQualificationTruthPaths
+  }
   $frontendRuntimeDelta = @(
     & git diff --name-only --diff-filter=ACDMRTUXB $resolved $trackedFrontendSourceSha -- apps/frontend
   )
@@ -1883,11 +1959,25 @@ try {
   $unexpectedFrontendRuntimeDelta = @(
     $frontendRuntimeDelta |
       ForEach-Object { ([string]$_).Replace("\", "/") } |
-      Where-Object { $allowedFrontendQualificationTruthPaths -notcontains $_ }
+      Where-Object { $allowedFrontendRuntimePaths -notcontains $_ }
   )
-  Assert-True "frontend runtime delta is limited to qualification truth paths" (
-    $unexpectedFrontendRuntimeDelta.Count -eq 0
-  )
+  if ($ProductionOAuthIdentity) {
+    $normalizedFrontendRuntimeDelta = @(
+      $frontendRuntimeDelta | ForEach-Object { ([string]$_).Replace("\", "/") }
+    )
+    Assert-True "production OAuth frontend source uses the exact reviewed security overlay" (
+      $unexpectedFrontendRuntimeDelta.Count -eq 0 -and
+      $normalizedFrontendRuntimeDelta.Count -eq $productionOAuthFrontendPaths.Count -and
+      @($productionOAuthFrontendPaths | Where-Object { $normalizedFrontendRuntimeDelta -notcontains $_ }).Count -eq 0 -and
+      (Get-GitBlobSha256 $repoRoot "$trackedFrontendSourceSha`:apps/frontend/next-env.d.ts") -ceq "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b" -and
+      (Get-GitBlobSha256 $repoRoot "$trackedFrontendSourceSha`:apps/frontend/package-lock.json") -ceq "9f86f41ef29745bb256500289529479459ed404bd3aee1901bba9d5f68e05570" -and
+      (Get-GitBlobSha256 $repoRoot "$trackedFrontendSourceSha`:apps/frontend/package.json") -ceq "15f2841043146fe2efde1e984e2b1be420229dc17c3c16c93c9116fe92198817"
+    )
+  } else {
+    Assert-True "frontend runtime delta is limited to qualification truth paths" (
+      $unexpectedFrontendRuntimeDelta.Count -eq 0
+    )
+  }
   $computedFrontendArchiveSha = Get-GitArchiveSha256 $repoRoot $trackedFrontendSourceSha
   Assert-True "tracked frontend source archive SHA-256 computed" (
     $computedFrontendArchiveSha -match "^[0-9a-f]{64}$"
@@ -1904,34 +1994,68 @@ try {
   if (-not [string]::IsNullOrWhiteSpace($CandidateFrontendOrigin)) {
     $candidateFrontendOriginCanonical = Get-CanonicalVercelOrigin `
       "candidate frontend origin" $CandidateFrontendOrigin
-    Assert-True "candidate frontend origin is not the tracked production alias" (
-      -not $candidateFrontendOriginCanonical.Equals($trackedProductionAlias, [System.StringComparison]::OrdinalIgnoreCase)
-    )
-    Assert-True "candidate frontend origin is the tracked immutable deployment URL" (
-      $candidateFrontendOriginCanonical -ceq $trackedImmutableFrontendOrigin
-    )
+    if ($ProductionOAuthIdentity) {
+      Assert-True "production OAuth frontend origin is the tracked production alias" (
+        $candidateFrontendOriginCanonical -ceq $trackedProductionAlias
+      )
+    } else {
+      Assert-True "candidate frontend origin is not the tracked production alias" (
+        -not $candidateFrontendOriginCanonical.Equals($trackedProductionAlias, [System.StringComparison]::OrdinalIgnoreCase)
+      )
+      Assert-True "candidate frontend origin is the tracked immutable deployment URL" (
+        $candidateFrontendOriginCanonical -ceq $trackedImmutableFrontendOrigin
+      )
+    }
     Assert-True "tracked immutable frontend deployment is bound to the selected source lineage" (
       $unexpectedFrontendRuntimeDelta.Count -eq 0
     )
-    Assert-True "candidate frontend evidence target is preview" (
-      [string]$frontendEvidence.vercel_target -ceq "preview"
-    )
-    Assert-True "candidate frontend evidence archive matches the tracked frontend source" (
-      $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
-      $trackedFrontendArchiveSha -ceq $computedFrontendArchiveSha
-    )
+    if ($ProductionOAuthIdentity) {
+      Assert-True "production OAuth frontend evidence target is production" (
+        [string]$frontendEvidence.vercel_target -ceq "production"
+      )
+      Assert-True "production OAuth frontend alias parity is verified" (
+        $frontendEvidence.deployment_alias_content_parity -is [bool] -and
+        $frontendEvidence.deployment_alias_content_parity -eq $true
+      )
+      Assert-True "production OAuth frontend operational deploy is verified without a release claim" (
+        $frontendEvidence.production_operational_deploy_verified -is [bool] -and
+        $frontendEvidence.production_operational_deploy_verified -eq $true -and
+        $frontendEvidence.production_release_claimed -is [bool] -and
+        $frontendEvidence.production_release_claimed -eq $false
+      )
+    } else {
+      Assert-True "candidate frontend evidence target is preview" (
+        [string]$frontendEvidence.vercel_target -ceq "preview"
+      )
+    }
+    if ($ProductionOAuthIdentity) {
+      Assert-True "production OAuth frontend archive binding is absent or exact" (
+        [string]::IsNullOrWhiteSpace($trackedFrontendArchiveSha) -or
+        (
+          $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
+          $trackedFrontendArchiveSha -ceq $computedFrontendArchiveSha
+        )
+      )
+    } else {
+      Assert-True "candidate frontend evidence archive matches the tracked frontend source" (
+        $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
+        $trackedFrontendArchiveSha -ceq $computedFrontendArchiveSha
+      )
+    }
     Assert-True "candidate frontend evidence metadata is verified" (
       $frontendEvidence.deployment_metadata_verified -is [bool] -and
       $frontendEvidence.deployment_metadata_verified -eq $true
     )
-    Assert-True "candidate frontend evidence carries no production alias parity claim" (
-      $frontendEvidence.deployment_alias_content_parity -is [bool] -and
-      $frontendEvidence.deployment_alias_content_parity -eq $false
-    )
-    Assert-True "candidate frontend evidence carries no production deploy claim" (
-      $frontendEvidence.production_operational_deploy_verified -is [bool] -and
-      $frontendEvidence.production_operational_deploy_verified -eq $false
-    )
+    if (-not $ProductionOAuthIdentity) {
+      Assert-True "candidate frontend evidence carries no production alias parity claim" (
+        $frontendEvidence.deployment_alias_content_parity -is [bool] -and
+        $frontendEvidence.deployment_alias_content_parity -eq $false
+      )
+      Assert-True "candidate frontend evidence carries no production deploy claim" (
+        $frontendEvidence.production_operational_deploy_verified -is [bool] -and
+        $frontendEvidence.production_operational_deploy_verified -eq $false
+      )
+    }
     Assert-True "candidate frontend evidence carries no production release claim" (
       $frontendEvidence.production_release_claimed -is [bool] -and
       $frontendEvidence.production_release_claimed -eq $false
@@ -1950,7 +2074,8 @@ try {
   }
 
   $capabilityStatePath = "docs/runtime-state/capability-gates.json"
-  $trackedCapabilityState = @(& git show "$resolved`:$capabilityStatePath" 2>$null)
+  $capabilityStateCommit = if ($ProductionOAuthIdentity) { $frontendEvidenceCommit } else { $resolved }
+  $trackedCapabilityState = @(& git show "$capabilityStateCommit`:$capabilityStatePath" 2>$null)
   Assert-True "tracked capability gate state loaded from the selected commit" ($LASTEXITCODE -eq 0 -and $trackedCapabilityState.Count -gt 0)
   try {
     $capabilityState = ($trackedCapabilityState -join "`n") | ConvertFrom-Json
@@ -1982,6 +2107,24 @@ try {
   )
   $bindProductionAuthOwnerGrant = $ownerGrantedFromCommit -and $ownerGrantRefIsSafe
   Assert-True "tracked production auth owner gate validated without live-state synthesis" ($null -ne $productionAuthGate.PSObject.Properties["live_verified"])
+  if ($ProductionOAuthIdentity) {
+    Assert-True "production OAuth gate is Owner-granted but not yet live-verified" (
+      $productionAuthGate.owner_granted -is [bool] -and
+      $productionAuthGate.owner_granted -eq $true -and
+      $productionAuthGate.live_verified -is [bool] -and
+      $productionAuthGate.live_verified -eq $false -and
+      $bindProductionAuthOwnerGrant
+    )
+    Assert-True "production OAuth Owner grant reference is safe" (
+      $ownerGrantRef.Length -ge 8 -and
+      $ownerGrantRef.Length -le 256 -and
+      $ownerGrantRef -cmatch "^[A-Za-z0-9_.:-]+$"
+    )
+    Assert-True "production OAuth gate is non-paid" (
+      $productionAuthGate.paid_provider -is [bool] -and
+      $productionAuthGate.paid_provider -eq $false
+    )
+  }
 
   $mcpBindingArgs = @(
     "--var", "HOSTED_MCP_WRITE_AUTHORIZED:false",
@@ -2175,9 +2318,14 @@ try {
       $installedWranglerVersion -ceq $lockedWranglerVersion
     )
 
+    $contractOriginBinding = if ($ProductionOAuthIdentity) {
+      Get-CanonicalVercelOrigin "production OAuth contract origin" (Get-PlainTextVar $plainVars "CONTRACT_ORIGIN")
+    } else {
+      $candidateFrontendOriginCanonical
+    }
     $bindingArgs = @(
       "--var", "RUNTIME_MODE:cloudflare_native_hosted_candidate",
-      "--var", "CONTRACT_ORIGIN:$candidateFrontendOriginCanonical",
+      "--var", "CONTRACT_ORIGIN:$contractOriginBinding",
       "--var", "OAUTH_PUBLIC_ORIGIN:$candidateFrontendOriginCanonical",
       "--var", "GITHUB_OAUTH_REDIRECT_URI:$candidateOAuthCallback",
       "--var", "GITHUB_OAUTH_CLIENT_ID:$oauthClientId",
@@ -2185,18 +2333,30 @@ try {
       "--var", "POST_LOGIN_REDIRECT:$postLoginRedirect",
       "--var", "MEMORY_EMBEDDING_MODEL:$memoryEmbeddingModel",
       "--var", "SOURCE_COMMIT_SHA:$resolved",
-      "--var", "SOURCE_ARCHIVE_SHA256:$archiveSha",
-      "--var", "PRODUCTION_AUTH_OWNER_GRANTED:false"
+      "--var", "SOURCE_ARCHIVE_SHA256:$archiveSha"
     )
-    if ($bindProductionAuthOwnerGrant) {
-      $bindingArgs[-1] = "PRODUCTION_AUTH_OWNER_GRANTED:true"
-      $bindingArgs += @("--var", "PRODUCTION_AUTH_OWNER_GRANT_REF:$ownerGrantRef")
+    if ($ProductionOAuthIdentity) {
+      $bindingArgs += @(
+        "--var", "PRODUCTION_AUTH_OWNER_GRANTED:true",
+        "--var", "PRODUCTION_AUTH_OWNER_GRANT_REF:$ownerGrantRef"
+      )
+    } else {
+      $bindingArgs += @("--var", "PRODUCTION_AUTH_OWNER_GRANTED:false")
+      if ($bindProductionAuthOwnerGrant) {
+        $bindingArgs[-1] = "PRODUCTION_AUTH_OWNER_GRANTED:true"
+        $bindingArgs += @("--var", "PRODUCTION_AUTH_OWNER_GRANT_REF:$ownerGrantRef")
+      }
     }
-    $bindingArgs += @(
-      "--var", "HOSTED_MCP_DEPLOYMENT_ENVIRONMENT:$hostedMcpDeploymentEnvironment",
-      "--var", "HOSTED_MCP_PREVIEW_HOSTNAME:$previewWorkerHostname"
-    )
+    if (-not $ProductionOAuthIdentity) {
+      $bindingArgs += @(
+        "--var", "HOSTED_MCP_DEPLOYMENT_ENVIRONMENT:$hostedMcpDeploymentEnvironment",
+        "--var", "HOSTED_MCP_PREVIEW_HOSTNAME:$previewWorkerHostname"
+      )
+    }
     $bindingArgs += $mcpBindingArgs
+
+    $targetEnvironmentArgs = if ($ProductionOAuthIdentity) { @() } else { @("--env", "preview") }
+    $preserveRemoteBindingsArgs = if ($ProductionOAuthIdentity) { @("--keep-vars") } else { @() }
 
     # Wrangler's --outfile is the complete multipart upload body, not a
     # JavaScript entrypoint.  Hash and re-upload the deterministic entrypoint
@@ -2206,16 +2366,31 @@ try {
     $preflightBundleFile = Join-Path $preflightOutputDir "index.js"
     $preflightMetafile = Join-Path $materializationRoot "bundle-preflight-meta.json"
     $preflightArgs = @(
-      $wrangler, "deploy", "--env", "preview"
-    ) + $bindingArgs + @(
+      $wrangler, "deploy"
+    ) + $targetEnvironmentArgs + $preserveRemoteBindingsArgs + $bindingArgs + @(
       "--dry-run",
       "--outdir", $preflightOutputDir,
       "--metafile", $preflightMetafile
     )
     Push-Location $materializedWorkerDir
     try {
-      $null = & node @preflightArgs 2>&1
-      $preflightExitCode = $LASTEXITCODE
+      if ($ProductionOAuthIdentity) {
+        $wranglerArguments = @($preflightArgs | Select-Object -Skip 1)
+        if ($null -ne $candidateCloudflareCredentials) {
+          $preflightExecution = Invoke-CandidateWranglerChild `
+            $wrangler $wranglerArguments $candidateCloudflareCredentials $materializedWorkerDir `
+            "production OAuth Wrangler preflight"
+        } else {
+          $preflightExecution = Invoke-ScrubbedWranglerChild `
+            $wrangler $wranglerArguments $materializedWorkerDir `
+            "production OAuth Wrangler preflight"
+        }
+        $preflightExitCode = [int]$preflightExecution.ExitCode
+        $preflightExecution.Stdout = $null
+      } else {
+        $null = & node @preflightArgs 2>&1
+        $preflightExitCode = $LASTEXITCODE
+      }
     } finally { Pop-Location }
     Assert-True "selected-source Wrangler preflight exit code 0; command output suppressed" ($preflightExitCode -eq 0)
     $preflightScriptFiles = @(Get-ChildItem -LiteralPath $preflightOutputDir -File -Filter "*.js")
@@ -2260,47 +2435,87 @@ try {
     $materializedWranglerConfigPath = Join-Path $materializedWorkerDir "wrangler.jsonc"
     $deployArgs = @(
       $wrangler, "deploy", $preflightBundleFile,
-      "--no-bundle", "--config", $materializedWranglerConfigPath,
-      "--env", "preview"
-    ) + $bindingArgs + @(
+      "--no-bundle", "--config", $materializedWranglerConfigPath
+    ) + $targetEnvironmentArgs + $preserveRemoteBindingsArgs + $bindingArgs + @(
       "--var", "SOURCE_BUNDLE_SHA256:$sourceBundleSha"
     )
     Push-Location $materializedWorkerDir
     try {
-      $null = & node @deployArgs 2>&1
-      $wranglerExitCode = $LASTEXITCODE
+      if ($ProductionOAuthIdentity) {
+        $wranglerArguments = @($deployArgs | Select-Object -Skip 1)
+        if ($null -ne $candidateCloudflareCredentials) {
+          $deployExecution = Invoke-CandidateWranglerChild `
+            $wrangler $wranglerArguments $candidateCloudflareCredentials $materializedWorkerDir `
+            "production OAuth Wrangler deploy"
+        } else {
+          $deployExecution = Invoke-ScrubbedWranglerChild `
+            $wrangler $wranglerArguments $materializedWorkerDir `
+            "production OAuth Wrangler deploy"
+        }
+        $wranglerExitCode = [int]$deployExecution.ExitCode
+        $deployExecution.Stdout = $null
+      } else {
+        $null = & node @deployArgs 2>&1
+        $wranglerExitCode = $LASTEXITCODE
+      }
       Assert-True "wrangler deploy exit code 0; command output suppressed" ($wranglerExitCode -eq 0)
     } finally { Pop-Location }
 
-    $health = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
-      -Uri $previewWorkerHealthUrl).Content | ConvertFrom-Json
-    Assert-True "preview source_commit_sha rebound"    ([string]$health.source_commit_sha    -eq $resolved)
-    Assert-True "preview source_archive_sha256 rebound" ([string]$health.source_archive_sha256 -eq $archiveSha)
-    Assert-True "preview source_bundle_sha256 rebound" ([string]$health.source_bundle_sha256 -eq $sourceBundleSha)
-    Assert-True "preview runtime mode rebound" ([string]$health.mode -ceq "cloudflare_native_hosted_candidate")
-    $mcpHealth = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
-      -Uri $previewWorkerMcpHealthUrl).Content | ConvertFrom-Json
-    Assert-True "preview MCP health reports healthy" (
-      [string]$mcpHealth.contract_version -ceq "mcp-hosted-health-v1" -and
-      [string]$mcpHealth.status -ceq "healthy" -and
-      [string]$mcpHealth.service -ceq "mcp-gateway"
-    )
-    Assert-True "preview MCP health source_commit_sha rebound" ([string]$mcpHealth.source_commit_sha -ceq $resolved)
-    Assert-True "preview MCP health source_archive_sha256 rebound" ([string]$mcpHealth.source_archive_sha256 -ceq $archiveSha)
-    Assert-True "preview MCP health source_bundle_sha256 rebound" ([string]$mcpHealth.source_bundle_sha256 -ceq $sourceBundleSha)
-    Assert-True "preview MCP health D1 read verified" (
-      $mcpHealth.d1_binding_configured -is [bool] -and $mcpHealth.d1_binding_configured -and
-      $mcpHealth.d1_read_verified -is [bool] -and $mcpHealth.d1_read_verified -and
-      $mcpHealth.persisted -is [bool] -and $mcpHealth.persisted
-    )
-    Assert-True "preview MCP health is non-mutating" (
-      $mcpHealth.provider_writes -is [bool] -and -not $mcpHealth.provider_writes -and
-      $mcpHealth.live_mcp_writes -is [bool] -and -not $mcpHealth.live_mcp_writes -and
-      $mcpHealth.live_provider_calls -is [bool] -and -not $mcpHealth.live_provider_calls -and
-      $mcpHealth.production_deploy -is [bool] -and -not $mcpHealth.production_deploy -and
-      $mcpHealth.secret_output -is [bool] -and -not $mcpHealth.secret_output
-    )
-    Write-Host "[worker-deploy] preview commit, archive, exact uploaded bundle, runtime mode, and MCP health binding verified"
+    if ($ProductionOAuthIdentity) {
+      $productionWorkerOrigin = "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev"
+      $healthRead = Invoke-RedirectFreeJsonRead "$productionWorkerOrigin/api/v1/health"
+      Assert-True "production OAuth health status is 200" ($healthRead.StatusCode -eq 200)
+      $health = $healthRead.Json
+      Assert-True "production OAuth health source_commit_sha rebound" ([string]$health.source_commit_sha -ceq $resolved)
+      Assert-True "production OAuth health source_archive_sha256 rebound" ([string]$health.source_archive_sha256 -ceq $archiveSha)
+      Assert-True "production OAuth health source_bundle_sha256 rebound" ([string]$health.source_bundle_sha256 -ceq $sourceBundleSha)
+      Assert-True "production OAuth health verifies D1" (
+        $health.d1_read_verified -is [bool] -and $health.d1_read_verified -eq $true -and
+        $health.secret_output -is [bool] -and $health.secret_output -eq $false
+      )
+      $contractRead = Invoke-RedirectFreeJsonRead "$productionWorkerOrigin/api/v1/auth/contract"
+      Assert-True "production OAuth contract status is 200" ($contractRead.StatusCode -eq 200)
+      Assert-True "production OAuth contract is credential-ready" (
+        [string]$contractRead.Json.mode -ceq "verified_identity_fail_closed" -and
+        $contractRead.Json.owner_activation_granted -is [bool] -and
+        $contractRead.Json.owner_activation_granted -eq $true -and
+        $contractRead.Json.credential_issuance_ready -is [bool] -and
+        $contractRead.Json.credential_issuance_ready -eq $true
+      )
+      $anonymousMeRead = Invoke-RedirectFreeJsonRead "$productionWorkerOrigin/api/v1/auth/me"
+      Assert-True "production OAuth anonymous auth/me status is 401" ($anonymousMeRead.StatusCode -eq 401)
+      Write-Host "[worker-deploy] production OAuth source, bundle, D1, contract, and anonymous boundary verified"
+    } else {
+      $health = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
+        -Uri $previewWorkerHealthUrl).Content | ConvertFrom-Json
+      Assert-True "preview source_commit_sha rebound"    ([string]$health.source_commit_sha    -eq $resolved)
+      Assert-True "preview source_archive_sha256 rebound" ([string]$health.source_archive_sha256 -eq $archiveSha)
+      Assert-True "preview source_bundle_sha256 rebound" ([string]$health.source_bundle_sha256 -eq $sourceBundleSha)
+      Assert-True "preview runtime mode rebound" ([string]$health.mode -ceq "cloudflare_native_hosted_candidate")
+      $mcpHealth = (Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 `
+        -Uri $previewWorkerMcpHealthUrl).Content | ConvertFrom-Json
+      Assert-True "preview MCP health reports healthy" (
+        [string]$mcpHealth.contract_version -ceq "mcp-hosted-health-v1" -and
+        [string]$mcpHealth.status -ceq "healthy" -and
+        [string]$mcpHealth.service -ceq "mcp-gateway"
+      )
+      Assert-True "preview MCP health source_commit_sha rebound" ([string]$mcpHealth.source_commit_sha -ceq $resolved)
+      Assert-True "preview MCP health source_archive_sha256 rebound" ([string]$mcpHealth.source_archive_sha256 -ceq $archiveSha)
+      Assert-True "preview MCP health source_bundle_sha256 rebound" ([string]$mcpHealth.source_bundle_sha256 -ceq $sourceBundleSha)
+      Assert-True "preview MCP health D1 read verified" (
+        $mcpHealth.d1_binding_configured -is [bool] -and $mcpHealth.d1_binding_configured -and
+        $mcpHealth.d1_read_verified -is [bool] -and $mcpHealth.d1_read_verified -and
+        $mcpHealth.persisted -is [bool] -and $mcpHealth.persisted
+      )
+      Assert-True "preview MCP health is non-mutating" (
+        $mcpHealth.provider_writes -is [bool] -and -not $mcpHealth.provider_writes -and
+        $mcpHealth.live_mcp_writes -is [bool] -and -not $mcpHealth.live_mcp_writes -and
+        $mcpHealth.live_provider_calls -is [bool] -and -not $mcpHealth.live_provider_calls -and
+        $mcpHealth.production_deploy -is [bool] -and -not $mcpHealth.production_deploy -and
+        $mcpHealth.secret_output -is [bool] -and -not $mcpHealth.secret_output
+      )
+      Write-Host "[worker-deploy] preview commit, archive, exact uploaded bundle, runtime mode, and MCP health binding verified"
+    }
   } finally {
     Remove-TransientMaterialization $materializationRoot
   }

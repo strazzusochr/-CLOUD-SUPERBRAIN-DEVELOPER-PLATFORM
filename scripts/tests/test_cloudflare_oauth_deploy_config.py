@@ -82,7 +82,7 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
     def test_owner_gate_is_bound_only_from_the_selected_tracked_commit(self) -> None:
         for marker in (
             '$capabilityStatePath = "docs/runtime-state/capability-gates.json"',
-            '& git show "$resolved`:$capabilityStatePath"',
+            '& git show "$capabilityStateCommit`:$capabilityStatePath"',
             "$ownerGrantedProperty.Value -is [bool]",
             "$ownerGrantedProperty.Value -eq $true",
             '$ownerGrantRef.Length -le 256',
@@ -94,7 +94,7 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
             with self.subTest(marker=marker):
                 self.assertIn(marker, self.wrapper)
 
-        tracked_read = self.wrapper.index('& git show "$resolved`:$capabilityStatePath"')
+        tracked_read = self.wrapper.index('& git show "$capabilityStateCommit`:$capabilityStatePath"')
         owner_binding = self.wrapper.index('"--var", "PRODUCTION_AUTH_OWNER_GRANTED:false"')
         wrangler_invocation = self.wrapper.index("& node @deployArgs", owner_binding)
         self.assertLess(tracked_read, owner_binding)
@@ -181,6 +181,47 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
         wrangler_invocation = self.wrapper.index("& node @deployArgs", evidence_read)
         self.assertLess(source_resolve, evidence_read)
         self.assertLess(evidence_read, wrangler_invocation)
+
+    def test_production_oauth_mode_is_explicit_source_bound_and_fail_closed(self) -> None:
+        for marker in (
+            "[switch]$ProductionOAuthIdentity",
+            "production OAuth mode requires a committed frontend evidence control SHA",
+            "production OAuth control commit is an ancestor-descendant continuation of the selected source",
+            "production OAuth frontend evidence target is production",
+            "production OAuth frontend alias parity is verified",
+            "production OAuth frontend operational deploy is verified without a release claim",
+            "production OAuth frontend source uses the exact reviewed security overlay",
+            "production OAuth gate is Owner-granted but not yet live-verified",
+            "production OAuth gate is non-paid",
+            '"--var", "PRODUCTION_AUTH_OWNER_GRANTED:true"',
+            '"--var", "PRODUCTION_AUTH_OWNER_GRANT_REF:$ownerGrantRef"',
+            "production OAuth health source_commit_sha rebound",
+            "production OAuth contract is credential-ready",
+            "production OAuth anonymous auth/me status is 401",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.wrapper)
+
+        dispatch = self.wrapper.index("if ($ProductionOAuthIdentity)")
+        default_preview = self.wrapper.index('$workerDir = Join-Path $repoRoot "services/cloudflare-stateful-runtime"')
+        self.assertLess(dispatch, default_preview)
+
+        production_oauth_guard = self.wrapper.index(
+            "production OAuth mode requires a committed frontend evidence control SHA"
+        )
+        owner_binding = self.wrapper.index('"--var", "PRODUCTION_AUTH_OWNER_GRANTED:true"')
+        deploy = self.wrapper.index("& node @deployArgs", owner_binding)
+        self.assertLess(production_oauth_guard, owner_binding)
+        self.assertLess(owner_binding, deploy)
+
+    def test_production_oauth_mode_does_not_weaken_phase6_or_synthesize_live_verified(self) -> None:
+        phase6 = self.wrapper.split("function Invoke-Phase6ProductionDeploy", 1)[1].split(
+            "function Invoke-LlmGatewayCandidateDeploy", 1
+        )[0]
+        self.assertNotIn("PRODUCTION_AUTH_OWNER_GRANTED:", phase6)
+        self.assertNotIn("PRODUCTION_AUTH_OWNER_GRANT_REF:", phase6)
+        self.assertNotIn("PRODUCTION_AUTH_LIVE_VERIFIED", self.wrapper)
+        self.assertIn("phase6 production source cannot overwrite remote PRODUCTION_AUTH_* values", phase6)
 
     def test_hosted_mcp_activation_is_explicit_immutable_and_off_by_default(self) -> None:
         for marker in (
