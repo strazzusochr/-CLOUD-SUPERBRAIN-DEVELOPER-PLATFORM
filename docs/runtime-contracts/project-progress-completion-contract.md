@@ -26,6 +26,21 @@ It does not raise progress by itself. It reads the canonical manifest-backed pro
 - While that gate is closed, `hard_blockers` must include `live_vector_memory_search_requires_owner_vectorize_scope_architecture_approval_and_hosted_proof`.
 - Phase and layer records must expose current percent, target percent, remaining percent, status, blockers, and next safe action.
 
+## Ledger-backed projection (2026-09-09)
+
+- Bounded O6 resolution is not hosted Layer-4 completion and cannot grant points.
+  A separately approved, committed hosted-credit proof may nevertheless bring
+  Layer 4 to 100. Verifiers must not reject that valid state with an absolute
+  historical ceiling such as `L4 < 100`.
+- Before HTTP progress checks, `scripts/verify_project_progress_projection.py`
+  reuses the canonical pinned baseline, complete ledger replay, approved scorers,
+  committed evidence hashes/ancestry and both frontend-mirror checks. Missing or
+  manipulated proof fails closed. This offline check creates no credit and is
+  not candidate qualification; the full manifest and release checks stay required.
+- Runtime, browser and hosted verifiers derive readiness from all phase/layer
+  percentages, external gates and hard blockers. The boolean and status must agree:
+  verified L4=100 alone cannot make the incomplete overall project ready.
+
 ## Non-Claims
 
 - No hosted staging success without `STAGING_BASE_URL`.

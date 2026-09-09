@@ -1,5 +1,46 @@
 # AI Handoff - Cloud Superbrain Developer Platform
 
+## RC50/S6 prequalification checkpoint — 2026-09-09
+
+- Work remains `D:\_sb_tmp\rc88-phase6-static`, branch
+  `codex/rc97-github-oauth-issuer`, PR #97:
+  https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/97.
+  The earlier S5 source CI is not the required PR check. Do not merge or request
+  another human review while five-chain qualification is incomplete.
+- RC49/S5 `f7a13133772d1cac8cbe2600f259b7b8904a2c0e` / Q5
+  `8cbc06d30ef122ee9e9e6d11dd619568d2372c5e`: source CI `34320278349` passed
+  (33 steps, failed=0, skipped=0); security and local candidate-images chains passed.
+  Runtime failed on a stale absolute L4 ceiling. Preserve these raw artifacts;
+  never relabel them as RC50. The S5 browser grant consumed zero of three calls.
+- The bundled S6 correction replaces the absolute O6/L4 ceiling with the existing
+  full ledger/scorer/mirror validation, preserving the independent full candidate
+  gate. Runtime, browser, hosted and static completion expectations are aligned.
+  Seven tampered-credit cases and real PowerShell ready/blocked fixtures reject
+  unbacked claims. Current valid ledger proof succeeds offline.
+- A second measured defect was frontend `EROFS` on `/app/next-env.d.ts` during
+  checkpoint recovery. Dev-only generated types now live in `/tmp` through an
+  image-owned symlink; no host type-file bind, tsconfig remains read-only. The
+  API/nginx recovery command uses `--no-deps`. Production runner is unchanged.
+  Source of generation behavior: https://nextjs.org/docs/app/api-reference/config/typescript#next-envdts.
+- Local results before freeze: 136 market-ready Python tests and Node suite PASS;
+  64 additional Phase-5/ledger tests PASS. Real read-only container codegen PASS;
+  cold-start 10/10 healthy; host next-env/tsconfig hashes unchanged. Runtime reached
+  final O4 preflight; it correctly rejected uncommitted runtime paths before O4 HTTP.
+  Frontend container ID survived API recovery. No full runtime PASS is claimed.
+- Freeze this bundle as S6 and bind direct-child Q6 for
+  `prod-candidate-2026-09-09-local-rc50`; the control JSON holds exact SHA/archive.
+  Then attest source CI and complete fresh five-chain evidence. Ask explicitly for
+  S6's three gateway-only browser calls and local O4 probes; S5 authorization is
+  not transferable. No new live execution, production or registry permission here.
+- Dev stack is currently DRY_RUN. Start the canonical `start-dev-live.ps1` only
+  with the correct fresh authority before browser qualification. The ignored
+  RC49 codegen override is obsolete: use the canonical Compose plus its worktree
+  HEAD override, not the old temporary type-file mount. The current frontend
+  diagnostic image is not source-labelled qualification evidence.
+- Active release remains RC48/S3. Overall 90; H633/700, V700/700, total1333/1400,
+  67 open; I1/I5 blocked; MARKET_READY:false. Preserve both foreign work areas
+  (`D:\_sb_tmp\rc29-control` and `C:\_sb_tmp\s2-q2-control`) and all release evidence.
+
 ## RC97 resume — 2026-09-09, RC49 qualification not yet complete
 
 - Work only in `D:\_sb_tmp\rc88-phase6-static`, branch

@@ -1,5 +1,42 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC50/S6 VORQUALIFIKATION
+
+### Session 2026-09-09 — gebuendelter Runtime-/Dev-Container-Fix, kein Credit
+
+- **Aktiver Kandidat bleibt RC48/S3**, Source
+  `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`; Overall `90%`,
+  horizontal `633/700`, vertikal `700/700`: **1333/1400 belegt, 67 offen**.
+  I1/I5 bleiben blockiert, `MARKET_READY:false`. Keine Gate-/Ledger-Promotion.
+- **RC49/S5 ist nicht qualifiziert:** Source `f7a13133772d1cac8cbe2600f259b7b8904a2c0e`,
+  Q5 `8cbc06d30ef122ee9e9e6d11dd619568d2372c5e`. Source-CI `34320278349`
+  bestand mit 33 erfolgreichen Schritten, failed=0/skipped=0. Security und
+  sechs lokale Kandidatenimages bestanden; Runtime brach am historischen
+  `L4 < 100`-Guard ab. Alle RC49-Rohdateien bleiben unveraendert erhalten.
+  Die Freigabe `CONFIRM_RC49_S5_BROWSER_3_CALLS_AND_LOCAL_O4_PROOFS`
+  verbrauchte **0/3 Provideraufrufe** und gilt nicht automatisch fuer S6.
+- **Gebuendelte Korrektur:** Runtime/Browser/Hosted pruefen die vorhandene
+  Projektionswahrheit per vollstaendigem Offline-Ledger-Replay und bestehenden
+  Scorern. Gueltiger Hosted-L4-Credit wird akzeptiert; O6 allein vergibt weiterhin
+  keine Punkte. Statische Querverweise und Blocked-/Ready-Pruefungen sind synchron.
+  Next.js generiert Dev-Typen ausschliesslich im Container-tmpfs; Root-Dateisystem
+  und Host-tsconfig bleiben read-only. Checkpoint-Restart nutzt `--no-deps`.
+- **Gemessen vor dem Freeze:** 136 Market-Ready-Python-Tests plus Node-Suite PASS;
+  weitere 64 Phase-5-/Ledger-Tests PASS. Read-only-Container-Typgenerierung PASS;
+  Dev-Kaltstart 10/10 healthy, beide Host-TypeScript-Hashes unveraendert.
+  Der erneute Runtime-Diagnoselauf bestand bis einschliesslich Candidate-Probe
+  und liess das Frontend beim API-Restart unveraendert. Die letzte O4-Stufe
+  verweigerte korrekt uncommitteten Runtime-Code vor jedem O4-Request.
+  Das ist **kein** vollstaendiger Runtime- oder Browser-Qualifikationsbeleg.
+- **Fortsetzung:** dieser Fix wird als S6 fuer
+  `prod-candidate-2026-09-09-local-rc50` eingefroren; Q6 muss direkter Kindcommit
+  sein. Exakte Bindung steht in `docs/runtime-state/source-qualification-control.json`.
+  Danach Source-CI und neue fuenf Qualifikationsketten; vor Live-/O4-Ausfuehrung
+  explizite S6-Freigabe einholen. Keine PR-Review vor vollstaendig gruener
+  Qualifikation und regularem Exact-Head-Pflichtcheck anfordern.
+- **Schutz:** keine Production-/Registry-/Merge-Aktion, keine Secret-Erzeugung,
+  keine Prozentanhebung. Vercel-Hold bleibt geparkt; fremde Dateien bleiben erhalten.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC97 NEUQUALIFIKATION OFFEN
 
 ### Session 2026-09-09 — RC97 OAuth-Issuer-Fix vor RC49-Qualifikation

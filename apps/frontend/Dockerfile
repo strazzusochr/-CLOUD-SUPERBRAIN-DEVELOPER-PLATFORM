@@ -20,11 +20,17 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN addgroup -S appgroup && adduser -S appuser -u 10001 -G appgroup && chown -R appuser:appgroup /app
+# Next regenerates this file on dev startup. Keep the source checkout and root
+# filesystem read-only; only its container-local target lives in writable tmpfs.
+RUN mv /app/next-env.d.ts /app/next-env.template.d.ts \
+    && ln -s /tmp/superbrain-next-env.d.ts /app/next-env.d.ts \
+    && addgroup -S appgroup \
+    && adduser -S appuser -u 10001 -G appgroup \
+    && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 3000
-CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+CMD ["sh", "-c", "cp /app/next-env.template.d.ts /tmp/superbrain-next-env.d.ts && exec npm run dev -- --hostname 0.0.0.0 --port 3000"]
 
 FROM node:24.16.0-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a AS runner
 
