@@ -42,8 +42,8 @@ if ($workflowFiles.Count -eq 0) {
 
 $expectedActions = @(
   [pscustomobject]@{ Action = "actions/checkout"; Sha = "11d5960a326750d5838078e36cf38b85af677262"; Comment = "v4"; Count = 1 },
-  [pscustomobject]@{ Action = "actions/checkout"; Sha = "d23441a48e516b6c34aea4fa41551a30e30af803"; Comment = "v6"; Count = 10 },
-  [pscustomobject]@{ Action = "actions/upload-artifact"; Sha = "ea165f8d65b6e75b540449e92b4886f43607fa02"; Comment = "v4.6.2"; Count = 5 },
+  [pscustomobject]@{ Action = "actions/checkout"; Sha = "d23441a48e516b6c34aea4fa41551a30e30af803"; Comment = "v6"; Count = 11 },
+  [pscustomobject]@{ Action = "actions/upload-artifact"; Sha = "ea165f8d65b6e75b540449e92b4886f43607fa02"; Comment = "v4.6.2"; Count = 6 },
   [pscustomobject]@{ Action = "actions/setup-node"; Sha = "49933ea5288caeca8642d1e84afbd3f7d6820020"; Comment = "v4"; Count = 1 },
   [pscustomobject]@{ Action = "actions/setup-node"; Sha = "249970729cb0ef3589644e2896645e5dc5ba9c38"; Comment = "v6"; Count = 1 },
   [pscustomobject]@{ Action = "actions/setup-python"; Sha = "a26af69be951a213d495a4c3e4e4022e16d87065"; Comment = "v5"; Count = 1 },
@@ -105,8 +105,8 @@ foreach ($relativePath in $workflowFiles) {
   }
 }
 
-if ($externalActionCount -ne 30) {
-  Fail-SupplyChainVerification "expected exactly 30 external action references, found $externalActionCount"
+if ($externalActionCount -ne 32) {
+  Fail-SupplyChainVerification "expected exactly 32 external action references, found $externalActionCount"
 }
 foreach ($key in $expectedActionKeys.Keys) {
   $actual = if ($actualActionCounts.ContainsKey($key)) { [int]$actualActionCounts[$key] } else { 0 }
@@ -304,4 +304,4 @@ if (-not $frontendRunnerBody.Contains('CMD ["node", "node_modules/next/dist/bin/
   Fail-SupplyChainVerification "frontend production runner does not start Next directly with Node"
 }
 
-Write-Host "[verify] supply-chain pins PASS (30 external actions, 18 external image occurrences, 8 unique external images, 6 internal GHCR references)"
+Write-Host "[verify] supply-chain pins PASS (32 external actions, 18 external image occurrences, 8 unique external images, 6 internal GHCR references)"
