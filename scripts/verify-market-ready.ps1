@@ -213,7 +213,7 @@ function Get-ReadyGateEvidenceValidation(
           $failures.Add("auth_dedicated_non_mutating_verifier_failed")
         }
       }
-      if ([string]$evidence.contract_version -ne "production-auth-identity-proof-v1") { $failures.Add("auth_contract") }
+      if ([string]$evidence.contract_version -ne "production-auth-identity-proof-v2") { $failures.Add("auth_contract") }
       foreach ($field in @(
         "hosted_https", "real_browser", "oauth_start_verified",
         "oauth_scope_exact_read_user_verified", "oauth_state_one_time_verified",

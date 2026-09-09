@@ -332,9 +332,11 @@ def p5_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
         "oauth_scope": "read:user",
         "human_flow_verified_steps": [
             "anonymous_login_no_identity", "github_start_exact_query", "github_cancel_no_credentials",
-            "github_authorize_owner_identity", "callback_one_time_state", "auth_me_verified_identity",
-            "reload_session_continuity", "refresh_atomic_rotation", "old_refresh_replay_rejected",
-            "callback_replay_rejected", "logout_revocation_audited", "post_logout_refresh_rejected",
+            "github_start_family_a_exact_query", "github_authorize_owner_identity",
+            "callback_one_time_state", "auth_me_verified_identity", "reload_session_continuity",
+            "refresh_atomic_rotation", "old_refresh_replay_rejected", "callback_replay_rejected",
+            "github_start_family_b_exact_query", "github_authorize_family_b_owner_identity",
+            "independent_family_b_callback", "logout_revocation_audited", "post_logout_refresh_rejected",
         ],
         "source_binding": {
             "source_commit_sha": CANDIDATE,
@@ -408,18 +410,21 @@ def p3_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
     session_b = sha("p3-session-b")
     steps = []
     for index, (name, status) in enumerate(zip(p3.STEP_NAMES, p3.STEP_STATUSES), start=1):
-        if index <= 4:
-            session = None
-        elif index <= 10:
+        if name in {
+            "callback_one_time_state", "auth_me_verified_identity", "reload_session_continuity",
+            "refresh_atomic_rotation", "old_refresh_replay_rejected", "callback_replay_rejected",
+        }:
             session = session_a
-        else:
+        elif name in {"independent_family_b_callback", "logout_revocation_audited", "post_logout_refresh_rejected"}:
             session = session_b
+        else:
+            session = None
         steps.append(
             {
                 "sequence": index,
                 "name": name,
                 "http_status": status,
-                "human_click_count": 1,
+                "human_click_count": p3.STEP_HUMAN_CLICKS[index - 1],
                 "secret_value_count": 0,
                 "request_correlation_sha256": sha(f"p3-request-{index}"),
                 "session_correlation_sha256": session,
@@ -444,7 +449,7 @@ def p3_fixture() -> tuple[dict[str, object], BlobStore, dict[str, object]]:
             "browser_execution": "real_chrome",
             "human_click_count": 12,
             "oauth_scope": "read:user",
-            "provider_call_count": 2,
+            "provider_call_count": 4,
             "provider_write_count": 0,
             "deployment_write_count": 0,
             "localhost_transport_count": 0,

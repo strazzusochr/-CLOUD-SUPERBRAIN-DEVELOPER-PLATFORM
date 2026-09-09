@@ -156,7 +156,7 @@ if ($productionAuthParseErrors -and $productionAuthParseErrors.Count -gt 0) {
 }
 $productionAuthVerifier = Get-Content -LiteralPath $productionAuthVerifierPath -Raw
 foreach ($required in @(
-  "production-auth-identity-proof-v1",
+  "production-auth-identity-proof-v2",
   "oauth_scope_exact_read_user_verified",
   "oauth_state_one_time_verified",
   "callback_replay_rejected_verified",
@@ -614,6 +614,25 @@ $organismTopologyFrontend = Get-Content -Path "apps\frontend\app\api\v1\organism
 $organismTopologyContract = Get-Content -Path "apps\frontend\app\api\v1\organism\contract\route.ts" -Raw
 $organismPlatformSource = Get-Content -Path "apps\frontend\lib\platform.ts" -Raw
 $organismAgentApiSource = Get-Content -Path "services\agent-api\app\main.py" -Raw
+$organismProgress = Get-Content -Path "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json
+$organismHorizontal = @{}
+foreach ($item in $organismProgress.horizontal.items) {
+  $organismHorizontal[[string]$item.id] = [int]$item.percent
+}
+$organismVertical = @{}
+foreach ($item in $organismProgress.vertical.items) {
+  $organismVertical[[string]$item.id] = [int]$item.percent
+}
+foreach ($id in @("phase_2", "phase_3", "phase_4", "phase_5", "phase_6")) {
+  if (-not $organismHorizontal.ContainsKey($id)) {
+    throw "Project progress manifest missing required horizontal item: $id"
+  }
+}
+foreach ($id in @("layer_1", "layer_2", "layer_6")) {
+  if (-not $organismVertical.ContainsKey($id)) {
+    throw "Project progress manifest missing required vertical item: $id"
+  }
+}
 foreach ($required in @(
   "organism-topology-v1",
   "organism_topology_visible",
@@ -667,15 +686,15 @@ foreach ($required in @(
   }
 }
 foreach ($required in @(
-  'overall: 89',
-  '{ name: "Frontend", layer: 1, pct: 100 }',
-  '{ name: "Orchestrator", layer: 2, pct: 100 }',
-  '{ name: "Memory", layer: 6, pct: 100 }',
-  '{ id: "P2", pct: 100 }',
-  '{ id: "P3", pct: 44 }',
-  '{ id: "P4", pct: 100 }',
-  '{ id: "P5", pct: 89 }',
-  '{ id: "P6", pct: 90 }',
+  ('overall: {0}' -f [int]$organismProgress.overall_percent),
+  ('{{ name: "Frontend", layer: 1, pct: {0} }}' -f $organismVertical["layer_1"]),
+  ('{{ name: "Orchestrator", layer: 2, pct: {0} }}' -f $organismVertical["layer_2"]),
+  ('{{ name: "Memory", layer: 6, pct: {0} }}' -f $organismVertical["layer_6"]),
+  ('{{ id: "P2", pct: {0} }}' -f $organismHorizontal["phase_2"]),
+  ('{{ id: "P3", pct: {0} }}' -f $organismHorizontal["phase_3"]),
+  ('{{ id: "P4", pct: {0} }}' -f $organismHorizontal["phase_4"]),
+  ('{{ id: "P5", pct: {0} }}' -f $organismHorizontal["phase_5"]),
+  ('{{ id: "P6", pct: {0} }}' -f $organismHorizontal["phase_6"]),
   "AGENTS",
   "MCP_TOOLS",
   "MODELS",

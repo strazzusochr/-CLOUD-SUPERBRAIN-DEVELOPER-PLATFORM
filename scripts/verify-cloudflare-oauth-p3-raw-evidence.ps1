@@ -46,7 +46,9 @@ foreach ($marker in @(
   'validation_mode=true',
   'read_only=true',
   'source_parity=true',
-  'exact_human_flow_steps=12',
+  'exact_flow_steps=16',
+  'exact_human_clicks=12',
+  'provider_calls=4',
   'atomic_replay_evidence=scored',
   'audit_correlation_evidence=scored',
   'gate_promotion_performed=false',
@@ -60,4 +62,4 @@ $after = & git -C $repoRoot status --porcelain=v1 --untracked-files=all
 Assert-True ($LASTEXITCODE -eq 0) 'Unable to re-check repository state.'
 Assert-True ((@($before) -join "`n") -ceq (@($after) -join "`n")) 'OAuth raw-evidence validation mutated the repository.'
 
-Write-Host "[phase3-oauth-raw-evidence] status=verified candidate_sha=$ExpectedCandidateSha read_only=true human_flow_steps=12 gate_promotion=false percentage_credit=false secret_output=false"
+Write-Host "[phase3-oauth-raw-evidence] status=verified candidate_sha=$ExpectedCandidateSha read_only=true flow_steps=16 human_clicks=12 provider_calls=4 gate_promotion=false percentage_credit=false secret_output=false"

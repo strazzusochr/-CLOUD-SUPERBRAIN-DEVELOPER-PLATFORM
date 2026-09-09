@@ -40,6 +40,7 @@ STEP_NAMES = [
     "anonymous_login_no_identity",
     "github_start_exact_query",
     "github_cancel_no_credentials",
+    "github_start_family_a_exact_query",
     "github_authorize_owner_identity",
     "callback_one_time_state",
     "auth_me_verified_identity",
@@ -47,32 +48,42 @@ STEP_NAMES = [
     "refresh_atomic_rotation",
     "old_refresh_replay_rejected",
     "callback_replay_rejected",
+    "github_start_family_b_exact_query",
+    "github_authorize_family_b_owner_identity",
+    "independent_family_b_callback",
     "logout_revocation_audited",
     "post_logout_refresh_rejected",
 ]
 
 STEP_CONTRACT = [
-    ("browser", "navigate_login_and_read_auth_me", 401, "unauthenticated", False, False, False),
-    ("browser_d1", "click_github_sign_in", 303, "redirected_exact_scope", True, False, False),
-    ("browser_d1_audit", "click_github_cancel", 401, "denied_no_credentials_state_consumed", True, False, True),
-    ("browser", "click_github_authorize", 200, "owner_consent_recorded", False, False, False),
-    ("browser_d1_audit", "follow_callback_redirect", 303, "identity_verified_credentials_issued", True, True, True),
-    ("browser", "read_auth_me", 200, "identity_readback_verified", False, False, False),
-    ("browser", "reload_authenticated_page", 200, "session_continuity_verified", False, False, False),
-    ("browser_d1_audit", "click_refresh_action", 200, "refresh_rotated_once", True, True, True),
-    ("browser_d1_audit", "replay_previous_refresh_via_browser_action", 401, "replay_401_family_revoked", True, False, True),
-    ("browser_d1_audit", "replay_consumed_callback_via_browser_action", 401, "callback_replay_401_no_credentials", True, False, True),
-    ("browser_d1_audit", "click_logout_action", 200, "one_active_refresh_revoked_audited", True, False, True),
-    ("browser_d1", "click_refresh_after_logout", 401, "refresh_401_revoked", True, False, False),
+    ("browser", "navigate_login_and_read_auth_me", 401, "unauthenticated", 0, False, False, False),
+    ("browser_d1", "click_github_sign_in_for_cancel", 303, "redirected_exact_scope", 1, True, False, False),
+    ("browser_d1_audit", "click_github_cancel", 401, "denied_no_credentials_state_consumed", 1, True, False, True),
+    ("browser_d1", "click_github_sign_in_for_family_a", 303, "redirected_exact_scope", 1, True, False, False),
+    ("browser", "click_github_authorize_family_a", 200, "owner_consent_recorded", 1, False, False, False),
+    ("browser_d1_audit", "follow_family_a_callback_redirect", 303, "identity_verified_credentials_issued", 0, True, True, True),
+    ("browser", "read_auth_me", 200, "identity_readback_verified", 0, False, False, False),
+    ("browser", "reload_authenticated_page", 200, "session_continuity_verified", 1, False, False, False),
+    ("browser_d1_audit", "click_refresh_action", 200, "refresh_rotated_once", 1, True, True, True),
+    ("browser_d1_audit", "replay_previous_refresh_via_browser_action", 401, "replay_401_family_revoked", 1, True, False, True),
+    ("browser_d1_audit", "replay_consumed_callback_via_browser_action", 401, "callback_replay_401_no_credentials", 1, True, False, True),
+    ("browser_d1", "click_github_sign_in_for_family_b", 303, "redirected_exact_scope", 1, True, False, False),
+    ("browser", "click_github_authorize_family_b", 200, "owner_consent_recorded", 1, False, False, False),
+    ("browser_d1_audit", "follow_family_b_callback_redirect", 303, "identity_verified_credentials_issued", 0, True, True, True),
+    ("browser_d1_audit", "click_logout_action", 200, "one_active_refresh_revoked_audited", 1, True, False, True),
+    ("browser_d1", "click_refresh_after_logout", 401, "refresh_401_revoked", 1, True, False, False),
 ]
 
 D1_STEPS = [
     "github_start_exact_query",
     "github_cancel_no_credentials",
+    "github_start_family_a_exact_query",
     "callback_one_time_state",
     "refresh_atomic_rotation",
     "old_refresh_replay_rejected",
     "callback_replay_rejected",
+    "github_start_family_b_exact_query",
+    "independent_family_b_callback",
     "logout_revocation_audited",
     "post_logout_refresh_rejected",
 ]
@@ -83,6 +94,7 @@ AUDIT_CONTRACT = [
     ("refresh_atomic_rotation", "auth_refresh_rotated"),
     ("old_refresh_replay_rejected", "auth_refresh_reuse_blocked"),
     ("callback_replay_rejected", "auth_github_callback_blocked"),
+    ("independent_family_b_callback", "auth_github_callback_verified"),
     ("logout_revocation_audited", "auth_logout_revoked"),
 ]
 
@@ -91,6 +103,7 @@ FACT_CODES = {
         "anonymous_login_no_identity": ["human_navigation", "auth_me_http_401", "identity_projection_absent"],
         "github_start_exact_query": ["human_click", "github_redirect_http_303", "oauth_scope_exact_read_user"],
         "github_cancel_no_credentials": ["human_click", "provider_cancel_http_401", "credential_issue_count_0"],
+        "github_start_family_a_exact_query": ["human_click", "github_redirect_http_303", "oauth_scope_exact_read_user"],
         "github_authorize_owner_identity": ["human_click", "owner_consent_visible", "numeric_identity_only_hashed"],
         "callback_one_time_state": ["callback_http_303", "one_time_state_consumed", "credential_issue_count_1"],
         "auth_me_verified_identity": ["auth_me_http_200", "jwt_claims_verified", "numeric_identity_only_hashed"],
@@ -98,16 +111,22 @@ FACT_CODES = {
         "refresh_atomic_rotation": ["human_click", "refresh_http_200", "credential_issue_count_1"],
         "old_refresh_replay_rejected": ["human_click", "refresh_replay_http_401", "credential_issue_count_0"],
         "callback_replay_rejected": ["human_click", "callback_replay_http_401", "credential_issue_count_0"],
+        "github_start_family_b_exact_query": ["human_click", "github_redirect_http_303", "oauth_scope_exact_read_user"],
+        "github_authorize_family_b_owner_identity": ["human_click", "owner_consent_visible", "numeric_identity_only_hashed"],
+        "independent_family_b_callback": ["callback_http_303", "one_time_state_consumed", "credential_issue_count_1"],
         "logout_revocation_audited": ["human_click", "logout_http_200", "credential_issue_count_0"],
         "post_logout_refresh_rejected": ["human_click", "post_logout_refresh_http_401", "credential_issue_count_0"],
     },
     "d1_readback": {
         "github_start_exact_query": ["oauth_state_insert_count_1", "pending_state_count_1"],
         "github_cancel_no_credentials": ["oauth_state_delete_count_1", "credential_row_delta_0"],
+        "github_start_family_a_exact_query": ["oauth_state_insert_count_1", "pending_state_count_1"],
         "callback_one_time_state": ["oauth_state_delete_count_1", "refresh_family_insert_count_1", "audit_before_credential_sequence"],
         "refresh_atomic_rotation": ["serialized_compare_and_swap", "parallel_attempt_count_2", "rotation_success_count_1", "rotation_reject_count_1", "history_insert_count_1", "active_refresh_count_1"],
         "old_refresh_replay_rejected": ["family_revocation_count_1", "active_refresh_count_0", "refresh_replay_http_401"],
         "callback_replay_rejected": ["oauth_state_count_0", "credential_row_delta_0", "callback_replay_http_401"],
+        "github_start_family_b_exact_query": ["oauth_state_insert_count_1", "pending_state_count_1"],
+        "independent_family_b_callback": ["oauth_state_delete_count_1", "refresh_family_insert_count_1", "audit_before_credential_sequence"],
         "logout_revocation_audited": ["active_refresh_count_1_to_0", "revoked_history_insert_count_1"],
         "post_logout_refresh_rejected": ["active_refresh_count_0", "credential_row_delta_0", "post_logout_refresh_http_401"],
     },
@@ -156,11 +175,23 @@ def observation_fact_sha256(observations: list[dict[str, object]]) -> str:
 
 
 def session_sha_for_step_index(step_index: int) -> str | None:
-    if step_index < 4:
-        return None
-    if step_index < 10:
+    name = STEP_NAMES[step_index]
+    if name in {
+        "callback_one_time_state",
+        "auth_me_verified_identity",
+        "reload_session_continuity",
+        "refresh_atomic_rotation",
+        "old_refresh_replay_rejected",
+        "callback_replay_rejected",
+    }:
         return SESSION_A_SHA
-    return SESSION_B_SHA
+    if name in {
+        "independent_family_b_callback",
+        "logout_revocation_audited",
+        "post_logout_refresh_rejected",
+    }:
+        return SESSION_B_SHA
+    return None
 
 
 class CloudflareOauthHostedCurrentTests(unittest.TestCase):
@@ -262,18 +293,27 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
         }
         consent_payload = self.write_json(root, CONSENT_REF, consent)
 
-        request_hashes = [sha256_text(f"request-correlation-{index}") for index in range(1, 13)]
+        request_hashes = [
+            sha256_text(f"request-correlation-{index}")
+            for index in range(1, len(STEP_NAMES) + 1)
+        ]
         frontend_deployment_hash = sha256_text(FRONTEND_DEPLOYMENT_ID)
         worker_deployment_hash = sha256_text(WORKER_DEPLOYMENT_ID)
         sensitive_hash_bindings = {
             "provider_user_id_sha256": sha256_text("provider-user-id"),
             "subject_sha256": sha256_text("provider-subject"),
-            "oauth_code_sha256": sha256_text("one-time-oauth-code"),
-            "oauth_state_sha256": sha256_text("one-time-oauth-state"),
-            "access_token_sha256": sha256_text("access-cookie-value"),
-            "refresh_token_before_sha256": sha256_text("refresh-before"),
-            "refresh_token_after_sha256": sha256_text("refresh-after"),
-            "cookie_bundle_sha256": sha256_text("sanitized-cookie-bundle"),
+            "cancel_oauth_state_sha256": sha256_text("cancel-oauth-state"),
+            "family_a_oauth_state_sha256": sha256_text("family-a-oauth-state"),
+            "family_a_oauth_code_sha256": sha256_text("family-a-oauth-code"),
+            "family_a_access_token_sha256": sha256_text("family-a-access-token"),
+            "family_a_refresh_token_before_sha256": sha256_text("family-a-refresh-before"),
+            "family_a_refresh_token_after_sha256": sha256_text("family-a-refresh-after"),
+            "family_a_cookie_bundle_sha256": sha256_text("family-a-cookie-bundle"),
+            "family_b_oauth_state_sha256": sha256_text("family-b-oauth-state"),
+            "family_b_oauth_code_sha256": sha256_text("family-b-oauth-code"),
+            "family_b_access_token_sha256": sha256_text("family-b-access-token"),
+            "family_b_refresh_token_sha256": sha256_text("family-b-refresh-token"),
+            "family_b_cookie_bundle_sha256": sha256_text("family-b-cookie-bundle"),
         }
         covered_by_kind = {
             "browser": STEP_NAMES,
@@ -332,9 +372,12 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                         sensitive_hash_bindings[key]
                         for key in (
                             "subject_sha256",
-                            "oauth_state_sha256",
-                            "refresh_token_before_sha256",
-                            "refresh_token_after_sha256",
+                            "cancel_oauth_state_sha256",
+                            "family_a_oauth_state_sha256",
+                            "family_b_oauth_state_sha256",
+                            "family_a_refresh_token_before_sha256",
+                            "family_a_refresh_token_after_sha256",
+                            "family_b_refresh_token_sha256",
                         )
                     ]
                     if kind == "d1_readback"
@@ -376,7 +419,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
 
         steps: list[dict[str, object]] = []
         for index, (name, contract) in enumerate(zip(STEP_NAMES, STEP_CONTRACT), start=1):
-            surface, action, status, outcome, d1, credentials, audit = contract
+            surface, action, status, outcome, clicks, d1, credentials, audit = contract
             evidence = {
                 "browser_ref": BROWSER_REF,
                 "browser_sha256": artifact_hashes["browser"],
@@ -393,7 +436,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                     "action": action,
                     "http_status": status,
                     "outcome": outcome,
-                    "human_click_count": 1,
+                    "human_click_count": clicks,
                     "d1_readback_match_count": 1 if d1 else 0,
                     "credential_issue_count": 1 if credentials else 0,
                     "request_correlation_sha256": request_hashes[index - 1],
@@ -427,7 +470,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             )
 
         flow = {
-            "contract_version": "cloudflare-oauth-hosted-current-flow-v1",
+            "contract_version": "cloudflare-oauth-hosted-current-flow-v2",
             "status": "evidence_envelope_complete",
             "architecture": "cloudflare_native",
             "source_binding": {
@@ -463,7 +506,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                 "human_click_count": 12,
                 "identity_evidence": "numeric_owner_identity_sha256_only",
                 "oauth_scope": "read:user",
-                "provider_call_count": 2,
+                "provider_call_count": 4,
                 "provider_write_count": 0,
                 "deployment_write_count": 0,
                 "localhost_transport_count": 0,
@@ -518,7 +561,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
                 "callback_replay_http_status": 401,
                 "callback_replay_credential_issue_count": 0,
                 "cancel_state_consumption_count": 1,
-                "d1_readback_match_count": 8,
+                "d1_readback_match_count": len(D1_STEPS),
                 "evidence_ref": D1_REF,
                 "evidence_sha256": artifact_hashes["d1_readback"],
                 "scorer_ref": D1_SCORER_REF,
@@ -605,7 +648,10 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertIn("status=verified architecture=cloudflare_native", completed.stdout)
-        self.assertIn("exact_human_flow_steps=12 atomic_replay_evidence=scored", completed.stdout)
+        self.assertIn(
+            "exact_flow_steps=16 exact_human_clicks=12 provider_calls=4 atomic_replay_evidence=scored",
+            completed.stdout,
+        )
         self.assertIn(
             "read_only=true source_parity=true proof_scope=production_identity", completed.stdout
         )
@@ -616,15 +662,15 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
         self.assertEqual(before_status, after_status)
         self.assertEqual(before_files, after_files)
 
-    def test_exact_twelve_step_order_and_http_contract_fail_closed(self) -> None:
+    def test_exact_sixteen_step_order_clicks_and_http_contract_fail_closed(self) -> None:
         directory, root, candidate_sha = self.make_repo()
         with directory:
             self.update_flow(
                 root,
                 lambda flow: flow["human_flow_steps"].__setitem__(
-                    8,
+                    9,
                     {
-                        **flow["human_flow_steps"][8],
+                        **flow["human_flow_steps"][9],
                         "http_status": 200,
                     },
                 ),
@@ -637,6 +683,18 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
         with directory:
             self.update_flow(
                 root,
+                lambda flow: flow["human_flow_steps"][5].__setitem__(
+                    "human_click_count", 1
+                ),
+            )
+            completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("human_click_count mismatch", completed.stderr)
+
+        directory, root, candidate_sha = self.make_repo()
+        with directory:
+            self.update_flow(
+                root,
                 lambda flow: flow.__setitem__(
                     "human_flow_steps", list(reversed(flow["human_flow_steps"]))
                 ),
@@ -644,6 +702,17 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("sequence mismatch", completed.stderr)
+
+    def test_two_successful_token_families_require_four_provider_reads(self) -> None:
+        directory, root, candidate_sha = self.make_repo()
+        with directory:
+            self.update_flow(
+                root,
+                lambda flow: flow["execution"].__setitem__("provider_call_count", 2),
+            )
+            completed = self.run_verifier(root, candidate_sha, "-ValidateOnly")
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("two token exchanges and two user-identity reads", completed.stderr)
 
     def test_source_and_hashed_deployment_parity_fail_closed(self) -> None:
         directory, root, candidate_sha = self.make_repo()
@@ -700,7 +769,7 @@ class CloudflareOauthHostedCurrentTests(unittest.TestCase):
             lambda flow: flow["token_families"]["families"][1].__setitem__(
                 "session_correlation_sha256", SESSION_A_SHA
             ),
-            lambda flow: flow["human_flow_steps"][10].__setitem__(
+            lambda flow: flow["human_flow_steps"][14].__setitem__(
                 "session_correlation_sha256", SESSION_A_SHA
             ),
         )
