@@ -1,5 +1,27 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC53/S8 NO-CREDIT-NEUQUALIFIKATION
+
+### Session 2026-09-09 — S8/Q8 qualifiziert, I1/I5 bleiben geschlossen
+
+- **Aktiver Kandidat ist RC53/S8:** Release
+  `prod-candidate-2026-09-09-local-rc53`, Source
+  `19f633f86b33b0aae8e34785bea59b910a3f7157`, direkter Q8-Kindcommit
+  `175411b84b2051bd5f1fb5fb084c42234eabfc92`. Source-CI-Run
+  `34336588870` ist erfolgreich mit failed=0 und skipped=0.
+- **Fuenf frische Qualifikationsketten PASS:** Runtime, Browser, sechs lokale
+  Kandidatenimages, Candidate-Runtime und Security. RC54 bestaetigte im echten
+  Browser 22 Seiten, zwei Viewports, 44 responsive Klicks, 29 Funktionsfamilien
+  und 161 Aktionen; genau drei autorisierte Gateway-Aufrufe, kein Auto-Retry.
+- **Fortschritt bleibt unveraendert:** Overall `90%`, horizontal `633/700`,
+  vertikal `700/700`, insgesamt `1333/1400` belegt und `67` offen.
+  I1 und I5 bleiben blockiert; `MARKET_READY:false`. Keine Gate-, Ledger-
+  oder Prozent-Promotion.
+- **Grenze:** RC53 ist DEV-ONLY und no-release. Keine Production-, Registry-,
+  Cloudflare-, Vercel- oder Merge-Aktion; keine Secret-Ausgabe. Der erste
+  blockierte Browserversuch bleibt als Diagnose erhalten und vergibt keinen
+  Credit; der gesondert freigegebene RC54-Lauf ist der kanonische Browserbeleg.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC50/S6 VORQUALIFIKATION
 
 ### Session 2026-09-09 — gebuendelter Runtime-/Dev-Container-Fix, kein Credit

@@ -3,12 +3,12 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-09-08T10:02:48Z",
+  "updated_at_utc": "2026-09-09T11:53:19Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
-  "active_release_id": "prod-candidate-2026-09-07-local-rc48",
-  "active_source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+  "active_release_id": "prod-candidate-2026-09-09-local-rc53",
+  "active_source_commit_sha": "19f633f86b33b0aae8e34785bea59b910a3f7157",
   "legacy_gap_reconstruction": {
     "recorded_percent": 68,
     "total_item_count": 19,
@@ -81,7 +81,7 @@
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
           "claim": "The current candidate pointer selects the source-bound RC48 no-credit requalification while preserving the production non-claim.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-07-local-rc48\""
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-09-local-rc53\""
         },
         {
           "path": "scripts/verify-source-qualification-control.ps1",
@@ -105,7 +105,7 @@
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
           "claim": "The active pointer selects the exact source-bound RC48 candidate.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-07-local-rc48\""
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-09-local-rc53\""
         },
         {
           "path": "scripts/verify-current-release-candidate.ps1",

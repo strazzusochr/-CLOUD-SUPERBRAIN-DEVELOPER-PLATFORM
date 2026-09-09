@@ -1,0 +1,75 @@
+{
+  "contract_version": "phase5-browser-chain-failure-diagnostic-v1",
+  "generated_at_utc": "2026-09-09T11:03:47Z",
+  "release_id": "prod-candidate-2026-09-09-local-rc53",
+  "source_commit_sha": "19f633f86b33b0aae8e34785bea59b910a3f7157",
+  "control_commit_sha": "175411b84b2051bd5f1fb5fb084c42234eabfc92",
+  "status": "blocked_after_three_successful_provider_calls_before_summary",
+  "aggregate_browser_chain_passed": false,
+  "progress_credit_claimed": false,
+  "provider_budget": {
+    "authorized_calls": 3,
+    "used_calls": 3,
+    "automatic_retry_performed": false,
+    "additional_calls_permitted": 0,
+    "distribution": {
+      "product_acceptance": 1,
+      "twenty_two_page_actions": 2
+    }
+  },
+  "successful_components": {
+    "browser_contract": {
+      "status": "passed",
+      "success_anchor": "[browser-contract] checks completed"
+    },
+    "product_acceptance": {
+      "status": "passed",
+      "artifact": ".codex/runs/CURRENT/product-acceptance/report.json",
+      "sha256": "A2981E36C1804D49A6C9258608DFF840A3E9EA7ACC286395920D45BA056EFB3B",
+      "provider_call_count": 1
+    },
+    "twenty_two_page_actions": {
+      "status": "passed",
+      "artifact": ".codex/runs/CURRENT/22-page-actions/report.json",
+      "sha256": "7752BB612380471D2DAA55F44957235B48447DE242471E3D5B9D910440BE67E3",
+      "provider_call_count": 2,
+      "route_count": 22,
+      "function_family_count": 29,
+      "action_member_count": 161
+    },
+    "o4_browser": {
+      "status": "passed",
+      "artifact": ".phase1-artifacts/o4-live-writes/browser-proof.json",
+      "sha256": "5237BD67504F29EABE564A3C8F2F42D02DADF4E8B5C83D7BC07307A682D3BF0C"
+    }
+  },
+  "failure": {
+    "stage": "aggregate_o4_promotion",
+    "message": "O4 live-write verification failed: runtime report runtime-source parity outside qualification truth",
+    "cause": "The canonical O4 runtime proof still referenced the earlier Q6 control when the Q8 browser proof reached the final promoter.",
+    "occurred_after_all_authorized_provider_calls": true,
+    "browser_summary_written": false,
+    "raw_browser_log_written": false
+  },
+  "provider_free_repair": {
+    "runtime_proof": {
+      "artifact": ".phase1-artifacts/o4-live-writes/runtime-proof.json",
+      "sha256": "B3079F0FEA5CBB865CBA26FD50AD2293E216DBDB66BC435BB020BDCBFA60E734",
+      "status": "passed"
+    },
+    "combined_o4_proof": {
+      "artifact": "docs/release-artifacts/prod-candidate-2026-09-09-local-rc53-evidence/o4-proof.json",
+      "sha256": "B6E7E08FECEFFB97DBA37469F7F4F50F751CE1D5CFC3C966D610BDD4A1CA685B",
+      "status": "verified"
+    },
+    "provider_call_count": 0,
+    "canonical_gate_files_changed": false
+  },
+  "qualification_effect": {
+    "browser_chain": "blocked",
+    "candidate_readiness": "not_emitted",
+    "active_candidate_transition": "not_committed",
+    "market_ready": false
+  },
+  "next_decision_required": "Authorize either a fail-closed zero-provider resume mechanism bound to the immutable successful component hashes, or a fresh explicitly bounded three-call full browser run."
+}

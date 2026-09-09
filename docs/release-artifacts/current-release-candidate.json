@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-09-07-local-rc48",
-  "source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
-  "updated_at": "2026-09-08T10:02:48Z",
-  "updated_by": "rc48-no-credit-requalification",
-  "reason": "RC48 selects frozen source e949cc1a50f21a3c565c2c2f2380a663f2cc4be7 after direct child Q3 79a186af68e9c54653894de818422976a2f2fb04 bound the exact archive and GitHub Actions run 34154969045 checked Q3 as run head and S3 as the immutable checkout with failed jobs, skipped jobs, and skipped steps all zero. This is a no-credit, DEV-ONLY requalification: I1/I5, RC48 GHCR publication, release promotion, and production rollout remain blocked.",
+  "active_release_id": "prod-candidate-2026-09-09-local-rc53",
+  "source_commit_sha": "19f633f86b33b0aae8e34785bea59b910a3f7157",
+  "updated_at": "2026-09-09T11:53:19Z",
+  "updated_by": "rc53-no-credit-requalification",
+  "reason": "RC53 selects frozen source 19f633f86b33b0aae8e34785bea59b910a3f7157 after direct child Q8 175411b84b2051bd5f1fb5fb084c42234eabfc92 bound the exact archive and GitHub Actions run 34336588870 checked Q8 as run head and S8 as the immutable checkout with failed jobs, skipped jobs, and skipped steps all zero. Five fresh release-scoped local chains passed, including the separately authorized RC54 browser retry with exactly three gateway calls and no automatic retry. This is a no-credit, DEV-ONLY requalification: I1/I5, RC53 GHCR publication, release promotion, and production rollout remain blocked.",
   "production_rollout_claimed": false
 }

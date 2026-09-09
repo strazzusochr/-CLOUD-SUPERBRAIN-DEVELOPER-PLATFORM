@@ -1,0 +1,69 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.27kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.1s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B done
+#3 DONE 0.0s
+
+#4 [builder 1/4] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#4 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 1.19MB 0.2s done
+#5 DONE 0.2s
+
+#6 [stage-1  7/11] COPY docs/runtime-state/external-gate-summary.json /app/progress/external-gate-summary.json
+#6 CACHED
+
+#7 [stage-1  3/11] RUN apk upgrade --no-cache     && apk add --no-cache libpq ca-certificates
+#7 CACHED
+
+#8 [stage-1  4/11] COPY --from=builder /install /usr/local
+#8 CACHED
+
+#9 [stage-1  6/11] COPY docs/project-progress.manifest.json /app/progress/project-progress.manifest.json
+#9 CACHED
+
+#10 [builder 4/4] RUN apk add --no-cache build-base postgresql-dev python3-dev libffi-dev     && pip install --no-cache-dir --prefix=/install -r requirements.txt
+#10 CACHED
+
+#11 [stage-1  5/11] COPY services/agent-api/app ./app
+#11 CACHED
+
+#12 [stage-1  9/11] COPY PROJECT_STATE.md /app/PROJECT_STATE.md
+#12 CACHED
+
+#13 [stage-1  8/11] COPY docs/runtime-state/capability-gates.json /app/progress/capability-gates.json
+#13 CACHED
+
+#14 [stage-1 10/11] COPY docs/codex-integration/autonomous-agent-roster.json /app/docs/codex-integration/autonomous-agent-roster.json
+#14 CACHED
+
+#15 [builder 2/4] WORKDIR /app
+#15 CACHED
+
+#16 [builder 3/4] COPY services/agent-api/requirements.txt .
+#16 CACHED
+
+#17 [stage-1 11/11] RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
+#17 CACHED
+
+#18 exporting to image
+#18 exporting layers 0.0s done
+#18 exporting manifest sha256:8343a4a2995552c94f95fa60266b39b3881b1151bbc4e5bf30f25729e4006e3b 0.0s done
+#18 exporting config sha256:ea32774d6e9da6b17806100c71da9d9b5d066b54b928d5a6736b50797652b99c 0.0s done
+#18 exporting attestation manifest sha256:6cf1234526b5de0ac954dec09e0aed283c602ab0964104dc89677d6555af9cb4 0.0s done
+#18 exporting manifest list sha256:94572a4f516fdd4007b7b9907b658b0c73f66e0b0031bd719dffe2700f82fb97
+#18 exporting manifest list sha256:94572a4f516fdd4007b7b9907b658b0c73f66e0b0031bd719dffe2700f82fb97 0.0s done
+#18 naming to docker.io/cloud-superbrain-production-candidate/agent-api:19f633f86b33b0aae8e34785bea59b910a3f7157 done
+#18 unpacking to docker.io/cloud-superbrain-production-candidate/agent-api:19f633f86b33b0aae8e34785bea59b910a3f7157 0.0s done
+#18 DONE 0.3s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/7rx9ob0aeoucizmoj5f7s4rnr

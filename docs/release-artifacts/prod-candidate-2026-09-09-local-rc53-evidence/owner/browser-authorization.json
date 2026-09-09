@@ -1,0 +1,27 @@
+{
+  "record_type": "user_authorization_not_execution_evidence",
+  "recorded_at_utc": "2026-09-09T09:58:12Z",
+  "authorization_ref": "CONFIRM_RC53_S8_Q8_FREEZE_SOURCE_CI_AND_3_CALL_QUALIFICATION",
+  "authorization_source": "explicit_user_message_in_current_codex_task",
+  "release_id": "prod-candidate-2026-09-09-local-rc53",
+  "runtime_source_sha": "19f633f86b33b0aae8e34785bea59b910a3f7157",
+  "qualification_sha": "175411b84b2051bd5f1fb5fb084c42234eabfc92",
+  "source_archive_sha256": "223c3a764283093d68dbfebaf60bd4e757d78d6d84a0f619629006d7eb1eb952",
+  "scope": "DEV-ONLY canonical browser qualification and local O4 proof probes",
+  "provider_call_limit": 3,
+  "provider_path": "existing_llm_gateway_only",
+  "allowed_provider_call_distribution": {
+    "product_acceptance": 1,
+    "registered_22_page_build_controls": 2
+  },
+  "local_o4_write_and_cleanup_probes_allowed": true,
+  "source_ci_success_required_before_execution": true,
+  "automatic_provider_retries_allowed": false,
+  "production_deploy_allowed": false,
+  "production_oauth_acceptance_allowed": false,
+  "registry_publication_allowed": false,
+  "secret_creation_allowed": false,
+  "secret_output": false,
+  "percentage_credit_awarded": 0,
+  "execution_result_claimed": false
+}

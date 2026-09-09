@@ -1,0 +1,20 @@
+{
+  "contract_version": "phase5-browser-retry-owner-authorization-v1",
+  "recorded_at_utc": "2026-09-09T11:10:40Z",
+  "authorization_ref": "CONFIRM_RC54_S8_Q8_BROWSER_FULL_RETRY_EXACTLY_3_PROVIDER_CALLS_AFTER_O4_SOURCE_REPAIR",
+  "release_id": "prod-candidate-2026-09-09-local-rc53",
+  "source_commit_sha": "19f633f86b33b0aae8e34785bea59b910a3f7157",
+  "control_commit_sha": "175411b84b2051bd5f1fb5fb084c42234eabfc92",
+  "evidence_run_id": "147efaa6-e96d-4929-ac67-0ee0ff69643a",
+  "maximum_provider_calls": 3,
+  "distribution": {
+    "product_acceptance": 1,
+    "twenty_two_page_actions": 2
+  },
+  "automatic_retry_allowed": false,
+  "precondition": "The Q8-bound O4 runtime proof and browser proof are both verified before execution.",
+  "production_deploy_allowed": false,
+  "registry_publication_allowed": false,
+  "secret_output_allowed": false,
+  "progress_credit_awarded": false
+}
