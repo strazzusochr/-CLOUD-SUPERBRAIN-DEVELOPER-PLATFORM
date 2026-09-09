@@ -58,6 +58,23 @@ class FrontendHostedValidateOnlyTests(unittest.TestCase):
             self.source,
         )
 
+    def test_production_alias_uses_authoritative_alias_readback(self) -> None:
+        for marker in (
+            'vercel.cmd api "/v4/aliases/$configuredAliasHost"',
+            '"Vercel frontend canonical alias"',
+            '"Vercel frontend canonical alias project id"',
+            '"Vercel frontend canonical alias deployment id"',
+            '"Vercel frontend canonical alias deployment URL host"',
+            '$canonicalAliasAssignedAt = ConvertTo-UtcInstant',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, self.source)
+
+        self.assertNotIn(
+            'Assert-True ($actualAliasHosts -contains $configuredAliasHost)',
+            self.source,
+        )
+
     def test_workspace_artifacts_accepts_only_the_exact_hosted_d1_read_contract(self) -> None:
         for marker in (
             '$path -ceq "/api/v1/workspace/artifacts"',

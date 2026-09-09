@@ -1,5 +1,27 @@
 # Verification Register - PATCHED
 
+## 2026-09-09 — RC93 production frontend origin
+
+Vercel redeployment `dpl_3eGYgrcQUHcV6Xi6yFG4N7i1qrM8` is READY with target
+`production` and exact frozen source
+`e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`. The authoritative alias readback
+binds `frontend-seven-psi-78.vercel.app` to that deployment while the project
+production branch remains parked on `codex/vercel-production-hold-rc38` and
+automatic custom-domain assignment remains disabled. Root and health returned 200.
+
+Real Chrome `148.0.7778.96` completed 22 routes across desktop and mobile using
+44 command-palette clicks. The report records zero overflow failures, overlay
+collisions and console errors. `verify-frontend-hosted-current.ps1 -SkipBrowser`
+then passed alias/immutable content parity, 32 hosted reads and authenticated
+metadata reads before and after the checks. Vercel's deployment snapshot retained
+a stale alias array after explicit alias assignment, so the verifier now binds the
+canonical alias through the authoritative `/v4/aliases/<host>` endpoint, including
+project ID, deployment ID, deployment host and assignment time. Focused tests: 5/5.
+
+No provider call, Worker deployment, gate promotion, ledger write or percentage
+change occurred. Overall remains 90; 1333/1400 points are complete, 67 remain;
+`MARKET_READY:false`.
+
 ## 2026-09-05 — L5 reviewer-credit false-positive correction (local)
 
 Six red-first cases reproduced acceptance of missing/identical actors and self-review.

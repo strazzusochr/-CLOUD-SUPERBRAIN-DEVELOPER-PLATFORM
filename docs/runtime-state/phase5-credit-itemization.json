@@ -139,8 +139,8 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-      "claim": "The hosted frontend RC31-control Preview is source- and archive-bound and routes Agent API, MCP Gateway, and LLM Gateway health to RC31 Preview runtimes, but it is not a full six-service immutable-image candidate-parity proof.",
-      "anchor": "\"source_commit_sha\": \"a8614fd34f67f2e0d749b2d76d78a55c0e3de021\""
+      "claim": "The canonical Production frontend is operationally deployed from frozen source S3 with authoritative alias and browser parity, but this frontend-only proof is not a full six-service immutable-image candidate-parity proof.",
+      "anchor": "\"deployment_id\": \"dpl_3eGYgrcQUHcV6Xi6yFG4N7i1qrM8\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
