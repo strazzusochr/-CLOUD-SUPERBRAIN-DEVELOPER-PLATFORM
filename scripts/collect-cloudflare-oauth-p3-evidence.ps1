@@ -104,7 +104,7 @@ $capabilityAfter = (Get-FileHash -LiteralPath $capabilityPath -Algorithm SHA256)
 Assert-True ($capabilityBefore -ceq $capabilityAfter) 'Production-auth evidence collection mutated capability gates.'
 
 try { $evidence = Get-Content -LiteralPath $output.absolute -Raw | ConvertFrom-Json } catch { throw 'Generated production-auth evidence is invalid JSON.' }
-Assert-True ([string]$evidence.contract_version -ceq 'production-auth-identity-proof-v1') 'Generated production-auth evidence contract mismatch.'
+Assert-True ([string]$evidence.contract_version -ceq 'production-auth-identity-proof-v2') 'Generated production-auth evidence contract mismatch.'
 Assert-True ([string]$evidence.status -ceq 'verified') 'Generated production-auth evidence is not verified.'
 Assert-True ($evidence.gate_promotion_performed -is [bool] -and -not [bool]$evidence.gate_promotion_performed) 'Collector may not promote the auth gate.'
 Assert-True ($evidence.secret_output -is [bool] -and -not [bool]$evidence.secret_output) 'Collector emitted a secret claim.'

@@ -38,6 +38,7 @@ FLOW_STEPS = [
     "anonymous_login_no_identity",
     "github_start_exact_query",
     "github_cancel_no_credentials",
+    "github_start_family_a_exact_query",
     "github_authorize_owner_identity",
     "callback_one_time_state",
     "auth_me_verified_identity",
@@ -45,6 +46,9 @@ FLOW_STEPS = [
     "refresh_atomic_rotation",
     "old_refresh_replay_rejected",
     "callback_replay_rejected",
+    "github_start_family_b_exact_query",
+    "github_authorize_family_b_owner_identity",
+    "independent_family_b_callback",
     "logout_revocation_audited",
     "post_logout_refresh_rejected",
 ]
@@ -52,7 +56,7 @@ FLOW_STEPS = [
 
 def valid_evidence() -> dict[str, object]:
     evidence: dict[str, object] = {
-        "contract_version": "production-auth-identity-proof-v1",
+        "contract_version": "production-auth-identity-proof-v2",
         "status": "verified",
         "oauth_scope": "read:user",
         "human_flow_verified_steps": FLOW_STEPS,

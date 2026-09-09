@@ -153,7 +153,7 @@ class ProductionAuthPipelineTests(unittest.TestCase):
                 architecture_path=paths["architecture"],
                 ci_path=paths["ci"],
             )
-        self.assertEqual(value["contract_version"], "production-auth-identity-proof-v1")
+        self.assertEqual(value["contract_version"], "production-auth-identity-proof-v2")
         self.assertEqual(value["human_flow_verified_steps"], p3.STEP_NAMES)
         self.assertEqual(value["source_binding"]["frontend_source_commit_sha"], "b" * 40)
         self.assertEqual(value["source_binding"]["qualification_commit_sha"], "c" * 40)

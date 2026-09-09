@@ -193,7 +193,7 @@ $candidateGate.verified_at_utc = (Get-Date).ToUniversalTime().ToString('yyyy-MM-
 $candidateGate.provider = 'github-oauth-cloudflare-native'
 $candidateGate.paid_provider = $false
 $candidateGate.verifier = $canonicalVerifier
-$candidateGate.note = "Verified from production-auth-identity-proof-v1; evidence_sha256=$evidenceSha"
+$candidateGate.note = "Verified from production-auth-identity-proof-v2; evidence_sha256=$evidenceSha"
 
 foreach ($property in $clone.gates.PSObject.Properties) {
   if ($property.Name -cne 'production_auth_identity') {

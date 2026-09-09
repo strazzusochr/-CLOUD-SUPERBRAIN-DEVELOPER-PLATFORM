@@ -28,6 +28,7 @@ $expectedStepNames = @(
   "anonymous_login_no_identity",
   "github_start_exact_query",
   "github_cancel_no_credentials",
+  "github_start_family_a_exact_query",
   "github_authorize_owner_identity",
   "callback_one_time_state",
   "auth_me_verified_identity",
@@ -35,23 +36,30 @@ $expectedStepNames = @(
   "refresh_atomic_rotation",
   "old_refresh_replay_rejected",
   "callback_replay_rejected",
+  "github_start_family_b_exact_query",
+  "github_authorize_family_b_owner_identity",
+  "independent_family_b_callback",
   "logout_revocation_audited",
   "post_logout_refresh_rejected"
 )
 
 $stepContract = @(
-  [ordered]@{ surface = "browser";           action = "navigate_login_and_read_auth_me";              status = 401; outcome = "unauthenticated";                         d1 = $false; credentials = $false; audit = $false },
-  [ordered]@{ surface = "browser_d1";        action = "click_github_sign_in";                         status = 303; outcome = "redirected_exact_scope";                  d1 = $true;  credentials = $false; audit = $false },
-  [ordered]@{ surface = "browser_d1_audit";  action = "click_github_cancel";                          status = 401; outcome = "denied_no_credentials_state_consumed";    d1 = $true;  credentials = $false; audit = $true  },
-  [ordered]@{ surface = "browser";           action = "click_github_authorize";                       status = 200; outcome = "owner_consent_recorded";                  d1 = $false; credentials = $false; audit = $false },
-  [ordered]@{ surface = "browser_d1_audit";  action = "follow_callback_redirect";                     status = 303; outcome = "identity_verified_credentials_issued";    d1 = $true;  credentials = $true;  audit = $true  },
-  [ordered]@{ surface = "browser";           action = "read_auth_me";                                status = 200; outcome = "identity_readback_verified";             d1 = $false; credentials = $false; audit = $false },
-  [ordered]@{ surface = "browser";           action = "reload_authenticated_page";                   status = 200; outcome = "session_continuity_verified";            d1 = $false; credentials = $false; audit = $false },
-  [ordered]@{ surface = "browser_d1_audit";  action = "click_refresh_action";                         status = 200; outcome = "refresh_rotated_once";                    d1 = $true;  credentials = $true;  audit = $true  },
-  [ordered]@{ surface = "browser_d1_audit";  action = "replay_previous_refresh_via_browser_action";   status = 401; outcome = "replay_401_family_revoked";               d1 = $true;  credentials = $false; audit = $true  },
-  [ordered]@{ surface = "browser_d1_audit";  action = "replay_consumed_callback_via_browser_action";  status = 401; outcome = "callback_replay_401_no_credentials";      d1 = $true;  credentials = $false; audit = $true  },
-  [ordered]@{ surface = "browser_d1_audit";  action = "click_logout_action";                          status = 200; outcome = "one_active_refresh_revoked_audited";      d1 = $true;  credentials = $false; audit = $true  },
-  [ordered]@{ surface = "browser_d1";        action = "click_refresh_after_logout";                   status = 401; outcome = "refresh_401_revoked";                     d1 = $true;  credentials = $false; audit = $false }
+  [ordered]@{ surface = "browser";           action = "navigate_login_and_read_auth_me";              status = 401; outcome = "unauthenticated";                         clicks = 0; d1 = $false; credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser_d1";        action = "click_github_sign_in_for_cancel";              status = 303; outcome = "redirected_exact_scope";                  clicks = 1; d1 = $true;  credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser_d1_audit";  action = "click_github_cancel";                          status = 401; outcome = "denied_no_credentials_state_consumed";    clicks = 1; d1 = $true;  credentials = $false; audit = $true  },
+  [ordered]@{ surface = "browser_d1";        action = "click_github_sign_in_for_family_a";            status = 303; outcome = "redirected_exact_scope";                  clicks = 1; d1 = $true;  credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser";           action = "click_github_authorize_family_a";              status = 200; outcome = "owner_consent_recorded";                  clicks = 1; d1 = $false; credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser_d1_audit";  action = "follow_family_a_callback_redirect";            status = 303; outcome = "identity_verified_credentials_issued";    clicks = 0; d1 = $true;  credentials = $true;  audit = $true  },
+  [ordered]@{ surface = "browser";           action = "read_auth_me";                                status = 200; outcome = "identity_readback_verified";             clicks = 0; d1 = $false; credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser";           action = "reload_authenticated_page";                   status = 200; outcome = "session_continuity_verified";            clicks = 1; d1 = $false; credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser_d1_audit";  action = "click_refresh_action";                         status = 200; outcome = "refresh_rotated_once";                    clicks = 1; d1 = $true;  credentials = $true;  audit = $true  },
+  [ordered]@{ surface = "browser_d1_audit";  action = "replay_previous_refresh_via_browser_action";   status = 401; outcome = "replay_401_family_revoked";               clicks = 1; d1 = $true;  credentials = $false; audit = $true  },
+  [ordered]@{ surface = "browser_d1_audit";  action = "replay_consumed_callback_via_browser_action";  status = 401; outcome = "callback_replay_401_no_credentials";      clicks = 1; d1 = $true;  credentials = $false; audit = $true  },
+  [ordered]@{ surface = "browser_d1";        action = "click_github_sign_in_for_family_b";            status = 303; outcome = "redirected_exact_scope";                  clicks = 1; d1 = $true;  credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser";           action = "click_github_authorize_family_b";              status = 200; outcome = "owner_consent_recorded";                  clicks = 1; d1 = $false; credentials = $false; audit = $false },
+  [ordered]@{ surface = "browser_d1_audit";  action = "follow_family_b_callback_redirect";            status = 303; outcome = "identity_verified_credentials_issued";    clicks = 0; d1 = $true;  credentials = $true;  audit = $true  },
+  [ordered]@{ surface = "browser_d1_audit";  action = "click_logout_action";                          status = 200; outcome = "one_active_refresh_revoked_audited";      clicks = 1; d1 = $true;  credentials = $false; audit = $true  },
+  [ordered]@{ surface = "browser_d1";        action = "click_refresh_after_logout";                   status = 401; outcome = "refresh_401_revoked";                     clicks = 1; d1 = $true;  credentials = $false; audit = $false }
 )
 
 $auditContract = @(
@@ -60,6 +68,7 @@ $auditContract = @(
   [ordered]@{ step = "refresh_atomic_rotation";           event = "auth_refresh_rotated" },
   [ordered]@{ step = "old_refresh_replay_rejected";       event = "auth_refresh_reuse_blocked" },
   [ordered]@{ step = "callback_replay_rejected";          event = "auth_github_callback_blocked" },
+  [ordered]@{ step = "independent_family_b_callback";     event = "auth_github_callback_verified" },
   [ordered]@{ step = "logout_revocation_audited";         event = "auth_logout_revoked" }
 )
 
@@ -69,6 +78,7 @@ $factCodesByKind = @{
     anonymous_login_no_identity = @("human_navigation", "auth_me_http_401", "identity_projection_absent")
     github_start_exact_query = @("human_click", "github_redirect_http_303", "oauth_scope_exact_read_user")
     github_cancel_no_credentials = @("human_click", "provider_cancel_http_401", "credential_issue_count_0")
+    github_start_family_a_exact_query = @("human_click", "github_redirect_http_303", "oauth_scope_exact_read_user")
     github_authorize_owner_identity = @("human_click", "owner_consent_visible", "numeric_identity_only_hashed")
     callback_one_time_state = @("callback_http_303", "one_time_state_consumed", "credential_issue_count_1")
     auth_me_verified_identity = @("auth_me_http_200", "jwt_claims_verified", "numeric_identity_only_hashed")
@@ -76,16 +86,22 @@ $factCodesByKind = @{
     refresh_atomic_rotation = @("human_click", "refresh_http_200", "credential_issue_count_1")
     old_refresh_replay_rejected = @("human_click", "refresh_replay_http_401", "credential_issue_count_0")
     callback_replay_rejected = @("human_click", "callback_replay_http_401", "credential_issue_count_0")
+    github_start_family_b_exact_query = @("human_click", "github_redirect_http_303", "oauth_scope_exact_read_user")
+    github_authorize_family_b_owner_identity = @("human_click", "owner_consent_visible", "numeric_identity_only_hashed")
+    independent_family_b_callback = @("callback_http_303", "one_time_state_consumed", "credential_issue_count_1")
     logout_revocation_audited = @("human_click", "logout_http_200", "credential_issue_count_0")
     post_logout_refresh_rejected = @("human_click", "post_logout_refresh_http_401", "credential_issue_count_0")
   }
   d1_readback = @{
     github_start_exact_query = @("oauth_state_insert_count_1", "pending_state_count_1")
     github_cancel_no_credentials = @("oauth_state_delete_count_1", "credential_row_delta_0")
+    github_start_family_a_exact_query = @("oauth_state_insert_count_1", "pending_state_count_1")
     callback_one_time_state = @("oauth_state_delete_count_1", "refresh_family_insert_count_1", "audit_before_credential_sequence")
     refresh_atomic_rotation = @("serialized_compare_and_swap", "parallel_attempt_count_2", "rotation_success_count_1", "rotation_reject_count_1", "history_insert_count_1", "active_refresh_count_1")
     old_refresh_replay_rejected = @("family_revocation_count_1", "active_refresh_count_0", "refresh_replay_http_401")
     callback_replay_rejected = @("oauth_state_count_0", "credential_row_delta_0", "callback_replay_http_401")
+    github_start_family_b_exact_query = @("oauth_state_insert_count_1", "pending_state_count_1")
+    independent_family_b_callback = @("oauth_state_delete_count_1", "refresh_family_insert_count_1", "audit_before_credential_sequence")
     logout_revocation_audited = @("active_refresh_count_1_to_0", "revoked_history_insert_count_1")
     post_logout_refresh_rejected = @("active_refresh_count_0", "credential_row_delta_0", "post_logout_refresh_http_401")
   }
@@ -366,21 +382,42 @@ Assert-ExactPropertyNames $flow @(
   "execution", "human_flow_steps", "token_families", "scorer_outputs", "atomic_replay_evidence", "audit_correlations",
   "redaction", "gate_transition", "non_claims"
 ) "Cloudflare OAuth flow evidence"
-Assert-True ([string]$flow.contract_version -ceq "cloudflare-oauth-hosted-current-flow-v1") "Flow evidence contract mismatch."
+Assert-True ([string]$flow.contract_version -ceq "cloudflare-oauth-hosted-current-flow-v2") "Flow evidence contract mismatch."
 Assert-True ([string]$flow.status -ceq "evidence_envelope_complete") `
   "Flow evidence status must describe an evidence envelope, not a full live-proof claim."
 Assert-True ([string]$flow.architecture -ceq "cloudflare_native") "Flow evidence architecture must be cloudflare_native."
 
 $sensitiveHashes = $flow.sensitive_hash_bindings
 Assert-ExactPropertyNames $sensitiveHashes @(
-  "provider_user_id_sha256", "subject_sha256", "oauth_code_sha256", "oauth_state_sha256",
-  "access_token_sha256", "refresh_token_before_sha256", "refresh_token_after_sha256", "cookie_bundle_sha256"
+  "provider_user_id_sha256", "subject_sha256",
+  "cancel_oauth_state_sha256",
+  "family_a_oauth_state_sha256", "family_a_oauth_code_sha256", "family_a_access_token_sha256",
+  "family_a_refresh_token_before_sha256", "family_a_refresh_token_after_sha256", "family_a_cookie_bundle_sha256",
+  "family_b_oauth_state_sha256", "family_b_oauth_code_sha256", "family_b_access_token_sha256",
+  "family_b_refresh_token_sha256", "family_b_cookie_bundle_sha256"
 ) "Flow sensitive_hash_bindings"
 foreach ($field in $sensitiveHashes.PSObject.Properties.Name) {
   Assert-LowerSha256 ([string]$sensitiveHashes.$field) "Flow sensitive_hash_bindings.$field"
 }
-Assert-True (@($sensitiveHashes.PSObject.Properties.Value | Select-Object -Unique).Count -eq 8) `
-  "Every sensitive raw value requires a distinct SHA256-only counterpart."
+Assert-True ([string]$sensitiveHashes.provider_user_id_sha256 -cne [string]$sensitiveHashes.subject_sha256) `
+  "Provider identity and subject require distinct SHA256-only counterparts."
+Assert-True ((@(
+  $sensitiveHashes.cancel_oauth_state_sha256,
+  $sensitiveHashes.family_a_oauth_state_sha256,
+  $sensitiveHashes.family_b_oauth_state_sha256
+  ) | Select-Object -Unique).Count -eq 3) `
+  "Cancel, family A, and family B OAuth states require distinct SHA256-only counterparts."
+Assert-True ((@(
+  $sensitiveHashes.family_a_oauth_code_sha256,
+  $sensitiveHashes.family_b_oauth_code_sha256
+  ) | Select-Object -Unique).Count -eq 2) `
+  "Family A and family B OAuth codes require distinct SHA256-only counterparts."
+Assert-True ((@(
+  $sensitiveHashes.family_a_refresh_token_before_sha256,
+  $sensitiveHashes.family_a_refresh_token_after_sha256,
+  $sensitiveHashes.family_b_refresh_token_sha256
+  ) | Select-Object -Unique).Count -eq 3) `
+  "Family A before/after refresh and family B refresh require distinct SHA256-only counterparts."
 
 $binding = $flow.source_binding
 Assert-ExactPropertyNames $binding @(
@@ -520,7 +557,8 @@ Assert-True ([int]$execution.human_click_count -eq 12) "Flow execution must deri
 Assert-True ([string]$execution.identity_evidence -ceq "numeric_owner_identity_sha256_only") `
   "Identity evidence must be represented only by a SHA256 correlation."
 Assert-True ([string]$execution.oauth_scope -ceq "read:user") "Execution OAuth scope must be exactly read:user."
-Assert-True ([int]$execution.provider_call_count -eq 2) "Flow execution must derive the bounded token and user provider calls."
+Assert-True ([int]$execution.provider_call_count -eq 4) `
+  "Flow execution must derive exactly two token exchanges and two user-identity reads for token families A and B."
 foreach ($field in @("provider_write_count", "deployment_write_count", "localhost_transport_count")) {
   Assert-True ([int]$execution.$field -eq 0) "Flow execution $field must be zero."
 }
@@ -595,14 +633,15 @@ function Get-ObservationFactHash([object[]]$Observations) {
 }
 
 $steps = @($flow.human_flow_steps)
-Assert-True ($steps.Count -eq 12) "Flow evidence must contain exactly 12 human/browser/D1 steps."
+Assert-True ($steps.Count -eq $expectedStepNames.Count) `
+  "Flow evidence must contain exactly 16 browser/provider/D1 steps."
 $stepByName = @{}
 $requestHashes = @()
 $sessionHashA = $null
 $sessionHashB = $null
 $artifactByKind = @{}
 
-for ($index = 0; $index -lt 12; $index++) {
+for ($index = 0; $index -lt $expectedStepNames.Count; $index++) {
   $step = $steps[$index]
   $expected = $stepContract[$index]
   $name = $expectedStepNames[$index]
@@ -618,7 +657,7 @@ for ($index = 0; $index -lt 12; $index++) {
   Assert-True ([string]$step.action -ceq [string]$expected.action) "$label action mismatch."
   Assert-True ([int]$step.http_status -eq [int]$expected.status) "$label HTTP status mismatch."
   Assert-True ([string]$step.outcome -ceq [string]$expected.outcome) "$label outcome mismatch."
-  Assert-True ([int]$step.human_click_count -eq 1) "$label human_click_count must equal one."
+  Assert-True ([int]$step.human_click_count -eq [int]$expected.clicks) "$label human_click_count mismatch."
   Assert-True ([int]$step.d1_readback_match_count -eq $(if ([bool]$expected.d1) { 1 } else { 0 })) `
     "$label d1_readback_match_count mismatch."
   Assert-True ([int]$step.credential_issue_count -eq $(if ([bool]$expected.credentials) { 1 } else { 0 })) `
@@ -626,19 +665,25 @@ for ($index = 0; $index -lt 12; $index++) {
   Assert-True ([int]$step.secret_value_count -eq 0) "$label secret_value_count must be zero."
   Assert-LowerSha256 ([string]$step.request_correlation_sha256) "$label request correlation"
   $requestHashes += [string]$step.request_correlation_sha256
-  if ($index -lt 4) {
+  if ($name -in @(
+    "anonymous_login_no_identity", "github_start_exact_query", "github_cancel_no_credentials",
+    "github_start_family_a_exact_query", "github_authorize_owner_identity",
+    "github_start_family_b_exact_query", "github_authorize_family_b_owner_identity"
+  )) {
     Assert-True ($null -eq $step.session_correlation_sha256) "$label must not contain a pre-auth session correlation."
+  } elseif ($name -in @(
+    "callback_one_time_state", "auth_me_verified_identity", "reload_session_continuity",
+    "refresh_atomic_rotation", "old_refresh_replay_rejected", "callback_replay_rejected"
+  )) {
+    Assert-LowerSha256 ([string]$step.session_correlation_sha256) "$label session correlation"
+    if ($null -eq $sessionHashA) { $sessionHashA = [string]$step.session_correlation_sha256 }
+    Assert-True ([string]$step.session_correlation_sha256 -ceq $sessionHashA) `
+      "$label must remain bound to refresh-replay family A."
   } else {
     Assert-LowerSha256 ([string]$step.session_correlation_sha256) "$label session correlation"
-    if ($index -lt 10) {
-      if ($null -eq $sessionHashA) { $sessionHashA = [string]$step.session_correlation_sha256 }
-      Assert-True ([string]$step.session_correlation_sha256 -ceq $sessionHashA) `
-        "$label must remain bound to refresh-replay family A."
-    } else {
-      if ($null -eq $sessionHashB) { $sessionHashB = [string]$step.session_correlation_sha256 }
-      Assert-True ([string]$step.session_correlation_sha256 -ceq $sessionHashB) `
-        "$label must remain bound to logout family B."
-    }
+    if ($null -eq $sessionHashB) { $sessionHashB = [string]$step.session_correlation_sha256 }
+    Assert-True ([string]$step.session_correlation_sha256 -ceq $sessionHashB) `
+      "$label must remain bound to logout family B."
   }
 
   $evidence = $step.evidence
@@ -662,7 +707,10 @@ for ($index = 0; $index -lt 12; $index++) {
   $stepByName[$name] = $step
 }
 
-Assert-True (@($requestHashes | Select-Object -Unique).Count -eq 12) "Each human-flow step requires a distinct hashed request correlation."
+Assert-True (@($requestHashes | Select-Object -Unique).Count -eq $expectedStepNames.Count) `
+  "Each flow step requires a distinct hashed request correlation."
+Assert-True ([int](($steps | Measure-Object -Property human_click_count -Sum).Sum) -eq 12) `
+  "Flow evidence must derive exactly 12 human clicks across the 16-step sequence."
 Assert-True ($null -ne $sessionHashA -and $null -ne $sessionHashB -and $sessionHashA -cne $sessionHashB) `
   "Refresh-replay family A and logout family B require distinct session correlations."
 Assert-True ($artifactByKind.Count -eq 3) "Flow evidence must bind exactly browser, D1-readback, and audit-readback artifacts."
@@ -721,8 +769,10 @@ Assert-True (@($familyIdHashes | Select-Object -Unique).Count -eq 2) `
 
 $browserCovered = @($expectedStepNames)
 $d1Covered = @(
-  "github_start_exact_query", "github_cancel_no_credentials", "callback_one_time_state",
+  "github_start_exact_query", "github_cancel_no_credentials", "github_start_family_a_exact_query",
+  "callback_one_time_state",
   "refresh_atomic_rotation", "old_refresh_replay_rejected", "callback_replay_rejected",
+  "github_start_family_b_exact_query", "independent_family_b_callback",
   "logout_revocation_audited", "post_logout_refresh_rejected"
 )
 $auditCovered = @($auditContract | ForEach-Object { [string]$_.step })
@@ -731,9 +781,12 @@ $sensitiveByKind = @{
   browser = @($sensitiveHashes.PSObject.Properties.Value | ForEach-Object { [string]$_ })
   d1_readback = @(
     [string]$sensitiveHashes.subject_sha256,
-    [string]$sensitiveHashes.oauth_state_sha256,
-    [string]$sensitiveHashes.refresh_token_before_sha256,
-    [string]$sensitiveHashes.refresh_token_after_sha256
+    [string]$sensitiveHashes.cancel_oauth_state_sha256,
+    [string]$sensitiveHashes.family_a_oauth_state_sha256,
+    [string]$sensitiveHashes.family_b_oauth_state_sha256,
+    [string]$sensitiveHashes.family_a_refresh_token_before_sha256,
+    [string]$sensitiveHashes.family_a_refresh_token_after_sha256,
+    [string]$sensitiveHashes.family_b_refresh_token_sha256
   )
   audit_readback = @(
     [string]$sensitiveHashes.provider_user_id_sha256,
@@ -880,7 +933,7 @@ Assert-True ([string]$atomic.scorer_sha256 -ceq [string]$scorerByKind["d1_readba
   "Atomic replay scorer hash mismatch."
 
 $correlations = @($flow.audit_correlations)
-Assert-True ($correlations.Count -eq $auditContract.Count) "Audit evidence must contain exactly six canonical correlations."
+Assert-True ($correlations.Count -eq $auditContract.Count) "Audit evidence must contain exactly seven canonical correlations."
 $auditEventHashes = @()
 for ($index = 0; $index -lt $auditContract.Count; $index++) {
   $correlation = $correlations[$index]
@@ -921,6 +974,13 @@ for ($index = 0; $index -lt $auditContract.Count; $index++) {
   Assert-True ([string]$correlation.scorer_sha256 -ceq [string]$scorerByKind["audit_readback"].hash) `
     "$label audit scorer hash mismatch."
 }
+Assert-True (@(
+  $correlations | Where-Object {
+    [string]$_.event_type -ceq "auth_github_callback_verified" -and [int]$_.persisted_row_count -eq 1
+  }
+).Count -eq 2) "Audit evidence must prove exactly two successful OAuth callbacks."
+Assert-True ([int]$execution.provider_call_count -eq 4) `
+  "Two successful callbacks must bind two token exchanges and two user-identity reads."
 Assert-True (@($auditEventHashes | Select-Object -Unique).Count -eq $auditContract.Count) `
   "Every audit correlation requires a distinct SHA256-only audit-event identity."
 
@@ -1003,8 +1063,8 @@ if ($Hosted) {
   Assert-True ([string]$contract.cookie_flags.refresh -ceq "__Host-sb_refresh; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=Strict") `
     "Hosted refresh cookie policy mismatch."
 
-  Write-Host "[production-auth-runtime] status=verified architecture=cloudflare_native validation_mode=false hosted_mode=true read_only=true source_parity=true proof_scope=production_identity exact_human_flow_steps=12 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=true provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"
+  Write-Host "[production-auth-runtime] status=verified architecture=cloudflare_native validation_mode=false hosted_mode=true read_only=true source_parity=true proof_scope=production_identity exact_flow_steps=16 exact_human_clicks=12 provider_calls=4 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=true provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"
   exit 0
 }
 
-Write-Host "[production-auth-runtime] status=verified architecture=cloudflare_native validation_mode=true hosted_mode=false read_only=true source_parity=true proof_scope=production_identity exact_human_flow_steps=12 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=false provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"
+Write-Host "[production-auth-runtime] status=verified architecture=cloudflare_native validation_mode=true hosted_mode=false read_only=true source_parity=true proof_scope=production_identity exact_flow_steps=16 exact_human_clicks=12 provider_calls=4 atomic_replay_evidence=scored audit_correlation_evidence=scored hosted_binding_readback=false provider_writes=false deployment_writes=false full_live_proof=false production_release=false gate_promotion_performed=false live_verified_set=false secret_output=false"

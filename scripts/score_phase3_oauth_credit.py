@@ -19,8 +19,8 @@ except ImportError:  # Direct execution from the repository root.
 
 SCORER_COMMAND = "python scripts/score_phase3_oauth_credit.py --score-v1"
 AGGREGATE_CONTRACT = "phase3-oauth-credit-evidence-v1"
-FLOW_CONTRACT = "cloudflare-oauth-hosted-current-flow-v1"
-AUTH_CONTRACT = "production-auth-identity-proof-v1"
+FLOW_CONTRACT = "cloudflare-oauth-hosted-current-flow-v2"
+AUTH_CONTRACT = "production-auth-identity-proof-v2"
 CAPABILITY_CONTRACT = "capability-gate-state-v1"
 RAW_VERIFIER_PATH = "scripts/verify-cloudflare-oauth-p3-raw-evidence.ps1"
 AUTH_VERIFIER_PATH = "scripts/verify-production-auth-identity-evidence.ps1"
@@ -28,6 +28,7 @@ STEP_NAMES = [
     "anonymous_login_no_identity",
     "github_start_exact_query",
     "github_cancel_no_credentials",
+    "github_start_family_a_exact_query",
     "github_authorize_owner_identity",
     "callback_one_time_state",
     "auth_me_verified_identity",
@@ -35,16 +36,21 @@ STEP_NAMES = [
     "refresh_atomic_rotation",
     "old_refresh_replay_rejected",
     "callback_replay_rejected",
+    "github_start_family_b_exact_query",
+    "github_authorize_family_b_owner_identity",
+    "independent_family_b_callback",
     "logout_revocation_audited",
     "post_logout_refresh_rejected",
 ]
-STEP_STATUSES = [401, 303, 401, 200, 303, 200, 200, 200, 401, 401, 200, 401]
+STEP_STATUSES = [401, 303, 401, 303, 200, 303, 200, 200, 200, 401, 401, 303, 200, 303, 200, 401]
+STEP_HUMAN_CLICKS = [0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1]
 AUDIT_EVENTS = [
     ("github_cancel_no_credentials", "auth_github_callback_blocked"),
     ("callback_one_time_state", "auth_github_callback_verified"),
     ("refresh_atomic_rotation", "auth_refresh_rotated"),
     ("old_refresh_replay_rejected", "auth_refresh_reuse_blocked"),
     ("callback_replay_rejected", "auth_github_callback_blocked"),
+    ("independent_family_b_callback", "auth_github_callback_verified"),
     ("logout_revocation_audited", "auth_logout_revoked"),
 ]
 CRITERIA = {
@@ -85,30 +91,38 @@ def _validate_flow(flow: dict[str, Any], candidate_sha: str) -> str:
     common.require(execution.get("transport") == "hosted_https" and execution.get("browser_execution") == "real_chrome", "OAuth execution is not a real hosted browser flow")
     common.require(execution.get("human_click_count") == 12, "OAuth human click count mismatch")
     common.require(execution.get("oauth_scope") == "read:user", "OAuth scope must be read:user")
-    common.require(execution.get("provider_call_count") == 2, "OAuth provider call count mismatch")
+    common.require(execution.get("provider_call_count") == 4, "OAuth provider call count mismatch")
     common.require(execution.get("provider_write_count") == 0 and execution.get("deployment_write_count") == 0, "OAuth evidence crossed a write boundary")
     common.require(execution.get("localhost_transport_count") == 0, "OAuth evidence used localhost")
 
     steps = flow.get("human_flow_steps")
-    common.require(isinstance(steps, list) and len(steps) == 12, "OAuth proof must contain exactly 12 human-flow steps")
+    common.require(isinstance(steps, list) and len(steps) == 16, "OAuth proof must contain exactly 16 flow steps")
     sessions: dict[str, str] = {}
     for index, step in enumerate(steps):
         common.require(isinstance(step, dict), f"OAuth step[{index}] is invalid")
         common.require(step.get("sequence") == index + 1 and step.get("name") == STEP_NAMES[index], f"OAuth step[{index}] sequence mismatch")
         common.require(step.get("http_status") == STEP_STATUSES[index], f"OAuth step[{index}] HTTP status mismatch")
-        common.require(step.get("human_click_count") == 1, f"OAuth step[{index}] lacks one human click")
+        common.require(step.get("human_click_count") == STEP_HUMAN_CLICKS[index], f"OAuth step[{index}] human click count mismatch")
         common.require(step.get("secret_value_count") == 0, f"OAuth step[{index}] contains a secret")
         common.require(re.fullmatch(r"[0-9a-f]{64}", str(step.get("request_correlation_sha256", ""))) is not None, f"OAuth step[{index}] request correlation invalid")
-        if index >= 4:
+        if STEP_NAMES[index] in {
+            "callback_one_time_state", "auth_me_verified_identity", "reload_session_continuity",
+            "refresh_atomic_rotation", "old_refresh_replay_rejected", "callback_replay_rejected",
+            "independent_family_b_callback", "logout_revocation_audited", "post_logout_refresh_rejected",
+        }:
             session = step.get("session_correlation_sha256")
             common.require(re.fullmatch(r"[0-9a-f]{64}", str(session or "")) is not None, f"OAuth step[{index}] session correlation invalid")
             sessions[STEP_NAMES[index]] = str(session)
         else:
             common.require(step.get("session_correlation_sha256") is None, f"OAuth step[{index}] invented a pre-auth session")
+    common.require(sum(STEP_HUMAN_CLICKS) == execution.get("human_click_count") == 12, "OAuth total human click count mismatch")
     family_a_session = sessions["callback_one_time_state"]
-    common.require(all(sessions[name] == family_a_session for name in STEP_NAMES[4:10]), "OAuth family A session correlation mismatch")
+    common.require(all(sessions[name] == family_a_session for name in STEP_NAMES[5:11]), "OAuth family A session correlation mismatch")
     family_b_session = sessions["logout_revocation_audited"]
-    common.require(sessions["post_logout_refresh_rejected"] == family_b_session and family_b_session != family_a_session, "OAuth family B session correlation mismatch")
+    common.require(
+        all(sessions[name] == family_b_session for name in STEP_NAMES[13:16]) and family_b_session != family_a_session,
+        "OAuth family B session correlation mismatch",
+    )
 
     token_families = flow.get("token_families")
     common.require(isinstance(token_families, dict), "OAuth token family proof missing")
@@ -141,7 +155,10 @@ def _validate_flow(flow: dict[str, Any], candidate_sha: str) -> str:
     common.require(atomic.get("callback_replay_credential_issue_count") == 0 and atomic.get("secret_value_count") == 0, "OAuth callback replay issued credentials or exposed a secret")
 
     correlations = flow.get("audit_correlations")
-    common.require(isinstance(correlations, list) and len(correlations) == 6, "OAuth audit correlation count mismatch")
+    common.require(
+        isinstance(correlations, list) and len(correlations) == len(AUDIT_EVENTS),
+        "OAuth audit correlation count mismatch",
+    )
     observed = [(entry.get("step"), entry.get("event_type")) for entry in correlations if isinstance(entry, dict)]
     common.require(observed == AUDIT_EVENTS, "OAuth audit event sequence mismatch")
     for entry in correlations:

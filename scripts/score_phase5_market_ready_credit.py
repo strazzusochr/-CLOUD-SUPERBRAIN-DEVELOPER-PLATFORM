@@ -17,7 +17,7 @@ except ImportError:  # Direct execution from the repository root.
 SCORER_COMMAND = "python scripts/score_phase5_market_ready_credit.py --score-v1"
 AGGREGATE_CONTRACT = "phase5-market-ready-credit-evidence-v1"
 I1_CONTRACT = "i1-hosted-candidate-parity-v1"
-AUTH_CONTRACT = "production-auth-identity-proof-v1"
+AUTH_CONTRACT = "production-auth-identity-proof-v2"
 CAPABILITY_CONTRACT = "capability-gate-state-v1"
 AUTH_VERIFIER = "scripts/verify-production-auth-identity-evidence.ps1"
 EXPECTED_SERVICES = {
@@ -96,6 +96,7 @@ def _validate_auth(proof: dict[str, Any], candidate_sha: str) -> str:
         "anonymous_login_no_identity",
         "github_start_exact_query",
         "github_cancel_no_credentials",
+        "github_start_family_a_exact_query",
         "github_authorize_owner_identity",
         "callback_one_time_state",
         "auth_me_verified_identity",
@@ -103,6 +104,9 @@ def _validate_auth(proof: dict[str, Any], candidate_sha: str) -> str:
         "refresh_atomic_rotation",
         "old_refresh_replay_rejected",
         "callback_replay_rejected",
+        "github_start_family_b_exact_query",
+        "github_authorize_family_b_owner_identity",
+        "independent_family_b_callback",
         "logout_revocation_audited",
         "post_logout_refresh_rejected",
     ]

@@ -73,14 +73,14 @@ class MarketReadyEntrypointTests(unittest.TestCase):
             REPO_ROOT / "scripts" / "verify-production-auth-identity-evidence.ps1"
         ).read_text(encoding="utf-8")
         for marker in (
-            "production-auth-identity-proof-v1",
+            "production-auth-identity-proof-v2",
             "oauth_scope_exact_read_user_verified",
             "oauth_state_one_time_verified",
             "callback_replay_rejected_verified",
             "refresh_family_replay_rejected_verified",
             "audit_before_credential_verified",
             "human_flow_verified_steps",
-            "Evidence must contain exactly the 12 canonical human-flow steps.",
+            "Evidence must contain exactly the 16 canonical OAuth flow steps.",
             "Evidence must be clean relative to HEAD.",
             "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false",
         ):

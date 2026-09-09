@@ -176,8 +176,8 @@ $expectedTopLevelProperties = @(
 ) + $requiredTrueFields + $requiredFalseFields
 Assert-ExactPropertyNames $evidence $expectedTopLevelProperties 'Production auth evidence'
 
-Assert-True ([string]$evidence.contract_version -ceq 'production-auth-identity-proof-v1') `
-  "Evidence contract must be production-auth-identity-proof-v1."
+Assert-True ([string]$evidence.contract_version -ceq 'production-auth-identity-proof-v2') `
+  "Evidence contract must be production-auth-identity-proof-v2."
 Assert-True ([string]$evidence.status -ceq 'verified') "Evidence status must be verified."
 
 foreach ($field in $requiredTrueFields) {
@@ -643,6 +643,7 @@ $expectedSteps = @(
   'anonymous_login_no_identity',
   'github_start_exact_query',
   'github_cancel_no_credentials',
+  'github_start_family_a_exact_query',
   'github_authorize_owner_identity',
   'callback_one_time_state',
   'auth_me_verified_identity',
@@ -650,6 +651,9 @@ $expectedSteps = @(
   'refresh_atomic_rotation',
   'old_refresh_replay_rejected',
   'callback_replay_rejected',
+  'github_start_family_b_exact_query',
+  'github_authorize_family_b_owner_identity',
+  'independent_family_b_callback',
   'logout_revocation_audited',
   'post_logout_refresh_rejected'
 )
@@ -657,7 +661,7 @@ $stepsProperty = $evidence.PSObject.Properties['human_flow_verified_steps']
 Assert-True ($null -ne $stepsProperty) "Evidence must contain human_flow_verified_steps."
 $actualSteps = @($stepsProperty.Value)
 Assert-True ($actualSteps.Count -eq $expectedSteps.Count) `
-  "Evidence must contain exactly the 12 canonical human-flow steps."
+  "Evidence must contain exactly the 16 canonical OAuth flow steps."
 Assert-True (@($actualSteps | Select-Object -Unique).Count -eq $actualSteps.Count) `
   "Evidence human-flow steps must not contain duplicates."
 for ($index = 0; $index -lt $expectedSteps.Count; $index++) {

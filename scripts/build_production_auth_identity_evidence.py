@@ -14,7 +14,7 @@ from typing import Any, Mapping, Sequence
 from score_phase3_oauth_credit import STEP_NAMES, _validate_flow
 
 
-CONTRACT_VERSION = "production-auth-identity-proof-v1"
+CONTRACT_VERSION = "production-auth-identity-proof-v2"
 CI_CONTRACT = "exact-head-ci-attestation-v2"
 
 
@@ -147,7 +147,7 @@ def build_evidence(
     require(binding.get("callback_url") == f"{frontend_origin}/api/v1/auth/callback", "OAuth flow callback mismatch")
     require(hashlib.sha256(str(frontend["deployment_id"]).encode()).hexdigest() == binding.get("frontend_deployment_id_sha256"), "OAuth flow frontend deployment binding mismatch")
     require(hashlib.sha256(str(runtime["deployment_id"]).encode()).hexdigest() == binding.get("worker_deployment_id_sha256"), "OAuth flow Worker deployment binding mismatch")
-    require(isinstance(execution, dict) and execution.get("provider_call_count") == 2, "OAuth flow provider call count mismatch")
+    require(isinstance(execution, dict) and execution.get("provider_call_count") == 4, "OAuth flow provider call count mismatch")
 
     evidence: dict[str, Any] = {
         "contract_version": CONTRACT_VERSION,
