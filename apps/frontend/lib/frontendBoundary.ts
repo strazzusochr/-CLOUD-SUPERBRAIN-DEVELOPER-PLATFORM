@@ -23,6 +23,7 @@ const OAUTH_STATE_COOKIE = "__Host-sb_oauth_state";
 const OAUTH_ACCESS_COOKIE = "__Host-sb_access";
 const OAUTH_REFRESH_COOKIE = "__Host-sb_refresh";
 const OAUTH_STATE_PATTERN = /^phase3-auth-state-[A-Za-z0-9_-]{32}$/;
+const GITHUB_OAUTH_ISSUER = "https://github.com/login/oauth";
 
 export type HostedAuthSessionLookup =
   | { status: "valid"; claims: AuthSessionClaims }
@@ -462,12 +463,16 @@ function validIncomingOAuthQuery(req: Request, targetPath: "/api/v1/auth/github"
   if (targetPath === "/api/v1/auth/github") return url.search === "";
   const keys = [...url.searchParams.keys()].sort();
   const keyShape = keys.join("|");
-  if (url.searchParams.size !== 2 || (keyShape !== "code|state" && keyShape !== "error|state")) return false;
+  const successShape = keyShape === "code|state" || keyShape === "code|iss|state";
+  const errorShape = keyShape === "error|state" || keyShape === "error|iss|state";
+  if (!successShape && !errorShape) return false;
+  const issuers = url.searchParams.getAll("iss");
+  if (issuers.length > 1 || (issuers.length === 1 && issuers[0] !== GITHUB_OAUTH_ISSUER)) return false;
   const states = url.searchParams.getAll("state");
   if (states.length !== 1 || !OAUTH_STATE_PATTERN.test(states[0])) return false;
   const cookieState = cookieValue(req.headers.get("cookie"), OAUTH_STATE_COOKIE);
   if (cookieState !== states[0]) return false;
-  if (keyShape === "code|state") {
+  if (successShape) {
     const codes = url.searchParams.getAll("code");
     return codes.length === 1 && codes[0].length >= 1 && codes[0].length <= 255 && !/[\u0000-\u001f\u007f]/.test(codes[0]);
   }
