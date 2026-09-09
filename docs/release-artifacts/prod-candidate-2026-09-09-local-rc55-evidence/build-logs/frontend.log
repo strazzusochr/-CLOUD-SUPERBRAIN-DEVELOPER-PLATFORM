@@ -1,0 +1,203 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.05kB 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:24.16.0-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a
+#2 ...
+
+#3 [auth] library/node:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:24.16.0-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a
+#2 DONE 1.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 96B 0.0s done
+#4 DONE 0.6s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [deps 1/4] FROM docker.io/library/node:24.16.0-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a
+#6 resolve docker.io/library/node:24.16.0-alpine@sha256:21f403ab171f2dc89bad4dd69d7721bfd15f084ccb46cdd225f31f2bc59b5c9a 0.0s done
+#6 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 2.01MB 1.3s done
+#5 DONE 1.3s
+
+#7 [deps 2/4] WORKDIR /app
+#7 CACHED
+
+#8 [deps 3/4] COPY package.json package-lock.json ./
+#8 CACHED
+
+#9 [deps 4/4] RUN npm ci
+#9 CACHED
+
+#10 [builder 3/6] COPY --from=deps /app/node_modules ./node_modules
+#10 CACHED
+
+#11 [builder 4/6] COPY . .
+#11 DONE 0.3s
+
+#12 [builder 5/6] RUN npm run build
+#12 1.386 
+#12 1.386 > cloud-superbrain-frontend@1.0.0 build
+#12 1.386 > next build --webpack
+#12 1.386 
+#12 2.177 ▲ Next.js 16.3.4 (webpack)
+#12 2.215 ✓ Running next.config.mjs took 37ms
+#12 2.225 Attention: Next.js now collects completely anonymous telemetry regarding usage.
+#12 2.225 This information is used to shape Next.js' roadmap and prioritize features.
+#12 2.225 You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+#12 2.225 https://nextjs.org/telemetry
+#12 2.225 
+#12 2.383 
+#12 2.479   Creating an optimized production build ...
+#12 31.36 ✓ Compiled successfully in 24.4s
+#12 31.36   Running TypeScript ...
+#12 43.51   Finished TypeScript in 12.1s ...
+#12 43.52   Collecting page data using 7 workers ...
+#12 45.89   Generating static pages using 7 workers (0/21) ...
+#12 46.74   Generating static pages using 7 workers (5/21) 
+#12 46.74   Generating static pages using 7 workers (10/21) 
+#12 46.74   Generating static pages using 7 workers (15/21) 
+#12 46.74 ✓ Generating static pages using 7 workers (21/21) in 855ms
+#12 47.77   Finalizing page optimization ...
+#12 47.77   Collecting build traces ...
+#12 63.97 
+#12 63.97 Route (app)
+#12 63.97 ┌ ○ /
+#12 63.97 ├ ○ /_not-found
+#12 63.97 ├ ƒ /agents
+#12 63.97 ├ ƒ /api/health
+#12 63.97 ├ ƒ /api/steer-agent
+#12 63.97 ├ ƒ /api/v1/[...slug]
+#12 63.97 ├ ƒ /api/v1/agent-activity/recent
+#12 63.97 ├ ƒ /api/v1/agent-run
+#12 63.97 ├ ƒ /api/v1/artifacts
+#12 63.97 ├ ƒ /api/v1/audit/mcp
+#12 63.97 ├ ƒ /api/v1/audit/recent
+#12 63.97 ├ ƒ /api/v1/auth/session
+#12 63.97 ├ ƒ /api/v1/auth/session/contract
+#12 63.97 ├ ƒ /api/v1/build
+#12 63.97 ├ ƒ /api/v1/build/[id]
+#12 63.97 ├ ƒ /api/v1/builds
+#12 63.97 ├ ○ /api/v1/design/reference-contract
+#12 63.97 ├ ƒ /api/v1/escalations/recent
+#12 63.97 ├ ƒ /api/v1/health
+#12 63.97 ├ ƒ /api/v1/memory/consolidation/recent
+#12 63.97 ├ ƒ /api/v1/memory/embedding-consistency/contract
+#12 63.97 ├ ƒ /api/v1/memory/search
+#12 63.97 ├ ○ /api/v1/organism/contract
+#12 63.97 ├ ƒ /api/v1/organism/events
+#12 63.97 ├ ƒ /api/v1/organism/live-state
+#12 63.97 ├ ○ /api/v1/organism/regions
+#12 63.97 ├ ƒ /api/v1/organism/replay
+#12 63.97 ├ ○ /api/v1/organism/safety
+#12 63.97 ├ ○ /api/v1/organism/topology
+#12 63.97 ├ ƒ /api/v1/platform/verify
+#12 63.97 ├ ƒ /api/v1/prompt
+#12 63.97 ├ ƒ /api/v1/rotation/events
+#12 63.97 ├ ƒ /api/v1/sessions/recent
+#12 63.97 ├ ƒ /api/v1/tools/live-write/probe
+#12 63.97 ├ ƒ /api/v1/tools/read-only/execute
+#12 63.97 ├ ƒ /api/v1/workspace/artifacts
+#12 63.97 ├ ○ /api/v1/workspace/vertical-stack
+#12 63.97 ├ ○ /api/v1/workspace/wiring
+#12 63.97 ├ ƒ /apps
+#12 63.97 ├ ○ /design-system
+#12 63.97 ├ ƒ /diagnostics
+#12 63.97 ├ ƒ /docs-output
+#12 63.97 ├ ƒ /evidence
+#12 63.97 ├ ƒ /exports/docs
+#12 63.97 ├ ƒ /files
+#12 63.97 ├ ○ /files/local
+#12 63.97 ├ ƒ /games
+#12 63.97 ├ ƒ /health
+#12 63.97 ├ ƒ /home
+#12 63.97 ├ ƒ /llm/[...slug]
+#12 63.97 ├ ○ /login
+#12 63.97 ├ ƒ /marketplace
+#12 63.97 ├ ƒ /mcp/[...slug]
+#12 63.97 ├ ƒ /media
+#12 63.97 ├ ƒ /observe
+#12 63.97 ├ ○ /open-source
+#12 63.97 ├ ƒ /organism
+#12 63.97 ├ ƒ /organism/live
+#12 63.97 ├ ○ /organism/map
+#12 63.97 ├ ○ /organism/replay
+#12 63.97 ├ ○ /responsive
+#12 63.97 ├ ƒ /run/[id]
+#12 63.97 ├ ○ /settings
+#12 63.97 ├ ƒ /technology
+#12 63.97 ├ ƒ /tools
+#12 63.97 └ ƒ /workbench
+#12 63.97 
+#12 63.97 
+#12 63.97 ○  (Static)   prerendered as static content
+#12 63.97 ƒ  (Dynamic)  server-rendered on demand
+#12 63.97 
+#12 64.04 npm notice
+#12 64.04 npm notice New major version of npm available! 11.13.0 -> 12.0.2
+#12 64.04 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+#12 64.04 npm notice To update run: npm install -g npm@12.0.2
+#12 64.04 npm notice
+#12 DONE 64.1s
+
+#13 [builder 6/6] RUN npm prune --omit=dev
+#13 33.29 
+#13 33.29 removed 311 packages, and audited 94 packages in 33s
+#13 33.29 
+#13 33.29 9 packages are looking for funding
+#13 33.30   run `npm fund` for details
+#13 33.30 
+#13 33.30 found 0 vulnerabilities
+#13 DONE 33.4s
+
+#14 [runner 3/9] COPY --from=builder /app/package.json ./package.json
+#14 CACHED
+
+#15 [runner 4/9] COPY --from=builder /app/node_modules ./node_modules
+#15 CACHED
+
+#16 [runner 5/9] COPY --from=builder /app/.next ./.next
+#16 DONE 0.9s
+
+#17 [runner 6/9] COPY --from=builder /app/public ./public
+#17 DONE 0.1s
+
+#18 [runner 7/9] COPY --from=builder /app/app ./app
+#18 DONE 0.1s
+
+#19 [runner 8/9] COPY --from=builder /app/next.config.mjs ./next.config.mjs
+#19 DONE 0.1s
+
+#20 [runner 9/9] RUN apk upgrade --no-cache     && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx     && addgroup -S appgroup     && adduser -S appuser -u 10001 -G appgroup     && chown -R appuser:appgroup /app
+#20 1.061 Preupgrading:
+#20 1.061 (1/2) Upgrading libapk (3.0.6-r0 -> 3.0.8-r0)
+#20 1.102 (2/2) Upgrading apk-tools (3.0.6-r0 -> 3.0.8-r0)
+#20 1.144 Executing busybox-1.37.0-r31.trigger
+#20 1.185 Continuing with the main upgrade transaction:
+#20 1.930 (1/2) Upgrading libcrypto3 (3.5.7-r0 -> 3.5.8-r0)
+#20 2.180 (2/2) Upgrading libssl3 (3.5.7-r0 -> 3.5.8-r0)
+#20 2.250 OK: 10.8 MiB in 18 packages
+#20 DONE 56.3s
+
+#21 exporting to image
+#21 exporting layers
+#21 exporting layers 31.1s done
+#21 exporting manifest sha256:cc1df1259fcae424c0c4fbabd52a8799886abf6e16c741aee420afc0a60c7b6c 0.0s done
+#21 exporting config sha256:6ff112acfbb7106142f022c7f8d324416898adfe6b941bb93599887de9774f3f 0.0s done
+#21 exporting attestation manifest sha256:8b2c52604675b4673cb857407c81329af336938fbf696914ee57db9a69d3c1e3
+#21 exporting attestation manifest sha256:8b2c52604675b4673cb857407c81329af336938fbf696914ee57db9a69d3c1e3 0.0s done
+#21 exporting manifest list sha256:919577e57b5d254a027eb737f7153703eb757cc848aebd1c2495f45b10dc7fc1 0.0s done
+#21 naming to docker.io/cloud-superbrain-production-candidate/frontend:f15ad6e336318860a9e3f89b04388d120a7bc9b4 done
+#21 unpacking to docker.io/cloud-superbrain-production-candidate/frontend:f15ad6e336318860a9e3f89b04388d120a7bc9b4
+#21 unpacking to docker.io/cloud-superbrain-production-candidate/frontend:f15ad6e336318860a9e3f89b04388d120a7bc9b4 19.3s done
+#21 DONE 50.7s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/qsn1i6le5atjiponey8tu1se4
