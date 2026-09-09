@@ -29,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: read
     outputs:
       control_sha: ${{ steps.validate.outputs.control_sha }}
       candidate_sha: ${{ steps.validate.outputs.candidate_sha }}
@@ -38,6 +39,14 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
+
+      - name: Refuse public or internal candidate packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          python scripts/verify_ghcr_package_visibility.py
+          --owner "${GITHUB_REPOSITORY_OWNER}"
+          --namespace cloud-superbrain-developer-platform
 
       - name: Validate control branch and active candidate
         id: validate

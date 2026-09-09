@@ -36,6 +36,17 @@ close an active gate.
   until O2' hosted parity is proven; they are not the new hosted target.
 - Hosted semantic vector search remains separately Owner-gated through
   `live_vector_memory_search`.
+- Semantic Vectorize writes and queries require the server-owned
+  `MEMORY_VECTOR_NAMESPACE`: `superbrain-memory-production-v1` in Production
+  and `superbrain-memory-preview-v1` in Preview. Missing or invalid scope fails
+  closed before embedding calls. Cross-project owner recall remains available
+  within the selected environment; request fields cannot select another scope.
+  Legacy unnamespaced vectors are excluded, retained, and never automatically
+  migrated or deleted. A later migration requires explicit data ownership and
+  approval. Rollback must retain scoped code/configuration or disable the semantic
+  routes; restoring unscoped query behavior reopens the isolation defect.
+  Local regression tests are DEV-ONLY; hosted proof still blocked for this change
+  until a new source-bound candidate and approved hosted isolation proof exist.
 - Qdrant is explicitly excluded until Phase 6 evaluation.
 - LangGraph is the core state machine for orchestration.
 - CrewAI may only run locally inside a LangGraph Agent-Executor node.

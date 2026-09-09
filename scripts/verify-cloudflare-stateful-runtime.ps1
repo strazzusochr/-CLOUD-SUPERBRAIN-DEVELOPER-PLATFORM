@@ -346,6 +346,11 @@ Assert-Equal ([int]$config.env.preview.queues.consumers[0].max_retries) 3 "Previ
 Assert-True ($null -eq $config.env.preview.PSObject.Properties["r2_buckets"]) "Preview config cannot declare an R2 binding"
 Assert-Equal ([string]$config.vars.RUNTIME_MODE) "cloudflare_native_hosted_candidate" "Production Cloudflare-native runtime mode"
 Assert-Equal ([string]$config.env.preview.vars.RUNTIME_MODE) "cloudflare_native_hosted_candidate" "Preview Cloudflare-native runtime mode"
+Assert-True ($config.vars.MEMORY_VECTOR_NAMESPACE -ceq "superbrain-memory-production-v1") "Production semantic memory namespace must be exact"
+Assert-True ($config.env.preview.vars.MEMORY_VECTOR_NAMESPACE -ceq "superbrain-memory-preview-v1") "Preview semantic memory namespace must be exact"
+Assert-Contains "Semantic memory Worker" $source 'const namespace = env.MEMORY_VECTOR_NAMESPACE;'
+Assert-Contains "Semantic memory upsert" $source 'env.VECTORIZE.upsert([{ id, namespace, values, metadata: { project_id: projectId, text } }])'
+Assert-Contains "Semantic memory query" $source 'env.VECTORIZE.query(values, { namespace, topK, returnMetadata: "all" })'
 
 foreach ($marker in @(
   'cloudflare-d1-stateful-runtime-v1',

@@ -358,7 +358,6 @@ try {
   foreach ($marker in @(
     'environment: `production-candidate`',
     "immutable_image_commit_sha: ``$candidateSourceSha``",
-    'immutable_tag_publish_status: `unpublished`',
     'owner_decision: `no-release`',
     'hosted_staging_parity: `false`',
     'This artifact does not claim a production rollout.',
@@ -366,6 +365,13 @@ try {
   )) {
     Assert-True "candidate marker $marker" $candidate.Contains($marker)
   }
+  # Publication is separate from this local proof's registry_publish=false.
+  # Existing published candidates require complete source-bound offline receipts.
+  & py -3 scripts\verify_candidate_registry_receipts.py `
+    --repository-root $repoRoot --candidate $candidatePath `
+    --expected-release-id ([string]$candidateConfig.active_release_id) `
+    --expected-source-sha $candidateSourceSha
+  Assert-True "candidate publication status and offline receipts" ($LASTEXITCODE -eq 0)
 
   $source = Get-Content "services\agent-api\app\main.py" -Raw
   Assert-True "API contract version source" $source.Contains('PHASE5_PRODUCTION_CANDIDATE_LOCAL_CONTRACT_VERSION = "phase5-production-candidate-local-v1"')

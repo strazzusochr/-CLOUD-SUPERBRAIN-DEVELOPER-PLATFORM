@@ -57,6 +57,36 @@ class CloudflareOAuthDeployConfigTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertNotIn(name, variables)
 
+    def test_semantic_namespaces_are_environment_bound_on_every_deploy_lane(self) -> None:
+        self.assertEqual(self.config["vars"]["MEMORY_VECTOR_NAMESPACE"], "superbrain-memory-production-v1")
+        self.assertEqual(self.config["env"]["preview"]["vars"]["MEMORY_VECTOR_NAMESPACE"], "superbrain-memory-preview-v1")
+        self.assertIn("Assert-MemoryVectorNamespaces $Config", self.wrapper)
+        self.assertIn("Assert-MemoryVectorNamespaces $wranglerConfig", self.wrapper)
+        self.assertIn('"--var", "MEMORY_VECTOR_NAMESPACE:superbrain-memory-preview-v1"', self.wrapper)
+        self.assertEqual(self.wrapper.count('"--var", "MEMORY_VECTOR_NAMESPACE:$memoryVectorNamespace"'), 2)
+        self.assertIn('$memoryVectorNamespace = if ($ProductionOAuthIdentity)', self.wrapper)
+        self.assertIn('Get-PlainTextVar $previewEnvironmentProperty.Value.vars "MEMORY_VECTOR_NAMESPACE"', self.wrapper)
+
+    def test_deploy_validation_rejects_missing_shared_swapped_or_noncanonical_namespaces(self) -> None:
+        mutations = (
+            ("production missing", lambda value: value["vars"].pop("MEMORY_VECTOR_NAMESPACE")),
+            ("preview missing", lambda value: value["env"]["preview"]["vars"].pop("MEMORY_VECTOR_NAMESPACE")),
+            ("preview uses production", lambda value: value["env"]["preview"]["vars"].__setitem__("MEMORY_VECTOR_NAMESPACE", "superbrain-memory-production-v1")),
+            ("production uses preview", lambda value: value["vars"].__setitem__("MEMORY_VECTOR_NAMESPACE", "superbrain-memory-preview-v1")),
+            ("preview shared", lambda value: value["env"]["preview"]["vars"].__setitem__("MEMORY_VECTOR_NAMESPACE", "shared")),
+            ("preview padded", lambda value: value["env"]["preview"]["vars"].__setitem__("MEMORY_VECTOR_NAMESPACE", "superbrain-memory-preview-v1 ")),
+            ("preview wrong type", lambda value: value["env"]["preview"]["vars"].__setitem__("MEMORY_VECTOR_NAMESPACE", ["superbrain-memory-preview-v1"])),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for index, (label, mutate) in enumerate(mutations):
+                mutated = copy.deepcopy(self.config)
+                mutate(mutated)
+                config_path = Path(directory) / f"namespace-{index}.json"
+                config_path.write_text(json.dumps(mutated), encoding="utf-8")
+                completed = self._run_shape_validation(config_path)
+                with self.subTest(label=label):
+                    self.assertNotEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
     def test_wrapper_fails_closed_before_wrangler_invocation(self) -> None:
         required_markers = (
             "OAuth callback uses the canonical frontend origin",

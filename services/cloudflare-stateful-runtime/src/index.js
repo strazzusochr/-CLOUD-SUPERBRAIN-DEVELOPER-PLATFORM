@@ -1378,6 +1378,16 @@ async function deleteBuild(request, id, env, requestId) {
 const SEMANTIC_MAX_TEXT_BYTES = 8_000;
 const SEMANTIC_DEFAULT_TOP_K = 5;
 
+function memoryVectorNamespace(env) {
+  // This is an environment boundary, not a project filter: owner-wide recall remains
+  // available within one environment. Never infer scope from caller input or fall
+  // back to the shared index's legacy unnamespaced vectors.
+  const namespace = env.MEMORY_VECTOR_NAMESPACE;
+  return namespace === "superbrain-memory-production-v1" || namespace === "superbrain-memory-preview-v1"
+    ? namespace
+    : null;
+}
+
 function embeddingModel(env) {
   return env.MEMORY_EMBEDDING_MODEL || "@cf/baai/bge-base-en-v1.5";
 }
@@ -1390,8 +1400,9 @@ async function embedText(env, text) {
 }
 
 async function upsertSemanticMemory(request, env, requestId) {
-  if (!env.VECTORIZE || !env.AI || !env.AGENT_API_AUTH_TOKEN) {
-    return json(blocked("semantic_memory_configuration_unavailable", requestId, "Vectorize, Workers AI, or write authentication is unavailable."), 503);
+  const namespace = memoryVectorNamespace(env);
+  if (!env.VECTORIZE || !env.AI || !env.AGENT_API_AUTH_TOKEN || !namespace) {
+    return json(blocked("semantic_memory_configuration_unavailable", requestId, "Vectorize, Workers AI, environment scope, or write authentication is unavailable."), 503);
   }
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
@@ -1408,7 +1419,7 @@ async function upsertSemanticMemory(request, env, requestId) {
 
     const id = crypto.randomUUID();
     const values = await embedText(env, text);
-    await env.VECTORIZE.upsert([{ id, values, metadata: { project_id: projectId, text } }]);
+    await env.VECTORIZE.upsert([{ id, namespace, values, metadata: { project_id: projectId, text } }]);
 
     return json({
       contract_version: "cloudflare-semantic-memory-v1",
@@ -1429,8 +1440,9 @@ async function upsertSemanticMemory(request, env, requestId) {
 }
 
 async function searchSemanticMemory(request, url, env, requestId) {
-  if (!env.VECTORIZE || !env.AI) {
-    return json(blocked("semantic_memory_configuration_unavailable", requestId, "Vectorize or Workers AI is unavailable."), 503);
+  const namespace = memoryVectorNamespace(env);
+  if (!env.VECTORIZE || !env.AI || !namespace) {
+    return json(blocked("semantic_memory_configuration_unavailable", requestId, "Vectorize, Workers AI, or environment scope is unavailable."), 503);
   }
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API read authentication failed."), 401);
@@ -1442,7 +1454,7 @@ async function searchSemanticMemory(request, url, env, requestId) {
     if (containsSecretMaterial({ query })) throw new Error("secret_material_rejected");
 
     const values = await embedText(env, query);
-    const result = await env.VECTORIZE.query(values, { topK, returnMetadata: "all" });
+    const result = await env.VECTORIZE.query(values, { namespace, topK, returnMetadata: "all" });
     const matches = Array.isArray(result && result.matches) ? result.matches : [];
 
     return json({

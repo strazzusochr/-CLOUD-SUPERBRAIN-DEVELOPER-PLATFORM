@@ -1,0 +1,396 @@
+{
+  "candidate_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+  "contract_version": "candidate-registry-digests-v1",
+  "control_commit_sha": "4f396916e300bb9ab03d0762f7bc0ff8519647f3",
+  "ghcr_manifest": {
+    "contract_version": "ghcr-release-manifest-v1",
+    "sha256": "91d19f1f068fb09a4e6f51bba8deacef65e7b509fc0df668d028f0fdc6773ad1"
+  },
+  "images": [
+    {
+      "attestation": {
+        "image_digest": "sha256:ad6d0289ed73901ed2b8e0b46e881667b674fd6e2ded3c5793908c0694c54f4d",
+        "source_commit_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+        "statement_sha256": "91d19f1f068fb09a4e6f51bba8deacef65e7b509fc0df668d028f0fdc6773ad1",
+        "type": "ghcr-manifest-readback",
+        "verified": true
+      },
+      "digest": "sha256:ad6d0289ed73901ed2b8e0b46e881667b674fd6e2ded3c5793908c0694c54f4d",
+      "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api@sha256:ad6d0289ed73901ed2b8e0b46e881667b674fd6e2ded3c5793908c0694c54f4d",
+      "oci_revision": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "platform_digests": [
+        {
+          "digest": "sha256:9053c7f4e8d37d59867fe2a606d432e346c95ebd956c00412296625f0a679cf7",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api@sha256:9053c7f4e8d37d59867fe2a606d432e346c95ebd956c00412296625f0a679cf7",
+          "platform": "linux/amd64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/agent-api-linux-amd64.trivy.json",
+            "report_sha256": "be10a6bb850c21e0111ee2b13c9e14cedc86c963241eaac8e4ca81b046e584ac",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        },
+        {
+          "digest": "sha256:acc2636b9d3adc10e93fcceee3eb1e1b4a585ace34722d4f6bedeea050971789",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api@sha256:acc2636b9d3adc10e93fcceee3eb1e1b4a585ace34722d4f6bedeea050971789",
+          "platform": "linux/arm64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/agent-api-linux-arm64.trivy.json",
+            "report_sha256": "2653f4a048181d27976daaabc788ab7a2355b46b9dab244773eb0de16847eaac",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        }
+      ],
+      "remote_scan": {
+        "critical_vulnerabilities": 0,
+        "evidence_sha256": "66fae9e6fb4fb7c293d1273216eaeab5087333a32c1ad71b5ad5428f622c2027",
+        "high_vulnerabilities": 0,
+        "image_digest": "sha256:ad6d0289ed73901ed2b8e0b46e881667b674fd6e2ded3c5793908c0694c54f4d",
+        "platform_scan_count": 2,
+        "report_sha256": "edd0887c83ca4f09b8bf84b1ced170fc17fb8d3e62752126ea886174c2d50508",
+        "scanner": "trivy",
+        "scanner_version": "0.72.0",
+        "secret_findings": 0,
+        "verified": true
+      },
+      "service": "agent-api"
+    },
+    {
+      "attestation": {
+        "image_digest": "sha256:e29c3fd6136c949d58717249c17f895502a33c78aeb3bb04332739bd9e606b6a",
+        "source_commit_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+        "statement_sha256": "91d19f1f068fb09a4e6f51bba8deacef65e7b509fc0df668d028f0fdc6773ad1",
+        "type": "ghcr-manifest-readback",
+        "verified": true
+      },
+      "digest": "sha256:e29c3fd6136c949d58717249c17f895502a33c78aeb3bb04332739bd9e606b6a",
+      "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/mcp-gateway@sha256:e29c3fd6136c949d58717249c17f895502a33c78aeb3bb04332739bd9e606b6a",
+      "oci_revision": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "platform_digests": [
+        {
+          "digest": "sha256:e18297b8f7efefadb2617cb29eb5fd61ab2df6d7b400aa203ec9633ece2b943a",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/mcp-gateway@sha256:e18297b8f7efefadb2617cb29eb5fd61ab2df6d7b400aa203ec9633ece2b943a",
+          "platform": "linux/amd64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/mcp-gateway-linux-amd64.trivy.json",
+            "report_sha256": "dadaa4423dcc003792cd596efce6c818d1cdb59a68a13ede2a0bb8c51477b4e6",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        },
+        {
+          "digest": "sha256:31f5b4130c8fcdb97f641f231eabe5022a6afc925b095e8ad9100fafd3fd80bc",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/mcp-gateway@sha256:31f5b4130c8fcdb97f641f231eabe5022a6afc925b095e8ad9100fafd3fd80bc",
+          "platform": "linux/arm64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/mcp-gateway-linux-arm64.trivy.json",
+            "report_sha256": "01c6358a0ce5eb23e2e093108e5ded3aec92e3abae3f74da7913ff0cb3575cba",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        }
+      ],
+      "remote_scan": {
+        "critical_vulnerabilities": 0,
+        "evidence_sha256": "66fae9e6fb4fb7c293d1273216eaeab5087333a32c1ad71b5ad5428f622c2027",
+        "high_vulnerabilities": 0,
+        "image_digest": "sha256:e29c3fd6136c949d58717249c17f895502a33c78aeb3bb04332739bd9e606b6a",
+        "platform_scan_count": 2,
+        "report_sha256": "11c52bb6cf723632a757d61dbd4b6207c4791fcced0835fb35a2b2cc18098379",
+        "scanner": "trivy",
+        "scanner_version": "0.72.0",
+        "secret_findings": 0,
+        "verified": true
+      },
+      "service": "mcp-gateway"
+    },
+    {
+      "attestation": {
+        "image_digest": "sha256:7d9740fee9a49feaf037532f6058229433d824a3fec1ec6c722f51915e65cc39",
+        "source_commit_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+        "statement_sha256": "91d19f1f068fb09a4e6f51bba8deacef65e7b509fc0df668d028f0fdc6773ad1",
+        "type": "ghcr-manifest-readback",
+        "verified": true
+      },
+      "digest": "sha256:7d9740fee9a49feaf037532f6058229433d824a3fec1ec6c722f51915e65cc39",
+      "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend@sha256:7d9740fee9a49feaf037532f6058229433d824a3fec1ec6c722f51915e65cc39",
+      "oci_revision": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "platform_digests": [
+        {
+          "digest": "sha256:aa24d658651371b3d1db60886220c0fa901cfd073651cb198d4463aa638aeb9b",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend@sha256:aa24d658651371b3d1db60886220c0fa901cfd073651cb198d4463aa638aeb9b",
+          "platform": "linux/amd64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/frontend-linux-amd64.trivy.json",
+            "report_sha256": "c4396bcee9dfd686155ad64f56a64b82e9a3b801beaf434c11359d45bbb10d66",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        },
+        {
+          "digest": "sha256:97111a47b7355ee09596c0a29cdbc1d410f9c37ff5bafdb4bc40d540d9d1edb1",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend@sha256:97111a47b7355ee09596c0a29cdbc1d410f9c37ff5bafdb4bc40d540d9d1edb1",
+          "platform": "linux/arm64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/frontend-linux-arm64.trivy.json",
+            "report_sha256": "3fffc52de285b23fe6bbd6bd8919f2f080a2ab8cb7e8beda5d23a8a11801afd6",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        }
+      ],
+      "remote_scan": {
+        "critical_vulnerabilities": 0,
+        "evidence_sha256": "66fae9e6fb4fb7c293d1273216eaeab5087333a32c1ad71b5ad5428f622c2027",
+        "high_vulnerabilities": 0,
+        "image_digest": "sha256:7d9740fee9a49feaf037532f6058229433d824a3fec1ec6c722f51915e65cc39",
+        "platform_scan_count": 2,
+        "report_sha256": "0808091a1f2cdfe3cf65f0a76b0c43ea0000e97acc36c98c5680e19f533d3eb6",
+        "scanner": "trivy",
+        "scanner_version": "0.72.0",
+        "secret_findings": 0,
+        "verified": true
+      },
+      "service": "frontend"
+    },
+    {
+      "attestation": {
+        "image_digest": "sha256:7b2b5c4df03b3196e4033a2ddbddfa374718e45ea0149f8a84241f16ad03e86e",
+        "source_commit_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+        "statement_sha256": "91d19f1f068fb09a4e6f51bba8deacef65e7b509fc0df668d028f0fdc6773ad1",
+        "type": "ghcr-manifest-readback",
+        "verified": true
+      },
+      "digest": "sha256:7b2b5c4df03b3196e4033a2ddbddfa374718e45ea0149f8a84241f16ad03e86e",
+      "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/llm-gateway@sha256:7b2b5c4df03b3196e4033a2ddbddfa374718e45ea0149f8a84241f16ad03e86e",
+      "oci_revision": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "platform_digests": [
+        {
+          "digest": "sha256:87e348772d7d24300ae9d28ddd24b46ba96ad61414bda03dce3b71b893a333f1",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/llm-gateway@sha256:87e348772d7d24300ae9d28ddd24b46ba96ad61414bda03dce3b71b893a333f1",
+          "platform": "linux/amd64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/llm-gateway-linux-amd64.trivy.json",
+            "report_sha256": "68180133574c748e5ed84475ef4b04898109075f79ea1dec1e3657511045437c",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        },
+        {
+          "digest": "sha256:f9cb14a0ed41e2195060fabd9ad0826832801667d5268de73a2e3030c7043e5c",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/llm-gateway@sha256:f9cb14a0ed41e2195060fabd9ad0826832801667d5268de73a2e3030c7043e5c",
+          "platform": "linux/arm64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/llm-gateway-linux-arm64.trivy.json",
+            "report_sha256": "0e97d5719d720d823a1fa47ec6420ed0a6cd28dbe2521ed1bba0a597cbeb4674",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        }
+      ],
+      "remote_scan": {
+        "critical_vulnerabilities": 0,
+        "evidence_sha256": "66fae9e6fb4fb7c293d1273216eaeab5087333a32c1ad71b5ad5428f622c2027",
+        "high_vulnerabilities": 0,
+        "image_digest": "sha256:7b2b5c4df03b3196e4033a2ddbddfa374718e45ea0149f8a84241f16ad03e86e",
+        "platform_scan_count": 2,
+        "report_sha256": "815149f1c85029ea836ecf615c075ee8a65bc1c2aedd114b44250eae855ed389",
+        "scanner": "trivy",
+        "scanner_version": "0.72.0",
+        "secret_findings": 0,
+        "verified": true
+      },
+      "service": "llm-gateway"
+    },
+    {
+      "attestation": {
+        "image_digest": "sha256:d67a941ec944ba6dd86990dea09040a3624ede6e277012f4a862e822e0a971a7",
+        "source_commit_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+        "statement_sha256": "91d19f1f068fb09a4e6f51bba8deacef65e7b509fc0df668d028f0fdc6773ad1",
+        "type": "ghcr-manifest-readback",
+        "verified": true
+      },
+      "digest": "sha256:d67a941ec944ba6dd86990dea09040a3624ede6e277012f4a862e822e0a971a7",
+      "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-worker@sha256:d67a941ec944ba6dd86990dea09040a3624ede6e277012f4a862e822e0a971a7",
+      "oci_revision": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "platform_digests": [
+        {
+          "digest": "sha256:7cf7b42d4ee2b2b5431d936cd558108e9fc73feb2b5ab0ef71874a6b7b6edf56",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-worker@sha256:7cf7b42d4ee2b2b5431d936cd558108e9fc73feb2b5ab0ef71874a6b7b6edf56",
+          "platform": "linux/amd64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/agent-worker-linux-amd64.trivy.json",
+            "report_sha256": "ce77bde4db0a8da8fc7e2116740f010e256da71427b7d91a4647924669a9a85b",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        },
+        {
+          "digest": "sha256:2a4b6349dc236a36705055fecadc117a5f1ccd682c810d84732a041ee81105a4",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-worker@sha256:2a4b6349dc236a36705055fecadc117a5f1ccd682c810d84732a041ee81105a4",
+          "platform": "linux/arm64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/agent-worker-linux-arm64.trivy.json",
+            "report_sha256": "4995f465bc4556412dce6ba7dc2653d7f907aaa5084c1552bd84388992bd244f",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        }
+      ],
+      "remote_scan": {
+        "critical_vulnerabilities": 0,
+        "evidence_sha256": "66fae9e6fb4fb7c293d1273216eaeab5087333a32c1ad71b5ad5428f622c2027",
+        "high_vulnerabilities": 0,
+        "image_digest": "sha256:d67a941ec944ba6dd86990dea09040a3624ede6e277012f4a862e822e0a971a7",
+        "platform_scan_count": 2,
+        "report_sha256": "34a528ab122893c5b1c6b26558c4061642ca8c9688882152e60d89c5c6fc7d97",
+        "scanner": "trivy",
+        "scanner_version": "0.72.0",
+        "secret_findings": 0,
+        "verified": true
+      },
+      "service": "agent-worker"
+    },
+    {
+      "attestation": {
+        "image_digest": "sha256:297970645a949c7cebc3db86a932ec38fdfdf1ab50b8a4a9a946e35729ae46d5",
+        "source_commit_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+        "statement_sha256": "91d19f1f068fb09a4e6f51bba8deacef65e7b509fc0df668d028f0fdc6773ad1",
+        "type": "ghcr-manifest-readback",
+        "verified": true
+      },
+      "digest": "sha256:297970645a949c7cebc3db86a932ec38fdfdf1ab50b8a4a9a946e35729ae46d5",
+      "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/memory-worker@sha256:297970645a949c7cebc3db86a932ec38fdfdf1ab50b8a4a9a946e35729ae46d5",
+      "oci_revision": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "platform_digests": [
+        {
+          "digest": "sha256:73d1437e89456a9c2261d6442fdc008f76c0640ab825fde4c137ed81a288cf9a",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/memory-worker@sha256:73d1437e89456a9c2261d6442fdc008f76c0640ab825fde4c137ed81a288cf9a",
+          "platform": "linux/amd64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/memory-worker-linux-amd64.trivy.json",
+            "report_sha256": "bbb8e252010b4d5e69f714769906f426139411eb09d2f8dd2c0d98047ae3f6ba",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        },
+        {
+          "digest": "sha256:4f39ca5729eb48a316f80e393e0e0af555cc9f9079c8cd472d3a98ab6dc26abd",
+          "immutable_reference": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/memory-worker@sha256:4f39ca5729eb48a316f80e393e0e0af555cc9f9079c8cd472d3a98ab6dc26abd",
+          "platform": "linux/arm64",
+          "remote_scan": {
+            "critical_vulnerabilities": 0,
+            "high_vulnerabilities": 0,
+            "report_path": "trivy-reports/memory-worker-linux-arm64.trivy.json",
+            "report_sha256": "60f4eec4cbccefb9f458919d299100abdab6da8e2af87e9cdc8b21a47eeb97be",
+            "scanner": "trivy",
+            "scanner_version": "0.72.0",
+            "secret_findings": 0,
+            "verified": true
+          }
+        }
+      ],
+      "remote_scan": {
+        "critical_vulnerabilities": 0,
+        "evidence_sha256": "66fae9e6fb4fb7c293d1273216eaeab5087333a32c1ad71b5ad5428f622c2027",
+        "high_vulnerabilities": 0,
+        "image_digest": "sha256:297970645a949c7cebc3db86a932ec38fdfdf1ab50b8a4a9a946e35729ae46d5",
+        "platform_scan_count": 2,
+        "report_sha256": "79cc4cf0cd3176d4a0f9419435b0aa345ddb79219fd4484b5f17d701b1609a63",
+        "scanner": "trivy",
+        "scanner_version": "0.72.0",
+        "secret_findings": 0,
+        "verified": true
+      },
+      "service": "memory-worker"
+    }
+  ],
+  "mutable_reference_used": false,
+  "namespace": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform",
+  "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
+  "platform_digest_count": 12,
+  "production_deploy": false,
+  "protected_publish_review_verified": true,
+  "provider_writes": false,
+  "publication_review": {
+    "artifact_digest": "sha256:5f8838b5c0e73a72f32e828ab6b21b578b71439990ca45a786f71e6dda8348b4",
+    "artifact_id": "10111985694",
+    "contract_version": "registry-publication-review-evidence-v1",
+    "environment": "registry-publication",
+    "run_attempt": 1,
+    "run_id": "34369195520",
+    "sha256": "f941d6a4876d7e4f664086d3585798d5eb5c5c7e584754a08b122290ffc4e859",
+    "state": "approved"
+  },
+  "registry": "ghcr.io",
+  "registry_publish_verified": true,
+  "release_id": "prod-candidate-2026-09-09-local-rc55",
+  "release_promotion": false,
+  "remote_image_scan": {
+    "contract_version": "remote-image-scan-evidence-v1",
+    "critical_vulnerabilities": 0,
+    "high_vulnerabilities": 0,
+    "scan_count": 12,
+    "scanner": "trivy",
+    "scanner_version": "0.72.0",
+    "secret_findings": 0,
+    "sha256": "66fae9e6fb4fb7c293d1273216eaeab5087333a32c1ad71b5ad5428f622c2027"
+  },
+  "remote_scan_verified": true,
+  "secret_output": false,
+  "service_count": 6,
+  "source_commit_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+  "status": "verified",
+  "top_digest_count": 6
+}
