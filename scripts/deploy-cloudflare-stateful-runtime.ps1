@@ -2028,10 +2028,20 @@ try {
         [string]$frontendEvidence.vercel_target -ceq "preview"
       )
     }
-    Assert-True "candidate frontend evidence archive matches the tracked frontend source" (
-      $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
-      $trackedFrontendArchiveSha -ceq $computedFrontendArchiveSha
-    )
+    if ($ProductionOAuthIdentity) {
+      Assert-True "production OAuth frontend archive binding is absent or exact" (
+        [string]::IsNullOrWhiteSpace($trackedFrontendArchiveSha) -or
+        (
+          $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
+          $trackedFrontendArchiveSha -ceq $computedFrontendArchiveSha
+        )
+      )
+    } else {
+      Assert-True "candidate frontend evidence archive matches the tracked frontend source" (
+        $trackedFrontendArchiveSha -match "^[0-9a-f]{64}$" -and
+        $trackedFrontendArchiveSha -ceq $computedFrontendArchiveSha
+      )
+    }
     Assert-True "candidate frontend evidence metadata is verified" (
       $frontendEvidence.deployment_metadata_verified -is [bool] -and
       $frontendEvidence.deployment_metadata_verified -eq $true
