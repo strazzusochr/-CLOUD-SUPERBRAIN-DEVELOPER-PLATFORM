@@ -1,5 +1,27 @@
 # Verification Register - PATCHED
 
+## 2026-09-09 — RC97 qualification regression, no new credit
+
+The current PR #97 review is approved on `4fbb9a56e9abe7ebd42ff3fa43384951880e4a99`,
+but required PR run `34316350565` failed on runtime-source drift. Separate
+source-prequalification run `34316346427` succeeded; it does not establish a
+completed RC49 candidate qualification or authorize merging a failed PR check.
+
+Local regression reproduces two rejected valid 90-percent no-credit transitions
+and an incorrectly accepted stale 89-percent anchor before the fix. The corrected
+Python and PowerShell checks bind the unchanged manifest value and current session.
+Phase-5 tests: 36 PASS, including live execution of the extracted PowerShell guard
+against 11 synthetic positive/negative cases. Source/control and exact-CI binding:
+6 PASS. OAuth boundary: 37 PASS. Main-deploy transition and supply-chain pins PASS.
+The serial `npm run verify:market-ready:unit` run passed 129 Python tests and its
+subsequent Node test suite; `npm --prefix apps/frontend run lint` passed. The final
+36-test Phase-5 rerun also rejects score inflation in the direct no-credit guard.
+These are local/unit/static checks, not hosted OAuth or provider evidence.
+
+Active RC48/S3, all existing evidence, gate values and ledger credit are unchanged:
+Overall 90, 1333/1400, 67 open, I1/I5 blocked, MARKET_READY:false. RC49 requires
+fresh five-chain evidence and an exact-source CI binding before pointer transition.
+
 ## 2026-09-09 — RC94 frontend security overlay
 
 Vercel redeployment `dpl_3K7iLgty3UEmsiW2k9cfxGDnTZoh` is READY with target

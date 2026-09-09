@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -1613,19 +1614,80 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
 
         self.assertIn("--diff-filter=ACDMRTUXB", captured_args)
 
+    def test_powershell_no_credit_anchor_uses_unchanged_progress_and_current_session(self) -> None:
+        pwsh = shutil.which("pwsh")
+        self.assertIsNotNone(pwsh, "PowerShell is required for the real anchor regression test")
+        release = "prod-candidate-2026-09-09-local-rc49"
+        source = "c" * 40
+        valid = f"{release} {source} Overall `90%` MARKET_READY:false I1 I5"
+        cases = [
+            {"overall": 89, "anchor": valid.replace("90%", "89%"), "pass": True},
+            {"overall": 90, "anchor": valid, "pass": True},
+        ]
+        for bad_anchor in (
+            valid.replace("90%", "89%"),
+            valid.replace("90%", "91%"),
+            valid.replace("90%", "100%"),
+            valid.replace(release, "wrong-release"),
+            valid.replace(source, "d" * 40),
+            valid.replace("MARKET_READY:false", "MARKET_READY:true"),
+            valid.replace("I1", ""),
+            valid.replace("I5", ""),
+        ):
+            cases.append({"overall": 90, "anchor": bad_anchor, "pass": False})
+        for case in cases:
+            case["state"] = (
+                f"# State\n### Session current\n{case['anchor']}\n"
+                f"### Session history\n{valid}\n"
+            )
+        cases.append({"overall": 90, "state": valid, "pass": False})
+        script = r"""
+$ErrorActionPreference = 'Stop'
+$fixture = [Console]::In.ReadToEnd() | ConvertFrom-Json
+$tokens = $null
+$errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile($fixture.path, [ref]$tokens, [ref]$errors)
+if ($errors.Count -ne 0) { throw 'candidate verifier parse failed' }
+foreach ($name in @('Assert-True', 'Assert-NoCreditProjectAnchor')) {
+  $definitions = @($ast.FindAll({ param($node)
+    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $name
+  }, $true))
+  if ($definitions.Count -ne 1) { throw "expected one real function: $name" }
+  . ([scriptblock]::Create($definitions[0].Extent.Text))
+}
+$results = foreach ($case in $fixture.cases) {
+  try {
+    Assert-NoCreditProjectAnchor -ProjectState $case.state -ReleaseId $fixture.release `
+      -SourceSha $fixture.source -OverallPercent $case.overall
+    $true
+  } catch { $false }
+}
+ConvertTo-Json -InputObject @($results) -Compress
+"""
+        result = subprocess.run(
+            [pwsh, "-NoProfile", "-NonInteractive", "-Command", script],
+            input=json.dumps({
+                "path": str(REPO_ROOT / "scripts/verify-phase5-production-candidate-local.ps1"),
+                "release": release, "source": source, "cases": cases,
+            }),
+            text=True, encoding="utf-8", capture_output=True, timeout=60,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), [case["pass"] for case in cases])
+
     def test_no_credit_requalification_is_exact_source_bound_and_hash_bound(self) -> None:
         source_sha = "c" * 40
         previous_sha = "d" * 40
         release_id = "prod-candidate-2026-08-31-local-rc24"
         previous_release_id = "prod-candidate-2026-08-29-local-rc23"
 
-        def build_fixture(*, same_day: bool = False) -> tuple[
+        def build_fixture(*, same_day: bool = False, overall: int = 89) -> tuple[
             dict[str, object],
             dict[str, object],
             dict[tuple[str, ...], subprocess.CompletedProcess[str]],
         ]:
             manifest: dict[str, object] = {
-                "overall_percent": 89,
+                "overall_percent": overall,
                 "horizontal": {"items": [{"id": "phase_5", "percent": 89}]},
                 "vertical": {"items": []},
                 "last_verified": "2026-08-31",
@@ -1722,11 +1784,11 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             candidate_artifact = f"release_id: `{release_id}`\nsource_commit_sha: `{source_sha}`\n"
             source_platform = (
                 f"/* Project manifest, dated {source_date}. */\n"
-                f'export const MANIFEST = {{ snapshot: "{source_date}", overall: 89 }};\n'
+                f'export const MANIFEST = {{ snapshot: "{source_date}", overall: {overall} }};\n'
             )
             index_platform = (
                 "/* Project manifest, dated 2026-08-31. */\n"
-                'export const MANIFEST = { snapshot: "2026-08-31", overall: 89 };\n'
+                f'export const MANIFEST = {{ snapshot: "2026-08-31", overall: {overall} }};\n'
             )
 
             texts = {
@@ -1738,7 +1800,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 f"docs/release-artifacts/{release_id}.md": candidate_artifact,
                 "PROJECT_STATE.md": (
                     "# State\n### Session current\n"
-                    f"{release_id} {source_sha} Overall `89%` MARKET_READY:false I1 I5\n"
+                    f"{release_id} {source_sha} Overall `{overall}%` MARKET_READY:false I1 I5\n"
                     "### Session history\n"
                 ),
             }
@@ -1811,6 +1873,52 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
 
         manifest, itemization, responses = build_fixture()
         run_fixture(manifest, itemization, responses)
+
+        # A previously credited P6 delta makes overall 90 while P5 remains
+        # 17/19 (89). Requalification preserves that score; it never resets it.
+        for same_day in (False, True):
+            with self.subTest(overall=90, same_day=same_day):
+                current_manifest, current_items, current_responses = build_fixture(
+                    same_day=same_day, overall=90
+                )
+                paths = (
+                    verifier.NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS
+                    if same_day else verifier.NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS
+                )
+                run_fixture(current_manifest, current_items, current_responses, paths)
+
+        for wrong_overall in (89, 91, 100):
+            with self.subTest(wrong_anchor_overall=wrong_overall):
+                current_manifest, current_items, current_responses = build_fixture(overall=90)
+                key = ("show", ":PROJECT_STATE.md")
+                current_responses[key] = subprocess.CompletedProcess(
+                    (), 0, current_responses[key].stdout.replace(
+                        "Overall `90%`", f"Overall `{wrong_overall}%`"
+                    ) + f"{release_id} {source_sha} Overall `90%` MARKET_READY:false I1 I5\n", ""
+                )
+                self.assert_rejected(
+                    lambda: run_fixture(current_manifest, current_items, current_responses),
+                    "project anchor must preserve progress and Owner blockers",
+                )
+
+        boosted_manifest, boosted_items, boosted_responses = build_fixture(overall=90)
+        boosted_manifest["overall_percent"] = 91
+        boosted_responses[("show", f":{verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH}")] = (
+            subprocess.CompletedProcess((), 0, json.dumps(boosted_manifest), "")
+        )
+        # Exercise the no-credit guard itself: the outer router deliberately
+        # sends changed progress to the independently tested ledger-credit path.
+        with patch.object(
+            verifier, "run_git", side_effect=lambda *args: boosted_responses.get(
+                args, subprocess.CompletedProcess(args, 1, "", "missing fixture")
+            )
+        ):
+            self.assert_rejected(
+                lambda: verifier.require_no_credit_requalification(
+                    source_sha, boosted_manifest, boosted_items, 89, same_day_transition=False
+                ),
+                "may change only project progress last_verified",
+            )
 
         same_day_manifest, same_day_itemization, same_day_responses = build_fixture(same_day=True)
         run_fixture(

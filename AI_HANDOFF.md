@@ -1,5 +1,32 @@
 # AI Handoff - Cloud Superbrain Developer Platform
 
+## RC97 resume — 2026-09-09, RC49 qualification not yet complete
+
+- Work only in `D:\_sb_tmp\rc88-phase6-static`, branch
+  `codex/rc97-github-oauth-issuer`; preserve `.wrangler/`, `output/` and the
+  six foreign dirty files in `D:\_sb_tmp\rc29-control`.
+- PR #97: https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/97.
+  Review on `4fbb9a56e9abe7ebd42ff3fa43384951880e4a99` is approved, but the
+  required pull-request run `34316350565` failed on active-candidate source drift.
+  The successful source-prequalification run `34316346427` is NOT a substitute
+  for that failing required check. Do not merge or request another review yet.
+- The optional exact GitHub OAuth issuer is covered by 37 passing local OAuth
+  tests. No-credit requalification now preserves the manifest's unchanged overall
+  score, including 90 after P6 credit; it no longer demands the historical 89.
+  PowerShell validates markers in the current session, not anywhere in history.
+  Phase-5 regression: 36 PASS; source/control and CI binding regression: 6 PASS.
+  Broad market-ready unit suite: 129 Python tests and the subsequent Node tests
+  PASS; frontend lint PASS. Commands ran serially, with no hosted provider call.
+- Active runtime is still RC48/S3 `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`.
+  Overall 90, 1333/1400 fulfilled, 67 open (P3 +56, P5 +11).
+  I1/I5 and MARKET_READY:false remain unchanged.
+- Complete the new frozen source / direct-child Q binding and exact-source CI,
+  then generate all five independent RC49 local proof chains. Never relabel the
+  RC48 evidence. `npm run verify:browser` includes three live provider calls and
+  bounded O4 writes: do not reuse the consumed RC48 call approvals.
+- The older August Windows backup was explicitly deleted outside the repository;
+  the September backup was retained and hash-checked. No project cleanup occurred.
+
 ## RC94 Frontend Security Overlay — 2026-09-09
 
 - Frozen runtime source remains `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`.

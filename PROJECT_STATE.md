@@ -1,5 +1,36 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC97 NEUQUALIFIKATION OFFEN
+
+### Session 2026-09-09 — RC97 OAuth-Issuer-Fix vor RC49-Qualifikation
+
+- **Aktiver Kandidat bleibt RC48:** `prod-candidate-2026-09-07-local-rc48`,
+  Source `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`. Overall `90%`,
+  `1333/1400` Punkte belegt, `67` offen; I1/I5 bleiben blockiert,
+  `MARKET_READY:false`. Kein neuer Credit und keine Gate-Promotion.
+- **PR #97 ist noch nicht merge-faehig:** die menschliche Review auf
+  `4fbb9a56e9abe7ebd42ff3fa43384951880e4a99` ist APPROVED. Der regulaere
+  PR-Pflichtcheck in Run `34316350565` ist wegen Runtime-Source-Drift rot.
+  Source-Vorpruefung `34316346427` ist separat gruen; sie ersetzt weder den
+  PR-Pflichtcheck noch die fuenf release-scoped Qualifikationsketten.
+- **Implementiert, lokal getestet:** der Frontend-Callback akzeptiert optional
+  exakt `iss=https://github.com/login/oauth`, ohne State-, Cookie- oder
+  Mehrfachparameterpruefungen zu lockern. OAuth-Regression: `37/37` PASS.
+  Die No-Credit-Pruefer erhalten nun den unveraenderten Manifestwert statt
+  historisch fest `89%` zu verlangen; historische Sessions koennen fehlende
+  aktuelle Marker nicht ersetzen. Phase-5-Regression: `36/36` PASS, zusaetzlich
+  Source-/CI-Binding-Regression `6/6` PASS. Breite Market-Ready-Unit-Suite:
+  `129` Python-Tests sowie nachgelagerte Node-Pruefungen PASS; Frontend-Lint PASS.
+  Diese Tests sind keine Live-Abnahme.
+- **Naechster Schritt:** den vollstaendig getesteten Source-Nachfolger und
+  direkten Q-Kindcommit binden, Source-CI attestieren und RC49 neu qualifizieren.
+  Runtime, Browser, sechs lokale Images, Candidate-Runtime und Security muessen
+  echte neue Rohbeweise liefern. Alte RC48-Beweise werden nicht umetikettiert.
+  Die Browserkette enthaelt Live-Provider-Aufrufe und O4-Write-Proben; keine
+  erneute Ausfuehrung mit bereits verbrauchten RC48-Freigaben.
+- **Schutz:** keine Merge-/Production-/Registry-Aktion in diesem Checkpoint,
+  keine manuelle `live_verified`-Aenderung; sechs fremde Dirty-Dateien geschuetzt.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC94 FRONTEND SECURITY OVERLAY
 
 - **Runtime bleibt eingefroren:** Release `prod-candidate-2026-09-07-local-rc48`,
