@@ -273,6 +273,7 @@ const ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJnaXRodWI6MSJ9.signature";
 const REFRESH_TOKEN = `csr_${"R".repeat(32)}`;
 const CANONICAL_FRONTEND_ORIGIN = "https://frontend-seven-psi-78.vercel.app";
 const CANONICAL_FRONTEND_CALLBACK = `${CANONICAL_FRONTEND_ORIGIN}/api/v1/auth/callback`;
+const GITHUB_OAUTH_ISSUER = "https://github.com/login/oauth";
 
 function oauthStateCookie(value = OAUTH_STATE) {
   return `__Host-sb_oauth_state=${value}; Path=/; Max-Age=600; Secure; HttpOnly; SameSite=Lax`;
@@ -849,6 +850,47 @@ test("OAuth callback rejects duplicate or extra incoming query fields before fet
   assert.equal(calls, 0);
 });
 
+test("OAuth callback accepts only GitHub's exact optional authorization-server issuer", async () => {
+  process.env.AGENT_API_BASE_URL = "https://agent-api.example.test";
+  const forwarded = [];
+  globalThis.fetch = async (url) => {
+    const target = new URL(url);
+    forwarded.push(target);
+    const headers = new Headers(target.searchParams.has("error") ? {} : { location: "/workbench" });
+    headers.append("set-cookie", oauthStateClearCookie());
+    if (!target.searchParams.has("error")) {
+      headers.append("set-cookie", accessCookie());
+      headers.append("set-cookie", refreshCookie());
+    }
+    return new Response(null, { status: target.searchParams.has("error") ? 401 : 303, headers });
+  };
+
+  for (const [outcome, expectedStatus] of [["code=opaque", 303], ["error=access_denied", 401]]) {
+    const response = await proxyOAuthGetToBoundary(
+      request(
+        `/api/v1/auth/callback?${outcome}&state=${OAUTH_STATE}&iss=${encodeURIComponent(GITHUB_OAUTH_ISSUER)}`,
+        { cookie: `__Host-sb_oauth_state=${OAUTH_STATE}` },
+      ),
+      "/api/v1/auth/callback",
+    );
+    assert.equal(response?.status, expectedStatus);
+  }
+  assert.equal(forwarded.length, 2);
+  assert.ok(forwarded.every((url) => url.searchParams.get("iss") === GITHUB_OAUTH_ISSUER));
+
+  for (const suffix of [
+    `code=opaque&state=${OAUTH_STATE}&iss=${encodeURIComponent("https://example.invalid/oauth")}`,
+    `code=opaque&state=${OAUTH_STATE}&iss=${encodeURIComponent(GITHUB_OAUTH_ISSUER)}&iss=${encodeURIComponent(GITHUB_OAUTH_ISSUER)}`,
+  ]) {
+    const response = await proxyOAuthGetToBoundary(
+      request(`/api/v1/auth/callback?${suffix}`, { cookie: `__Host-sb_oauth_state=${OAUTH_STATE}` }),
+      "/api/v1/auth/callback",
+    );
+    assert.equal(response?.status, 502);
+  }
+  assert.equal(forwarded.length, 2);
+});
+
 test("identity proxy forwards only the access cookie and preserves a fail-closed 401 clear", async () => {
   process.env.AGENT_API_BASE_URL = "https://agent-api.example.test";
   globalThis.fetch = async (_url, init) => {
@@ -1097,7 +1139,7 @@ test("the real Worker contract completes the canonical frontend OAuth lifecycle 
   assert.equal(responseCookieValue(start, "__Host-sb_oauth_state"), state);
   assert.deepEqual(responseSetCookies(start).map((value) => value.split("=", 1)[0]), ["__Host-sb_oauth_state"]);
 
-  const callbackPath = `/api/v1/auth/callback?code=opaque-integration-code&state=${encodeURIComponent(state)}`;
+  const callbackPath = `/api/v1/auth/callback?code=opaque-integration-code&state=${encodeURIComponent(state)}&iss=${encodeURIComponent(GITHUB_OAUTH_ISSUER)}`;
   const callback = await proxyOAuthGetToBoundary(
     canonicalFrontendRequest(callbackPath, {
       accept: "text/html,application/xhtml+xml",

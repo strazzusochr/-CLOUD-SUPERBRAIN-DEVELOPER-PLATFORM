@@ -2032,7 +2032,7 @@ def require_no_credit_requalification(
         "no-credit requalification project anchor must name the exact release and source",
     )
     require(
-        "Overall `89%`" in current_anchor
+        f"Overall `{index_manifest['overall_percent']}%`" in current_anchor
         and "MARKET_READY:false" in current_anchor
         and "I1" in current_anchor
         and "I5" in current_anchor,

@@ -6,6 +6,9 @@
 
 $ErrorActionPreference = "Stop"
 
+py -3 (Join-Path $PSScriptRoot "verify_project_progress_projection.py")
+if ($LASTEXITCODE -ne 0) { throw "Browser contract verification failed: ledger-backed progress projection" }
+
 $progressManifestPath = Join-Path $PSScriptRoot "..\docs\project-progress.manifest.json"
 $progressManifest = Get-Content -Path $progressManifestPath -Raw | ConvertFrom-Json
 $expectedOverallPercent = [int]$progressManifest.overall_percent

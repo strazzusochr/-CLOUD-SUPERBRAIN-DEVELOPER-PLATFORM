@@ -1568,8 +1568,10 @@ if (-not ([string]$o6OwnerAction[0].required_owner_action).StartsWith("None")) {
   throw "O6 must not request a new Owner action"
 }
 $layer4Progress = @($projectProgress.vertical.items | Where-Object { [string]$_.id -eq "layer_4" })
-if ($layer4Progress.Count -ne 1 -or [int]$layer4Progress[0].percent -ge 100) {
-  throw "Bounded O6 resolution must not hand-set Layer 4 to 100"
+# The mandatory full manifest verifier above replayed every hosted credit with
+# pinned evidence and approved scorers. O6 alone still cannot create credit.
+if ($layer4Progress.Count -ne 1) {
+  throw "Ledger-backed project progress must contain exactly one Layer 4 item"
 }
 py -3 -m py_compile scripts\verify-phase-transition-gate.py
 Assert-LastExitCode "phase transition gate syntax"
@@ -2299,8 +2301,11 @@ foreach ($required in @(
   "project-progress-100-percent-contract-v1",
   "project_progress_100_percent_gate_contract",
   "/api/v1/project/progress/completion",
-  '"status":"blocked_external_gates"',
-  '"can_set_all_to_100":false',
+  '$expectedProjectProgressCompletionReady',
+  "project progress completion status follows progress and blockers",
+  "project progress completion can_set_all_to_100 is boolean",
+  "project progress completion can_set_all_to_100 follows progress and blockers",
+  "verify_project_progress_projection.py",
   "missing_external_gates",
   "project progress completion missing external gate parity",
   "project progress completion hard blocker present",
@@ -2409,8 +2414,11 @@ foreach ($required in @(
   "project-progress-100-percent-contract-v1",
   "project_progress_100_percent_gate_contract",
   "/api/v1/project/progress/completion",
-  '"status":"blocked_external_gates"',
-  '"can_set_all_to_100":false',
+  '$expectedProjectProgressCompletionReady',
+  "project progress completion status follows progress and blockers",
+  "project progress completion can_set_all_to_100 is boolean",
+  "project progress completion can_set_all_to_100 follows progress and blockers",
+  "verify_project_progress_projection.py",
   "missing_external_gates",
   "project progress completion missing external gate parity",
   "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
@@ -3052,7 +3060,7 @@ if (-not (Test-Path "scripts\verify-phase6-local-scoreboard-performance-runtime.
 $phase6ScoreboardParseErrors=$null; [Management.Automation.Language.Parser]::ParseFile("scripts\verify-phase6-local-scoreboard-performance-runtime.ps1",[ref]$null,[ref]$phase6ScoreboardParseErrors)|Out-Null
 if($phase6ScoreboardParseErrors){$phase6ScoreboardParseErrors|%{Write-Error $_.Message};throw "Local scoreboard/performance verifier parse errors"}
 $phase6ScoreboardVerifier=Get-Content "scripts\verify-phase6-local-scoreboard-performance-runtime.ps1" -Raw
-foreach($required in @("manifest phase6 90","manifest overall equals rounded horizontal phase average","MidpointRounding","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
+foreach($required in @("manifest phase6 minimum 90","manifest overall equals rounded horizontal phase average","MidpointRounding","Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png")){if(-not $phase6ScoreboardVerifier.Contains($required)){throw "Local scoreboard/performance verifier missing: $required"}}
 foreach($required in @("phase6-scoreboard-performance-controls","phase6-leaderboard-capture","phase6-leaderboard-reset","phase6-performance-start","local_only=true","sync=false","storage=false","network=false")){if(-not $phase6OrganismView.Contains($required)){throw "Local scoreboard/performance UI missing: $required"}}
 foreach($required in @("Phase-6 local scoreboard and performance sample stay browser-local","phase6-local-scoreboard-performance.png","localStorage","indexedDB")){if(-not $phase6OrganismTest.Contains($required)){throw "Local scoreboard/performance test missing: $required"}}
 
@@ -3445,7 +3453,8 @@ foreach ($required in @(
   "cloudflare_native_zero_card_hosted_runtime",
   "bounded O6 live LLM capability is open",
   "O6 is resolved and not Owner-required",
-  "Layer 4 equal 100",
+  "project progress completion has exactly one Layer 4 item",
+  "verify_project_progress_projection.py",
   "CSP report audit contract",
   "verify-phase3-csp-report-contract.ps1",
   "csp-report-contract-v1",
@@ -3490,7 +3499,7 @@ foreach ($required in @(
   "verify-orchestrator-completion-evidence.ps1",
   "orchestrator-completion-evidence-v1",
   "orchestrator_completion_evidence_verified",
-  '"can_set_all_to_100":false'
+  "project progress completion can_set_all_to_100 follows progress and blockers"
 )) {
   if (-not $browserContractScript.Contains($required)) {
     throw "Browser contract verifier missing required guard: $required"

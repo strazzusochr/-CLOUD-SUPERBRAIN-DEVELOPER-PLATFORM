@@ -268,9 +268,9 @@ foreach ($requiredNoCreditGuard in @(
 Assert-Contains "no-credit requalification keeps the cross-day exact runtime truth delta" `
   $phase5CreditVerifier `
   'NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,'
-Assert-Contains "no-credit requalification keeps the same-day exact runtime truth delta" `
+Assert-Regex "no-credit requalification keeps the exact cross-day, same-day, and security-overlay runtime truth deltas" `
   $phase5CreditVerifier `
-  'changed_paths in (NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS, NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS)'
+  '(?ms)if changed_paths in \(\s*NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS,\s*NO_CREDIT_REQUALIFICATION_SAME_DAY_RUNTIME_PATHS,\s*POST_QUALIFICATION_SECURITY_OVERLAY_PATHS,\s*\):'
 Assert-Contains "same-day no-credit requalification is date-bound" `
   $phase5CreditVerifier `
   'same-day no-credit requalification must keep the manifest date unchanged'

@@ -75,6 +75,7 @@ $candidate = ConvertFrom-Phase6Json (Get-Content -LiteralPath (Join-Path $repoRo
 $hosted = ConvertFrom-Phase6Json (Get-Content -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/cloudflare-native-hosted-current.json') -Raw)
 $deployment = ConvertFrom-Phase6Json (Get-Content -LiteralPath (Join-Path $repoRoot 'docs/runtime-state/phase6-scale-hosted-current.json') -Raw)
 $sourceSha = [string]$hosted.source_commit_sha
+$controlReleaseId = [string]$candidate.active_release_id
 $trackedScaleEvidence = @(& git -C $repoRoot ls-files -- '.phase1-artifacts/phase6-scale/scale-evidence-*.json')
 if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate tracked Phase6 scale evidence.' }
 $trackedScaleEvidence = @($trackedScaleEvidence | Where-Object { $_ -cnotmatch '\.execution-readback\.json$' })
@@ -95,6 +96,15 @@ if ($trackedScaleEvidence.Count -eq 1) {
   if ([string]$scaleEvidence.contract_version -cne 'phase6-scale-evidence-v2') {
     throw 'Tracked Phase6 scale evidence contract is invalid.'
   }
+  $recordedRelease = $scaleEvidence.source_binding.release_candidate
+  if ([string]$recordedRelease.active_release_id -cnotmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-local-rc[1-9][0-9]*$' -or
+      [string]$recordedRelease.source_commit_sha -cne $sourceSha) {
+    throw 'Tracked Phase6 scale evidence cannot identify its audited release/source pair.'
+  }
+  # The P6 control prefix belongs to the immutable release recorded by the one-shot
+  # evidence. A later no-credit candidate selection must not reinterpret historical
+  # RC48 paths under the newer release prefix.
+  $controlReleaseId = [string]$recordedRelease.active_release_id
   $attestation = $scaleEvidence.source_binding.execution_attestation
   if ([string]$attestation.contract_version -cne 'phase6-scale-execution-provenance-v1' -or
       [string]$attestation.source_commit_sha -cne $sourceSha -or
@@ -133,7 +143,7 @@ if ($trackedScaleEvidence.Count -eq 1) {
   [string[]]$auditedDelta = @(@($actualDelta) + $fixExtension | Select-Object -Unique)
 }
 [Array]::Sort($auditedDelta, [StringComparer]::Ordinal)
-$policy = @{ ReleaseId=[string]$candidate.active_release_id; HostedEvidencePath=[string]$hosted.evidence_artifact; DeploymentEvidencePath=[string]$deployment.evidence_artifact }
+$policy = @{ ReleaseId=$controlReleaseId; HostedEvidencePath=[string]$hosted.evidence_artifact; DeploymentEvidencePath=[string]$deployment.evidence_artifact }
 $accepted = @(Assert-Phase6ControlDelta -Paths $auditedDelta -SafePaths $auditedDelta @policy)
 if ($accepted.Count -ne 81) { throw 'Unexpected audited P6 control path count.' }
 

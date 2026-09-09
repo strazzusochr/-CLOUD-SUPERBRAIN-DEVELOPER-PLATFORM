@@ -1,5 +1,95 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC53/S8 NO-CREDIT-NEUQUALIFIKATION
+
+### Session 2026-09-09 — S8/Q8 qualifiziert, I1/I5 bleiben geschlossen
+
+- **Aktiver Kandidat ist RC53/S8:** Release
+  `prod-candidate-2026-09-09-local-rc53`, Source
+  `19f633f86b33b0aae8e34785bea59b910a3f7157`, direkter Q8-Kindcommit
+  `175411b84b2051bd5f1fb5fb084c42234eabfc92`. Source-CI-Run
+  `34336588870` ist erfolgreich mit failed=0 und skipped=0.
+- **Fuenf frische Qualifikationsketten PASS:** Runtime, Browser, sechs lokale
+  Kandidatenimages, Candidate-Runtime und Security. RC54 bestaetigte im echten
+  Browser 22 Seiten, zwei Viewports, 44 responsive Klicks, 29 Funktionsfamilien
+  und 161 Aktionen; genau drei autorisierte Gateway-Aufrufe, kein Auto-Retry.
+- **Fortschritt bleibt unveraendert:** Overall `90%`, horizontal `633/700`,
+  vertikal `700/700`, insgesamt `1333/1400` belegt und `67` offen.
+  I1 und I5 bleiben blockiert; `MARKET_READY:false`. Keine Gate-, Ledger-
+  oder Prozent-Promotion.
+- **Grenze:** RC53 ist DEV-ONLY und no-release. Keine Production-, Registry-,
+  Cloudflare-, Vercel- oder Merge-Aktion; keine Secret-Ausgabe. Der erste
+  blockierte Browserversuch bleibt als Diagnose erhalten und vergibt keinen
+  Credit; der gesondert freigegebene RC54-Lauf ist der kanonische Browserbeleg.
+
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC50/S6 VORQUALIFIKATION
+
+### Session 2026-09-09 — gebuendelter Runtime-/Dev-Container-Fix, kein Credit
+
+- **Aktiver Kandidat bleibt RC48/S3**, Source
+  `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`; Overall `90%`,
+  horizontal `633/700`, vertikal `700/700`: **1333/1400 belegt, 67 offen**.
+  I1/I5 bleiben blockiert, `MARKET_READY:false`. Keine Gate-/Ledger-Promotion.
+- **RC49/S5 ist nicht qualifiziert:** Source `f7a13133772d1cac8cbe2600f259b7b8904a2c0e`,
+  Q5 `8cbc06d30ef122ee9e9e6d11dd619568d2372c5e`. Source-CI `34320278349`
+  bestand mit 33 erfolgreichen Schritten, failed=0/skipped=0. Security und
+  sechs lokale Kandidatenimages bestanden; Runtime brach am historischen
+  `L4 < 100`-Guard ab. Alle RC49-Rohdateien bleiben unveraendert erhalten.
+  Die Freigabe `CONFIRM_RC49_S5_BROWSER_3_CALLS_AND_LOCAL_O4_PROOFS`
+  verbrauchte **0/3 Provideraufrufe** und gilt nicht automatisch fuer S6.
+- **Gebuendelte Korrektur:** Runtime/Browser/Hosted pruefen die vorhandene
+  Projektionswahrheit per vollstaendigem Offline-Ledger-Replay und bestehenden
+  Scorern. Gueltiger Hosted-L4-Credit wird akzeptiert; O6 allein vergibt weiterhin
+  keine Punkte. Statische Querverweise und Blocked-/Ready-Pruefungen sind synchron.
+  Next.js generiert Dev-Typen ausschliesslich im Container-tmpfs; Root-Dateisystem
+  und Host-tsconfig bleiben read-only. Checkpoint-Restart nutzt `--no-deps`.
+- **Gemessen vor dem Freeze:** 136 Market-Ready-Python-Tests plus Node-Suite PASS;
+  weitere 64 Phase-5-/Ledger-Tests PASS. Read-only-Container-Typgenerierung PASS;
+  Dev-Kaltstart 10/10 healthy, beide Host-TypeScript-Hashes unveraendert.
+  Der erneute Runtime-Diagnoselauf bestand bis einschliesslich Candidate-Probe
+  und liess das Frontend beim API-Restart unveraendert. Die letzte O4-Stufe
+  verweigerte korrekt uncommitteten Runtime-Code vor jedem O4-Request.
+  Das ist **kein** vollstaendiger Runtime- oder Browser-Qualifikationsbeleg.
+- **Fortsetzung:** dieser Fix wird als S6 fuer
+  `prod-candidate-2026-09-09-local-rc50` eingefroren; Q6 muss direkter Kindcommit
+  sein. Exakte Bindung steht in `docs/runtime-state/source-qualification-control.json`.
+  Danach Source-CI und neue fuenf Qualifikationsketten; vor Live-/O4-Ausfuehrung
+  explizite S6-Freigabe einholen. Keine PR-Review vor vollstaendig gruener
+  Qualifikation und regularem Exact-Head-Pflichtcheck anfordern.
+- **Schutz:** keine Production-/Registry-/Merge-Aktion, keine Secret-Erzeugung,
+  keine Prozentanhebung. Vercel-Hold bleibt geparkt; fremde Dateien bleiben erhalten.
+
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC97 NEUQUALIFIKATION OFFEN
+
+### Session 2026-09-09 — RC97 OAuth-Issuer-Fix vor RC49-Qualifikation
+
+- **Aktiver Kandidat bleibt RC48:** `prod-candidate-2026-09-07-local-rc48`,
+  Source `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`. Overall `90%`,
+  `1333/1400` Punkte belegt, `67` offen; I1/I5 bleiben blockiert,
+  `MARKET_READY:false`. Kein neuer Credit und keine Gate-Promotion.
+- **PR #97 ist noch nicht merge-faehig:** die menschliche Review auf
+  `4fbb9a56e9abe7ebd42ff3fa43384951880e4a99` ist APPROVED. Der regulaere
+  PR-Pflichtcheck in Run `34316350565` ist wegen Runtime-Source-Drift rot.
+  Source-Vorpruefung `34316346427` ist separat gruen; sie ersetzt weder den
+  PR-Pflichtcheck noch die fuenf release-scoped Qualifikationsketten.
+- **Implementiert, lokal getestet:** der Frontend-Callback akzeptiert optional
+  exakt `iss=https://github.com/login/oauth`, ohne State-, Cookie- oder
+  Mehrfachparameterpruefungen zu lockern. OAuth-Regression: `37/37` PASS.
+  Die No-Credit-Pruefer erhalten nun den unveraenderten Manifestwert statt
+  historisch fest `89%` zu verlangen; historische Sessions koennen fehlende
+  aktuelle Marker nicht ersetzen. Phase-5-Regression: `36/36` PASS, zusaetzlich
+  Source-/CI-Binding-Regression `6/6` PASS. Breite Market-Ready-Unit-Suite:
+  `129` Python-Tests sowie nachgelagerte Node-Pruefungen PASS; Frontend-Lint PASS.
+  Diese Tests sind keine Live-Abnahme.
+- **Naechster Schritt:** den vollstaendig getesteten Source-Nachfolger und
+  direkten Q-Kindcommit binden, Source-CI attestieren und RC49 neu qualifizieren.
+  Runtime, Browser, sechs lokale Images, Candidate-Runtime und Security muessen
+  echte neue Rohbeweise liefern. Alte RC48-Beweise werden nicht umetikettiert.
+  Die Browserkette enthaelt Live-Provider-Aufrufe und O4-Write-Proben; keine
+  erneute Ausfuehrung mit bereits verbrauchten RC48-Freigaben.
+- **Schutz:** keine Merge-/Production-/Registry-Aktion in diesem Checkpoint,
+  keine manuelle `live_verified`-Aenderung; sechs fremde Dirty-Dateien geschuetzt.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC94 FRONTEND SECURITY OVERLAY
 
 - **Runtime bleibt eingefroren:** Release `prod-candidate-2026-09-07-local-rc48`,

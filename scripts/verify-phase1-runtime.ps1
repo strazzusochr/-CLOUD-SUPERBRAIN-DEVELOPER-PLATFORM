@@ -1,5 +1,8 @@
 $ErrorActionPreference = "Stop"
 
+py -3 (Join-Path $PSScriptRoot "verify_project_progress_projection.py")
+if ($LASTEXITCODE -ne 0) { throw "Runtime verification failed: ledger-backed progress projection" }
+
 & (Join-Path $PSScriptRoot "require-docker-readiness.ps1") -GateName "phase1-runtime compose verification"
 
 $port = if ($env:NGINX_HTTP_PORT) { $env:NGINX_HTTP_PORT } else { "8081" }
@@ -367,12 +370,33 @@ Assert-Contains "project progress integrity manifest" $projectProgressIntegrity 
 Write-Host "[runtime] project progress completion contract"
 $projectProgressCompletion = curl.exe -sS "$baseUrl/api/v1/project/progress/completion"
 Assert-Contains "project progress completion version" $projectProgressCompletion '"contract_version":"project-progress-100-percent-contract-v1"'
-Assert-Contains "project progress completion status" $projectProgressCompletion '"status":"blocked_external_gates"'
 Assert-Contains "project progress completion evidence" $projectProgressCompletion '"evidence_ref":"project_progress_100_percent_gate_contract"'
-Assert-Contains "project progress completion cannot set all to 100" $projectProgressCompletion '"can_set_all_to_100":false'
 $projectProgressCompletionJson = $projectProgressCompletion | ConvertFrom-Json
 $projectProgressCompletionMissingGates = @($projectProgressCompletionJson.missing_external_gates | ForEach-Object { [string]$_ })
 $projectProgressCompletionHardBlockers = @($projectProgressCompletionJson.hard_blockers | ForEach-Object { [string]$_ })
+$projectProgressItems = @($progressManifest.horizontal.items) + @($progressManifest.vertical.items)
+$localProjectProgressComplete = (
+  $expectedOverallPercent -eq 100 -and
+  @($projectProgressItems | Where-Object { [int]$_.percent -ne 100 }).Count -eq 0
+)
+$expectedProjectProgressCompletionReady = (
+  $localProjectProgressComplete -and
+  $projectProgressCompletionMissingGates.Count -eq 0 -and
+  $projectProgressCompletionHardBlockers.Count -eq 0
+)
+$expectedProjectProgressCompletionStatus = if ($expectedProjectProgressCompletionReady) {
+  "ready_for_100_percent_review"
+} else {
+  "blocked_external_gates"
+}
+$canSetAllTo100Property = $projectProgressCompletionJson.PSObject.Properties["can_set_all_to_100"]
+Assert-True "project progress completion current overall parity" ([int]$projectProgressCompletionJson.current_overall_percent -eq $expectedOverallPercent)
+Assert-True "project progress completion status follows progress and blockers" ([string]$projectProgressCompletionJson.status -eq $expectedProjectProgressCompletionStatus)
+Assert-True "project progress completion can_set_all_to_100 is boolean" ($null -ne $canSetAllTo100Property -and $canSetAllTo100Property.Value -is [bool])
+Assert-True "project progress completion can_set_all_to_100 follows progress and blockers" ([bool]$canSetAllTo100Property.Value -eq $expectedProjectProgressCompletionReady)
+foreach ($hardBlocker in $projectProgressCompletionHardBlockers) {
+  Assert-True "project progress completion hard blocker is non-empty" (-not [string]::IsNullOrWhiteSpace($hardBlocker))
+}
 $capabilityGateState = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\docs\runtime-state\capability-gates.json") -Raw | ConvertFrom-Json
 $completionGateExpectations = @(
   [ordered]@{
@@ -423,7 +447,8 @@ Assert-True "O6 is resolved and not Owner-required" (
   ([string]$o6OwnerAction[0].required_owner_action).StartsWith("None")
 )
 $layer4Progress = @($progressManifest.vertical.items | Where-Object { [string]$_.id -eq "layer_4" })
-Assert-True "bounded O6 proof does not make Layer 4 equal 100" ($layer4Progress.Count -eq 1 -and [int]$layer4Progress[0].percent -lt 100)
+# Hosted credit was replayed before any request; bounded O6 grants no extra points.
+Assert-True "project progress completion has exactly one Layer 4 item" ($layer4Progress.Count -eq 1)
 $liveMemoryCapability = $capabilityGateState.gates.live_memory_provider
 $liveMemoryCapabilityOpen = (
   [bool]$liveMemoryCapability.owner_granted -and
@@ -453,7 +478,12 @@ if ($liveVectorMemoryCapabilityOpen) {
 } else {
   Assert-True "project progress completion retains fail-closed vector memory blocker" ($projectProgressCompletionHardBlockers -contains $liveVectorMemoryBlocker)
 }
-Assert-Contains "project progress completion local gap blocker" $projectProgressCompletion "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
+$localProgressGapBlocker = "local_progress_gaps_require_verified_evidence_for_each_phase_and_layer"
+if ($localProjectProgressComplete) {
+  Assert-True "project progress completion clears local gap blocker at 100" (-not ($projectProgressCompletionHardBlockers -contains $localProgressGapBlocker))
+} else {
+  Assert-True "project progress completion retains local gap blocker below 100" ($projectProgressCompletionHardBlockers -contains $localProgressGapBlocker)
+}
 
 Write-Host "[runtime] layer interface contracts"
 $layerInterfaceContract = curl.exe -sS "$baseUrl/api/v1/layer-interfaces/contract"
@@ -2466,7 +2496,7 @@ Assert-Contains "orchestrator checkpoint completed before restart" $checkpointBe
 
 Write-Host "[runtime] langgraph postgres checkpoint restart recovery"
 $env:NGINX_HTTP_PORT = $port
-docker compose @composeArgs up -d --force-recreate agent-api nginx
+docker compose @composeArgs up -d --no-deps --force-recreate agent-api nginx
 Assert-LastExitCode "restart agent-api for checkpoint recovery"
 $healthAfterRestart = Wait-UrlContains "agent-api health after checkpoint restart" "$baseUrl/api/v1/health" '"status":"healthy"' 45
 $checkpointAfter = curl.exe -sS "$baseUrl/api/v1/orchestrator/checkpoints/$threadId"

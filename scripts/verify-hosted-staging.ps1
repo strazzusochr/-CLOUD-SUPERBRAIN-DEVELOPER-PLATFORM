@@ -17,6 +17,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+py -3 (Join-Path $PSScriptRoot "verify_project_progress_projection.py")
+if ($LASTEXITCODE -ne 0) { throw "Hosted staging verification failed: ledger-backed progress projection" }
+
 if ($SafeProfile) {
   $SkipStreamingSections = $true
   $SkipPublicStreaming = $true

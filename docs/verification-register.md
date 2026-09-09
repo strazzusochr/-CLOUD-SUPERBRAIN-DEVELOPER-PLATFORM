@@ -1,5 +1,58 @@
 # Verification Register - PATCHED
 
+## 2026-09-09 — RC50 prefreeze guards and real dev-container diagnostics
+
+- Red-first: the old static/runtime O6 checks rejected independently credited
+  L4=100. Runtime also required an unconditional blocked completion response,
+  while browser/hosted had already adopted progress-derived readiness.
+- Correction: all three HTTP consumers first invoke the existing full pinned
+  baseline/ledger/scorer/mirror validation through the projection-only entrypoint.
+  Full candidate freshness and Phase-5 qualification remain unchanged separate
+  gates. Static source guards now require the current behavioral assertions.
+- Red-first Docker check reproduced a host next-env bind. The real runtime then
+  measured `EROFS` after broad dependency recreation. Dev-runner now owns an
+  immutable symlink to a writable tmpfs-generated type file; tsconfig is read-only,
+  and checkpoint recovery restarts only API/nginx with `--no-deps`.
+- Tests: `npm run verify:market-ready:unit` PASS (136 Python tests and Node suite);
+  `py -3 -m unittest scripts.tests.test_verify_phase5_credit_itemization
+  scripts.tests.test_verify_project_progress_manifest` PASS (64 tests).
+  The completion suite includes actual PowerShell execution (60 positive/negative
+  fixtures across three verifiers), seven ledger-tampering cases, the real current
+  committed ledger and 23 actual static cross-reference blocks.
+- Real DEV-ONLY probes: read-only-root container generated both dev/build type
+  declarations, while a root write was rejected. Cold start 10/10 healthy; tracked
+  next-env/tsconfig hashes stayed unchanged. The repeated runtime diagnostic
+  passed recovery/steady-state/candidate stages, preserved the frontend ID, and
+  stopped at the correct dirty-worktree O4 gate before O4 requests. This run is
+  not stored as a successful release runtime chain.
+- RC49/S5 source CI `34320278349` was successful (33 steps, failed=0, skipped=0);
+  its two fresh chains and raw artifacts remain S5-bound. Provider budget consumed:
+  0/3. S6 requires a new source/qualification binding and explicit live/O4 authority.
+- No credit, gate promotion, registry publication, hosted deploy or human review
+  was performed. Active RC48: Overall90, H633/700, V700/700, 67 points open.
+
+## 2026-09-09 — RC97 qualification regression, no new credit
+
+The current PR #97 review is approved on `4fbb9a56e9abe7ebd42ff3fa43384951880e4a99`,
+but required PR run `34316350565` failed on runtime-source drift. Separate
+source-prequalification run `34316346427` succeeded; it does not establish a
+completed RC49 candidate qualification or authorize merging a failed PR check.
+
+Local regression reproduces two rejected valid 90-percent no-credit transitions
+and an incorrectly accepted stale 89-percent anchor before the fix. The corrected
+Python and PowerShell checks bind the unchanged manifest value and current session.
+Phase-5 tests: 36 PASS, including live execution of the extracted PowerShell guard
+against 11 synthetic positive/negative cases. Source/control and exact-CI binding:
+6 PASS. OAuth boundary: 37 PASS. Main-deploy transition and supply-chain pins PASS.
+The serial `npm run verify:market-ready:unit` run passed 129 Python tests and its
+subsequent Node test suite; `npm --prefix apps/frontend run lint` passed. The final
+36-test Phase-5 rerun also rejects score inflation in the direct no-credit guard.
+These are local/unit/static checks, not hosted OAuth or provider evidence.
+
+Active RC48/S3, all existing evidence, gate values and ledger credit are unchanged:
+Overall 90, 1333/1400, 67 open, I1/I5 blocked, MARKET_READY:false. RC49 requires
+fresh five-chain evidence and an exact-source CI binding before pointer transition.
+
 ## 2026-09-09 — RC94 frontend security overlay
 
 Vercel redeployment `dpl_3K7iLgty3UEmsiW2k9cfxGDnTZoh` is READY with target

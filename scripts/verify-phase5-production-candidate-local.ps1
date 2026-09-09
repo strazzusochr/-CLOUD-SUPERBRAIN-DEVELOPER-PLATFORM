@@ -28,6 +28,29 @@ function Assert-False([string]$Label, $Condition) {
   Assert-True $Label (-not [bool]$Condition)
 }
 
+function Assert-NoCreditProjectAnchor(
+  [string]$ProjectState,
+  [string]$ReleaseId,
+  [string]$SourceSha,
+  [ValidateRange(0, 100)][int]$OverallPercent
+) {
+  # The source and current manifest have already been compared without their
+  # date. Preserve that verified score, not the historical pre-P6 value 89.
+  # Historical sessions cannot supply missing markers for the current release.
+  $sessions = $ProjectState -split '### Session', 3
+  $currentAnchor = if ($sessions.Count -gt 1) { $sessions[1] } else { '' }
+  foreach ($marker in @(
+    $ReleaseId,
+    $SourceSha,
+    "Overall ``$OverallPercent%``",
+    'MARKET_READY:false',
+    'I1',
+    'I5'
+  )) {
+    Assert-True "no-credit project-state marker $marker" $currentAnchor.Contains($marker)
+  }
+}
+
 function Test-ExactPathSet($Actual, $Expected) {
   $actualSet = @($Actual | Sort-Object -Unique)
   $expectedSet = @($Expected | Sort-Object -Unique)
@@ -316,17 +339,10 @@ try {
       Assert-False "no-credit snapshot candidate parity" $metadata.candidate_source_parity
       Assert-Equal "no-credit snapshot overall" ([int]$snapshot.'/api/v1/project/progress'.overall_percent) ([int]$currentManifest.overall_percent)
 
-      $projectState = Get-Content "PROJECT_STATE.md" -Raw
-      foreach ($marker in @(
-        [string]$candidateConfig.active_release_id,
-        $candidateSourceSha,
-        "Overall ``89%``",
-        "MARKET_READY:false",
-        "I1",
-        "I5"
-      )) {
-        Assert-True "no-credit project-state marker $marker" $projectState.Contains($marker)
-      }
+      $projectState = Get-Content "PROJECT_STATE.md" -Raw -Encoding UTF8
+      Assert-NoCreditProjectAnchor -ProjectState $projectState `
+        -ReleaseId ([string]$candidateConfig.active_release_id) `
+        -SourceSha $candidateSourceSha -OverallPercent ([int]$sourceManifest.overall_percent)
       Assert-False "no-credit production rollout" $candidateConfig.production_rollout_claimed
       $noCreditRequalification = $true
       }
