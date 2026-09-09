@@ -1,14 +1,17 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC93 PRODUCTION FRONTEND ORIGIN
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC94 FRONTEND SECURITY OVERLAY
 
 - **Runtime bleibt eingefroren:** Release `prod-candidate-2026-09-07-local-rc48`,
   Produktquelle `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`; PR #93 hat die
   owner-approved Cloudflare-native Auth-Architektur ohne Produktcodeaenderung
   in Merge `5767ede103a1236b2b29240fecaabafd82d4faea` festgehalten.
 - **Frontend Production-Origin:** Vercel-Redeploy
-  `dpl_3eGYgrcQUHcV6Xi6yFG4N7i1qrM8` ist READY, target `production`, und
-  serverseitig exakt an S3 gebunden. Der autoritative Alias-Readback bindet
+  `dpl_3K7iLgty3UEmsiW2k9cfxGDnTZoh` ist READY, target `production`, und
+  serverseitig exakt an Security-Overlay-Commit
+  `d76cb75d2a8dfffbc73217b8985305d868a2245a` gebunden. Dieser ist ein
+  verifizierter Nachfahre von S3 und aendert gegenueber S3 nur die fuenf
+  freigegebenen Frontend-Overlay-Pfade. Der autoritative Alias-Readback bindet
   `frontend-seven-psi-78.vercel.app` an dasselbe Deployment; Root und Health
   liefern 200. Der Vercel-Production-Branch bleibt auf
   `codex/vercel-production-hold-rc38`, Auto-Domain-Zuweisung bleibt aus.
@@ -23,7 +26,7 @@
 - **Kreditstand unveraendert:** Overall `90`, `1333/1400` erfuellt, `67` offen;
   P3 `44`, P5 `89`, P6 `100`, L4/L5 `100`. Kein manueller Credit,
   `MARKET_READY:false`.
-- **Naechster Gate-Schritt:** diesen Frontend-Origin-Beweis per PR integrieren;
+- **Naechster Gate-Schritt:** diesen Frontend-Overlay-Beweis per PR integrieren;
   danach erst den Production-OAuth-Worker aus S3 ueber den zugelassenen Wrapper
   deployen und die getrennte Zwei-Tokenfamilien-Abnahme ausfuehren.
 

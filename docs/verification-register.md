@@ -1,10 +1,12 @@
 # Verification Register - PATCHED
 
-## 2026-09-09 — RC93 production frontend origin
+## 2026-09-09 — RC94 frontend security overlay
 
-Vercel redeployment `dpl_3eGYgrcQUHcV6Xi6yFG4N7i1qrM8` is READY with target
-`production` and exact frozen source
-`e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`. The authoritative alias readback
+Vercel redeployment `dpl_3K7iLgty3UEmsiW2k9cfxGDnTZoh` is READY with target
+`production` and exact frontend security-overlay source
+`d76cb75d2a8dfffbc73217b8985305d868a2245a`. It is a verified descendant of
+frozen runtime source `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7` and differs
+from it only at the five allowlisted frontend-overlay paths. The authoritative alias readback
 binds `frontend-seven-psi-78.vercel.app` to that deployment while the project
 production branch remains parked on `codex/vercel-production-hold-rc38` and
 automatic custom-domain assignment remains disabled. Root and health returned 200.

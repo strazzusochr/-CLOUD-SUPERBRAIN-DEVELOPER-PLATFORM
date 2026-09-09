@@ -5,8 +5,9 @@ Contract: `frontend-hosted-current-proof-v1`
 Status: `verified`
 
 The current hosted frontend evidence is bound to READY operational Production redeployment
-`dpl_3eGYgrcQUHcV6Xi6yFG4N7i1qrM8` and Vercel-attested frozen Git source
-`e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`. The redeploy exposes no
+`dpl_3K7iLgty3UEmsiW2k9cfxGDnTZoh` and Vercel-attested frontend security-overlay
+Git source `d76cb75d2a8dfffbc73217b8985305d868a2245a`, a verified descendant of
+frozen runtime source `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`. The redeploy exposes no
 source-archive metadata, so the verifier requires that field to remain absent
 rather than inventing an archive claim. Authenticated Vercel metadata requires the
 exact deployment id, target `production`, immutable host, redeploy action, Git
@@ -30,8 +31,8 @@ Evidence:
 
 - State: `docs/runtime-state/frontend-hosted-current.json`
 - Verifier: `scripts/verify-frontend-hosted-current.ps1`
-- Report: `.phase1-artifacts/frontend-hosted-current-rc93-production/report.json`
-- Verification: `.phase1-artifacts/frontend-hosted-current-rc93-production/verification.json`
+- Report: `.phase1-artifacts/frontend-hosted-current-rc94-security-overlay/report.json`
+- Verification: `.phase1-artifacts/frontend-hosted-current-rc94-security-overlay/verification.json`
 
 `npm run verify:frontend-hosted-current` intentionally uses `-SkipBrowser`: it
 revalidates the timestamp-bound canonical report, screenshots, authenticated
