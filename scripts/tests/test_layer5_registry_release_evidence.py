@@ -43,6 +43,11 @@ SERVICES = (
 PLATFORMS = ("linux/amd64", "linux/arm64")
 CANDIDATE_SHA = "a" * 40
 CONTROL_SHA = "b" * 40
+PRIOR_REGISTRY_EVIDENCE_PATH = (
+    "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/"
+    "registry/layer5-registry-release-credit-evidence.json"
+)
+PRIOR_REGISTRY_EVIDENCE_SHA256 = "a4d6c211c1cee7c498d24bf276aef34bb0ff3f757a5a54d6ebf2afdcdcd2a2ce"
 RELEASE_ID = "prod-candidate-test-rc1"
 REPOSITORY = "example/cloud-superbrain"
 NAMESPACE = "ghcr.io/example/cloud-superbrain"
@@ -287,21 +292,55 @@ def make_artifact() -> dict[str, object]:
     }
 
 
-def make_capability_gates() -> dict[str, object]:
+def make_capability_gates(*, live_verified: bool = False, **gate_overrides: object) -> dict[str, object]:
+    gate: dict[str, object] = {
+        "owner_granted": True,
+        "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
+        "live_verified": live_verified,
+        "paid_provider": False,
+    }
+    if live_verified:
+        gate.update(
+            {
+                "evidence_artifact": PRIOR_REGISTRY_EVIDENCE_PATH,
+                "evidence_sha256": PRIOR_REGISTRY_EVIDENCE_SHA256,
+                "provider": "ghcr",
+                "verifier": "scripts/verify_layer5_registry_release_evidence.py",
+            }
+        )
+    gate.update(gate_overrides)
     return {
         "contract_version": "capability-gate-state-v1",
-        "gates": {
-            "docker_registry_publish": {
-                "owner_granted": True,
-                "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
-                "live_verified": False,
-                "paid_provider": False,
-            }
-        },
+        "gates": {"docker_registry_publish": gate},
     }
 
 
 class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
+    def test_publication_receipt_recovery_workflow_is_read_only_and_source_bound(self) -> None:
+        workflow_path = ROOT / ".github" / "workflows" / "ghcr-publication-receipt-recovery.yml"
+        self.assertTrue(workflow_path.is_file())
+        workflow = workflow_path.read_text(encoding="utf-8")
+        for marker in (
+            "workflow_dispatch:",
+            "source_run_id:",
+            "source_run_attempt:",
+            "source_control_sha:",
+            "candidate_sha:",
+            "artifact_id:",
+            "artifact_digest:",
+            "actions: read",
+            "contents: read",
+            "python scripts/collect_ghcr_publication_evidence.py",
+            '"registry_write_performed": False',
+            '"production_deploy": False',
+            '"secret_output": False',
+            "Upload recovered immutable publication receipt",
+        ):
+            self.assertIn(marker, workflow)
+        self.assertNotIn("packages: write", workflow)
+        self.assertNotIn("docker build", workflow)
+        self.assertNotIn("docker push", workflow)
+
     def test_remote_scan_requires_exact_twelve_clean_platform_reports(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -414,6 +453,36 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
             self.assertEqual(registry["top_digest_count"], 6)
             self.assertEqual(registry["platform_digest_count"], 12)
             self.assertTrue(registry["registry_publish_verified"])
+
+    def test_publication_collector_accepts_canonically_verified_existing_registry_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            inputs = self._publication_inputs(root)
+            inputs["capability_gates_path"] = write_json(
+                root / "promoted-capability-gates.json",
+                make_capability_gates(live_verified=True),
+            )
+            review, registry = build_publication_evidence(**inputs)
+            self.assertTrue(review["registry_publish_verified"])
+            self.assertTrue(registry["registry_publish_verified"])
+
+    def test_publication_collector_rejects_unbound_existing_registry_gate(self) -> None:
+        cases = (
+            ({"evidence_artifact": ""}, "evidence artifact"),
+            ({"evidence_sha256": "0" * 64}, "evidence SHA-256 mismatch"),
+            ({"provider": "other"}, "provider mismatch"),
+            ({"verifier": "scripts/other.py"}, "verifier mismatch"),
+        )
+        for overrides, expected in cases:
+            with self.subTest(overrides=overrides), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                inputs = self._publication_inputs(root)
+                inputs["capability_gates_path"] = write_json(
+                    root / "bad-promoted-capability-gates.json",
+                    make_capability_gates(live_verified=True, **overrides),
+                )
+                with self.assertRaisesRegex(PublicationVerificationError, expected):
+                    build_publication_evidence(**inputs)
 
     def test_owner_review_is_valid_when_environment_explicitly_allows_self_review(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

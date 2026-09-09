@@ -35,6 +35,9 @@ ENVIRONMENT_NAME = "registry-publication"
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 DIGEST_RE = re.compile(r"sha256:[0-9a-f]{64}")
 RUN_ID_RE = re.compile(r"[1-9][0-9]*")
+SOURCE_SHA_RE = re.compile(r"[0-9a-f]{40}")
+REGISTRY_EVIDENCE_CONTRACT = "layer5-registry-release-credit-evidence-v1"
+REGISTRY_EVIDENCE_VERIFIER = "scripts/verify_layer5_registry_release_evidence.py"
 
 
 class VerificationError(RuntimeError):
@@ -290,6 +293,92 @@ def _validate_workflow_source(path: Path) -> tuple[str, bytes]:
     return _sha256(raw), raw
 
 
+def _repository_root_from_workflow(path: Path) -> Path:
+    resolved = path.resolve()
+    _require(
+        resolved.name == "main-deploy.yml"
+        and resolved.parent.name == "workflows"
+        and resolved.parent.parent.name == ".github",
+        "main-deploy workflow path is not rooted under .github/workflows",
+    )
+    return resolved.parents[2]
+
+
+def _validate_existing_registry_promotion(gate: Mapping[str, Any], workflow_path: Path) -> None:
+    """Accept an already-open global gate only when its immutable proof still validates."""
+
+    _require(gate.get("provider") == "ghcr", "docker_registry_publish existing promotion provider mismatch")
+    _require(
+        gate.get("verifier") == REGISTRY_EVIDENCE_VERIFIER,
+        "docker_registry_publish existing promotion verifier mismatch",
+    )
+    evidence_relative = gate.get("evidence_artifact")
+    _require(
+        isinstance(evidence_relative, str) and evidence_relative and "\\" not in evidence_relative,
+        "docker_registry_publish existing promotion evidence artifact is invalid",
+    )
+    relative_path = Path(evidence_relative)
+    _require(
+        not relative_path.is_absolute()
+        and ".." not in relative_path.parts
+        and relative_path.parts[:2] == ("docs", "release-artifacts"),
+        "docker_registry_publish existing promotion evidence artifact is outside release artifacts",
+    )
+    expected_sha256 = gate.get("evidence_sha256")
+    _require(
+        isinstance(expected_sha256, str) and SHA256_RE.fullmatch(expected_sha256) is not None,
+        "docker_registry_publish existing promotion evidence SHA-256 is invalid",
+    )
+
+    repository_root = _repository_root_from_workflow(workflow_path)
+    evidence_path = (repository_root / relative_path).resolve()
+    _require(
+        repository_root == evidence_path or repository_root in evidence_path.parents,
+        "docker_registry_publish existing promotion evidence artifact escapes repository",
+    )
+    evidence, evidence_raw = _read_json(evidence_path, "existing docker_registry_publish evidence")
+    _require(
+        _sha256(evidence_raw) == expected_sha256,
+        "docker_registry_publish existing promotion evidence SHA-256 mismatch",
+    )
+    _require(
+        evidence.get("contract_version") == REGISTRY_EVIDENCE_CONTRACT,
+        "docker_registry_publish existing promotion evidence contract mismatch",
+    )
+    _require(evidence.get("status") == "verified", "docker_registry_publish existing promotion evidence is not verified")
+    release_id = evidence.get("release_id")
+    source_sha = evidence.get("source_commit_sha")
+    control_sha = evidence.get("control_commit_sha")
+    _require(
+        isinstance(release_id, str) and re.fullmatch(r"prod-candidate-[A-Za-z0-9._-]+", release_id) is not None,
+        "docker_registry_publish existing promotion release id is invalid",
+    )
+    _require(
+        isinstance(source_sha, str) and SOURCE_SHA_RE.fullmatch(source_sha) is not None,
+        "docker_registry_publish existing promotion source SHA is invalid",
+    )
+    _require(
+        isinstance(control_sha, str) and SOURCE_SHA_RE.fullmatch(control_sha) is not None,
+        "docker_registry_publish existing promotion control SHA is invalid",
+    )
+
+    # Lazy import avoids the collector <-> aggregate verifier import cycle while
+    # preserving the one canonical, fail-closed validation path.
+    from verify_layer5_registry_release_evidence import validate_layer5_registry_release_evidence
+
+    try:
+        validate_layer5_registry_release_evidence(
+            evidence_path,
+            expected_release_id=release_id,
+            expected_source_sha=source_sha,
+            expected_control_sha=control_sha,
+        )
+    except RuntimeError as exc:
+        raise VerificationError(
+            "docker_registry_publish existing promotion canonical evidence validation failed"
+        ) from exc
+
+
 def build_publication_evidence(
     manifest_path: Path,
     remote_scan_path: Path,
@@ -355,6 +444,9 @@ def build_publication_evidence(
     _require(isinstance(artifact_run, dict), "Actions artifact workflow binding is missing")
     _require(str(artifact_run.get("id")) == run_id and artifact_run.get("head_sha") == control_sha, "Actions artifact workflow binding mismatch")
 
+    workflow_path = Path(workflow_path)
+    workflow_sha, _ = _validate_workflow_source(workflow_path)
+
     capability, capability_raw = _read_json(Path(capability_gates_path), "capability gate state")
     _require(capability.get("contract_version") == CAPABILITY_CONTRACT, "capability gate contract mismatch")
     gates = capability.get("gates")
@@ -364,9 +456,10 @@ def build_publication_evidence(
     owner_grant_ref = gate.get("owner_grant_ref")
     _require(isinstance(owner_grant_ref, str) and owner_grant_ref.strip(), "docker_registry_publish Owner grant reference is missing")
     _require(gate.get("paid_provider") is False, "docker_registry_publish must remain zero-card")
-    _require(gate.get("live_verified") is False, "docker_registry_publish live_verified must remain verifier-owned before collection")
-
-    workflow_sha, _ = _validate_workflow_source(Path(workflow_path))
+    live_verified = gate.get("live_verified")
+    _require(type(live_verified) is bool, "docker_registry_publish live_verified must be boolean")
+    if live_verified:
+        _validate_existing_registry_promotion(gate, workflow_path)
     publication = {
         "contract_version": REVIEW_CONTRACT,
         "status": "verified",
