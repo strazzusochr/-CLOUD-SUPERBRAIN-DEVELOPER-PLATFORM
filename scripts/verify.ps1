@@ -173,6 +173,11 @@ function Get-InvocationArgs([hashtable]$DeclaredParameters, [string[]]$DefaultSw
       $arguments[$key] = $true
     }
   }
+  foreach ($key in $DefaultSwitches) {
+    if ($DeclaredParameters.ContainsKey($key)) {
+      $arguments[$key] = $true
+    }
+  }
 
   foreach ($key in $ParameterOverrides.Keys) {
     if ($DeclaredParameters.ContainsKey($key)) {
