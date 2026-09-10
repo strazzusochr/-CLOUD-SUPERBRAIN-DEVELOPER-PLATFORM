@@ -2,6 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const { filteredRouteConsoleErrors } = require("./verify-workspace-pages-browser.cjs");
 
+/** Lower bound this contract was qualified against; the registry may grow, never shrink. */
+const MIN_REGISTERED_SURFACES = 22;
+
 function parseArgs(argv) {
   const args = { allowLocalhost: false };
   for (let index = 2; index < argv.length; index += 1) {
@@ -265,7 +268,21 @@ async function main() {
     const wiring = await wiringResponse.json();
     const surfaces = normalizeSurfaces(wiring);
     assert(wiring.contract_version === "workspace-surface-wiring-v1", "Workspace wiring version mismatch");
-    assert(surfaces.length === 22, `Expected 22 routes, got ${surfaces.length}`);
+    // Regression guard, not a freeze: the registry must never silently shrink below the
+    // 22 surfaces this contract was qualified against, but registering an additional
+    // surface must not fail the proof - every registered surface is swept either way.
+    assert(
+      surfaces.length >= MIN_REGISTERED_SURFACES,
+      `Workspace wiring shrank: expected at least ${MIN_REGISTERED_SURFACES} routes, got ${surfaces.length}`
+    );
+    const duplicateRoutes = surfaces
+      .map((surface) => surface.route)
+      .filter((route, index, all) => all.indexOf(route) !== index);
+    assert(duplicateRoutes.length === 0, `Workspace wiring has duplicate routes: ${duplicateRoutes.join(", ")}`);
+    assert(
+      surfaces.every((surface) => surface.route.startsWith("/")),
+      "Workspace wiring contains a surface without an absolute route"
+    );
     await request.close();
 
     const profiles = [
@@ -300,7 +317,9 @@ async function main() {
       generated_at: new Date().toISOString(),
     };
     fs.writeFileSync(path.join(artifactDir, "report.json"), `${JSON.stringify(proof, null, 2)}\n`, "utf8");
-    console.log(`[responsive-22] routes=${surfaces.length} viewports=${profiles.length} clicks=44`);
+    console.log(
+      `[responsive-22] routes=${surfaces.length} viewports=${profiles.length} clicks=${surfaces.length * profiles.length}`
+    );
     console.log(`[responsive-22] report=${path.relative(repoRoot, path.join(artifactDir, "report.json"))}`);
     console.log("[responsive-22] checks completed");
   } finally {
