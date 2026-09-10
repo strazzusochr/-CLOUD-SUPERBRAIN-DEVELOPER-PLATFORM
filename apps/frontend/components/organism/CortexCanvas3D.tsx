@@ -1132,10 +1132,12 @@ function Scene({
         onToggleAutoRotate={onToggleAutoRotate}
         onApplied={onCameraApplied}
       />
-      <EffectComposer>
-        <Bloom intensity={lighting.bloom * exposure} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
-        <Vignette eskil={false} offset={0.25} darkness={0.85} />
-      </EffectComposer>
+      {pbr ? (
+        <EffectComposer>
+          <Bloom intensity={lighting.bloom * exposure} luminanceThreshold={0.18} luminanceSmoothing={0.6} mipmapBlur radius={0.75} />
+          <Vignette eskil={false} offset={0.25} darkness={0.85} />
+        </EffectComposer>
+      ) : null}
     </>
   );
 }
@@ -1264,14 +1266,14 @@ export default function CortexCanvas3D({
         camera={{ position: CAMERA_PRESETS[cameraPreset].position, fov: boundedFov }}
         dpr={[1, 1.5]}
         frameloop="demand"
-        gl={{ antialias: true, alpha: false, powerPreference: "low-power" }}
+        gl={{ antialias: pbr, alpha: false, powerPreference: pbr ? "high-performance" : "low-power" }}
         className="cortex3d-canvas"
         onCreated={onReady}
       >
         <FrameThrottle active={renderActive} />
         <Scene
           runState={runState}
-          nodeCount={nodeCount}
+          nodeCount={pbr ? nodeCount : Math.min(nodeCount, 700)}
           active={activeRegion}
           onSelect={onSelectRegion}
           interactive={interactive}

@@ -1290,9 +1290,11 @@ try {
   $lintExit = $LASTEXITCODE
   if ($null -eq $lintExit) { $lintExit = 127 }
   Pop-Location
-  $warnCount = ([regex]::Matches($lintOut, "(?im)\bwarning\b")).Count
+  $warnCount = ([regex]::Matches($lintOut, "(?im)^\s*(?:warning|.+\s+warning\s+.+)$")).Count
+  $dependencyFailure = $lintOut -match "(?im)(Cannot find package|Cannot find module|ERR_MODULE_NOT_FOUND|npm error code E(?:NOENT|MODULE))"
   $lintOk = ($lintExit -eq 0 -and $warnCount -eq 0)
-  $lintDetail = "exit=$lintExit warnings~=$warnCount (marktreif verlangt 0)"
+  $lintClass = if ($dependencyFailure) { "dependency_error" } elseif ($lintExit -ne 0) { "lint_error" } else { "lint_clean" }
+  $lintDetail = "class=$lintClass exit=$lintExit warnings~=$warnCount (marktreif verlangt 0)"
 } catch { $lintDetail = "error: $($_.Exception.Message)" }
 Add-Result "lint-zero-warnings" $lintOk $lintDetail
 

@@ -75,6 +75,14 @@ $expectedPages = @(
   @{ id = "open-source"; no = 22; route = "/open-source"; layer = "FE" }
 )
 
+$expectedSupplementalPages = @(
+  @{ id = "landing"; no = 23; route = "/"; layer = "FE" },
+  @{ id = "organism-live"; no = 24; route = "/organism/live"; layer = "FE" },
+  @{ id = "responsive"; no = 25; route = "/responsive"; layer = "FE" },
+  @{ id = "run-detail"; no = 26; route = "/run/[id]"; layer = "OBS" }
+)
+$expectedWiringPages = @($expectedPages) + @($expectedSupplementalPages)
+
 $layerMap = @{
   FE = "1 Frontend"
   ORC = "2 Orchestration"
@@ -127,12 +135,12 @@ for ($i = 0; $i -lt $expectedPages.Count; $i++) {
 }
 
 $wiringMatches = [regex]::Matches($wiring, 'pageId:\s*"(?<id>[^"]+)"')
-Assert-Equal "workspace wiring count" $wiringMatches.Count 22
+Assert-Equal "workspace wiring count" $wiringMatches.Count $expectedWiringPages.Count
 
 $allowedRegions = @("prefrontal", "thalamus", "hippocampus", "amygdala", "basal", "cerebellum", "motor", "sensory", "autonomic", "callosum")
 $allowedHubs = @("workbench", "agents", "tools", "models", "marketplace", "observe", "memory", "cloud")
 $seenWiringIds = New-Object "System.Collections.Generic.HashSet[string]"
-foreach ($page in $expectedPages) {
+foreach ($page in $expectedWiringPages) {
   if (-not $seenWiringIds.Add($page.id)) {
     throw "Verification failed: duplicate expected wiring id '$($page.id)'."
   }
@@ -182,21 +190,21 @@ foreach ($page in $expectedPages) {
   }
 }
 
+foreach ($page in $expectedSupplementalPages) {
+  if ($page.route -eq "/") {
+    $relative = "page.tsx"
+  } else {
+    $relative = ($page.route.TrimStart("/") -replace "/", "\") + "\page.tsx"
+  }
+  $pagePath = Join-Path $appRoot $relative
+  if (-not (Test-Path -LiteralPath $pagePath)) {
+    throw "Verification failed: supplemental route '$($page.route)' missing page file '$relative'."
+  }
+  Assert-NotContains "workspace navigation supplemental route" $nav "route: `"$($page.route)`""
+}
+
 foreach ($legacyRoute in @("/about/stack", "/about/open-source", "/design-system/responsive")) {
   Assert-NotContains "workspace page registry" $nav "route: `"$legacyRoute`""
 }
 
-foreach ($supplementalRoute in @("/", "/organism/live", "/responsive")) {
-  if ($supplementalRoute -eq "/") {
-    $relative = "page.tsx"
-  } else {
-    $relative = ($supplementalRoute.TrimStart("/") -replace "/", "\") + "\page.tsx"
-  }
-  $pagePath = Join-Path $appRoot $relative
-  if (-not (Test-Path -LiteralPath $pagePath)) {
-    throw "Verification failed: supplemental route '$supplementalRoute' missing page file '$relative'."
-  }
-  Assert-NotContains "workspace page registry supplemental route" $nav "route: `"$supplementalRoute`""
-}
-
-Write-Host "[workspace-pages-layer-map] canonical 22 page registry verified"
+Write-Host "[workspace-pages-layer-map] canonical 22-page navigation and 26-route wiring verified"

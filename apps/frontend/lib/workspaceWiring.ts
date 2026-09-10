@@ -292,9 +292,64 @@ export const WORKSPACE_WIRING: WorkspaceSurfaceWiring[] = [
     writes: false,
     secretOutput: false,
   },
+  {
+    pageId: "landing",
+    brainRegion: "sensory",
+    hub: "workbench",
+    primaryMode: "navigate",
+    dataSources: ["WORKSPACE_PAGES", "/api/v1/project/progress"],
+    verifierRefs: [...commonVerifierRefs],
+    eventKinds: ["planning", "blocked"],
+    live: false,
+    writes: false,
+    secretOutput: false,
+  },
+  {
+    pageId: "organism-live",
+    brainRegion: "callosum",
+    hub: "workbench",
+    primaryMode: "inspect",
+    dataSources: ["/api/v1/organism/contract", "/api/v1/organism/live-state"],
+    verifierRefs: [...commonVerifierRefs, "apps/frontend/e2e/organism.spec.ts"],
+    eventKinds: ["executing", "llm_call", "tool_call", "verifying", "blocked"],
+    live: false,
+    writes: false,
+    secretOutput: false,
+  },
+  {
+    pageId: "responsive",
+    brainRegion: "sensory",
+    hub: "workbench",
+    primaryMode: "verify",
+    dataSources: ["apps/frontend/app/styles.css", "WORKSPACE_PAGES"],
+    verifierRefs: [...commonVerifierRefs],
+    eventKinds: ["verifying", "blocked"],
+    live: false,
+    writes: false,
+    secretOutput: false,
+  },
+  {
+    pageId: "run-detail",
+    brainRegion: "hippocampus",
+    hub: "observe",
+    primaryMode: "inspect",
+    dataSources: ["/api/v1/build/{id}", "/api/v1/audit/recent"],
+    verifierRefs: [...commonVerifierRefs, "scripts/verify-product-acceptance.ps1"],
+    eventKinds: ["executing", "verifying", "blocked"],
+    live: false,
+    writes: false,
+    secretOutput: false,
+  },
 ];
 
-const pageById = new Map(WORKSPACE_PAGES.map((page) => [page.id, page]));
+const supplementalPages: NavItem[] = [
+  { id: "landing", no: 23, label: "Landing", route: "/", icon: "home", layer: "FE" },
+  { id: "organism-live", no: 24, label: "Organismus / Live", route: "/organism/live", icon: "organism", layer: "FE" },
+  { id: "responsive", no: 25, label: "Responsive", route: "/responsive", icon: "design", layer: "FE" },
+  { id: "run-detail", no: 26, label: "Build-Ergebnis", route: "/run/[id]", icon: "evidence", layer: "OBS" },
+];
+
+const pageById = new Map([...WORKSPACE_PAGES, ...supplementalPages].map((page) => [page.id, page]));
 const regionIds = new Set(REGIONS.map((region) => region.id));
 const hubIds = new Set(HUBS.map((hub) => hub.id));
 

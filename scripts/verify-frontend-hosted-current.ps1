@@ -316,7 +316,7 @@ try {
 
   Assert-True (Test-Path -LiteralPath $proofPath) "Hosted frontend proof report missing: $proofPath"
   $proof = ConvertFrom-JsonPreservingDates (Get-Content -LiteralPath $proofPath -Raw)
-  Assert-Equal ([string]$proof.contract_version) "frontend-22-page-responsive-browser-v1" "proof contract"
+  Assert-Equal ([string]$proof.contract_version) "frontend-workspace-responsive-browser-v2" "proof contract"
   Assert-Equal ([string]$proof.status) "verified" "proof status"
   Assert-Equal ([string]$proof.scope) "hosted_https" "proof scope"
   Assert-Equal ([string]$proof.base_url) $browserBaseUrl "proof URL"
@@ -324,9 +324,9 @@ try {
   Assert-True ([string]$proof.browser_version -match '^\d+\.\d+\.\d+\.\d+$') "Proof browser version is invalid"
   Assert-True (-not [string]::IsNullOrWhiteSpace([string]$config.browser_version)) "Configured browser version is missing"
   Assert-Equal ([string]$proof.browser_version) ([string]$config.browser_version) "configured/report browser version"
-  Assert-Equal ([int]$proof.page_count) 22 "proof page count"
+  Assert-Equal ([int]$proof.page_count) 26 "proof page count"
   Assert-Equal ([int]$proof.viewport_count) 2 "proof viewport count"
-  Assert-Equal ([int]$proof.click_navigation_count) 44 "proof click count"
+  Assert-Equal ([int]$proof.click_navigation_count) 52 "proof click count"
   Assert-Equal ([int]$proof.overflow_failures) 0 "proof overflow failures"
   Assert-Equal ([int]$proof.overlay_collision_failures) 0 "proof overlay collision failures"
   Assert-Equal ([int]$proof.console_errors) 0 "proof console errors"

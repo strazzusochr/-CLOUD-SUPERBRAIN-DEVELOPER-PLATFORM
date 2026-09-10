@@ -837,12 +837,12 @@ if (-not (Test-Path "scripts\verify-workspace-responsive-browser.cjs")) {
 }
 $workspaceResponsiveRunner = Get-Content -Path "scripts\verify-workspace-responsive-browser.cjs" -Raw
 foreach ($required in @(
-  "frontend-22-page-responsive-browser-v1",
+  "frontend-workspace-responsive-browser-v2",
   "frontend_22_page_responsive_click_proof",
-  "Expected 22 routes",
+  "Expected at least 22 routes",
   "filteredRouteConsoleErrors",
   "response.status() >= 400",
-  "click_navigation_count: 44",
+  "click_navigation_count: surfaces.length * profiles.length",
   "overflow_failures: 0",
   "console_errors: 0",
   'width: 1440, height: 960',

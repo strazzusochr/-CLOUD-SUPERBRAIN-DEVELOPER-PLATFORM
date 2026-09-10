@@ -51,7 +51,7 @@ export function GET() {
     policy_checks: [
       "No secret values are returned by this endpoint.",
       "Hubs map onto the seven architecture layers and four agent profiles.",
-      "All 22 workspace pages map onto layer, brain-region, hub, data-source, and verifier references.",
+      "All 26 application routes map onto layer, brain-region, hub, data-source, and verifier references.",
       "Topology edges must reference existing layer, region, hub, agent, tool, model, skill, provider, and gate nodes.",
       "Reduced-motion clients render a static 2D topology with the same contract.",
     ],
