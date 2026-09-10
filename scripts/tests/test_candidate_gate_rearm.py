@@ -34,7 +34,8 @@ def run(cmd: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedPr
 
 
 def normalized_terminal_text(value: str) -> str:
-    return " ".join(ANSI_ESCAPE.sub("", value).split())
+    # PowerShell inserts diagnostic gutter pipes when it wraps errors on Linux.
+    return " ".join(ANSI_ESCAPE.sub("", value).replace("|", " ").split())
 
 
 def git(cwd: Path, *args: str) -> str:
