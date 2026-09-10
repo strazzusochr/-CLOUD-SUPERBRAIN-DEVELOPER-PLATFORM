@@ -69,7 +69,14 @@ function Resolve-RepoScopedFile([string]$RelativePath) {
     if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
       return $null
     }
-    return $resolved
+    $item = Get-Item -LiteralPath $resolved -Force
+    $cursor = $item
+    while ($null -ne $cursor) {
+      if (($cursor.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $null }
+      if ($cursor.FullName.TrimEnd('\', '/') -eq $repoPrefix.TrimEnd('\', '/')) { break }
+      $cursor = Get-Item -LiteralPath (Split-Path -Parent $cursor.FullName) -Force -ErrorAction Stop
+    }
+    return $item.FullName
   } catch {
     return $null
   }
@@ -137,16 +144,17 @@ function Test-TrackedCleanRepoFile([string]$RelativePath) {
   $resolved = Resolve-RepoScopedFile $RelativePath
   if (-not $resolved) { return $false }
   $normalized = $RelativePath.Replace('\', '/')
-  & git.exe -C $repoRoot ls-files --error-unmatch -- $normalized 2>$null | Out-Null
+  & git -C $repoRoot ls-files --error-unmatch -- $normalized 2>$null | Out-Null
   if ($LASTEXITCODE -ne 0) { return $false }
-  & git.exe -C $repoRoot diff --quiet HEAD -- $normalized
+  & git -C $repoRoot diff --quiet HEAD -- $normalized
   return ($LASTEXITCODE -eq 0)
 }
 
 function Get-ReadyGateEvidenceValidation(
   [object]$Gate,
   [string]$GateId,
-  [string]$ExpectedCandidateSha
+  [string]$ExpectedCandidateSha,
+  [string]$ExpectedReleaseId
 ) {
   $failures = New-Object System.Collections.Generic.List[string]
   if ($null -eq $Gate) {
@@ -186,7 +194,17 @@ function Get-ReadyGateEvidenceValidation(
   }
   if ([string]::IsNullOrWhiteSpace([string]$evidence.contract_version)) { $failures.Add("contract_version") }
   $evidenceVerified = ([string]$evidence.status -eq "verified" -or [string]$evidence.result -eq "verified")
-  if (-not $evidenceVerified) { $failures.Add("evidence_status") }
+  if ($GateId -eq "phase6_scale_runtime") {
+    # Phase-6 keeps the immutable runner payload provisional by design.  Its
+    # independently downloaded GitHub readback is validated below by the
+    # dedicated verifier; mutating the original payload to "verified" would
+    # destroy the byte-for-byte artifact binding.
+    if ([string]$evidence.result -ne "provisional_pending_github_readback") {
+      $failures.Add("phase6_provisional_status")
+    }
+  } elseif (-not $evidenceVerified) {
+    $failures.Add("evidence_status")
+  }
   if ($GateId -ne "phase6_scale_runtime") {
     $secretProperty = $evidence.PSObject.Properties["secret_output"]
     if ($null -eq $secretProperty -or -not (Test-JsonBool $secretProperty.Value $false)) { $failures.Add("secret_output") }
@@ -231,75 +249,59 @@ function Get-ReadyGateEvidenceValidation(
       if ([string]::IsNullOrWhiteSpace([string]$evidence.source_binding.deployment_id)) { $failures.Add("auth_deployment_id") }
     }
     "docker_registry_publish" {
-      if ([string]$evidence.contract_version -ne "ghcr-release-manifest-v1") { $failures.Add("ghcr_contract") }
-      if ([string]$evidence.candidate_sha -ne $ExpectedCandidateSha) { $failures.Add("ghcr_candidate") }
-      if ([string]$evidence.registry -ne "ghcr.io") { $failures.Add("ghcr_registry") }
-      if ([int]$evidence.service_count -ne 6 -or [int]$evidence.unique_top_digest_count -ne 6 -or @($evidence.images).Count -ne 6) {
-        $failures.Add("ghcr_six_services")
+      # The gate promoter deliberately binds the aggregate L5 evidence, not the
+      # nested GHCR manifest.  The aggregate verifier replays all five child
+      # hashes and deeply validates the six-image/twelve-platform manifest,
+      # SBOM, remote scan, and protected-review receipt.
+      $registryVerifierRelative = "scripts/verify_layer5_registry_release_evidence.py"
+      $registryControlSha = [string]$evidence.control_commit_sha
+      if ([string]$evidence.contract_version -ne "layer5-registry-release-credit-evidence-v1") { $failures.Add("ghcr_aggregate_contract") }
+      if ([string]$evidence.release_id -ne $ExpectedReleaseId) { $failures.Add("ghcr_release") }
+      if ([string]$evidence.source_commit_sha -ne $ExpectedCandidateSha) { $failures.Add("ghcr_candidate") }
+      if ($registryControlSha -notmatch '^[0-9a-f]{40}$') {
+        $failures.Add("ghcr_control_sha")
+      } else {
+        & git -C $repoRoot merge-base --is-ancestor $ExpectedCandidateSha $registryControlSha 2>$null
+        if ($LASTEXITCODE -ne 0) { $failures.Add("ghcr_control_not_descendant") }
+        & git -C $repoRoot merge-base --is-ancestor $registryControlSha HEAD 2>$null
+        if ($LASTEXITCODE -ne 0) { $failures.Add("ghcr_control_not_ancestor") }
       }
-      if (@($evidence.required_platforms).Count -ne 2 -or
-          @($evidence.required_platforms) -notcontains "linux/amd64" -or
-          @($evidence.required_platforms) -notcontains "linux/arm64") {
-        $failures.Add("ghcr_platforms")
-      }
-      foreach ($field in @("inspection_read_only", "selected_tag_is_exact_candidate_sha", "publication_complete")) {
-        $property = $evidence.PSObject.Properties[$field]
-        if ($null -eq $property -or -not (Test-JsonBool $property.Value $true)) { $failures.Add("ghcr_$field") }
-      }
-      if (-not (Test-JsonBool $evidence.mutable_tag_fallback_used $false) -or
-          -not (Test-JsonBool $evidence.registry_delete_performed $false)) {
-        $failures.Add("ghcr_mutation_boundary")
-      }
-      if ([string]$evidence.workflow.candidate_sha -ne $ExpectedCandidateSha -or
-          [string]::IsNullOrWhiteSpace([string]$evidence.workflow.run_url)) {
-        $failures.Add("ghcr_workflow_binding")
-      }
-      $ghcrTempParent = [IO.Path]::GetFullPath('D:\_sb_tmp').TrimEnd('\', '/')
-      $ghcrTempRoot = Join-Path $ghcrTempParent ("market-ready-ghcr-" + [Guid]::NewGuid().ToString('N'))
-      $ghcrTempOutput = Join-Path $ghcrTempRoot 'read-only-registry-revalidation.json'
-      $ghcrCleanupOk = $true
-      try {
-        New-Item -ItemType Directory -Path $ghcrTempRoot -Force | Out-Null
-        $ghcrOutput = @(& py -3 (Join-Path $repoRoot 'scripts\verify_ghcr_candidate.py') `
-          --source-manifest $evidencePath `
-          --candidate-sha $ExpectedCandidateSha `
-          --active-candidate-sha $ExpectedCandidateSha `
-          --output $ghcrTempOutput 2>&1)
-        $ghcrExit = $LASTEXITCODE
-        if ($null -eq $ghcrExit) { $ghcrExit = 127 }
-        if ($ghcrExit -ne 0 -or -not (Test-Path -LiteralPath $ghcrTempOutput -PathType Leaf)) {
-          $failures.Add("ghcr_deep_read_only_verifier")
-        } else {
-          try {
-            $ghcrReadback = Get-Content -LiteralPath $ghcrTempOutput -Raw | ConvertFrom-Json -Depth 30
-            if ([string]$ghcrReadback.contract_version -ne 'ghcr-release-manifest-v1' -or
-                [string]$ghcrReadback.status -ne 'verified' -or
-                [string]$ghcrReadback.candidate_sha -ne $ExpectedCandidateSha -or
-                -not (Test-JsonBool $ghcrReadback.registry_readback.source_manifest_bound $true) -or
-                -not (Test-JsonBool $ghcrReadback.registry_readback.digest_readback_matches_publication $true) -or
-                -not (Test-JsonBool $ghcrReadback.inspection_read_only $true) -or
-                -not (Test-JsonBool $ghcrReadback.registry_write_performed $false) -or
-                -not (Test-JsonBool $ghcrReadback.registry_delete_performed $false) -or
-                -not (Test-JsonBool $ghcrReadback.secret_output $false)) {
-              $failures.Add("ghcr_deep_readback_contract")
-            }
-          } catch {
-            $failures.Add("ghcr_deep_readback_json")
-          }
-        }
-      } finally {
-        $resolvedGhcrTempRoot = [IO.Path]::GetFullPath($ghcrTempRoot)
-        if (-not $resolvedGhcrTempRoot.StartsWith($ghcrTempParent + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-          $ghcrCleanupOk = $false
-        } elseif (Test-Path -LiteralPath $resolvedGhcrTempRoot) {
-          try { Remove-Item -LiteralPath $resolvedGhcrTempRoot -Recurse -Force -ErrorAction Stop } catch { $ghcrCleanupOk = $false }
+      $registryVerifierPath = Resolve-RepoScopedFile $registryVerifierRelative
+      if ([string]$Gate.provider -ne "ghcr" -or
+          [string]$Gate.verifier -ne $registryVerifierRelative -or
+          -not $registryVerifierPath -or
+          -not (Test-TrackedCleanRepoFile $registryVerifierRelative)) {
+        $failures.Add("ghcr_dedicated_non_mutating_verifier_unavailable")
+      } else {
+        $registryOutput = @(& py -3 $registryVerifierPath `
+          --evidence $relativeEvidence `
+          --expected-release-id $ExpectedReleaseId `
+          --expected-source-sha $ExpectedCandidateSha `
+          --expected-control-sha $registryControlSha `
+          --validate-only 2>&1)
+        $registryExit = $LASTEXITCODE
+        if ($null -eq $registryExit) { $registryExit = 127 }
+        if ($registryExit -ne 0 -or ($registryOutput -join "`n") -notmatch '\[layer5-registry-release-evidence\] PASS') {
+          $failures.Add("ghcr_dedicated_non_mutating_verifier_failed")
         }
       }
-      if (-not $ghcrCleanupOk) { $failures.Add("ghcr_verifier_temp_cleanup") }
     }
     "phase6_scale_runtime" {
       if ([string]$evidence.contract_version -ne "phase6-scale-evidence-v2") { $failures.Add("phase6_contract") }
-      if ([string]$evidence.source_binding.repository_head_sha -ne $ExpectedCandidateSha) { $failures.Add("phase6_candidate") }
+      if ([string]$evidence.source_binding.source_commit_sha -ne $ExpectedCandidateSha) { $failures.Add("phase6_candidate") }
+      if ([string]$evidence.source_binding.release_candidate.active_release_id -ne $ExpectedReleaseId -or
+          [string]$evidence.source_binding.release_candidate.source_commit_sha -ne $ExpectedCandidateSha) {
+        $failures.Add("phase6_release_binding")
+      }
+      $phase6ControlSha = [string]$evidence.source_binding.repository_head_sha
+      if ($phase6ControlSha -notmatch '^[0-9a-f]{40}$') {
+        $failures.Add("phase6_control_sha")
+      } else {
+        & git -C $repoRoot merge-base --is-ancestor $ExpectedCandidateSha $phase6ControlSha 2>$null
+        if ($LASTEXITCODE -ne 0) { $failures.Add("phase6_control_not_descendant") }
+        & git -C $repoRoot merge-base --is-ancestor $phase6ControlSha HEAD 2>$null
+        if ($LASTEXITCODE -ne 0) { $failures.Add("phase6_control_not_ancestor") }
+      }
       if (-not (Test-JsonBool $evidence.source_binding.owner_granted $true) -or
           [string]$evidence.source_binding.owner_grant_ref -ne [string]$Gate.owner_grant_ref) {
         $failures.Add("phase6_owner_binding")
@@ -317,10 +319,14 @@ function Get-ReadyGateEvidenceValidation(
           [int]$evidence.percentage_credit_awarded -ne 0) {
         $failures.Add("phase6_non_claim")
       }
-      if ([string]$Gate.verifier -ne "scripts/verify-phase6-scale-evidence.ps1") {
+      $phase6VerifierRelative = "scripts/verify-phase6-scale-evidence.ps1"
+      $phase6VerifierPath = Resolve-RepoScopedFile $phase6VerifierRelative
+      if ([string]$Gate.provider -ne "cloudflare-workers-d1-zero-card" -or
+          [string]$Gate.verifier -ne $phase6VerifierRelative -or
+          -not $phase6VerifierPath -or
+          -not (Test-TrackedCleanRepoFile $phase6VerifierRelative)) {
         $failures.Add("phase6_verifier_identity")
       } else {
-        $phase6VerifierPath = Join-Path $repoRoot "scripts\verify-phase6-scale-evidence.ps1"
         $phase6Output = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $phase6VerifierPath `
           -EvidencePath $relativeEvidence `
           -ValidateOnly 2>&1)
@@ -404,9 +410,9 @@ try {
   $candidateReadinessPath = Resolve-RepoScopedFile $candidateReadinessRelativePath
   if (-not $candidateReadinessPath) { throw "missing candidate readiness artifact" }
   $candidateReadiness = Get-Content -LiteralPath $candidateReadinessPath -Raw | ConvertFrom-Json
-  & git.exe -C $repoRoot cat-file -e "$candidateSha^{commit}" 2>$null
+  & git -C $repoRoot cat-file -e "$candidateSha^{commit}" 2>$null
   $candidateCommitExists = ($LASTEXITCODE -eq 0)
-  & git.exe -C $repoRoot merge-base --is-ancestor $candidateSha HEAD
+  & git -C $repoRoot merge-base --is-ancestor $candidateSha HEAD
   $candidateIsAncestor = ($LASTEXITCODE -eq 0)
   $candidateStateOk = (
     [string]$currentCandidate.active_release_id -eq $activeReleaseId -and
@@ -485,6 +491,7 @@ $o6ResolvedOk = $false
 $truthMode = "invalid"
 $readyGateChecks = @()
 $readyTruthFilesClean = $false
+$readyTrackedWorktreeClean = $false
 $externalReadyOk = $false
 try {
   if (Test-Path $ownerInputPath) {
@@ -1084,9 +1091,9 @@ if ($null -ne $ownerInput -and
   )
 
   $readyGateChecks = @(
-    Get-ReadyGateEvidenceValidation $capabilityState.gates.production_auth_identity "production_auth_identity" $candidateSha
-    Get-ReadyGateEvidenceValidation $capabilityState.gates.docker_registry_publish "docker_registry_publish" $candidateSha
-    Get-ReadyGateEvidenceValidation $capabilityState.gates.phase6_scale_runtime "phase6_scale_runtime" $candidateSha
+    Get-ReadyGateEvidenceValidation $capabilityState.gates.production_auth_identity "production_auth_identity" $candidateSha $activeReleaseId
+    Get-ReadyGateEvidenceValidation $capabilityState.gates.docker_registry_publish "docker_registry_publish" $candidateSha $activeReleaseId
+    Get-ReadyGateEvidenceValidation $capabilityState.gates.phase6_scale_runtime "phase6_scale_runtime" $candidateSha $activeReleaseId
   )
   $readyGatesOk = (@($readyGateChecks | Where-Object { -not $_.ok }).Count -eq 0)
 
@@ -1123,7 +1130,7 @@ if ($null -ne $ownerInput -and
       Where-Object { -not (Test-TrackedCleanRepoFile ([string]$_)) }
   )
   $readyTruthFilesClean = ($dirtyReadyTruthPaths.Count -eq 0)
-  $readyTrackedWorktreeState = @(& git.exe -C $repoRoot status --porcelain=v1 --untracked-files=no)
+  $readyTrackedWorktreeState = @(& git -C $repoRoot status --porcelain=v1 --untracked-files=no)
   $readyTrackedWorktreeClean = ($LASTEXITCODE -eq 0 -and $readyTrackedWorktreeState.Count -eq 0)
 
   $readySourceMatches = (

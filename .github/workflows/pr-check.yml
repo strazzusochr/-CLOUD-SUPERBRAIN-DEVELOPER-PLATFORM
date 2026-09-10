@@ -507,6 +507,7 @@ jobs:
             scripts.tests.test_layer4_hosted_llm_current_evidence \
             scripts.tests.test_layer5_registry_release_evidence \
             scripts.tests.test_registry_gate_promoter \
+            scripts.tests.test_candidate_gate_rearm \
             scripts.tests.test_o4_effective_compose_guard \
             scripts.tests.test_i1_codespaces_candidate \
             scripts.tests.test_source_qualification_control \
