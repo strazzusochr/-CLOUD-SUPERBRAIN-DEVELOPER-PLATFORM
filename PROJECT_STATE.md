@@ -1,5 +1,89 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-10 — RC59/S12 NO-CREDIT-NEUQUALIFIKATION
+
+### Session 2026-09-10 — S12/Q12 lokal qualifiziert, I1/I5 bleiben geschlossen
+
+- **Aktiver Kandidat:** `prod-candidate-2026-09-10-local-rc59`, Source
+  `005ddb46f572520ac182c4f08cc177f07dfe1ae8`, direkter Q12-Kindcommit
+  `4e3029fc99b7370e78a26f2a5dfd6f14c917f647`. Source-CI-Run `34429494180`
+  ist erfolgreich und bindet Q12 als Run-Head sowie S12 als unveraenderliche
+  Source; failed=0 und skipped=0.
+- **Lokale Qualifikation:** Runtime, Browser, sechs lokale Kandidatenimages,
+  Candidate-Runtime und Security sind S12-gebunden. Die Browserkette pruefte
+  22/22 Seiten, 29/29 Funktionsfamilien und 161/161 Aktionen mit exakt drei
+  autorisierten Gateway-/Provideraufrufen. Der Cortex blieb als sichtbares
+  WebGL-Canvas stabil. Diese Beweise sind `DEV-ONLY`; echte OAuth-Consent-Klicks
+  und sechsfaches Hosted-Parity-Staging sind nicht behauptet.
+- **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
+  `700/700`, insgesamt `1333/1400` belegt und `67` offen. I1 und I5 bleiben
+  blockiert; `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
+- **Hosted-Blocker nachgemessen:** Der kanonische Frontend-Alias zeigt noch auf
+  Deployment `dpl_EPvGNiv1mseuHVJ5m2xtkZhMeLvf` aus Commit `d76cb75`, also vor
+  dem in PR #97 integrierten GitHub-Issuer-Guard-Fix. Der echte OAuth-Callback
+  wurde deshalb vom Frontend-Redirect-Guard abgewiesen; `credentials_issued=false`.
+  Der Default-Current-Candidate-Read bleibt zusaetzlich am kanonischen Backend-
+  Health mit HTTP 404 blockiert. Beides vergibt keinen Credit.
+- **Naechster Pfad:** RC59 atomar als No-Credit-Neuqualifikation verifizieren;
+  danach den Frontend-Alias nur nach separater Owner-Freigabe auf S12 bringen
+  und ausschliesslich frische, S12-gebundene Hosted-Beweise fuer I1 und I5.
+  Keine Production-Promotion oder Secret-Ausgabe. Exakte Fortsetzung:
+  `AI_HANDOFF.md`.
+
+## HISTORISCHER CONTROL-CHECKPOINT 2026-09-09 — RC100 RC57/S10 FREEZE-KANDIDAT
+
+### Session 2026-09-09 — RC55/S9 qualifiziert, RC57/S10 geplant und UNQUALIFIED
+
+- **Fortsetzung:** Arbeitsverzeichnis `D:\_sb_tmp\rc100-cloud-hardening`, Branch
+  `codex/rc100-cloud-hardening`. RC55/S9 bleibt der letzte qualifizierte Kandidat:
+  `prod-candidate-2026-09-09-local-rc55`, Source
+  `f15ad6e336318860a9e3f89b04388d120a7bc9b4`. Der Hardening-Nachfolger soll als
+  RC57/S10 qualifiziert werden und ist `UNQUALIFIED`. Dieser Baum ist der
+  Produkt-Freeze-Kandidat; seine unveraenderliche S10-SHA ist der Commit, der
+  diesen Checkpoint enthaelt, und bleibt bis zum direkten Q10-Kind unqualifiziert.
+  Die folgenden aelteren Checkpoints bleiben historische Belege.
+- **PR #99 und Recovery abgeschlossen:** Merge
+  `3edde4ecf62ac5644e0c459a972688e22558b930`; Recovery-Run `34383219636`
+  bestand mit einem Job und zehn Schritten, failed=0/skipped=0. Die 18 originalen
+  Registry-Beweisdateien sind unter dem RC55-Release unveraendert erhalten.
+  Der urspruengliche Publish-Run `34369195520` bleibt wegen seines fehlgeschlagenen
+  Collectors rot; seine sechs Publikationen und zwoelf Plattformscans sind belegt.
+- **Paket-Sichtbarkeit live gelesen:** GitHub zeigte fuer dieses Repository sechs
+  oeffentliche und null private Servicepakete; `agent-api` zeigte den S9-Tag
+  `f15ad6e...` als `Public` und `Latest`. Ein unabhaengiger anonymer Registry-Read
+  bestaetigte fuer alle sechs S9-Tags HTTP 200. Das widerspricht der gebundenen
+  Private-Publication-Freigabe und blockiert I1 sowie jede weitere Publikation,
+  bis alle sechs Pakete Owner-seitig auf `private` zurueckgestellt und erneut
+  read-only geprueft sind. Es wurde noch keine Sichtbarkeit geaendert.
+- **Cloud-Abweichungen offen:** Alle drei Cloudflare-Worker laufen noch auf S3
+  `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`. Das Vercel-Frontend ist auf
+  `d76cb75d2a8dfffbc73217b8985305d868a2245a`, Deployment
+  `EPvGNiv1mseuHVJ5m2xtkZhMeLvf`, gebunden und sein Health liefert 200.
+  Das Backend steht auf `9c508aa`; sein kanonischer Health liefert 404.
+  Derselbe Frontend-Snapshot meldet `0/8` konfigurierte/live-verifizierte Anbieter,
+  aber `3/7` live-verifizierte Schichten; diese Projektionen widersprechen sich.
+- **Tarife und Verbrauch live gelesen:** Cloudflare Workers `Free`, Vercel `Hobby`.
+  Vercel zeigt fuer die letzten 30 Tage 1.900.285 Edge Requests / 1.000.000,
+  1.889.584 Function Invocations / 1.000.000 und 5h32m aktive CPU / 4h.
+  Dies ist ein rollierender Kontoverbrauch, kein belegter Rechnungsbetrag oder
+  Nachweis einer aktuellen Sperre. Kein Upgrade oder Budget-Credit vorgenommen.
+- **Implementiert und lokal getestet, nicht deployed:** Strikte getrennte
+  Vectorize-Namespaces fuer Production/Preview: 74 Worker- und 24 Config-Tests
+  PASS. Optionale Hugging Face-/GitLab-Anbindungen blockieren Readiness nicht mehr:
+  sieben Tests PASS. Frontend-Build und Lint PASS; finaler Market-ready-Unitlauf:
+  157 Python- und 13 Node-Tests PASS, keine ausgelassenen Tests.
+- **Fortschritt unveraendert:** Overall `90%`; P0-P6
+  `100/100/100/44/100/89/100`, sieben vertikale Layer jeweils `100`;
+  H `633/700`, V `700/700`, gesamt `1333/1400`, `67` offen, Delta `0`.
+  I1/I5 bleiben blockiert, `MARKET_READY:false`, `no-release`.
+- **Naechster sicherer Schritt:** Diesen vollstaendig geprueften S10-Baum committen,
+  direkten Q10-Kindcommit mit RC57 binden und Source-CI sowie fuenf neue
+  Qualifikationsketten pruefen. Vor Live-/O4-Schritten die konkrete aktuelle
+  Freigabe pruefen; vor jeder spaeteren Publikation oder I1 alle sechs GHCR-Pakete
+  auf `private` zurueckstellen. Verbrauchte S9-Freigaben gelten nicht fuer S10. DEV-ONLY;
+  hosted proof still blocked. Kein Deploy, Gate-Rebind oder neuer Credit aus
+  diesem Dokumentationscheckpoint. Exakte Fortsetzung: `AI_HANDOFF.md`.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC55/S9 NO-CREDIT-NEUQUALIFIKATION
 
 ### Session 2026-09-09 — S9/Q9 qualifiziert, I1/I5 bleiben geschlossen

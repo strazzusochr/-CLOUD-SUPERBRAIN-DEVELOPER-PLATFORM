@@ -337,6 +337,22 @@ test("live Box3 code replaces the nonexistent computeBoundingSphere method", () 
   assert.equal(ensureGeneratedHtmlBoundingSpheres(repaired), repaired, "Box3 repair must be idempotent");
 });
 
+test("live geometry bounds never invoke the Box3-only getBoundingSphere method on Sphere", () => {
+  const broken = DOC(`<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script><script>
+    const cubeGeometry = { boundingSphere: { radius: 1 } };
+    var cubeSphere = { copy(value) { this.radius = value.radius; return this; } };
+    cubeGeometry.boundingSphere.getBoundingSphere(cubeSphere);
+  </script>`);
+  const repaired = ensureGeneratedHtmlBoundingSpheres(broken);
+  assert.doesNotMatch(repaired, /cubeGeometry\.boundingSphere\.getBoundingSphere\(cubeSphere\)/);
+  assert.match(repaired, /cubeSphere\.copy\(cubeGeometry\.boundingSphere\)/);
+  const executable = repaired.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+  const runtime = {};
+  vm.runInNewContext(executable, runtime);
+  assert.equal(runtime.cubeSphere.radius, 1, "the generated collision sphere must receive the geometry sphere");
+  assert.equal(ensureGeneratedHtmlBoundingSpheres(repaired), repaired, "geometry-sphere repair must be idempotent");
+});
+
 test("the rejection reason names the offending URL so the boundary can report it", () => {
   const html = DOC('<script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>');
   const [reason] = findUnrunnableReferences(html);

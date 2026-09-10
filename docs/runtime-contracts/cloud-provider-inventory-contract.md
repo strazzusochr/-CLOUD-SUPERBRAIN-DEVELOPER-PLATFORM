@@ -36,6 +36,11 @@ The layer readiness endpoint projects the same provider inventory into all seven
 | `layer_6` Memory | Cloudflare D1 bounded-text artifacts/persistence, Durable Object coordination, Queue dispatch, and separately gated Vectorize; R2 is historical-only | Cloudflare-native stateful runtime |
 | `layer_7` Observability / Evidence | Hosted proof, zero-card gate, audit gate visibility | Vercel, Cloudflare, GitHub Actions, Grafana Cloud |
 
+In `seven_layer_mapping`, `providers` lists the required providers for each layer.
+The additive `optional_providers` list contains `huggingface_identity` for Layer 4
+and `gitlab_identity` for Layer 5. All eight provider records remain in the inventory;
+their configuration, errors and live-read results are unchanged by this classification.
+
 ## Providers
 
 The local contract exposes eight provider slots:
@@ -71,14 +76,22 @@ Every provider record includes:
 - `required_providers`
 - `configured_providers`
 - `live_verified_providers`
+- `optional_providers`, `optional_configured_providers`, and `optional_live_verified_providers`
+- `optional_blockers` (diagnostic warnings that do not block required readiness)
 - `blockers`
 - `next_safe_action`
 
 Layer statuses are fail-closed:
 
 - `live_verified` only when all required provider reads for the layer are live-verified.
-- `partial_live_verified` when at least one provider is live-verified but the layer is not complete.
+- `partial_live_verified` when at least one required provider is live-verified but the layer is not complete.
 - `action_required` when provider env gates or live reads are missing.
+
+`required_providers`, `configured_providers`, and `live_verified_providers` contain
+only required providers. An unavailable optional identity remains explicitly
+unverified in the inventory and optional diagnostics. A verified optional identity
+cannot satisfy or contribute to a required provider's readiness. A missing required
+inventory record produces a blocker rather than disappearing from the requirement count.
 
 No layer readiness status is a production deployment claim.
 

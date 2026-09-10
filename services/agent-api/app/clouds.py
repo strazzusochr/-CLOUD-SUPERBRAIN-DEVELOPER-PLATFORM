@@ -1395,13 +1395,15 @@ def cloud_provider_state() -> dict[str, object]:
         {
             "layer_id": "layer_4",
             "label": "LLM Gateway",
-            "providers": ["cloudflare_edge", "huggingface_identity"],
+            "providers": ["cloudflare_edge"],
+            "optional_providers": ["huggingface_identity"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
             "layer_id": "layer_5",
             "label": "MCP Gateway / Tools",
-            "providers": ["github_actions", "ghcr_registry", "gitlab_identity"],
+            "providers": ["github_actions", "ghcr_registry"],
+            "optional_providers": ["gitlab_identity"],
             "evidence_ref": CLOUD_PROVIDER_EVIDENCE_REF,
         },
         {
@@ -1490,7 +1492,9 @@ def cloud_layer_readiness_state() -> dict[str, object]:
         if not isinstance(mapping, dict):
             continue
         provider_ids = [str(item) for item in mapping.get("providers", [])]
-        mapped_providers = [providers_by_id[provider_id] for provider_id in provider_ids if provider_id in providers_by_id]
+        mapped_providers = [providers_by_id.get(provider_id, {"id": provider_id}) for provider_id in provider_ids]
+        optional_provider_ids = [str(item) for item in mapping.get("optional_providers", []) if str(item) not in provider_ids]
+        optional_providers = [providers_by_id.get(provider_id, {"id": provider_id}) for provider_id in optional_provider_ids]
         configured = [str(provider.get("id")) for provider in mapped_providers if provider.get("configured")]
         live_verified = [str(provider.get("id")) for provider in mapped_providers if provider.get("live_verified")]
         blockers: list[str] = []
@@ -1515,12 +1519,17 @@ def cloud_layer_readiness_state() -> dict[str, object]:
                 "required_providers": provider_ids,
                 "configured_providers": configured,
                 "live_verified_providers": live_verified,
+                "optional_providers": optional_provider_ids,
+                "optional_configured_providers": [str(provider.get("id")) for provider in optional_providers if provider.get("configured")],
+                "optional_live_verified_providers": [str(provider.get("id")) for provider in optional_providers if provider.get("live_verified")],
+                "optional_blockers": [blocker for provider in optional_providers for blocker in _provider_blockers(provider)],
                 "blockers": blockers,
                 "evidence_ref": CLOUD_LAYER_EVIDENCE_REF,
                 "next_safe_action": next_safe_action if blockers else "capture_evidence_and_keep_fail_closed_claims",
                 "non_claims": [
                     "Cloud readiness is not a production deployment claim.",
-                    "A layer is not live-verified until its provider read gates pass.",
+                    "A layer is not live-verified until its required provider read gates pass.",
+                    "Optional identity reads do not grant or block required provider readiness.",
                 ],
             }
         )

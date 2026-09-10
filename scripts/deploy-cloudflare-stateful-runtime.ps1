@@ -244,7 +244,22 @@ function Assert-ExactPropertyNames(
   Assert-True "$Label has exactly the approved fields" $namesAreExact
 }
 
+function Assert-MemoryVectorNamespaces([object]$Config) {
+  # Exact server-owned constants: never trim or accept a shared/default namespace.
+  foreach ($entry in @(
+    @{ Vars = $Config.vars; Expected = "superbrain-memory-production-v1"; Label = "production" },
+    @{ Vars = $Config.env.preview.vars; Expected = "superbrain-memory-preview-v1"; Label = "preview" }
+  )) {
+    $property = $entry.Vars.PSObject.Properties["MEMORY_VECTOR_NAMESPACE"]
+    Assert-True "$($entry.Label) semantic memory namespace is exact" (
+      $null -ne $property -and $property.Value -is [string] -and
+      $property.Value -ceq $entry.Expected
+    )
+  }
+}
+
 function Assert-Phase6WranglerConfigShape([object]$Config) {
+  Assert-MemoryVectorNamespaces $Config
   Assert-ExactPropertyNames $Config @(
     '$schema',
     'name',
@@ -295,6 +310,7 @@ function Assert-Phase6WranglerConfigShape([object]$Config) {
     'RUNTIME_MODE',
     'CONTRACT_ORIGIN',
     'MEMORY_EMBEDDING_MODEL',
+    'MEMORY_VECTOR_NAMESPACE',
     'GITHUB_OAUTH_CLIENT_ID',
     'OAUTH_PUBLIC_ORIGIN',
     'GITHUB_OAUTH_REDIRECT_URI',
@@ -339,7 +355,7 @@ function Assert-Phase6WranglerConfigShape([object]$Config) {
   Assert-ExactPropertyNames $preview.vectorize[0] @('binding', 'index_name') `
     "phase6 preview Vectorize binding"
   Assert-ExactPropertyNames $preview.ai @('binding') "phase6 preview Workers AI binding"
-  Assert-ExactPropertyNames $preview.vars @('RUNTIME_MODE', 'MEMORY_EMBEDDING_MODEL') `
+  Assert-ExactPropertyNames $preview.vars @('RUNTIME_MODE', 'MEMORY_EMBEDDING_MODEL', 'MEMORY_VECTOR_NAMESPACE') `
     "phase6 preview public vars"
 }
 
@@ -824,6 +840,7 @@ function Invoke-Phase6PreviewLoopGuardDeploy(
     )
 
     $bindingArgs = @(
+      "--var", "MEMORY_VECTOR_NAMESPACE:superbrain-memory-preview-v1",
       "--var", "SOURCE_COMMIT_SHA:$resolvedSource",
       "--var", "SOURCE_ARCHIVE_SHA256:$archiveSha",
       "--var", "HOSTED_MCP_WRITE_AUTHORIZED:false",
@@ -1315,8 +1332,9 @@ function Invoke-Phase6ProductionDeploy(
     $oauthOwnerIds = Get-PlainTextVar $productionVars "GITHUB_OAUTH_OWNER_IDS"
     $postLoginRedirect = Get-PlainTextVar $productionVars "POST_LOGIN_REDIRECT"
     $memoryEmbeddingModel = Get-PlainTextVar $productionVars "MEMORY_EMBEDDING_MODEL"
+    $memoryVectorNamespace = Get-PlainTextVar $productionVars "MEMORY_VECTOR_NAMESPACE"
     Assert-True "phase6 production public runtime vars are exact" (
-      @($productionVars.PSObject.Properties).Count -eq 8 -and
+      @($productionVars.PSObject.Properties).Count -eq 9 -and
       $runtimeMode -ceq "cloudflare_native_hosted_candidate" -and
       $contractOrigin -ceq "https://cloud-superbrain-developer-platform.vercel.app" -and
       $oauthPublicOrigin -ceq "https://frontend-seven-psi-78.vercel.app" -and
@@ -1324,7 +1342,8 @@ function Invoke-Phase6ProductionDeploy(
       $oauthClientId -match "^(?:[A-Za-z0-9]{20}|[IO]v1\.[A-Fa-f0-9]{16})$" -and
       $oauthOwnerIds -match "^[1-9][0-9]*(,[1-9][0-9]*)*$" -and
       $postLoginRedirect -ceq "/workbench" -and
-      $memoryEmbeddingModel -ceq "@cf/baai/bge-base-en-v1.5"
+      $memoryEmbeddingModel -ceq "@cf/baai/bge-base-en-v1.5" -and
+      $memoryVectorNamespace -ceq "superbrain-memory-production-v1"
     )
     $bindingArgs = @(
       "--var", "RUNTIME_MODE:$runtimeMode",
@@ -1335,6 +1354,7 @@ function Invoke-Phase6ProductionDeploy(
       "--var", "GITHUB_OAUTH_OWNER_IDS:$oauthOwnerIds",
       "--var", "POST_LOGIN_REDIRECT:$postLoginRedirect",
       "--var", "MEMORY_EMBEDDING_MODEL:$memoryEmbeddingModel",
+      "--var", "MEMORY_VECTOR_NAMESPACE:$memoryVectorNamespace",
       "--var", "SOURCE_COMMIT_SHA:$resolvedSource",
       "--var", "SOURCE_ARCHIVE_SHA256:$archiveSha",
       "--var", "HOSTED_MCP_WRITE_AUTHORIZED:false",
@@ -1881,6 +1901,12 @@ try {
   $oauthOwnerIds = Get-PlainTextVar $plainVars "GITHUB_OAUTH_OWNER_IDS"
   $postLoginRedirect = Get-PlainTextVar $plainVars "POST_LOGIN_REDIRECT"
   $memoryEmbeddingModel = Get-PlainTextVar $plainVars "MEMORY_EMBEDDING_MODEL"
+  Assert-MemoryVectorNamespaces $wranglerConfig
+  $memoryVectorNamespace = if ($ProductionOAuthIdentity) {
+    Get-PlainTextVar $plainVars "MEMORY_VECTOR_NAMESPACE"
+  } else {
+    Get-PlainTextVar $previewEnvironmentProperty.Value.vars "MEMORY_VECTOR_NAMESPACE"
+  }
 
   Assert-True "public OAuth client id configured" ($oauthClientId -match "^(?:[A-Za-z0-9]{20}|[IO]v1\.[A-Fa-f0-9]{16})$")
   Assert-True "public OAuth owner allowlist configured" ($oauthOwnerIds -match "^[1-9][0-9]*(,[1-9][0-9]*)*$")
@@ -2379,6 +2405,7 @@ try {
       "--var", "GITHUB_OAUTH_OWNER_IDS:$oauthOwnerIds",
       "--var", "POST_LOGIN_REDIRECT:$postLoginRedirect",
       "--var", "MEMORY_EMBEDDING_MODEL:$memoryEmbeddingModel",
+      "--var", "MEMORY_VECTOR_NAMESPACE:$memoryVectorNamespace",
       "--var", "SOURCE_COMMIT_SHA:$resolved",
       "--var", "SOURCE_ARCHIVE_SHA256:$archiveSha"
     )

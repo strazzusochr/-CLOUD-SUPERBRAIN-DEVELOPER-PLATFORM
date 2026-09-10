@@ -1,0 +1,58 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 824B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [1/8] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#5 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.1s done
+#5 DONE 0.1s
+
+#4 [internal] load build context
+#4 transferring context: 93.19kB 0.1s done
+#4 DONE 0.1s
+
+#6 [2/8] WORKDIR /app
+#6 CACHED
+
+#7 [3/8] RUN apk upgrade --no-cache
+#7 CACHED
+
+#8 [4/8] COPY services/mcp-gateway/requirements.txt .
+#8 CACHED
+
+#9 [5/8] RUN pip install --no-cache-dir -r requirements.txt
+#9 CACHED
+
+#10 [6/8] COPY services/mcp-gateway/app ./app
+#10 CACHED
+
+#11 [7/8] COPY docs/project-progress.manifest.json /app/readonly/project-progress.manifest.json
+#11 CACHED
+
+#12 [8/8] RUN adduser -D -u 10001 appuser     && chown -R appuser:appuser /app /tmp     && chown -R root:root /app/readonly     && chmod 0555 /app/readonly     && chmod 0444 /app/readonly/project-progress.manifest.json
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers 0.0s done
+#13 exporting manifest sha256:18f131e54c74badb265b597cab0a4e33a44debbc36e01f42df3a28c47055b6a9 0.0s done
+#13 exporting config sha256:3b816ccbad6afe76bcf4bf33afca9bd4239489149e413f88ead6d4cc5f4b3996
+#13 exporting config sha256:3b816ccbad6afe76bcf4bf33afca9bd4239489149e413f88ead6d4cc5f4b3996 0.0s done
+#13 exporting attestation manifest sha256:dd4f90e486ffec303fe5dcffac96c72c1f52ed41c55fdc63dccbe848f07bba0d
+#13 exporting attestation manifest sha256:dd4f90e486ffec303fe5dcffac96c72c1f52ed41c55fdc63dccbe848f07bba0d 0.1s done
+#13 exporting manifest list sha256:0d5bc218389175a9c0913758681166ff629aa5ff8cd59c880ed8efd9dc2c0264 0.0s done
+#13 naming to docker.io/cloud-superbrain-production-candidate/mcp-gateway:005ddb46f572520ac182c4f08cc177f07dfe1ae8 done
+#13 unpacking to docker.io/cloud-superbrain-production-candidate/mcp-gateway:005ddb46f572520ac182c4f08cc177f07dfe1ae8 0.0s done
+#13 DONE 0.5s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/cheermw8ten1ce43fvvzaz3t9

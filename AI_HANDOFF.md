@@ -1,5 +1,51 @@
 # AI Handoff - Cloud Superbrain Developer Platform
 
+## Current continuation — RC100 RC57/S10 freeze candidate, 2026-09-09
+
+- Work in `D:\_sb_tmp\rc100-cloud-hardening`, branch
+  `codex/rc100-cloud-hardening`. Read the current checkpoint in `PROJECT_STATE.md`.
+  RC55/S9 `f15ad6e336318860a9e3f89b04388d120a7bc9b4` remains the last qualified
+  candidate. This tree is the RC57/S10 product-freeze candidate; its immutable S10
+  SHA is the commit containing this checkpoint and remains unqualified until its
+  direct-child Q10 exists. Older sections below are historical, not restart commands.
+- PR #99 is merged as `3edde4ecf62ac5644e0c459a972688e22558b930`.
+  Recovery `34383219636` passed one job/all ten steps with no failures or skips.
+  RC55's `registry/` evidence preserves 18 immutable source/receipt JSON files.
+  Original run `34369195520` remains failed only at its final collector; its six
+  successful publications and twelve clean platform scans must not be rerun.
+  GitHub browser readback showed six public service packages and zero private;
+  `agent-api` showed S9 `f15ad6e...` as Public/Latest, and anonymous manifest
+  reads returned HTTP 200 for all six S9 tags. That violates the approved private
+  publication scope and blocks I1 and every later publication until the Owner
+  returns all six packages to `private` and read-only verification passes. No
+  visibility was changed in this checkpoint.
+- Hosted state is not the hardening code: three Cloudflare Workers remain on S3
+  `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`; frontend source is
+  `d76cb75d2a8dfffbc73217b8985305d868a2245a`, deployment
+  `EPvGNiv1mseuHVJ5m2xtkZhMeLvf`, health 200. Backend source `9c508aa` still
+  returns canonical health 404. The same frontend snapshot reports `0/8`
+  configured/live-verified providers but `3/7` live-verified layers; these
+  projections contradict each other. Source parity and this mismatch remain open.
+- Current plans observed in browser: Cloudflare Workers Free and Vercel Hobby.
+  Vercel's rolling last-30-days account usage shows 1,900,285 edge requests /
+  1,000,000, 1,889,584 function invocations / 1,000,000 and 5h32m active CPU / 4h.
+  These are not an invoice or proof of a current suspension. Reconcile current
+  quotas before release; no upgrade, payment, or budget credit was performed.
+- Implemented, locally tested, UNDEPLOYED: separate fail-closed Production/Preview
+  Vectorize namespaces (74 Worker tests and 24 configuration tests PASS); optional
+  Hugging Face/GitLab integrations no longer block readiness (seven tests PASS).
+  Frontend build and lint PASS. The final pre-freeze market-ready suite passed
+  157 Python and 13 Node tests, with zero skipped tests. S10 is not yet qualified.
+- Next: commit this fully tested S10 tree, bind a direct-child
+  Q10 for `prod-candidate-2026-09-09-local-rc57`, attest exact-source CI, and complete
+  five fresh qualification chains. Before any later publication or I1 run, restore
+  all six GHCR packages to `private`. Check the specific authorization before
+  live gateway/O4 execution; consumed S9 grants do not transfer to S10. Preserve
+  foreign work and historical evidence. Do not rebind gates or deploy from this note.
+- Overall 90; H P0-P6 `100/100/100/44/100/89/100` = 633/700; V all seven layers
+  100 = 700/700; total 1333/1400, 67 open, delta 0. I1/I5 blocked;
+  `MARKET_READY:false`, `no-release`. DEV-ONLY; hosted proof still blocked.
+
 ## RC50/S6 prequalification checkpoint — 2026-09-09
 
 - Work remains `D:\_sb_tmp\rc88-phase6-static`, branch

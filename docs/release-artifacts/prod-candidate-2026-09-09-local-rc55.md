@@ -19,7 +19,10 @@ observability_check: `release-scoped evidence is source-bound, sanitized, and ha
 rollback_note: `RC48/S3 remains the local rollback anchor; no hosted rollback is authorized`
 rollback_target_commit_sha: `e949cc1a50f21a3c565c2c2f2380a663f2cc4be7`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:f15ad6e336318860a9e3f89b04388d120a7bc9b4`
-immutable_tag_publish_status: `unpublished`
+immutable_tag_publish_status: `verified_candidate`
+registry_publication_review: `docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/registry/registry-publication-review.json`
+registry_digest_contract: `docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/registry/candidate-registry-digests.json`
+registry_receipt_recovery: `docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/registry/receipt-recovery-provenance.json`
 rollback_drill_proof: `docs/runbooks/rollback-deploy.md`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 review_gate: `pending`
@@ -46,7 +49,7 @@ blocked until their independent hosted evidence chains pass.
 | C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed. |
 | C5 | JA | The committed archive is checked by npm audit and canonical gitleaks rules. |
 | I1 | NEIN | No non-local HTTPS six-service hosted stack is bound exactly to RC55/S9. |
-| I2 | JA | Six candidate images are locally content-addressed; RC55/S9 GHCR tags remain unpublished. |
+| I2 | JA | Six RC55/S9 GHCR candidate images are published with six immutable top digests and twelve scanned platform digests; protected publication review and receipt recovery are verified. No second I2 credit is awarded. |
 | I3 | JA | RC48/S3 is the immutable local rollback anchor. |
 | I4 | JA | No provider, paid tier, card requirement, or recurring amount is introduced. |
 | I5 | NEIN | Production auth identity remains closed without its hosted OAuth evidence. |
@@ -58,7 +61,7 @@ blocked until their independent hosted evidence chains pass.
 | O2 | JA | Incident-response and secret-rotation runbooks remain present. |
 | O3 | JA | Review remains pending and no-release stays explicit. |
 | O4 | JA | I1 and I5 remain the two explicitly accepted no-release blockers. |
-| O5 | JA | Production, promotion, RC55 registry publication, and rollout remain false. |
+| O5 | JA | RC55/S9 candidate registry publication is verified; production deployment, release promotion, and rollout remain false. Receipt recovery performed no registry write. |
 
 ## Qualification boundary
 
@@ -75,6 +78,41 @@ permits exactly three provider calls through the existing gateway plus local O4
 write and cleanup probes, with no automatic provider retry. It does not permit
 production OAuth, deployment, registry publication, secret creation, or
 progress credit.
+
+## Verified candidate publication and receipt recovery
+
+The separately reviewed publication in GitHub Actions run
+`34369195520` published all six immutable S9 candidate images and verified twelve
+platform scans with zero secret findings and zero HIGH/CRITICAL vulnerabilities.
+Its final receipt-collection step failed after publication because it rejected
+the previously verifier-promoted registry gate. PR #99 corrected that collector;
+the original failed run remains unchanged as evidence.
+
+Recovery run `34383219636`, bound to merge
+`3edde4ecf62ac5644e0c459a972688e22558b930`, completed one job and all ten steps
+successfully, with zero failed or skipped steps. It reconstructed the protected
+publication receipt through read-only GitHub evidence access. The original
+artifact `10111985694` has archive digest
+`sha256:5f8838b5c0e73a72f32e828ab6b21b578b71439990ca45a786f71e6dda8348b4`;
+recovery artifact `10116691532` has archive digest
+`sha256:4824350af9ee20c8c3c3110d3fbc9bdfdf1f5dc123b0e35dec47ff55e15646f8`.
+Both archives were independently downloaded and hash-verified. The canonical
+registry evidence preserves the original manifest, scan aggregate, twelve raw
+Trivy reports, database metadata, and three recovered receipt/provenance files
+byte-for-byte. Offline reconstruction verified the complete scan and receipt
+bindings. A separate live GitHub browser readback of the owner's repository-filtered
+package inventory showed all six service packages as public (public six, private
+zero). The `agent-api` package page displayed the S9 tag `f15ad6e...` as `Public`
+and `Latest`; independent anonymous manifest reads returned HTTP 200 for all six
+S9 tags. This contradicts the approved private-publication scope and blocks I1
+and any later candidate publication until the Owner restores all six packages to
+`private` and a read-only visibility check passes. No package visibility was
+changed during this audit.
+
+This publication receipt adds no percentage or ledger credit. I1 and I5 remain
+blocked, the release review remains pending, and the Owner decision remains
+`no-release`. Recovery performed no registry publication, deployment, promotion,
+provider write, or secret output.
 
 - `DEV-ONLY; hosted proof still blocked.`
 - This artifact does not claim a production rollout.

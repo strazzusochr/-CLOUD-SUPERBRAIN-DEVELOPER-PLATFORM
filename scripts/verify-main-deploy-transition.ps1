@@ -78,8 +78,24 @@ Assert-True "top-level permissions are parseable" $topPermissions.Success
 Assert-Regex "top-level contents permission is read-only" $topPermissions.Groups['body'].Value '(?m)^\s{2}contents: read\s*$'
 Assert-Count "top-level permission has one entry" $topPermissions.Groups['body'].Value '(?m)^\s{2}[a-z-]+:\s*\w+\s*$' 1
 Assert-Count "packages write appears only once" $workflow '(?m)^\s+packages: write\s*$' 1
-Assert-Count "packages read appears only in aggregate job" $workflow '(?m)^\s+packages: read\s*$' 1
+Assert-Count "packages read appears only in preflight and aggregate jobs" $workflow '(?m)^\s+packages: read\s*$' 2
 Assert-Count "security-events write appears exactly once for reusable candidate CI" $workflow '(?m)^\s+security-events: write\s*$' 1
+$candidatePreflightJobMatch = [regex]::Match(
+  $workflow,
+  '(?ms)^  candidate-preflight:\s*\r?\n(?<body>.*?)(?=^  [a-zA-Z0-9_-]+:\s*(?:\r?\n|$)|\z)'
+)
+Assert-True "candidate-preflight job block is parseable" $candidatePreflightJobMatch.Success
+$candidatePreflightJobBlock = $candidatePreflightJobMatch.Groups['body'].Value
+Assert-Regex "candidate-preflight has exact read-only permissions" `
+  $candidatePreflightJobBlock `
+  '(?ms)^\s{4}permissions:\s+^\s{6}contents: read\s+^\s{6}packages: read\s+^\s{4}outputs:'
+Assert-Contains "candidate-preflight refuses non-private packages" `
+  $candidatePreflightJobBlock `
+  'python scripts/verify_ghcr_package_visibility.py'
+Assert-Contains "candidate-preflight uses only the ephemeral workflow token" `
+  $candidatePreflightJobBlock `
+  'GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}'
+Assert-True "candidate-preflight cannot write packages" (-not $candidatePreflightJobBlock.Contains('packages: write'))
 $verifyCandidateJobMatch = [regex]::Match(
   $workflow,
   '(?ms)^  verify-candidate:\s*\r?\n(?<body>.*?)(?=^  [a-zA-Z0-9_-]+:\s*(?:\r?\n|$)|\z)'

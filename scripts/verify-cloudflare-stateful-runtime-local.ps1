@@ -100,6 +100,7 @@ try {
     $wrangler, "dev", "--local", "--env", "preview",
     "--persist-to", ".wrangler/state", "--port", [string]$Port,
     "--var", "AGENT_API_AUTH_TOKEN:$authToken",
+    "--var", "MEMORY_VECTOR_NAMESPACE:superbrain-memory-preview-v1",
     "--log-level", "error", "--show-interactive-dev-session", "false"
   )
   $workerProcess = Start-Process -FilePath $node -ArgumentList $arguments -WorkingDirectory $workerRoot -WindowStyle Hidden -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
