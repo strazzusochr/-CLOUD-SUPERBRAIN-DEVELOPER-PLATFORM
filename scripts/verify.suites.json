@@ -222,6 +222,13 @@
     ]
   },
   {
+    "id": "active-release-candidate",
+    "description": "Active release-candidate gate bundle for current RC without mutating production.",
+    "patterns": [
+      "verify-active-release-candidate-bundle.ps1"
+    ]
+  },
+  {
     "id": "phase5-immutable-staging-parity-positive",
     "description": "Opt-in positive immutable staging parity proof; excluded while staging parity is blocked.",
     "patterns": [
@@ -249,6 +256,7 @@
       "vercel-project-git-readiness",
       "vercel-git-link",
       "current-release-candidate",
+      "active-release-candidate",
       "phase5",
       "hosted-staging",
       "browser-contract"
@@ -287,6 +295,7 @@
       "phase3",
       "phase4",
       "current-release-candidate",
+      "active-release-candidate",
       "phase5"
     ]
   }

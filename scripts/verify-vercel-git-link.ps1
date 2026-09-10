@@ -130,14 +130,32 @@ function result(status, classification, extra) {
   if (!project) return result("blocked", "missing_vercel_project_id");
 
   try {
+    const projectQuery = query({ teamId: team });
     const response = await fetch(
-      "https://api.vercel.com/v9/projects/" + encodeURIComponent(project) + query({ teamId: team }),
+      "https://api.vercel.com/v9/projects/" + encodeURIComponent(project) + projectQuery,
       { headers: { Authorization: "Bearer " + token } }
     );
     let body = {};
     try {
       body = await response.json();
     } catch {}
+
+    let projectDomains = [];
+    if (response.ok) {
+      try {
+        const domainsResponse = await fetch(
+          "https://api.vercel.com/v9/projects/" + encodeURIComponent(project) + "/domains" + projectQuery,
+          { headers: { Authorization: "Bearer " + token } }
+        );
+        const domainsBody = await domainsResponse.json().catch(() => ({}));
+        projectDomains = Array.isArray(domainsBody.domains)
+          ? domainsBody.domains.map((domain) => ({
+              name: domain && domain.name || null,
+              verified: Boolean(domain && domain.verified)
+            })).filter((domain) => domain.name)
+          : [];
+      } catch {}
+    }
 
     const link = body && body.link ? body.link : {};
     const observed = {
@@ -149,6 +167,8 @@ function result(status, classification, extra) {
       linkOrg: link.org || null,
       linkRepo: link.repo || null,
       linkProductionBranch: link.productionBranch || null,
+      domains: projectDomains,
+      domainNames: projectDomains.map((domain) => domain.name),
       autoAssignCustomDomains: body && body.autoAssignCustomDomains,
       autoExposeSystemEnvs: body && body.autoExposeSystemEnvs
     };
