@@ -103,6 +103,9 @@ $json = $vertical | ConvertTo-Json -Depth 24
 foreach ($forbidden in @("Hetzner", "GitKraken", "Oracle", '"directProviderCalls":true', '"secretOutput":true', '"writes":true', '"productionDeployClaimAllowed":true')) {
   Assert-True "forbidden vertical marker absent $forbidden" (-not $json.Contains($forbidden))
 }
+foreach ($retiredActiveTarget in @("fly-agent-api", "fly-mcp-gateway", "fly-llm-gateway")) {
+  Assert-True "retired active backend target absent $retiredActiveTarget" (-not $json.Contains($retiredActiveTarget))
+}
 
 $seenPageIds = New-Object "System.Collections.Generic.HashSet[string]"
 $seenRoutes = New-Object "System.Collections.Generic.HashSet[string]"
@@ -141,9 +144,10 @@ foreach ($stack in $stackItems) {
   Assert-True "$pageId hosted proof required for release" ($stack.verification.hostedProofRequiredForRelease -eq $true)
 
   Assert-Equal "$pageId frontend target" ([string]$stack.deploy.frontendTarget) "vercel"
-  Assert-True "$pageId fly agent target" (@($stack.deploy.backendTargets) -contains "fly-agent-api")
-  Assert-True "$pageId fly mcp target" (@($stack.deploy.backendTargets) -contains "fly-mcp-gateway")
-  Assert-True "$pageId fly llm target" (@($stack.deploy.backendTargets) -contains "fly-llm-gateway")
+  Assert-True "$pageId Cloudflare stateful target" (@($stack.deploy.backendTargets) -contains "cloudflare-stateful-runtime")
+  Assert-True "$pageId Cloudflare LLM target" (@($stack.deploy.backendTargets) -contains "cloudflare-llm-gateway")
+  Assert-True "$pageId Vercel backend-origin contract target" (@($stack.deploy.backendTargets) -contains "vercel-hosted-backend-origin-contracts")
+  Assert-Equal "$pageId backend target mode" ([string]$stack.deploy.backendTargetMode) "contract_targets_only"
   Assert-Equal "$pageId registry" ([string]$stack.deploy.registry) "ghcr"
   Assert-Equal "$pageId hosted proof blocked" ([string]$stack.deploy.hostedProofStatus) "blocked_external_gates"
 

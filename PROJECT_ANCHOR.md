@@ -52,7 +52,7 @@ Current progress:
 | LLM Gateway | 53% |
 | MCP Gateway | 53% |
 | Memory | 69% |
-| Observability | 99% |
+| Observability | 100% |
 
 Runtime snapshot:
 

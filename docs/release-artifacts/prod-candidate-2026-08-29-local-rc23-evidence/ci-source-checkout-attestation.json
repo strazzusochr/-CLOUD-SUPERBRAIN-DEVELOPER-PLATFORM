@@ -1,0 +1,30 @@
+{
+  "binding_mode": "source_checkout_attestation_v1",
+  "candidate_sha": "7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927",
+  "checked_out_sha": "7db18d907bcfa4f4b5a34b7c498fb2d91e3a2927",
+  "contract_version": "pr-check-source-checkout-attestation-v1",
+  "control_delta": [
+    ".github/workflows/pr-check.yml",
+    "scripts/tests/test_verify_phase5_credit_itemization.py",
+    "scripts/verify-main-deploy-transition.ps1",
+    "scripts/verify_phase5_credit_itemization.py"
+  ],
+  "control_sha": "5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1",
+  "event_name": "workflow_dispatch",
+  "github_actions_artifact_upload": true,
+  "non_claims": [
+    "This attestation proves only the exact source checkout boundary for this CI run.",
+    "This attestation does not convert DEV-ONLY evidence into hosted proof.",
+    "This attestation does not claim GHCR publication, production deployment, release promotion, or Owner approval."
+  ],
+  "production_deploy": false,
+  "ref": "refs/heads/codex/source-prequal-7db18d9-rc23",
+  "registry_publish": false,
+  "release_promotion": false,
+  "run_attempt": 1,
+  "run_id": 33273326919,
+  "run_sha": "5cfbf1f4b8a70116985cb27d7b949f4e2aaf45b1",
+  "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/33273326919",
+  "secret_output": false,
+  "source_prequalification": true
+}

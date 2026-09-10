@@ -172,7 +172,7 @@ Assert-Contains "agent-api organism workspace page count" $agentApi "workspace_p
 Assert-Contains "agent-api topology page region edges" $agentApi "page_to_brain_region"
 Assert-Contains "agent-api topology page data edges" $agentApi "page_to_data_source"
 Assert-Contains "agent-api topology page verifier edges" $agentApi "page_to_verifier"
-Assert-Contains "agent-api stack page id" $agentApi '(20, "stack", "/technology", "Technology Stack", "ORC")'
+Assert-Contains "agent-api stack page id" $agentApi '(20, "stack", "/technology", "Technologie-Stack", "ORC")'
 
 foreach ($page in $expectedPages) {
   $relative = ($page.route.TrimStart("/") -replace "/", "\") + "\page.tsx"

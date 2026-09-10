@@ -1,0 +1,31 @@
+{
+  "contract_version": "phase5-local-verification-summary-v1",
+  "chain": "security",
+  "release_id": "prod-candidate-2026-07-31-local-rc11",
+  "source_commit_sha": "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+  "generated_at_utc": "2026-08-01T08:21:37Z",
+  "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/write-rc11-security-evidence.ps1 -ReleaseId prod-candidate-2026-07-31-local-rc11 -SourceSha bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+  "status": "passed",
+  "exit_code": 0,
+  "dev_only": true,
+  "hosted_proof": false,
+  "secret_output": false,
+  "raw_log_sha256": "A0E9CDF19EC4A11C4FB45B876DA42CEEF4BD694C40B52D24621E16E8D4B394D2",
+  "observed_success_anchors": [
+    "RC11_SECURITY_EVIDENCE_V1",
+    "[rc11-security] release_id=prod-candidate-2026-07-31-local-rc11",
+    "[rc11-security] source_commit_sha=bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+    "[rc11-security] source_boundary=committed_git_archive_only",
+    "found 0 vulnerabilities",
+    "NPM_AUDIT_EXIT=0",
+    "[rc11-security] gitleaks_config=.gitleaks.toml",
+    "no leaks found",
+    "GITLEAKS_EXIT=0",
+    "RC11_SECURITY_EXIT=0"
+  ],
+  "non_claims": [
+    "DEV-ONLY; hosted proof still blocked.",
+    "The scan boundary is the committed candidate git archive only.",
+    "This evidence does not publish a registry image, deploy production, or disclose secrets."
+  ]
+}

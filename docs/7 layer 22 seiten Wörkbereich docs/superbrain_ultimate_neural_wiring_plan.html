@@ -216,7 +216,7 @@ const ops=[
   ]},
   {t:'Code generation run',c:'#8B5CF6',steps:[
     {c:'#FBBF24',t:'L2 LangGraph · planner→coder handoff'},
-    {c:'#EF4444',t:'L3 Coder agent wakes · Qwen3-Coder-Next'},
+    {c:'#EF4444',t:'L3 Coder agent wakes · Qwen 3.7 Plus'},
     {c:'#3B82F6',t:'L4 LLM stream · code generation'},
     {c:'#00E5FF',t:'L5 filesystem_mcp · read project context'},
     {c:'#00E5FF',t:'L5 github_mcp · branch creation (gated)'},
@@ -272,7 +272,7 @@ wss.forEach(w=>{
 
 const agents=[
   {n:'planner',col:'#8B5CF6',model:'DeepSeek-V4-Pro',fb:'Qwen3.6-35B-A3B → Kimi-K2.6',tools:'memory_read · task_router · langgraph',gate:'architecture_change · budget_limit_change'},
-  {n:'coder',col:'#3B82F6',model:'Qwen3-Coder-Next',fb:'DeepSeek-V4-Flash → Gemma-4-31B',tools:'memory_read · github_mcp · filesystem_mcp · mcp_gateway',gate:'merge_main · production_deploy · schema_change'},
+  {n:'coder',col:'#3B82F6',model:'qwen3.7-plus',fb:'DeepSeek-V4-Flash → Gemma-4-31B',tools:'memory_read · github_mcp · filesystem_mcp · mcp_gateway',gate:'merge_main · production_deploy · schema_change'},
   {n:'tester',col:'#22C55E',model:'Gemma-4-26B-A4B-it',fb:'Qwen3.5-9B → Llama-3.1-8B',tools:'memory_read · e2b_mcp · playwright_mcp · filesystem_mcp · mcp_gateway',gate:'release_approval · security_exception'},
   {n:'devops',col:'#F59E0B',model:'DeepSeek-V4-Flash',fb:'Qwen3.6-35B-A3B → Gemma-4-31B',tools:'memory_read · github_mcp · mcp_gateway',gate:'workflow_dispatch_prod · rollback_prod · resource_limit'}
 ];

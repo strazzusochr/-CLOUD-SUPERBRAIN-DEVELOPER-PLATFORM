@@ -1,0 +1,82 @@
+{
+  "criterion_points": 7,
+  "source": {
+    "commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "archive_sha256": "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+    "gateway_tree_sha": "d1ac6cce21891b461b2fd60987eccb23bf77f6d5",
+    "verifier_blob": "6c6aab45e61f6221426f96e2a8fedeb0441bc9dc",
+    "runtime_blob": "53e604e595ddbaf9d28ef2891d2b58ae2aa67840",
+    "wrangler_blob": "c10dac05d7661d0af7f5e2ec96ee8cfc07a008e4",
+    "rubric_blob": "e10c55f96ef9760964e91bf3a161e7175216e1c1",
+    "capability_blob": "242edf7874a945fcffc0c1011440173c605e5600"
+  },
+  "status": "verified",
+  "probes": [
+    {
+      "name": "missing_auth",
+      "http_status": 401,
+      "error": "gateway_authentication_required",
+      "request_id_sha256": "3adcc949a7a2c75b4cf575d9a86d0222a68f8c32c9dd980ae6fa6578f9f2e995",
+      "trace_id_sha256": "20fff19a0f576e29ccdb1aeeb15e4b85730253f7009423c54526fd4025de7014",
+      "response_sha256": "17ca8e556cba8f03e87b5e1c2e1fe8309660421385cbd5f141f54d6e981b6916",
+      "d1_evidence_ref": "d1_audit:llm-audit-b2443855-4fe6-4f9a-a8f6-c7267a95583d"
+    },
+    {
+      "name": "invalid_auth",
+      "http_status": 401,
+      "error": "gateway_authentication_required",
+      "request_id_sha256": "eec1a5852392785c29a9f8741a2e7502e9fea1f6a321cf367d14a925e810fad1",
+      "trace_id_sha256": "f6dc3e97804676f8d498380bbb29bf46a87826c701ba656d95307d0fca8fe666",
+      "response_sha256": "ca368d2f6e85a19ddc30313fde15cc560788e79b5f105e0a1866c2b640f66d76",
+      "d1_evidence_ref": "d1_audit:llm-audit-9f3007d6-4a93-472b-a3a3-afd9f0d209a4"
+    },
+    {
+      "name": "oversize",
+      "http_status": 422,
+      "error": "input_limit_exceeded",
+      "request_id_sha256": "80d2ed4e5b77325024d63042c683ee36af2f4f09ad4b8f5f5a690d27b179955b",
+      "trace_id_sha256": "c9b21e21cb0e6084f35ba4c63a13df87577b8e503014fc7621644086e3cb7449",
+      "response_sha256": "98e0e579144b49ba4744a3ba29055b5cad9dd929c2a3b07a53bd22b0143030b8",
+      "d1_evidence_ref": "d1_audit:llm-audit-12eb8847-2651-477d-92a4-4cc904657e86"
+    },
+    {
+      "name": "schema_violation",
+      "http_status": 422,
+      "error": "invalid_messages",
+      "request_id_sha256": "9e5c474b9316dc11b7c6d49c8ef58a095bed4e59edb47cd0a4301513f00f80ff",
+      "trace_id_sha256": "4619059d44d4739a23493839f4f2de51b26f6f92a12baba5ccec113d84b0f431",
+      "response_sha256": "72b288d5e3665fb10a3b219dfe7efcb0c5e4e9b951a6e00abca2c825c00a1cfa",
+      "d1_evidence_ref": "d1_audit:llm-audit-d62314e2-f9d9-4155-86d5-3c9878dd2574"
+    },
+    {
+      "name": "policy_violation",
+      "http_status": 403,
+      "error": "model_not_allowed",
+      "request_id_sha256": "717fe2c95c6e450c440f589bf4b3fcc340193f53323b448f25433bca1e3ed0d6",
+      "trace_id_sha256": "2d931fc9694f1dcf0f7444154b28eed4e37cf3aa899238a64722d942445e78ee",
+      "response_sha256": "7a15cf8d69e11a7fdd835085eebfb0b58ac467ebd68fcbc049c78a5d165759f9",
+      "d1_evidence_ref": "d1_audit:llm-audit-cf400521-0005-420e-8ff0-f8dcc6217896"
+    }
+  ],
+  "hosted_audit_write": true,
+  "secret_output": false,
+  "authority": {
+    "owner_grant_ref_sha256": "8760e72bfd33971548c472a43987bffa5711a786e3f62665a4d62d84ef887853",
+    "gate_evidence_path": ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+    "gate_evidence_blob": "b91407a2fc0a61065371853321a10b944f71a2c4"
+  },
+  "rubric_approval_commit": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "credit_eligible": true,
+  "provider_call_count": 0,
+  "release_promotion": false,
+  "manifest_updated": false,
+  "production_deploy": false,
+  "provider_writes": false,
+  "base_url": "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev",
+  "direct_provider_calls": false,
+  "contract_version": "llm-hosted-negative-guards-evidence-v2",
+  "delta_ledger_entry_created": false,
+  "checked_at": "2026-09-08T14:00:29.0783104Z",
+  "criterion": "L4 hosted auth, oversize, schema, and policy guards stop before provider execution",
+  "live_provider_calls": false
+}

@@ -20,6 +20,7 @@ services:
     environment:
       NEXT_PUBLIC_AGENT_API_URL: /api
       AGENT_API_INTERNAL_URL: http://agent-api:8000
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
     expose:
       - "3000"
     depends_on:
@@ -39,6 +40,13 @@ services:
     pull_policy: always
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-superbrain}:${POSTGRES_PASSWORD:-change-me-now}@postgres:5432/${POSTGRES_DB:-superbrain_prod}
+      SUPERBRAIN_RUNTIME_MODE: production
+      AGENT_API_AUTH_TOKEN: ${AGENT_API_AUTH_TOKEN:-}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID:-}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET:-}
+      GITHUB_OAUTH_REDIRECT_URI: ${GITHUB_OAUTH_REDIRECT_URI:-}
+      GITHUB_OAUTH_OWNER_IDS: ${GITHUB_OAUTH_OWNER_IDS:-}
+      JWT_SIGNING_SECRET: ${JWT_SIGNING_SECRET:-}
       REDIS_URL: redis://redis:6379/0
       MCP_GATEWAY_URL: http://mcp-gateway:9000
       LLM_GATEWAY_URL: http://llm-gateway:4000
@@ -58,7 +66,6 @@ services:
       EXTERNAL_GATE_SUMMARY_PATH: /app/progress/external-gate-summary.json
       AUTONOMOUS_AGENT_ROSTER_PATH: /app/docs/codex-integration/autonomous-agent-roster.json
       CLOUD_PROVIDER_INVENTORY_ENABLED: ${CLOUD_PROVIDER_INVENTORY_ENABLED:-true}
-      FLY_API_TOKEN: ${FLY_API_TOKEN:-}
       GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY:-}
       GRAFANA_CLOUD_URL: ${GRAFANA_CLOUD_URL:-}
       STAGING_BASE_URL: ${STAGING_BASE_URL:-}
@@ -68,6 +75,7 @@ services:
       VERCEL_ORG_ID: ${VERCEL_ORG_ID:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
+      CLOUDFLARE_STATEFUL_BASE_URL: ${CLOUDFLARE_STATEFUL_BASE_URL:-}
       CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
       CLOUDFLARE_AI_GATEWAY_URL: ${CLOUDFLARE_AI_GATEWAY_URL:-}
       CLOUDFLARE_DASHBOARD_URL: ${CLOUDFLARE_DASHBOARD_URL:-}
@@ -196,6 +204,10 @@ services:
       HF_ROUTER_BASE_URL: ${HF_ROUTER_BASE_URL:-https://router.huggingface.co/v1}
       HF_DEFAULT_CHAT_MODEL: ${HF_DEFAULT_CHAT_MODEL:-deepseek-ai/DeepSeek-V4-Flash:fastest}
       HF_ROUTER_TIMEOUT_SECONDS: ${HF_ROUTER_TIMEOUT_SECONDS:-90}
+      ALIBABA_MODEL_STUDIO_BASE_URL: ${ALIBABA_MODEL_STUDIO_BASE_URL:-}
+      ALIBABA_MODEL_STUDIO_CODER_MODEL: ${ALIBABA_MODEL_STUDIO_CODER_MODEL:-qwen3.7-plus}
+      ALIBABA_MODEL_STUDIO_TIMEOUT_SECONDS: ${ALIBABA_MODEL_STUDIO_TIMEOUT_SECONDS:-90}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
     expose:
       - "4000"
     volumes:
@@ -209,7 +221,7 @@ services:
     cpus: "0.50"
 
   postgres:
-    image: pgvector/pgvector:0.8.2-pg16
+    image: pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-superbrain}
@@ -234,7 +246,7 @@ services:
       - platform
 
   redis:
-    image: redis:7.4.2-alpine
+    image: redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-256mb}", "--maxmemory-policy", "allkeys-lru"]
     expose:
@@ -252,7 +264,7 @@ services:
       - platform
 
   nginx:
-    image: nginx:1.27.4-alpine
+    image: nginx:1.27.4-alpine@sha256:4ff102c5d78d254a6f0da062b3cf39eaf07f01eec0927fd21e219d0af8bc0591
     restart: unless-stopped
     volumes:
       - ./infrastructure/nginx/cloud.conf:/etc/nginx/conf.d/default.conf:ro
@@ -278,7 +290,7 @@ services:
       - platform
 
   caddy:
-    image: caddy:2.9.1-alpine
+    image: caddy:2.9.1-alpine@sha256:b4e3952384eb9524a887633ce65c752dd7c71314d2c2acf98cd5c715aaa534f0
     restart: unless-stopped
     ports:
       - "80:80"

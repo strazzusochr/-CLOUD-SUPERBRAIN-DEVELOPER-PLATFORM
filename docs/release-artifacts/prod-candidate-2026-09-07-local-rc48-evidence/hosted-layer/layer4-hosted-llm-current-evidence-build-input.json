@@ -1,0 +1,14 @@
+{
+  "contract_version": "layer4-hosted-llm-current-evidence-build-input-v1",
+  "release_id": "prod-candidate-2026-09-07-local-rc48",
+  "candidate_source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+  "candidate_source_archive_sha256": "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+  "rubric_approval_commit": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "reports": {
+    "current_chain": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/generative/20260908T140314296Z-e949cc1a50f2-bf5d15e1/report.json",
+    "stream": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/stream/20260908T140349924Z-e949cc1a50f2-bce44482/report.json",
+    "fallback": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/fallback/20260908T140427677Z-e949cc1a50f2-9c31d4aa/report.json",
+    "budget": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/budget/20260908T140035265Z-e949cc1a50f2-bf594116/report.json",
+    "negative": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/l4/negative/20260908T140029091Z-e949cc1a50f2-d356e1d1/report.json"
+  }
+}

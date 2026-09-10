@@ -1,0 +1,33 @@
+{
+  "contract_version": "external-gate-summary-candidate-v1",
+  "is_current": false,
+  "owner_assisted_candidate": true,
+  "supersedes_canonical": false,
+  "canonical_summary_ref": "docs/runtime-state/external-gate-summary.json",
+  "source_artifact": ".phase1-artifacts\\external-gate-audit-20260720-060043.json",
+  "generated_at_utc": "2026-07-20T04:00:43.2680174Z",
+  "candidate_preconditions": [
+    "Requires owner-provided read-only provider tokens loaded transiently into the verifier process.",
+    "No hosted backend origins were injected; hosted Agent API and Vercel backend-origin gates remain blocked.",
+    "NOT reproducible by the standard token-free bootstrap; the reproducible standard remains blocked (see external-gate-summary.json)."
+  ],
+  "candidate_audit_result": {
+    "status": "blocked",
+    "production_deploy_claim_allowed": false,
+    "grafana_cloud_claim_allowed": true,
+    "gitlab_identity_claim_allowed": true,
+    "huggingface_identity_claim_allowed": true,
+    "branch_protection_claim_allowed": true,
+    "ghcr_image_digest_claim_allowed": true,
+    "missing_or_failed_gates": [
+      "hosted_agent_api_contracts",
+      "vercel_backend_origin_health"
+    ]
+  },
+  "non_claims": [
+    "This candidate is NOT the current canonical gate truth and MUST NOT be displayed or consumed as current.",
+    "The read-only identity proofs are not hosted-backend, telemetry-ingestion, deployment, or release-promotion proof.",
+    "Per R0, this token-injected run must never replace the reproducible token-free standard.",
+    "Probe snippets, URLs, logs, and token values are not included; no secret values are written into this artifact."
+  ]
+}

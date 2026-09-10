@@ -3,10 +3,39 @@ import { fetchActivityKinds, fetchOrganismProjection, mapKind } from "../agentAp
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function organismResponse<T>(payload: T): Response {
+  const record = payload as Record<string, unknown>;
+  const source = String(record.source_kind ?? record.source ?? "unknown");
+  return Response.json(payload, {
+    headers: { "x-superbrain-source": source, "cache-control": "no-store" },
+  });
+}
+
 function safeTraceId(value: string | null): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   return /^[A-Za-z0-9_.:-]{1,96}$/.test(trimmed) ? trimmed : null;
+}
+
+function projectedRuntimeReplay(runId: string | null) {
+  if (!runId?.startsWith("frontend-projection")) return null;
+  return {
+    contract_version: "organism-replay-v1",
+    source: "frontend-projection",
+    source_kind: "frontend_projection",
+    live: false,
+    run_id: runId,
+    replay_available: true,
+    note: "Deterministic frontend projection of the Phase-2 runtime replay contract; no agent-api involved.",
+    duration_s: 3.6,
+    fps: 30,
+    frames: [
+      { t: 0.0, run_state: "planning", active: ["workbench"], regions: ["prefrontal", "callosum"], source_kind: "frontend_projection" },
+      { t: 1.2, run_state: "executing", active: ["agents"], regions: ["motor", "callosum"], source_kind: "frontend_projection" },
+      { t: 2.4, run_state: "verifying", active: ["memory"], regions: ["hippocampus", "callosum"], source_kind: "frontend_projection" },
+    ],
+    non_claims: ["frontend projection only, no agent-api call", "no live provider call", "no secret values"],
+  };
 }
 
 /** Deterministic spec-only replay timeline — used whenever no agent-api is reachable. */
@@ -36,22 +65,24 @@ function specOnlyReplay(runId: string | null) {
  *  activity trace (event_type → hub/run_state) when reachable, else spec-only. */
 export async function GET(request: Request) {
   const runId = safeTraceId(new URL(request.url).searchParams.get("run_id"));
+  const projectedRuntime = projectedRuntimeReplay(runId);
+  if (projectedRuntime) return organismResponse(projectedRuntime);
   const projection = await fetchOrganismProjection("replay", runId);
   if (
     projection?.contract_version === "organism-replay-v1" &&
     Array.isArray(projection.frames) &&
     projection.live === true
   ) {
-    return Response.json(projection);
+    return organismResponse(projection);
   }
   const kinds = await fetchActivityKinds(8, runId);
-  if (!kinds) return Response.json(specOnlyReplay(runId));
+  if (!kinds) return organismResponse(specOnlyReplay(runId));
   const step = 1.2;
   const frames = kinds.map((kind, i) => {
     const { hub, run_state, regions } = mapKind(kind);
     return { t: +(i * step).toFixed(1), run_state, active: [hub], regions, source_kind: "agent_api_redacted" };
   });
-  return Response.json({
+  return organismResponse({
     contract_version: "organism-replay-v1",
     source: "agent-api",
     source_kind: "agent_api_redacted",

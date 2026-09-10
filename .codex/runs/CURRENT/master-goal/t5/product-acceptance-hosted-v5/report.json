@@ -1,0 +1,162 @@
+{
+  "contract_version": "product-acceptance-3d-game-v1",
+  "status": "verified",
+  "started_at": "2026-07-30T19:55:02.389Z",
+  "completed_at": "2026-07-30T19:55:33.646Z",
+  "base_url": "https://frontend-pxzwglow1-strazzusochrs-projects.vercel.app",
+  "dev_only": false,
+  "hosted_proof": true,
+  "proof_scope": "hosted_https",
+  "source_binding": {
+    "source_commit_sha": "893d102020b7bcb267ebc01d3a77e94366e4dced",
+    "source_archive_sha256": "a863185392a8d8d2755198d26a33c64d7cdd9338bc2511e68cc502ddde7dad4d",
+    "deployment_id": "dpl_HPGS3ojG7cJbpCmhN8Q4VKPg3Bpp"
+  },
+  "prompt": "Baue ein 3D-Web-Game mit Three.js: drehbarer Würfel, Punktestand, Tastatursteuerung.",
+  "prompt_sha256": "5852eb571cdf3713d8ddb8389e6cc5cbc5e09e42645fea34557369d7618f88c1",
+  "expected_gateway_provider": "cloudflare-workers-ai",
+  "auth": {
+    "status": "signed_in",
+    "provider": "guest",
+    "session_scope": "stateful_http_only_cookie",
+    "session_backend": "cloudflare-d1",
+    "persisted": true,
+    "http_only_cookie": true,
+    "secure_cookie": true,
+    "same_site": "Strict",
+    "credential_segments": 1,
+    "credential_format": "opaque_base64url_256_bit",
+    "external_provider_write": false,
+    "session_id_sha256": "2333ffc22bfc30346ba837f3c3bf7707b5b2a70f4bd086ee3d91e138323d3a2c"
+  },
+  "build": {
+    "response_status": 200,
+    "response_source": "llm-gateway-boundary",
+    "build_id": "41d5e2e1-57f3-4292-bbf5-51c0251bd11d",
+    "contract_version": "cloudflare-d1-stateful-runtime-v1",
+    "model": "@cf/qwen/qwen2.5-coder-32b-instruct",
+    "gateway_mode": "cloudflare_workers_ai_live",
+    "gateway_provider": "cloudflare-workers-ai",
+    "live_provider_calls": true,
+    "audit_persisted": true,
+    "persisted": true,
+    "share_path": "/run/41d5e2e1-57f3-4292-bbf5-51c0251bd11d",
+    "direct_provider_calls": false,
+    "live_mcp_writes": false,
+    "secret_output": false
+  },
+  "html": {
+    "sha256": "0c4fab465701e9a197ad1517c409b09a7434351488d1afa6a88d9d68e1e9ac8d",
+    "bytes": 3091,
+    "markers": {
+      "complete_document": true,
+      "canvas": true,
+      "three_js": true,
+      "webgl": true,
+      "keyboard_control": true
+    }
+  },
+  "run": {
+    "route": "/run/41d5e2e1-57f3-4292-bbf5-51c0251bd11d",
+    "http_status": 200,
+    "webgl_canvas_visible": true,
+    "nonblank_canvas": true,
+    "initial_pixel_probe": {
+      "pngSha256": "227d036e08dea6bde0e0d5917f836139ee67e5d12f668926eb37fcd4392e8c75",
+      "pngBytes": 8373,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 82,
+      "uniqueColorBuckets": 9
+    },
+    "reloaded_pixel_probe": {
+      "pngSha256": "227d036e08dea6bde0e0d5917f836139ee67e5d12f668926eb37fcd4392e8c75",
+      "pngBytes": 8373,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 82,
+      "uniqueColorBuckets": 9
+    }
+  },
+  "interaction": {
+    "input_events": [
+      "click",
+      "ArrowRight",
+      "ArrowUp",
+      "Space"
+    ],
+    "click_pixel_changed": true,
+    "keyboard_pixel_changed": true,
+    "visible_dom_state_changed": true,
+    "before": {
+      "pngSha256": "227d036e08dea6bde0e0d5917f836139ee67e5d12f668926eb37fcd4392e8c75",
+      "pngBytes": 8373,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 82,
+      "uniqueColorBuckets": 9
+    },
+    "after_click": {
+      "pngSha256": "268fc6af5fda4bff8a04eeb48fc2ca6659d1c1ee73f0c4fef636f4c37aa9c0ff",
+      "pngBytes": 8060,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 81,
+      "uniqueColorBuckets": 9
+    },
+    "after_keyboard": {
+      "pngSha256": "166341fe1a4cef26266d617ab2a34ffebb684a62c66c632aad1a668507ce5cf7",
+      "pngBytes": 8374,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 82,
+      "uniqueColorBuckets": 9
+    }
+  },
+  "persistence": {
+    "build_id": "41d5e2e1-57f3-4292-bbf5-51c0251bd11d",
+    "initial_read_http": 200,
+    "reload_read_http": 200,
+    "persisted": true,
+    "audit_persisted_on_create": true,
+    "live_provider_calls": true,
+    "gateway_provider": "cloudflare-workers-ai",
+    "initial_html_sha256": "0c4fab465701e9a197ad1517c409b09a7434351488d1afa6a88d9d68e1e9ac8d",
+    "reloaded_html_sha256": "0c4fab465701e9a197ad1517c409b09a7434351488d1afa6a88d9d68e1e9ac8d",
+    "same_artifact_after_reload": true
+  },
+  "browser": {
+    "project": "chromium",
+    "version": "148.0.7778.96"
+  },
+  "screenshot": "product-acceptance.png",
+  "mocks_used": false,
+  "route_interception_used": false,
+  "secret_output": false,
+  "build_post_count": 1,
+  "console_errors": [],
+  "console_error_count": 0,
+  "page_errors": [],
+  "page_error_count": 0,
+  "failed_requests": [
+    "GET /.well-known/vercel/jwe: net::ERR_ABORTED",
+    "GET /home: net::ERR_ABORTED",
+    "OPTIONS /: net::ERR_ABORTED",
+    "HEAD /login: net::ERR_ABORTED",
+    "GET /.well-known/vercel/jwe: net::ERR_ABORTED",
+    "OPTIONS /: net::ERR_ABORTED",
+    "HEAD /workbench: net::ERR_ABORTED",
+    "GET /technology: net::ERR_ABORTED",
+    "GET /diagnostics: net::ERR_ABORTED",
+    "GET /evidence: net::ERR_ABORTED",
+    "GET /marketplace: net::ERR_ABORTED",
+    "GET /docs-output: net::ERR_ABORTED",
+    "GET /.well-known/vercel/jwe: net::ERR_ABORTED",
+    "OPTIONS /: net::ERR_ABORTED",
+    "HEAD /run/41d5e2e1-57f3-4292-bbf5-51c0251bd11d: net::ERR_ABORTED",
+    "GET /.well-known/vercel/jwe: net::ERR_ABORTED",
+    "OPTIONS /: net::ERR_ABORTED",
+    "HEAD /run/41d5e2e1-57f3-4292-bbf5-51c0251bd11d: net::ERR_ABORTED"
+  ],
+  "failed_request_count": 18
+}

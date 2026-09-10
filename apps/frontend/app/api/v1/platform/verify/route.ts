@@ -19,18 +19,25 @@ export async function GET() {
   const live = await fetchLayers();
   if (live && live.length) {
     return Response.json({
+      contract_version: "platform-verify-readiness-v1",
       source: "agent-api",
+      endpoint: "/api/v1/platform/verify",
       live: true,
       verified: live.filter((l) => l.verified).length,
       total: live.length,
       layers: live.map((l) => ({ id: l.id, label: l.label, status: l.status, verified: l.verified })),
+      non_claims: ["Localhost remains DEV-ONLY", "No production deploy claim"],
     });
   }
   return Response.json({
-    source: "spec",
+    contract_version: "platform-verify-readiness-v1",
+    source: "agent-api",
+    source_kind: "frontend-projection",
+    endpoint: "/api/v1/platform/verify",
     live: false,
     verified: 0,
     total: SPEC_LAYERS.length,
     layers: SPEC_LAYERS.map((l) => ({ ...l, status: "spec", verified: false })),
+    non_claims: ["Localhost remains DEV-ONLY", "No production deploy claim", "No live backend configured"],
   });
 }

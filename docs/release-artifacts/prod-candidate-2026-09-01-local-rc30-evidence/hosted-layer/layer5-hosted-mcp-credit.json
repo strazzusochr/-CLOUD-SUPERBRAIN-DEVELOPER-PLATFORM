@@ -1,0 +1,62 @@
+{
+  "contract_version": "layer5-hosted-mcp-credit-evidence-v1",
+  "status": "verified",
+  "evidence_ref": "rc30_hosted_mcp_four_verifiers_credit_bound",
+  "checked_at": "2026-09-01T21:14:46.2266915Z",
+  "release_id": "prod-candidate-2026-09-01-local-rc30",
+  "candidate_source_commit_sha": "9e88f84ac6c4afd78e152b5dc3b5bb08cf636c68",
+  "candidate_source_archive_sha256": "71e9dafedffdadeb8407e420e9a1cfd685f8a9fabc1266372c3a794f93848599",
+  "candidate_source_bundle_sha256": "0c0ffdf5e4ee214d246ed7a4bbdafe866b3f2378a7c920c92b1f982e7d8196d3",
+  "rubric_approval_commit": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "owner_grant_commit_sha": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "owner_grant_ref": "docs/runtime-state/owner-input-manifest.json#O4.owner_scope_decision",
+  "baseline_percent": 56,
+  "credited_percent": 86,
+  "credit_points_total": 30,
+  "criteria": [
+    {
+      "criterion_id": "hosted_mcp_write",
+      "points": 10,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/mcp-hosted-write.json",
+      "report_sha256": "7f60167aa29abf49119a85905d9d888f82f1c630ebcf17a50fd4975244feff62",
+      "report_contract": "mcp-hosted-write-evidence-v2",
+      "evidence_ref": "hosted_mcp_write_readback_audit_verified"
+    },
+    {
+      "criterion_id": "hosted_mcp_auth_scope",
+      "points": 6,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/mcp-hosted-auth-scope.json",
+      "report_sha256": "97ac570891137009ca87af61e5db7dbb1cd3444a1e82a49c97457944678e892d",
+      "report_contract": "mcp-hosted-auth-scope-evidence-v2",
+      "evidence_ref": "hosted_mcp_caller_auth_exact_scope_verified"
+    },
+    {
+      "criterion_id": "hosted_mcp_timeout_idempotency",
+      "points": 4,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/mcp-hosted-timeout-idempotency.json",
+      "report_sha256": "af157871c69686d9371ef798ed9d44394cb49d15d4f61114da3391a01b597a58",
+      "report_contract": "mcp-hosted-timeout-idempotency-evidence-v2",
+      "evidence_ref": "hosted_mcp_timeout_no_aftereffect_and_idempotency_verified"
+    },
+    {
+      "criterion_id": "hosted_mcp_audit_readback_rollback",
+      "points": 10,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-01-local-rc30-evidence/hosted-layer/mcp-hosted-audit-readback-rollback.json",
+      "report_sha256": "bbb62bd42ad57f725f471b63a0ca5fd01e166aa74e82a2fbf2306883c9540bf7",
+      "report_contract": "mcp-hosted-audit-readback-rollback-evidence-v2",
+      "evidence_ref": "hosted_mcp_audit_readback_and_rollback_verified"
+    }
+  ],
+  "hosted_write_performed": true,
+  "provider_writes": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "registry_publish_performed": false,
+  "secret_output": false,
+  "non_claims": [
+    "L5 credit is limited to the four verified hosted MCP criteria (30 points).",
+    "Registry digests, remote scan, candidate SBOM credit, and protected publish workflow remain uncredited.",
+    "No production deploy, release promotion, or registry publication was performed.",
+    "Raw verifier evidence is immutable, source-bound, and secret-redacted."
+  ]
+}

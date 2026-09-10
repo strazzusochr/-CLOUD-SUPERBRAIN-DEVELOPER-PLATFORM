@@ -1,0 +1,207 @@
+{
+  "contract_version": "phase5-production-candidate-local-v2",
+  "evidence_ref": "phase5_local_production_candidate_verified",
+  "status": "verified",
+  "generated_at": "2026-08-02T18:05:41.7843164Z",
+  "release_id": "prod-candidate-2026-08-02-local-rc12",
+  "source_commit_sha": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+  "source_boundary": "committed_git_archive_only",
+  "git_archive_sha256": "dec095bf8bba628bff2cddb2408ac8f3a004d5e1e6b1068b88b1598820ba32a5",
+  "service_count": 6,
+  "images": [
+    {
+      "service": "frontend",
+      "image_tag": "cloud-superbrain-production-candidate/frontend:6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "image_id": "sha256:484a5171806db876fb68402532fb5292791461a552b8d375ded8784307aa9ab8",
+      "image_size_bytes": 417727481,
+      "dockerfile": "apps/frontend/Dockerfile",
+      "dockerfile_sha256": "54b7ed1fc6212b21ec8086b80886ac808c3b990e4dbefdd32870773dbf1b81ff",
+      "source_file": "apps/frontend/package.json",
+      "embedded_file": "/app/package.json",
+      "source_file_sha256": "c85ea9559e7eddc9104aa5e1a6ce17b1031bc24e1fd4be1af93033d776c59a16",
+      "embedded_file_sha256": "c85ea9559e7eddc9104aa5e1a6ce17b1031bc24e1fd4be1af93033d776c59a16",
+      "oci_revision": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "oci_version": "prod-candidate-2026-08-02-local-rc12",
+      "frontend_build_id": "F7tXOrHHaaYgF-qRtVpUF"
+    },
+    {
+      "service": "agent-api",
+      "image_tag": "cloud-superbrain-production-candidate/agent-api:6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "image_id": "sha256:f299937f5491b191baf14a72a019155c78927e1fac90825827be962ac8813d7a",
+      "image_size_bytes": 59278269,
+      "dockerfile": "services/agent-api/Dockerfile",
+      "dockerfile_sha256": "433007b98035f214628bd0db1db610b61f03ae8c14995cb80c113b4d6cccb41f",
+      "source_file": "services/agent-api/app/main.py",
+      "embedded_file": "/app/app/main.py",
+      "source_file_sha256": "9381d1aece18d86378ee787a63396b1c0ed83399bfae902a4dd0f94457ea7a66",
+      "embedded_file_sha256": "9381d1aece18d86378ee787a63396b1c0ed83399bfae902a4dd0f94457ea7a66",
+      "oci_revision": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "oci_version": "prod-candidate-2026-08-02-local-rc12",
+      "frontend_build_id": ""
+    },
+    {
+      "service": "agent-worker",
+      "image_tag": "cloud-superbrain-production-candidate/agent-worker:6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "image_id": "sha256:0864a46316d6e911b7da845736e984612ff5c7c613b50191131583c93f5a3881",
+      "image_size_bytes": 54482724,
+      "dockerfile": "services/agent-worker/Dockerfile",
+      "dockerfile_sha256": "258756d33fcf96df2bd5ead65d9bc08e9bc7cbf6a478681671825df677d18547",
+      "source_file": "services/agent-worker/app/worker.py",
+      "embedded_file": "/app/app/worker.py",
+      "source_file_sha256": "26a2560a289cf31107af2be406c3880676d3ed0e80b983f0e0e835c2ccbcfab0",
+      "embedded_file_sha256": "26a2560a289cf31107af2be406c3880676d3ed0e80b983f0e0e835c2ccbcfab0",
+      "oci_revision": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "oci_version": "prod-candidate-2026-08-02-local-rc12",
+      "frontend_build_id": ""
+    },
+    {
+      "service": "memory-worker",
+      "image_tag": "cloud-superbrain-production-candidate/memory-worker:6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "image_id": "sha256:37a474b8aa46f2e384b2693a32827f3e50ff6a6a9c3a005a6c3fd0822a1cdfbc",
+      "image_size_bytes": 50890594,
+      "dockerfile": "services/memory-worker/Dockerfile",
+      "dockerfile_sha256": "024b52a1e921e9259f3d719e156b8182646199955eb79dbd94f89a97955898a0",
+      "source_file": "services/memory-worker/app/worker.py",
+      "embedded_file": "/app/app/worker.py",
+      "source_file_sha256": "08b3eea101192cc9241d190c384fa2c583c967d0cb63da4c2bc2c2ab814c893d",
+      "embedded_file_sha256": "08b3eea101192cc9241d190c384fa2c583c967d0cb63da4c2bc2c2ab814c893d",
+      "oci_revision": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "oci_version": "prod-candidate-2026-08-02-local-rc12",
+      "frontend_build_id": ""
+    },
+    {
+      "service": "mcp-gateway",
+      "image_tag": "cloud-superbrain-production-candidate/mcp-gateway:6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "image_id": "sha256:a161fd12902b30ad6f8829821fff7b4bd7bf5f22f5a8ce06e70721095cc100dd",
+      "image_size_bytes": 55497575,
+      "dockerfile": "services/mcp-gateway/Dockerfile",
+      "dockerfile_sha256": "a144e6afc1263eaee4875febe3a8556e31f2899ac7ba136177580c15c25d999f",
+      "source_file": "services/mcp-gateway/app/main.py",
+      "embedded_file": "/app/app/main.py",
+      "source_file_sha256": "c2d964478fa058f6d160455683650154ffa1a659fe885e7b0526cbc23ed4a4a3",
+      "embedded_file_sha256": "c2d964478fa058f6d160455683650154ffa1a659fe885e7b0526cbc23ed4a4a3",
+      "oci_revision": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "oci_version": "prod-candidate-2026-08-02-local-rc12",
+      "frontend_build_id": ""
+    },
+    {
+      "service": "llm-gateway",
+      "image_tag": "cloud-superbrain-production-candidate/llm-gateway:6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "image_id": "sha256:b108f696fff43ebc47df5f6d4d4daa4fbd071020db53221bc8b56217740899bf",
+      "image_size_bytes": 59709333,
+      "dockerfile": "services/llm-gateway/Dockerfile",
+      "dockerfile_sha256": "aabee5ad668603eb891612761daef3d7167d340ed6cb2a4485b7b8faf930bd66",
+      "source_file": "services/llm-gateway/app/main.py",
+      "embedded_file": "/app/app/main.py",
+      "source_file_sha256": "f58387c2e8f0c8ef165b17b108bda0754f29b49051dad8edac1f2a4418b76e01",
+      "embedded_file_sha256": "f58387c2e8f0c8ef165b17b108bda0754f29b49051dad8edac1f2a4418b76e01",
+      "oci_revision": "6261f9f89d803c36b449ba87a4d93e14411b31d0",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "oci_version": "prod-candidate-2026-08-02-local-rc12",
+      "frontend_build_id": ""
+    }
+  ],
+  "rollback_target": "bae3cdc1692e1e99e7f546f72664a3c747958b8c",
+  "rollback_target_source": "active_release_candidate",
+  "phase5_progress_before_proof": 89,
+  "phase5_progress_after_proof": 89,
+  "progress_credit_claimed": false,
+  "registry_publish": false,
+  "hosted_staging_parity": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "owner_review_approved": false,
+  "secret_output": false,
+  "non_claims": [
+    "Local image IDs are Docker-engine-local content addresses and are not GHCR digests.",
+    "The planned immutable GHCR tag set is unpublished.",
+    "DEV-ONLY; hosted proof still blocked.",
+    "No production deployment or release promotion was performed."
+  ],
+  "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/build-phase5-production-candidate-local.ps1 -SourceSha 6261f9f89d803c36b449ba87a4d93e14411b31d0 -ReleaseId prod-candidate-2026-08-02-local-rc12 -RollbackTarget bae3cdc1692e1e99e7f546f72664a3c747958b8c -OutputDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -EvidenceRunId a3d31960-d52f-4369-a2e4-5ee59c658d98",
+  "evidence_run_id": "a3d31960-d52f-4369-a2e4-5ee59c658d98",
+  "raw_log_path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images.log",
+  "raw_log_sha256": "D4C8242085013DA98A11D914E13B4AC9AE7FB52C8D435EA7015F489DBFF00D47",
+  "observed_success_anchors": [
+    "[phase5-candidate-local] status=verified service_count=6"
+  ],
+  "raw_evidence": {
+    "images": [
+      {
+        "service": "frontend",
+        "inspect": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/frontend-inspect.json",
+          "sha256": "AD29B01DE9921B98E16E9FC694D5B3D6D21F461CC0C3579152107946396AFFC2"
+        },
+        "embedded_hash": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/frontend-embedded-sha256.txt",
+          "sha256": "1B5C851C0FCDD3840F9780484427C8DC8AB91511D4C956C8493F8CDFA8860C2D"
+        },
+        "frontend_build_id": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/frontend-build-id.txt",
+          "sha256": "D05E0D528EAE9B46E9E214FD37D22D63181BE3811B3AAE2343AC8DCCAE39D4B5"
+        }
+      },
+      {
+        "service": "agent-api",
+        "inspect": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/agent-api-inspect.json",
+          "sha256": "E6D57BE2101D8A6AB093B6FC45B399479AEA5AC1AD29D39E2ED335E2015A37E3"
+        },
+        "embedded_hash": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/agent-api-embedded-sha256.txt",
+          "sha256": "DDE8286F65EB6205A25E8EDB1F5A3BC6586B366C22EE58988F5DFA33A44BA36B"
+        }
+      },
+      {
+        "service": "agent-worker",
+        "inspect": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/agent-worker-inspect.json",
+          "sha256": "C7D14846CB2E67F6DFCD5EFEBF5B8C1D4A06813B936BAF0F77B3A77C9B708D31"
+        },
+        "embedded_hash": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/agent-worker-embedded-sha256.txt",
+          "sha256": "07E3B0EE379DEB97921A2FC2E73CA369484D4AA5B05ECF3CE9CA0F837D946597"
+        }
+      },
+      {
+        "service": "memory-worker",
+        "inspect": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/memory-worker-inspect.json",
+          "sha256": "3BD20A83996F8901BD6CCF33B3FC4203B589C631EF42CDBBE0CA41429B1B2C8E"
+        },
+        "embedded_hash": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/memory-worker-embedded-sha256.txt",
+          "sha256": "A98BF32394345060A9B325221E4B244D0CC7AF14C2D980D62E5EE4DB867F7FB1"
+        }
+      },
+      {
+        "service": "mcp-gateway",
+        "inspect": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/mcp-gateway-inspect.json",
+          "sha256": "692B5AE227407AA1D36A3123F8A871F56C88E0B4C89017C8F3889EDF4E0D18C6"
+        },
+        "embedded_hash": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/mcp-gateway-embedded-sha256.txt",
+          "sha256": "4F22BE9521AD23C616E9711400B218CB1531A4DD60092D23714BFDDB5D34ADFD"
+        }
+      },
+      {
+        "service": "llm-gateway",
+        "inspect": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/llm-gateway-inspect.json",
+          "sha256": "8D2455147A01C297716FA1EC0BA45C341CF16C07189E68C992C3C120340A7A36"
+        },
+        "embedded_hash": {
+          "path": "docs/release-artifacts/prod-candidate-2026-08-02-local-rc12-evidence/raw/candidate-images/llm-gateway-embedded-sha256.txt",
+          "sha256": "19DD61E4C07EE4525A00AAFAB52D3C560B58D04810A3E809FD3EA35235B39B29"
+        }
+      }
+    ]
+  }
+}

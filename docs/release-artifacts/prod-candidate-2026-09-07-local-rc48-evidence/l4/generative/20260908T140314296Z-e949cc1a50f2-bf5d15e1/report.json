@@ -1,0 +1,93 @@
+{
+  "secret_output": false,
+  "audit": {
+    "persisted": true,
+    "readback_verified": true,
+    "source_bound": true,
+    "provider_call_count": 1
+  },
+  "checked_at": "2026-09-08T14:03:14.2802946Z",
+  "status": "verified",
+  "generation": {
+    "model": "@cf/meta/llama-3.1-8b-instruct-fast",
+    "provider": "workers-ai",
+    "response_sha256": "ecc02c42c39c923ae0318c5b3ed78f85fdaec421e3c911fef489d40362c01d7e",
+    "request_id_sha256": "b463e7b2c566134130b1b88130ff27dc910a3ce80f8b55825499814c7c85252c",
+    "trace_id_sha256": "b784e0cd55df427160aeb0f359b14aeceab109891d14544a9566c4edf484fd0b",
+    "gateway_log_id_sha256": "6b8aec4dc611cdce74f54dc95dfed0948b9659602866d38891a4a0965a5fe847",
+    "d1_evidence_ref": "d1_audit:llm-audit-8dbbfa51-7b81-4a1d-baa8-250e37787f14",
+    "source_bound": true,
+    "gateway_log_readback_verified": true
+  },
+  "provider_writes": false,
+  "base_url": "https://cloud-superbrain-llm-gateway-preview.strazzusochr.workers.dev",
+  "direct_provider_calls": false,
+  "delta_ledger_entry_created": false,
+  "release_promotion": false,
+  "trace": {
+    "trace_id": "ce3962930723553e2757d6271cb08cdb",
+    "gateway_log_id_sha256": "6b8aec4dc611cdce74f54dc95dfed0948b9659602866d38891a4a0965a5fe847",
+    "d1_evidence_ref": "d1_audit:llm-audit-8dbbfa51-7b81-4a1d-baa8-250e37787f14",
+    "gateway_log_readback_verified": true,
+    "audit_readback_verified": true
+  },
+  "production_deploy": false,
+  "authority": {
+    "owner_grant_ref_sha256": "8760e72bfd33971548c472a43987bffa5711a786e3f62665a4d62d84ef887853",
+    "gate_evidence_path": ".codex/runs/CURRENT/capability/live-llm-free-provider/report-20260720-224943.json",
+    "gate_evidence_blob": "b91407a2fc0a61065371853321a10b944f71a2c4"
+  },
+  "live_provider_calls": true,
+  "criteria": [
+    {
+      "claim_id": "hosted_generative_source_bound",
+      "points": 10
+    },
+    {
+      "claim_id": "hosted_routing_allowlist",
+      "points": 4
+    },
+    {
+      "claim_id": "hosted_completion_audit",
+      "points": 4
+    },
+    {
+      "claim_id": "hosted_trace_correlation",
+      "points": 4
+    }
+  ],
+  "criterion": "L4 current hosted generation, routing allowlist, completion audit, and trace correlation",
+  "rubric_approval_commit": "e87c28a7c6cf32982caa849794042daa53ef022a",
+  "hosted_audit_write": true,
+  "historical_evidence": {
+    "contract_version": "live-llm-bounded-evidence-chain-v1",
+    "progress_credit_recommended": 0,
+    "excluded_from_current_delta": true
+  },
+  "criterion_points": 22,
+  "manifest_updated": false,
+  "credit_eligible": true,
+  "provider_call_count": 1,
+  "contract_version": "llm-hosted-current-evidence-chain-v2",
+  "routing": {
+    "requested_model": "@cf/meta/llama-3.1-8b-instruct-fast",
+    "selected_model": "@cf/meta/llama-3.1-8b-instruct-fast",
+    "allowed_models_sha256": "6b5c0f039d24dc77505449989293fec6297c8683221a1cca5170d2e2e93f906e",
+    "allowed_model_count": 2,
+    "allowlist_verified": true,
+    "gateway_only": true,
+    "fallback_used": false
+  },
+  "evidence_ref": "current_hosted_llm_generative_routing_audit_verified",
+  "source": {
+    "commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+    "archive_sha256": "56b2ec11da962f359e64f6a8f1ef41ab202a38d2474b2826b929c30e6740254a",
+    "gateway_tree_sha": "d1ac6cce21891b461b2fd60987eccb23bf77f6d5",
+    "verifier_blob": "0cae520c0bea52ab193d402114d689e34258b1a3",
+    "implementation_blob": "d71d0363b66bb09ab3e3eb714e928e7182cb038a",
+    "runtime_blob": "53e604e595ddbaf9d28ef2891d2b58ae2aa67840",
+    "wrangler_blob": "c10dac05d7661d0af7f5e2ec96ee8cfc07a008e4",
+    "rubric_blob": "e10c55f96ef9760964e91bf3a161e7175216e1c1",
+    "capability_blob": "242edf7874a945fcffc0c1011440173c605e5600"
+  }
+}

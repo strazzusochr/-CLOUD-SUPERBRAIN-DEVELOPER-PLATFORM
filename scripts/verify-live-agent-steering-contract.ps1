@@ -116,13 +116,14 @@ foreach ($required in @(
   "model_downloads",
   "audit_persisted",
   "secret_output"
+  "metadata keys are server-owned"
 )) {
   Assert-Contains "agent api source" $agentSource $required
 }
 
 foreach ($required in @(
   "LLM_RESPONSES_ADAPTER_CONTRACT_VERSION",
-  "llm-responses-adapter-contract-v1",
+  "llm-responses-adapter-contract-v2",
   '@app.post("/v1/responses")',
   "responses_adapter_payload",
   "audit_responses_event"
@@ -140,16 +141,19 @@ Assert-Equal "contract version" $contract.contract_version "live-agent-steering-
 Assert-Equal "mode" $contract.mode "openai_responses_via_llm_gateway"
 Assert-Equal "evidence ref" $contract.evidence_refs.contract_visible "live_agent_steering_contract_visible"
 Assert-Equal "llm gateway endpoint" $contract.llm_gateway_endpoint "POST /llm/v1/responses"
-Assert-Equal "llm gateway contract version" $contract.llm_gateway_contract_version "llm-responses-adapter-contract-v1"
+Assert-Equal "llm gateway contract version" $contract.llm_gateway_contract_version "llm-responses-adapter-contract-v2"
 Assert-True "response fields include trace id" (@($contract.response_fields) -contains "trace_id")
 Assert-True "response fields include no-live-provider flag" (@($contract.response_fields) -contains "live_provider_calls")
 Assert-True "response fields include audit flag" (@($contract.response_fields) -contains "audit_persisted")
 Assert-True "response fields include secret flag" (@($contract.response_fields) -contains "secret_output")
 Assert-True "required llm fields include output text" (@($contract.required_llm_response_fields) -contains "output_text")
 Assert-True "agents include coder" (@($contract.agents | ForEach-Object { [string]$_.agent_id }) -contains "coder")
+Assert-True "metadata provider authorization denied" ($contract.metadata_policy.provider_authorization_from_request_body -eq $false)
+Assert-True "metadata trace id server-owned" (@($contract.metadata_policy.server_owned_keys) -contains "trace_id")
+Assert-True "metadata live-provider gate server-owned" (@($contract.metadata_policy.server_owned_keys) -contains "live_provider_calls_allowed")
 
 $llmContract = Invoke-JsonGet "$base/llm/api/v1/responses/contract"
-Assert-Equal "llm contract version" $llmContract.contract_version "llm-responses-adapter-contract-v1"
+Assert-Equal "llm contract version" $llmContract.contract_version "llm-responses-adapter-contract-v2"
 Assert-True "llm contract no live provider default" ($llmContract.live_provider_calls -eq $false)
 Assert-True "llm contract no model downloads" ($llmContract.model_downloads -eq $false)
 
@@ -158,23 +162,22 @@ $reset = Invoke-JsonPost "$base/api/v1/live-agents/coder/reset" @{}
 Assert-Equal "reset status" $reset.status "reset"
 Assert-Equal "reset contract version" $reset.contract_version "live-agent-steering-v1"
 
-$traceId = "live-agent-steering-contract-" + [Guid]::NewGuid().ToString("N")
 $steer = Invoke-JsonPost "$base/api/v1/live-agents/steer" @{
   agent_id = "coder"
   message = "verify live agent steering contract"
   project_id = "live-agent-steering-contract"
   reset_history = $true
   metadata = @{
-    trace_id = $traceId
     verifier = "live-agent-steering-contract"
   }
 }
+$traceId = [string]$steer.trace_id
 
 Assert-Equal "steer contract version" $steer.contract_version "live-agent-steering-v1"
 Assert-Equal "steer runtime source" $steer.runtime_source "openai_responses_via_llm_gateway"
 Assert-Equal "steer agent id" $steer.agent_id "coder"
 Assert-Equal "steer trace id" $steer.trace_id $traceId
-Assert-Equal "steer llm contract version" $steer.llm_gateway_contract_version "llm-responses-adapter-contract-v1"
+Assert-Equal "steer llm contract version" $steer.llm_gateway_contract_version "llm-responses-adapter-contract-v2"
 Assert-Equal "steer llm evidence ref" $steer.llm_gateway_evidence_ref "llm_responses_adapter_contract_visible"
 Assert-Equal "steer evidence ref" $steer.evidence_ref "live_agent_steering_contract_visible"
 Assert-True "steer response id present" (-not [string]::IsNullOrWhiteSpace([string]$steer.response_id))
@@ -202,15 +205,14 @@ Assert-Contains "audit contains trace id" $auditJson $traceId
 Assert-Contains "audit contains llm event" $auditJson "llm_gateway_request"
 
 Write-Host "[live-agent-steering] compatibility route"
-$compatTraceId = "live-agent-compat-contract-" + [Guid]::NewGuid().ToString("N")
 $compat = Invoke-JsonPost "$base/api/steer-agent" @{
   agentId = "tester"
   message = "verify compatibility steering contract"
   metadata = @{
-    trace_id = $compatTraceId
     verifier = "live-agent-steering-contract"
   }
 }
+$compatTraceId = [string]$compat.trace_id
 Assert-Equal "compat contract version" $compat.contract_version "live-agent-steering-v1"
 Assert-Equal "compat agent id" $compat.agent_id "tester"
 Assert-True "compat responseId present" (-not [string]::IsNullOrWhiteSpace([string]$compat.responseId))
@@ -230,6 +232,20 @@ $emptyMessageStatus = Invoke-StatusPost "$base/api/v1/live-agents/steer" @{
   message = ""
 }
 Assert-Equal "empty message rejected" $emptyMessageStatus 422
+
+$spoofedTraceStatus = Invoke-StatusPost "$base/api/v1/live-agents/steer" @{
+  agent_id = "coder"
+  message = "caller metadata must not spoof server correlation"
+  metadata = @{ trace_id = "caller-controlled-trace" }
+}
+Assert-Equal "caller trace metadata rejected" $spoofedTraceStatus 422
+
+$liveAuthorizationStatus = Invoke-StatusPost "$base/api/v1/live-agents/steer" @{
+  agent_id = "coder"
+  message = "caller metadata must not authorize live provider use"
+  metadata = @{ live_provider_calls_allowed = $true }
+}
+Assert-Equal "caller live-provider authorization rejected" $liveAuthorizationStatus 422
 
 Write-Host "[live-agent-steering] reset after proof"
 $finalReset = Invoke-JsonPost "$base/api/v1/live-agents/coder/reset" @{}

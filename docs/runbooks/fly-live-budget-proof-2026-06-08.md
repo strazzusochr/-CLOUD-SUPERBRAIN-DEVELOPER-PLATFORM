@@ -1,8 +1,9 @@
 # Fly.io/Vercel/GHCR/Grafana Budget Proof - 2026-06-08
 
-Status: projection proof, not production deployment proof.
+Status: `historical_only`; superseded by `cloudflare_native_zero_card_hosted_runtime`.
+Current gate truth: `external-gate-audit-v2`.
 
-Active infrastructure baseline: Vercel/Fly.io/GHCR/Grafana Cloud.
+Historical infrastructure baseline: Vercel/Fly.io/GHCR/Grafana Cloud.
 
 Projected Fly.io monthly server cost: EUR 9.00
 
@@ -27,6 +28,7 @@ with `FLY_API_TOKEN` provided in the process environment or external secret
 store.
 
 Non-claims:
+- This file does not define the active infrastructure baseline or close an active gate.
 - This file does not claim production deployment.
 - This file does not claim live provider mutation.
 - This file does not replace hosted staging proof.

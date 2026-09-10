@@ -1,5 +1,5 @@
 # END_ZIEL_GESAMTSPEC — Cloud Superbrain Developer Platform
-Stand: 2026-06-11
+Stand: 2026-07-11
 Status: Konsolidierte End-Ziel-Spezifikation + Index (ohne Cloud-/Owner-Mutation)
 
 ## 0) Binding Truth (Priorität)
@@ -86,91 +86,91 @@ Kanonische Registry: `apps/frontend/lib/nav.tsx` (`WORKSPACE_PAGES`, exakt 22).
 
 ### Seite 1 — /home (Landing)
 End-Ziel: Hero + Einstieg Workbench + Live-Stats + „lebendes Gehirn“ (gated/DEV-ONLY).
-Jetzt: read-only Surface; Navigation + Shell + Links.
+Jetzt (HOSTED): produktiver Einstieg mit ehrlicher Client-/Live-Kennzeichnung, Navigation zu den Arbeitsflächen und sichtbarer Runtime-Projektion; der Hosted-Klickbeweis ist grün.
 
 ### Seite 2 — /login (Onboarding)
 End-Ziel: GitHub/Google/Email/Guest, Refresh/Logout, Session.
-Jetzt: Contract-/Dry-run Lifecycle (kein live OAuth ohne Gate); UI bleibt kontrolliert.
+Jetzt (HOSTED): kontrollierter Session-Lifecycle mit Gastzugang und Frontend-Session-Contract; Live-OAuth bleibt sichtbar gegated und wurde nicht aktiviert.
 
 ### Seite 3 — /workbench (Kommandozentrale)
 End-Ziel: Editor (Monaco-artig), Prompt-Composer → Orchestrator, Explorer, Preview-Tabs, Terminal, Agent-Assistance, Mini-Cortex.
-Jetzt (DEV-ONLY): Action-to-Result „Run“ ist verdrahtet über `POST /api/v1/phase2/runtime/start` und erzeugt Artefakt; restliche Controls bleiben gated/spec-only aber nicht als tote Attrappen.
+Jetzt (HOSTED): Workbench-Studio, Dateiansicht, Lauf-/Ergebnisflächen und Persistenz sind verdrahtet; der Beweis umfasst einen echten Workers-AI-Mini-Build mit gespeichertem Artefakt. Nicht freigegebene Provider-Schreibaktionen bleiben gegated.
 
 ### Seite 4 — /organism (Live)
 End-Ziel: Live 3D Cortex, Hubs, Run-State, Inspector.
-Jetzt (DEV-ONLY): 3D Ansicht + redaktierte Events/Replays; kein Live-Provider Call.
+Jetzt (HOSTED): interaktive 3D-Ansicht mit redaktiertem Event-Feed, Inspector und dynamischem `source_kind`-Chip (`platform_audit`/`frontend_projection`); keine ungegatede Provider-Schreibaktion.
 
 ### Seite 5 — /organism/replay
 End-Ziel: Timeline + Filter + Playback.
-Jetzt: Replay Surface (redaction-aware); keine Secrets.
+Jetzt (HOSTED): redaction-aware Replay-Timeline mit Run-Auswahl und Wiedergabesteuerung; der Klickpfad ist im Endproof belegt.
 
 ### Seite 6 — /organism/map
 End-Ziel: Topologie-/Kartenansicht.
-Jetzt: Map Surface (read-only, topology-bound).
+Jetzt (HOSTED): topology-gebundene Kartenansicht mit auswählbaren Knoten und Detailprojektion; Plattform-Mutationen bleiben ausgeschlossen.
 
 ### Seite 7 — /agents
 End-Ziel: Start/Pause/Kill/Reset, Live-Status, Policies.
-Jetzt (DEV-ONLY): Start/Reset/Status sind als dry-run Steering verdrahtet (Live-Agent-Steering-Contract, ohne Live-Provider Calls).
+Jetzt (HOSTED): echte dreistufige Multi-Agent-Research-Pipeline über Workers AI sowie Status-/Ergebnisdarstellung; riskante Steuer- und Provider-Aktionen bleiben policy-gated.
 
 ### Seite 8 — /files
 End-Ziel: Knowledge Bases, Vectors, Graph, Inspector, Search.
-Jetzt (DEV-ONLY): Memory Search Panel verdrahtet (`GET /api/v1/memory/search`), plus Live-Metrics wenn erreichbar.
+Jetzt (HOSTED): Memory-Seed/Search-Roundtrip, Trefferansicht und Metrikprojektion sind verdrahtet und im Hosted-Proof belegt.
 
 ### Seite 9 — /files/local
 End-Ziel: Lokaler read-only File Browser (DEV-ONLY).
-Jetzt: read-only Surface + Contract; keine Host-FS Reads ohne expliziten Contract.
+Jetzt (DEV-ONLY): kontrollierter read-only Dateibrowser mit explizitem Contract und Auswahlpfad; keine freien Host-FS-Zugriffe.
 
 ### Seite 10 — /tools
 End-Ziel: MCP Tools, Scopes, read-only Execute, Provider Status.
-Jetzt (DEV-ONLY): read-only Tool Execute ist verdrahtet (`POST /api/v1/tools/read-only/execute`), inklusive Audit-ID; Provider-Readiness ist sichtbar (read-only).
+Jetzt (HOSTED): read-only Tool-Ausführung mit strukturiertem Resultat, Audit-ID und sichtbarer Provider-Readiness ist verdrahtet; Schreib-Scope bleibt gesperrt.
 
 ### Seite 11 — /marketplace
 End-Ziel: Browse, Details, Install (dry-run) für Skills/Agents/MCP/Models.
-Jetzt (DEV-ONLY): Install/Details sind als dry-run plan/artefakt verdrahtet (kein provider_write).
+Jetzt (HOSTED): typisierte Karten mit Icons/Badges, Detailansicht und strukturiertem Installationsplan sind verdrahtet; `provider_writes=false` ist im Klickbeweis bestätigt.
 
 ### Seite 12 — /observe
 End-Ziel: Monitoring (Grafana/Langfuse/OTel), Health, Runs, Traces.
-Jetzt: lokale Observability-Projektionen + Verifier/Artifacts surfaces; hosted bleibt gated.
+Jetzt (HOSTED + DEV-RUNTIME): ehrliche Health-/Run-/Trace-Projektionen und Verifier-Artefakte; fehlende Live-Messungen werden nicht als gesund erfunden. Grafana Cloud bleibt extern gegated.
 
 ### Seite 13 — /games
 End-Ziel: Templates, Scene Preview, „In Workbench öffnen“.
-Jetzt: Templates + Action Panel (dry-run Artifact Pipeline) + Live Task projection wenn Runtime erreichbar.
+Jetzt (HOSTED): Templates, Build-Aktion und persistierte Spielebibliothek sind verbunden; 13 kuratierte Karten aus dem Store sowie der Öffnen-Pfad sind live belegt.
 
 ### Seite 14 — /apps
 End-Ziel: App-Projekte analog Games.
-Jetzt: analog Games (dry-run Artifact Pipeline + Live projection).
+Jetzt (HOSTED): kuratierte App-Templates, Artifact-Pipeline, deduplizierte Ergebnisdarstellung und Öffnen-Pfad sind verdrahtet.
 
 ### Seite 15 — /media
 End-Ziel: Media Pipeline (Bild/Video/Audio) + Library.
-Jetzt: dry-run Artifact Pipeline + read-only surfaces; keine Fake Media-Generierung.
+Jetzt (HOSTED): Musik-/Video-Studio und store-backed Medienbibliothek sind getrennt von Dokumenten; ein erzeugtes Artefakt erscheint nach dem Persistenz-Roundtrip in der Galerie. Keine Fake-Mediengenerierung.
 
 ### Seite 16 — /docs-output
 End-Ziel: Markdown/Dokument Output + Exporte.
-Jetzt: Anzeige echter Session Outputs; Export ist plan-only (gated), aber nicht tot.
+Jetzt (HOSTED): Dokumenteditor, echte Session-/Dokument-Outputs aus dem Store und Download-Pfad sind verbunden; der Store-Roundtrip ist belegt.
 
 ### Seite 17 — /evidence
 End-Ziel: Verifier-Ergebnisse, Claim Guards, Evidence Artefacts.
-Jetzt: Evidence-/Verifier-Surface (read-only).
+Jetzt (HOSTED): navigierbare Evidence-/Verifier-Surface mit Claim- und Artefaktprojektion; der Endproof öffnet die sichtbaren Nachweise.
 
 ### Seite 18 — /diagnostics
 End-Ziel: Recovery, Archive, Rohdaten.
-Jetzt: Archive/Verifier Listing; „Öffnen“ führt zur Evidence Surface.
+Jetzt (HOSTED): Recovery-/Archiv- und Verifier-Listing mit funktionalem Öffnen-Pfad zur Evidence-Surface.
 
 ### Seite 19 — /design-system
 End-Ziel: Tokens/Komponenten/Typografie, responsive rules.
-Jetzt: Showcase (non-interactive samples; keine toten Buttons).
+Jetzt (HOSTED): responsive Token-, Typografie- und Komponentenreferenz; Beispiele sind bewusst nicht als tote Aktionen gestaltet.
 
 ### Seite 20 — /technology
 End-Ziel: 7 Layer x Provider Matrix, Runtime-Tech.
-Jetzt: Architektur-/Stack Surface (read-only, keine Cloud Mutation).
+Jetzt (HOSTED): 7-Layer-/Provider-Matrix und Runtime-Technologie sind als ehrliche read-only Architekturansicht verfügbar; keine Cloud-Mutation.
 
 ### Seite 21 — /settings
 End-Ziel: Profil, Policies, Gates, Rollen; Owner Activation.
-Jetzt: PlanOnly Gate-Plan + keine Apply-Aktion.
+Jetzt (HOSTED): Sicherheits-Gate-Matrix, Rollen- und Policy-Plan sind sichtbar; Owner-Aktivierung bleibt bewusst ohne Apply-Aktion.
 
 ### Seite 22 — /open-source
 End-Ziel: OSS-first, Lizenzen, Danksagung, Komponentenliste.
-Jetzt: read-only Surface.
+Jetzt (HOSTED): navigierbare OSS-/Lizenz-/Komponentenübersicht als read-only Produktfläche.
 
 ## 5) „Jetzt“ vs. „Nächste Erweiterung“
 
@@ -221,4 +221,3 @@ Release-Artefakte (historische Candidate-Proofs; hosted Grenzen beachten):
 
 ## 7) 11.06.2025 Planungsstand
 Im Repository existieren keine Treffer auf `2025-06-11` / `11.06.2025`. Falls ein externer „Planungsstand 11.06.2025“ existiert, muss er separat ins Repo eingebracht werden; bis dahin ist eine 1:1-Ausrichtung darauf blockiert.
-

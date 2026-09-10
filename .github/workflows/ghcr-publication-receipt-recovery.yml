@@ -1,0 +1,256 @@
+name: ghcr-publication-receipt-recovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Original main-deploy run containing six successful immutable publications
+        required: true
+        type: string
+      source_run_attempt:
+        description: Original main-deploy run attempt; only attempt 1 is eligible
+        required: true
+        default: 1
+        type: number
+      source_control_sha:
+        description: Exact default-branch control SHA used by the original main-deploy run
+        required: true
+        type: string
+      candidate_sha:
+        description: Exact immutable runtime candidate SHA published by the original run
+        required: true
+        type: string
+      artifact_id:
+        description: Exact immutable ghcr-candidate artifact ID from the original run
+        required: true
+        type: string
+      artifact_digest:
+        description: Exact sha256 digest of the original ghcr-candidate artifact archive
+        required: true
+        type: string
+
+# Recovery is deliberately read-only. It may reconstruct a receipt from existing
+# GitHub evidence, but it cannot publish a package or deploy any runtime.
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ghcr-publication-receipt-recovery-${{ inputs.source_run_id }}-${{ inputs.source_run_attempt }}
+  cancel-in-progress: false
+
+jobs:
+  recover-publication-receipt:
+    name: Recover immutable protected publication receipt
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout recovery control commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Prepare exclusive recovery destination
+        shell: bash
+        env:
+          RECOVERY_ROOT: ${{ runner.temp }}/ghcr-publication-receipt-recovery
+        run: |
+          set -euo pipefail
+          test ! -e "${RECOVERY_ROOT}"
+          mkdir "${RECOVERY_ROOT}"
+          mkdir "${RECOVERY_ROOT}/raw"
+          mkdir "${RECOVERY_ROOT}/download"
+          mkdir "${RECOVERY_ROOT}/receipt"
+
+      - name: Read original run and immutable candidate artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RECOVERY_ROOT: ${{ runner.temp }}/ghcr-publication-receipt-recovery
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+        run: |
+          set -euo pipefail
+          api_header='X-GitHub-Api-Version: 2022-11-28'
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/attempts/${SOURCE_RUN_ATTEMPT}" \
+            > "${RECOVERY_ROOT}/raw/run.json"
+          gh api -H "${api_header}" --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/attempts/${SOURCE_RUN_ATTEMPT}/jobs?per_page=100" \
+            > "${RECOVERY_ROOT}/raw/jobs.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/approvals" \
+            > "${RECOVERY_ROOT}/raw/approvals.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/environments/registry-publication" \
+            > "${RECOVERY_ROOT}/raw/environment.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}" \
+            > "${RECOVERY_ROOT}/raw/artifact.json"
+          gh api -H "${api_header}" \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            > "${RECOVERY_ROOT}/candidate-artifact.zip"
+          test "${ARTIFACT_DIGEST#sha256:}" != "${ARTIFACT_DIGEST}"
+          printf '%s  %s\n' "${ARTIFACT_DIGEST#sha256:}" "${RECOVERY_ROOT}/candidate-artifact.zip" \
+            | sha256sum --check --strict
+          python -m zipfile -e \
+            "${RECOVERY_ROOT}/candidate-artifact.zip" \
+            "${RECOVERY_ROOT}/download"
+
+      - name: Verify immutable recovery bindings
+        shell: python
+        env:
+          RECOVERY_ROOT: ${{ runner.temp }}/ghcr-publication-receipt-recovery
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_CONTROL_SHA: ${{ inputs.source_control_sha }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+          RECOVERY_CONTROL_SHA: ${{ github.sha }}
+        run: |
+          import json
+          import os
+          import pathlib
+          import re
+          import subprocess
+
+          root = pathlib.Path(os.environ["RECOVERY_ROOT"])
+          run = json.loads((root / "raw/run.json").read_text(encoding="utf-8"))
+          artifact = json.loads((root / "raw/artifact.json").read_text(encoding="utf-8"))
+          manifest = json.loads((root / "download/ghcr-candidate-manifest.json").read_text(encoding="utf-8"))
+          source_run_id = os.environ["SOURCE_RUN_ID"]
+          source_attempt = os.environ["SOURCE_RUN_ATTEMPT"]
+          source_control_sha = os.environ["SOURCE_CONTROL_SHA"]
+          candidate_sha = os.environ["CANDIDATE_SHA"]
+          artifact_id = os.environ["ARTIFACT_ID"]
+          artifact_digest = os.environ["ARTIFACT_DIGEST"]
+          recovery_control_sha = os.environ["RECOVERY_CONTROL_SHA"]
+
+          if re.fullmatch(r"[1-9][0-9]*", source_run_id) is None:
+              raise SystemExit("source_run_id must be a positive integer")
+          if source_attempt != "1":
+              raise SystemExit("only source_run_attempt 1 is eligible")
+          if re.fullmatch(r"[0-9a-f]{40}", source_control_sha) is None:
+              raise SystemExit("source_control_sha must be exact lowercase 40-hex")
+          if re.fullmatch(r"[0-9a-f]{40}", candidate_sha) is None:
+              raise SystemExit("candidate_sha must be exact lowercase 40-hex")
+          if re.fullmatch(r"[0-9a-f]{40}", recovery_control_sha) is None:
+              raise SystemExit("recovery control SHA is invalid")
+          if re.fullmatch(r"[1-9][0-9]*", artifact_id) is None:
+              raise SystemExit("artifact_id must be a positive integer")
+          if re.fullmatch(r"sha256:[0-9a-f]{64}", artifact_digest) is None:
+              raise SystemExit("artifact_digest must be an exact sha256 digest")
+          if str(run.get("id")) != source_run_id or run.get("run_attempt") != 1:
+              raise SystemExit("source run identity mismatch")
+          if run.get("name") != "main-deploy" or run.get("event") != "workflow_dispatch":
+              raise SystemExit("source run is not a main-deploy workflow_dispatch")
+          if run.get("head_sha") != source_control_sha:
+              raise SystemExit("source run control SHA mismatch")
+          if str(artifact.get("id")) != artifact_id or artifact.get("digest") != artifact_digest:
+              raise SystemExit("source artifact identity mismatch")
+          workflow = manifest.get("workflow")
+          if not isinstance(workflow, dict):
+              raise SystemExit("candidate manifest workflow binding is missing")
+          if str(workflow.get("run_id")) != source_run_id or workflow.get("run_attempt") != 1:
+              raise SystemExit("candidate manifest source run mismatch")
+          if workflow.get("head_sha") != source_control_sha or manifest.get("control_sha") != source_control_sha:
+              raise SystemExit("candidate manifest source control mismatch")
+          if manifest.get("candidate_sha") != candidate_sha or workflow.get("candidate_sha") != candidate_sha:
+              raise SystemExit("candidate manifest source candidate mismatch")
+
+          subprocess.run(["git", "cat-file", "-e", f"{candidate_sha}^{{commit}}"], check=True)
+          subprocess.run(["git", "cat-file", "-e", f"{source_control_sha}^{{commit}}"], check=True)
+          subprocess.run(["git", "merge-base", "--is-ancestor", candidate_sha, source_control_sha], check=True)
+          subprocess.run(["git", "merge-base", "--is-ancestor", source_control_sha, recovery_control_sha], check=True)
+
+      - name: Reconstruct protected review and registry digest contracts
+        env:
+          RECOVERY_ROOT: ${{ runner.temp }}/ghcr-publication-receipt-recovery
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+        run: >-
+          python scripts/collect_ghcr_publication_evidence.py
+          --manifest "${RECOVERY_ROOT}/download/ghcr-candidate-manifest.json"
+          --remote-scan "${RECOVERY_ROOT}/download/remote-image-scan.json"
+          --run "${RECOVERY_ROOT}/raw/run.json"
+          --jobs "${RECOVERY_ROOT}/raw/jobs.json"
+          --approvals "${RECOVERY_ROOT}/raw/approvals.json"
+          --environment "${RECOVERY_ROOT}/raw/environment.json"
+          --artifact "${RECOVERY_ROOT}/raw/artifact.json"
+          --capability-gates "docs/runtime-state/capability-gates.json"
+          --workflow ".github/workflows/main-deploy.yml"
+          --expected-artifact-id "${ARTIFACT_ID}"
+          --expected-artifact-digest "${ARTIFACT_DIGEST}"
+          --publication-output "${RECOVERY_ROOT}/receipt/registry-publication-review.json"
+          --registry-output "${RECOVERY_ROOT}/receipt/candidate-registry-digests.json"
+
+      - name: Emit sanitized recovery provenance
+        shell: python
+        env:
+          RECOVERY_ROOT: ${{ runner.temp }}/ghcr-publication-receipt-recovery
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          SOURCE_CONTROL_SHA: ${{ inputs.source_control_sha }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          ARTIFACT_DIGEST: ${{ inputs.artifact_digest }}
+          RECOVERY_CONTROL_SHA: ${{ github.sha }}
+          RECOVERY_RUN_ID: ${{ github.run_id }}
+          RECOVERY_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          import datetime
+          import hashlib
+          import json
+          import os
+          import pathlib
+
+          root = pathlib.Path(os.environ["RECOVERY_ROOT"])
+          receipt = root / "receipt"
+          publication = receipt / "registry-publication-review.json"
+          registry = receipt / "candidate-registry-digests.json"
+
+          def file_sha256(path):
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          payload = {
+              "contract_version": "ghcr-publication-receipt-recovery-v1",
+              "status": "verified",
+              "collected_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "source_run_id": os.environ["SOURCE_RUN_ID"],
+              "source_run_attempt": int(os.environ["SOURCE_RUN_ATTEMPT"]),
+              "source_control_sha": os.environ["SOURCE_CONTROL_SHA"],
+              "candidate_sha": os.environ["CANDIDATE_SHA"],
+              "source_artifact_id": os.environ["ARTIFACT_ID"],
+              "source_artifact_digest": os.environ["ARTIFACT_DIGEST"],
+              "recovery_control_sha": os.environ["RECOVERY_CONTROL_SHA"],
+              "recovery_run_id": os.environ["RECOVERY_RUN_ID"],
+              "recovery_run_attempt": int(os.environ["RECOVERY_RUN_ATTEMPT"]),
+              "publication_receipt_sha256": file_sha256(publication),
+              "registry_digest_contract_sha256": file_sha256(registry),
+              "registry_write_performed": False,
+              "production_deploy": False,
+              "release_promotion": False,
+              "secret_output": False,
+          }
+          output = receipt / "receipt-recovery-provenance.json"
+          with output.open("xb") as handle:
+              handle.write((json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+
+      - name: Upload recovered immutable publication receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ghcr-publication-receipt-recovery-${{ inputs.candidate_sha }}-${{ inputs.source_run_id }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/ghcr-publication-receipt-recovery/receipt/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+          overwrite: false
+          include-hidden-files: false

@@ -28,5 +28,7 @@ Die maschinenlesbare Quelle ist:
 
 - Kein Hosted-Staging-Erfolg ohne `STAGING_BASE_URL`.
 - Kein Branch-Protection-Erfolg ohne `BRANCH_PROTECTION_TOKEN`.
-- Kein Fly.io-Live-State ohne `FLY_API_TOKEN`.
+- Kein Cloudflare-native Hosted-State ohne O2', Zero-Card-Proof und
+  `cloudflare_native_zero_card_hosted_runtime`-Evidence.
+- Fly.io und `FLY_API_TOKEN` sind nur historische Provenienz.
 - Keine Live-Provider-Calls, Live-MCP-Writes oder Production-Deploys durch diesen Contract.

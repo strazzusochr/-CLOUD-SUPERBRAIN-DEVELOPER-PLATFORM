@@ -1,9 +1,9 @@
 # Single-Region Frankfurt Outage Runbook
 
 Stand: 2026-05-09
-Status: Active baseline
+Status: retired historical baseline
 Scope: Legacy Phase 1-5 single-region Hetzner runtime risk
-Status: retired; active cloud target is Vercel/Fly.io/GHCR/Grafana
+Active target: Vercel/Cloudflare-native/GHCR/Grafana
 
 ## Purpose
 

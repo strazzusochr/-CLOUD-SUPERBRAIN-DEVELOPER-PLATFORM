@@ -1,13 +1,20 @@
-FROM python:3.14-slim
+FROM python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
-COPY requirements.txt .
+RUN apk upgrade --no-cache
+# Fly and CI build this image from the repository root.
+COPY services/mcp-gateway/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app ./app
-RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app /tmp
+COPY services/mcp-gateway/app ./app
+COPY docs/project-progress.manifest.json /app/readonly/project-progress.manifest.json
+RUN adduser -D -u 10001 appuser \
+    && chown -R appuser:appuser /app /tmp \
+    && chown -R root:root /app/readonly \
+    && chmod 0555 /app/readonly \
+    && chmod 0444 /app/readonly/project-progress.manifest.json
 USER appuser
 
 EXPOSE 9000

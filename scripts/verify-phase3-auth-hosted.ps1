@@ -114,52 +114,8 @@ $frontendHtml = Invoke-JsonApi -Url "$BaseUrl/"
 Assert-Contains "frontend auth panel" $frontendHtml "Auth Contract"
 Assert-Contains "frontend fallback panel" $frontendHtml "System Unavailable Fallback"
 
-$authContract = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/contract"
-Assert-Contains "auth contract version" $authContract '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth contract no live oauth" $authContract '"live_github_oauth_call":false'
-Assert-Contains "auth contract access ttl" $authContract '"access_token_ttl_seconds":900'
-Assert-Contains "auth contract refresh ttl" $authContract '"ttl_seconds":604800'
-Assert-Contains "auth contract rotation" $authContract '"rotation_required":true'
-Assert-Contains "auth contract redis blacklist" $authContract '"blacklist_store":"redis"'
-Assert-Contains "auth contract same site" $authContract '"SameSite":"Strict"'
-
-$authGithub = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/github"
-Assert-Contains "auth github contract version" $authGithub '"contract_version":"auth-github-jwt-refresh-v1"'
-Assert-Contains "auth github no live oauth" $authGithub '"live_github_oauth_call":false'
-Assert-Contains "auth github authorize url" $authGithub "github.com/login/oauth/authorize"
-
-$authCallback = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=hosted-auth-code&state=hosted-auth-state" -Method "GET" -ContentType ""
-Assert-Contains "auth callback authenticated" $authCallback '"status":"authenticated"'
-Assert-Contains "auth callback no live oauth" $authCallback '"live_github_oauth_call":false'
-Assert-Contains "auth callback same site strict" $authCallback '"SameSite":"Strict"'
-
-$authRefreshToken = "hosted-refresh-token-" + [Guid]::NewGuid().ToString("N")
-$authRefreshBody = @{ refresh_token = $authRefreshToken; trace_id = "hosted-auth-refresh-rotated" } | ConvertTo-Json -Compress
-$authRefresh = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-Assert-Contains "auth refresh rotated" $authRefresh '"status":"rotated"'
-Assert-Contains "auth refresh rotated flag" $authRefresh '"refresh_token_rotated":true'
-Assert-Contains "auth refresh blacklist flag" $authRefresh '"old_refresh_token_blacklisted":true'
-
-$authReuseOutput = ""
-$authReuseFailed = $false
-try {
-  $authReuseOutput = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authRefreshBody -ContentType "application/json"
-} catch {
-  $authReuseFailed = $true
-  $authReuseOutput = $_.Exception.Message
-}
-Assert-True "auth refresh reuse blocked with non-2xx" $authReuseFailed
-Assert-Contains "auth refresh reuse blocked" $authReuseOutput "refresh_token_invalid"
-
-$authLogoutBody = @{ refresh_token = ("hosted-logout-token-" + [Guid]::NewGuid().ToString("N")); trace_id = "hosted-auth-logout-revoked" } | ConvertTo-Json -Compress
-$authLogout = Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/logout" -Method "POST" -Body $authLogoutBody -ContentType "application/json"
-Assert-Contains "auth logout status" $authLogout '"status":"logged_out"'
-Assert-Contains "auth logout revoked" $authLogout '"refresh_token_revoked":true'
-
-$authAudit = Invoke-JsonApi -Url "$BaseUrl/api/v1/audit/recent?limit=60"
-Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
-Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
-Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-phase3-auth-fail-closed.ps1 -BaseUrl $BaseUrl
+if ($LASTEXITCODE -ne 0) { throw "Phase3 hosted auth verification failed: credential issuance fail-closed verifier" }
 
 $systemFallbackContract = Invoke-JsonApi -Url "$BaseUrl/api/v1/system/fallback/contract"
 Assert-Contains "system fallback version" $systemFallbackContract '"contract_version":"system-unavailable-fallback-v1"'

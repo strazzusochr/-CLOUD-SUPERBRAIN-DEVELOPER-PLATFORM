@@ -1,0 +1,28 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=candidate-runtime
+[phase5-evidence] release_id=prod-candidate-2026-08-28-local-rc21
+[phase5-evidence] source_commit_sha=c1b022a884eb16939fe0542b2eb9056b60706b20
+[phase5-evidence] evidence_run_id=b099db7f-a621-42e4-b874-519840b09bc8
+[phase5-evidence] command=pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\runs\CURRENT\master-goal\phase5\production-candidate-local -AllowLocalhost -EvidenceRunId b099db7f-a621-42e4-b874-519840b09bc8
+
+> cloud-superbrain-frontend@1.0.0 test:e2e
+> playwright test --project=chromium e2e/phase5-production-candidate.spec.ts
+
+(node:4680) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+Running 1 test using 1 worker
+
+(node:18520) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  ok 1 [chromium] ÔÇ║ e2e\phase5-production-candidate.spec.ts:8:1 ÔÇ║ diagnostics loads the Phase 5 production candidate through a real selection and click (2.3s)
+
+  1 passed (3.3s)
+[phase5-candidate-local] api_contract_verified=true
+[phase5-candidate-local] local_image_identity_verified=true
+[phase5-candidate-local] embedded_source_hash_parity_verified=true
+[phase5-candidate-local] candidate_runtime_source_parity_verified=true
+[phase5-candidate-local] browser_click_verified=true
+[phase5-candidate-local] playwright_passed=1
+[phase5-candidate-local] status=verified service_count=6
+[phase5-evidence] exit_code=0

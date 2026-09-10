@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-const base = process.env.GOAL_B_BASE_URL ?? "http://localhost:8081";
+const base = process.env.GOAL_B_PRODUCT_BASE_URL ?? "";
 
-test("F1 workbench run renders real local llm output", async ({ page }) => {
+test("F1 workbench build renders real Workers AI output", async ({ page }) => {
   const seen: string[] = [];
   page.on("requestfinished", (request) => seen.push(request.url()));
 
@@ -10,11 +10,17 @@ test("F1 workbench run renders real local llm output", async ({ page }) => {
   expect(response?.status()).toBe(200);
   await page.waitForLoadState("networkidle", { timeout: 30_000 }).catch(() => {});
 
-  await page.getByTestId("batch1-workbench-run").click();
-  await expect(page.getByTestId("batch1-workbench-result")).toContainText("PASS batch1_workbench_run", { timeout: 240_000 });
-  await expect(page.getByTestId("batch1-workbench-result")).toContainText("local_model_calls=true");
-  await expect(page.getByTestId("batch1-workbench-result")).not.toContainText("deterministic dry-run");
-  await expect(page.getByTestId("batch1-workbench-result")).toContainText("text=");
-  expect(seen.some((url) => url.includes("/llm/v1/chat/completions"))).toBeTruthy();
-  expect(seen.some((url) => url.includes("/api/v1/workspace/artifacts"))).toBeTruthy();
+  await page.getByLabel("Beschreibung für die App-Erstellung").fill("Baue eine kleine zugängliche Statuskarte mit Überschrift und Umschalter.");
+  const buildResponsePromise = page.waitForResponse((candidate) => candidate.url().includes("/api/v1/build") && candidate.request().method() === "POST");
+  await page.getByTestId("ws-build").click();
+  const buildResponse = await buildResponsePromise;
+  expect(buildResponse.status()).toBe(200);
+  expect(buildResponse.headers()["x-superbrain-source"]).toBe("ai-builder");
+  const body = await buildResponse.json();
+  expect(String(body.model)).toMatch(/^@cf\//);
+  expect(String(body.html)).toMatch(/<!doctype html/i);
+  expect(String(body.html).length).toBeGreaterThan(500);
+  await expect(page.getByTestId("ws-log")).toContainText("Live-Vorschau bereit", { timeout: 240_000 });
+  await expect(page.getByTestId("ws-frame")).toBeVisible();
+  expect(seen.some((url) => url.includes("/api/v1/build"))).toBeTruthy();
 });

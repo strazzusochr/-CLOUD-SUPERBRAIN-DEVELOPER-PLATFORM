@@ -1,7 +1,7 @@
 # Phase 2 Implementation Plan - PATCHED
 
-Stand: 2026-04-25
-Status: Prepared, blocked only by Phase 1 runtime proof
+Stand: 2026-07-21
+Status: Deterministic local runtime verified; hosted and live integrations remain gated
 
 ## Purpose
 
@@ -67,6 +67,12 @@ Phase 2 is not implemented until these proofs exist:
 5. Provider fallback emits structured event.
 6. Tool timeout becomes controlled error, not hang.
 7. SSE stream emits heartbeat, agent status, error, and done events.
+
+All seven deterministic local proofs are verified. The final credited proof is
+`phase2-postgres-checkpoint-restart-recovery-v1`: `npm run verify:runtime` recovered a
+completed PostgreSQL LangGraph checkpoint by the same `thread_id` after recreating
+`agent-api` and `nginx`. Evidence is
+`.codex/runs/CURRENT/master-goal/phase2/checkpoint-restart-recovery-20260721.md`.
 
 ## Non-Claims
 

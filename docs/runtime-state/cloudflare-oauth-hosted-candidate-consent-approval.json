@@ -1,0 +1,14 @@
+{
+  "contract_version": "cloudflare-oauth-hosted-candidate-consent-approval-v1",
+  "status": "owner_approved",
+  "owner_approved": true,
+  "source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+  "target": "production",
+  "architecture": "cloudflare_native",
+  "oauth_scope": "read:user",
+  "frontend_origin": "https://frontend-seven-psi-78.vercel.app",
+  "worker_origin": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
+  "real_provider_consent_approved": true,
+  "approved_at": "2026-09-09T04:03:15.351Z",
+  "secret_output": false
+}

@@ -1,0 +1,200 @@
+{
+  "checkpoint_version": "cloud-superbrain-project-checkpoint-v1",
+  "checkpoint_id": "cloud-superbrain-anchor-2026-07-22T06-42-53+02-00-session4-rc5",
+  "created_at": "2026-07-21T23:48:28+02:00",
+  "updated_at": "2026-07-22T06:42:53+02:00",
+  "workspace": "D:\\PLATTFORM\\-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "branch": "claude/cloud-superbrain-analysis-127d2e",
+  "base_commit_sha": "255e328a76b3f84bf74358bc7258b9ffb797b339",
+  "base_commit_subject": "fix(security): enforce fail-closed auth issuance",
+  "base_commit_pushed": true,
+  "origin_reachable": true,
+  "market_ready": false,
+  "progress": {
+    "overall_percent": 86,
+    "horizontal": {
+      "phase_0": 100,
+      "phase_1": 100,
+      "phase_2": 100,
+      "phase_3": 44,
+      "phase_4": 100,
+      "phase_5": 68,
+      "phase_6": 90
+    },
+    "vertical": {
+      "frontend": 100,
+      "orchestrator": 100,
+      "agent_pool": 69,
+      "llm_gateway": 55,
+      "mcp_gateway": 56,
+      "memory": 90,
+      "observability": 100
+    }
+  },
+  "completed_commits": [
+    {
+      "sha": "76f46446",
+      "subject": "verify(llm): bind hosted preview read-only parity",
+      "pushed": true
+    },
+    {
+      "sha": "0679f6ff",
+      "subject": "fix(frontend): stabilize browser fallback runtime",
+      "pushed": true
+    },
+    {
+      "sha": "a80c3561",
+      "subject": "verify(release): requalify runtime candidate rc4",
+      "pushed": true
+    },
+    {
+      "sha": "255e328a",
+      "subject": "fix(security): enforce fail-closed auth issuance",
+      "pushed": true
+    }
+  ],
+  "hosted_llm_503_repair": {
+    "status": "verified",
+    "preview_and_production_mini_build_http_status": 200,
+    "preview_browser_clicks": 44,
+    "production_browser_clicks": 44,
+    "console_errors": 0,
+    "evidence": ".codex/runs/CURRENT/llm-gateway/frontend-build-503-fix/report.json",
+    "sha256": "B66A02387CD5CCA631947DAC7E6A99BF9B1E0BC5A498F6828437018794F42F0A"
+  },
+  "release_candidate": {
+    "release_id": "prod-candidate-2026-07-22-local-rc5",
+    "source_commit_sha": "255e328a76b3f84bf74358bc7258b9ffb797b339",
+    "rollback_commit_sha": "0679f6ffda099a6fcddf6830839a195ebe7d13a7",
+    "git_archive_sha256": "56630e8765093f50175966b6d6a8a3c796a06dd4dea420194c8d5a670cab00fb",
+    "service_count": 6,
+    "candidate_report_sha256": "906C202FF2A74D32E52DD3AD77D17910B7777C97C4B3A90A1A761A88603E54B9",
+    "verification_sha256": "BEA1898986560DE6B987B01752AA2A802EA8209FE171034FFB0E30FD03867EBC",
+    "runtime_source_parity": true,
+    "promotion_eligible": false,
+    "registry_publish": false,
+    "production_rollout_claimed": false,
+    "requires_rc5_after_auth_commit": false
+  },
+  "in_progress_slice": {
+    "id": "phase3-auth-credential-issuance-fail-closed-v1",
+    "status": "completed_committed_pushed_rc5_verified",
+    "commit_sha": "255e328a76b3f84bf74358bc7258b9ffb797b339",
+    "reason": "Arbitrary callback code/state and arbitrary unseen refresh tokens previously minted credentials.",
+    "progress_credit_claimed": false,
+    "intended_files": [
+      "services/agent-api/app/main.py",
+      "services/agent-api/tests/test_auth_security.py",
+      "services/agent-api/Dockerfile",
+      "api/index.py",
+      "apps/frontend/lib/endpointDefaults.ts",
+      "apps/frontend/package.json",
+      "apps/frontend/package-lock.json",
+      "infrastructure/nginx/dev.conf",
+      "infrastructure/nginx/cloud.conf",
+      "scripts/verify-phase3-auth-fail-closed.ps1",
+      "scripts/verify-browser-contract.ps1",
+      "scripts/verify-phase1-runtime.ps1",
+      "scripts/verify-hosted-staging.ps1",
+      "scripts/verify-phase3-auth-hosted.ps1",
+      "scripts/verify-phase5-auth-gate-recheck.ps1",
+      "scripts/verify-workspace-data-sources.ps1",
+      "scripts/verify-phase1.ps1",
+      "docs/runtime-contracts/phase3-auth-credential-issuance-fail-closed.md",
+      "docs/project-progress.manifest.json"
+    ],
+    "evidence": {
+      "report": ".codex/runs/CURRENT/phase3/auth-fail-closed/report.json",
+      "sha256": "FB90E6D57FFBC6C646C583D6F5DD18F4EDB71D9E881B9B7090B3FFDD31FCADC1",
+      "unit_tests_passed": 19,
+      "real_redis_concurrency_verified": true,
+      "logout_audit_persisted": true,
+      "callback_arbitrary_status": 503,
+      "body_refresh_status": 400,
+      "unknown_cookie_refresh_status": 401,
+      "unknown_cookie_logout_status": 200,
+      "credentials_issued": false,
+      "live_github_oauth_call": false,
+      "secret_output": false,
+      "localhost_dev_only": true,
+      "hosted_stateful_auth_verified": false,
+      "npm_audit_vulnerabilities": 0,
+      "full_static_passed": true,
+      "full_runtime_passed": true,
+      "full_browser_passed": true
+    },
+    "remaining_verification": []
+  },
+  "last_green_commands": [
+    {
+      "command": "npm run verify",
+      "status": "passed_auth_source",
+      "duration_seconds": 576.2
+    },
+    {
+      "command": "npm run verify:runtime",
+      "status": "passed_auth_source",
+      "duration_seconds": 629.3
+    },
+    {
+      "command": "npm run verify:browser",
+      "status": "passed_auth_source",
+      "duration_seconds": 3071.1
+    },
+    {
+      "command": "npm run verify:phase5-candidate-local",
+      "status": "passed_rc5",
+      "browser_tests": "1/1"
+    },
+    {
+      "command": "npm run verify:current-release-candidate",
+      "status": "passed_rc5",
+      "promotion_eligible": false
+    },
+    {
+      "command": "py -3.14 -m unittest discover -s services/agent-api/tests -p test_auth_security.py -v",
+      "status": "passed_auth_source",
+      "tests": "19/19"
+    },
+    {
+      "command": "scripts/verify-phase3-auth-fail-closed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost",
+      "status": "passed_auth_source"
+    }
+  ],
+  "docker": {
+    "compose_file": "docker-compose.dev.yml",
+    "healthy_services": 10,
+    "total_services": 10,
+    "resource_saver_disabled": true
+  },
+  "foreign_dirty_files": [
+    ".gitignore",
+    "apps/frontend/app/api/v1/build/route.ts",
+    "apps/frontend/app/run/[id]/page.tsx",
+    "apps/frontend/components/goal-b-actions.tsx",
+    "apps/frontend/lib/frontendBoundary.ts",
+    "apps/frontend/tsconfig.tsbuildinfo",
+    "package.json",
+    "scripts/verify-cloudflare-llm-gateway.ps1",
+    "apps/frontend/components/run-build.tsx",
+    "scripts/verify-cloudflare-stateful-runtime-local.ps1",
+    "scripts/verify-cloudflare-stateful-runtime.ps1",
+    "scripts/verify-stateful-build-browser.cjs",
+    "services/cloudflare-stateful-runtime/.gitignore"
+  ],
+  "mixed_ownership_files": {
+    "scripts/verify-phase1.ps1": {
+      "owned_changes": "Phase 3 auth marker, source, and focused-verifier guards committed in 255e328a",
+      "foreign_changes": "Cloudflare D1 stateful runtime static contract invocation",
+      "required_action": "leave the remaining foreign D1 hunk unstaged unless its owner explicitly integrates it"
+    }
+  },
+  "owner_walls": [
+    "payment_or_credit_card",
+    "password_account_creation",
+    "captcha",
+    "secret_value_disclosure_or_commit"
+  ],
+  "next_step": "Commit/push the RC5 truth artifact, then run the market-ready static audit and classify remaining autonomous work versus explicit Owner/cloud walls.",
+  "start_prompt": "CODEX_START_PROMPT_2026-07-21_SESSION4.md"
+}

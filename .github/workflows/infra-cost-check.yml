@@ -13,19 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Setup Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
 
-      - name: Check Vercel Fly.io GHCR Grafana Cloud projected monthly infra cost
+      - name: Check Vercel Cloudflare GHCR Grafana Cloud projected monthly infra cost
         env:
           INFRA_BUDGET_EUR: '20'
           INFRA_WARN_EUR: '16'
           VERCEL_PROJECTED_MONTHLY_EUR: ${{ vars.VERCEL_PROJECTED_MONTHLY_EUR }}
-          FLY_PROJECTED_MONTHLY_EUR: ${{ vars.FLY_PROJECTED_MONTHLY_EUR }}
+          CLOUDFLARE_PROJECTED_MONTHLY_EUR: ${{ vars.CLOUDFLARE_PROJECTED_MONTHLY_EUR }}
           GHCR_PROJECTED_MONTHLY_EUR: ${{ vars.GHCR_PROJECTED_MONTHLY_EUR }}
           GRAFANA_CLOUD_PROJECTED_MONTHLY_EUR: ${{ vars.GRAFANA_CLOUD_PROJECTED_MONTHLY_EUR }}
         run: |
@@ -36,7 +36,7 @@ jobs:
 
           providers = {
               "Vercel": os.getenv("VERCEL_PROJECTED_MONTHLY_EUR", "").strip(),
-              "Fly.io": os.getenv("FLY_PROJECTED_MONTHLY_EUR", "").strip(),
+              "Cloudflare": os.getenv("CLOUDFLARE_PROJECTED_MONTHLY_EUR", "").strip(),
               "GHCR": os.getenv("GHCR_PROJECTED_MONTHLY_EUR", "").strip(),
               "Grafana Cloud": os.getenv("GRAFANA_CLOUD_PROJECTED_MONTHLY_EUR", "").strip(),
           }
@@ -55,6 +55,9 @@ jobs:
               sys.exit(3)
 
           total = sum(costs.values(), Decimal("0"))
+          if costs["Cloudflare"] != Decimal("0"):
+              print("Cloudflare zero-card target must remain EUR 0.00; paid fallback is forbidden.")
+              sys.exit(5)
           for name, cost in costs.items():
               print(f"{name} projected monthly cost: EUR {cost:.2f}")
           print(f"Projected monthly infra cost: EUR {total:.2f}")

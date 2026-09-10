@@ -1,0 +1,26 @@
+{
+  "contract_version": "layer5-registry-release-credit-requalification-v1",
+  "status": "verified",
+  "scope": "vertical",
+  "cell_id": "layer_5",
+  "old_percent": 86,
+  "new_percent": 100,
+  "points_awarded": 14,
+  "credit_eligible": true,
+  "current_candidate": {
+    "release_id": "prod-candidate-2026-09-07-local-rc48",
+    "source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7"
+  },
+  "historical_evidence": {
+    "contract_version": "layer5-registry-release-credit-evidence-v1",
+    "source_sha": "b926d576fb906cbe8695ec4fdba63cc63026477e",
+    "path": "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/registry/layer5-registry-release-credit-evidence.json",
+    "sha256": "a4d6c211c1cee7c498d24bf276aef34bb0ff3f757a5a54d6ebf2afdcdcd2a2ce"
+  },
+  "requalification_read_only": true,
+  "registry_write_performed": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "provider_writes": false,
+  "secret_output": false
+}

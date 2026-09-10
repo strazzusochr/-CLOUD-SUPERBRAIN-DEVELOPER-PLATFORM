@@ -1,7 +1,8 @@
 {
-  "active_release_id": "dev-candidate-2026-06-15-rc1",
-  "updated_at": "2026-06-15T04:05:00Z",
-  "updated_by": "codex-autonomous-release-workflow-20260615",
-  "reason": "Rebaseline active release candidate to the current repository head for DEV-ONLY proof. This updates release-boundary head parity and records local runtime + browser verifier evidence for 22 pages and 7 layers. No hosted staging, production rollout, registry push, or live provider claim is made by this candidate.",
+  "active_release_id": "prod-candidate-2026-09-10-local-rc59",
+  "source_commit_sha": "005ddb46f572520ac182c4f08cc177f07dfe1ae8",
+  "updated_at": "2026-09-10T03:48:39Z",
+  "updated_by": "rc59-no-credit-requalification-locally-qualified",
+  "reason": "RC59 selects frozen source S12 005ddb46f572520ac182c4f08cc177f07dfe1ae8 after direct-child Q12 4e3029fc99b7370e78a26f2a5dfd6f14c917f647 bound the exact archive and GitHub Actions run 34429494180 checked Q12 as run head and S12 as the immutable source checkout with failed and skipped steps both zero. Security, runtime, browser, six local images, and candidate-runtime evidence passed. The authorized RC59 browser chain used exactly three gateway/provider calls and no automatic retry. I1, I5, release promotion, and production rollout remain blocked; no percentage credit is awarded.",
   "production_rollout_claimed": false
 }

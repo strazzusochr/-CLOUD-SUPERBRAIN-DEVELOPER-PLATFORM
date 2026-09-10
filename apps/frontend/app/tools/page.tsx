@@ -5,13 +5,12 @@ import { MCP_TOOLS } from "../../lib/platform";
 import { PROVIDERS, LAYERS } from "../../components/organism/regionMap";
 import { fetchProviders } from "../../lib/agentApi";
 import { ToolsReadOnlyPanel } from "../../components/goal-b-actions";
-import { LiveConsole } from "../../components/live-console";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Tools / Cloud-Hub — Cloud Superbrain" };
+export const metadata = { title: "Werkzeuge / Cloud-Zentrum — Cloud Superbrain" };
 
 const SCOPE_TONE = { read: "green", scoped_write: "amber", gated: "violet" } as const;
-const SCOPE_LABEL = { read: "nur lesen", scoped_write: "scoped write", gated: "gated" } as const;
+const SCOPE_LABEL = { read: "nur lesen", scoped_write: "begrenztes Schreiben", gated: "durch Gate geschützt" } as const;
 
 type Tone = "green" | "amber" | "violet";
 function statusTone(s: string): Tone {
@@ -28,13 +27,14 @@ export default async function ToolsPage() {
   const hasAgentApi = !!process.env.AGENT_API_BASE_URL;
   const hasMcp = !!process.env.MCP_GATEWAY_BASE_URL;
   const hasLlm = !!process.env.LLM_GATEWAY_BASE_URL;
+  const filesystemProjectProgressEnabled = process.env.SUPERBRAIN_RUNTIME_MODE === "dev-only";
   return (
-    <AppShell crumb="Tools" runState="idle">
+    <AppShell crumb="Werkzeuge" runState="idle">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Tools / Cloud-Hub"
-          title="MCP-Tools & Cloud-Provider"
-          subtitle="Nur Verdrahtung (read-only): echte MCP-Tools und Provider hinter den 7 Layern. Write-Scopes bleiben gated; Provider-Status kommt aus GET /api/v1/clouds — Token-Werte werden nie angezeigt."
+          eyebrow="Werkzeuge / Cloud-Zentrum"
+          title="MCP-Werkzeuge und Cloud-Provider"
+          subtitle="Nur lesende Verdrahtung: MCP-Werkzeuge und Provider bleiben hinter den sieben Schichten. Schreibbereiche sind durch Gates geschützt; der Provider-Status kommt aus GET /api/v1/clouds — Token-Werte werden nie angezeigt."
           actions={
             <>
               {live ? <Badge tone="green">● Live · {readiness!.liveCount}/{readiness!.total} verifiziert</Badge> : null}
@@ -44,7 +44,7 @@ export default async function ToolsPage() {
         />
 
         <Panel
-          title="Cloud-Verdrahtung (Frontend → Runtime)"
+          title="Cloud-Verdrahtung (Frontend → Laufzeit)"
           className="mb-16"
           actions={<Badge tone={stagingEnabled ? "green" : "amber"}>{stagingEnabled ? "aktiv" : "inaktiv"}</Badge>}
         >
@@ -58,7 +58,7 @@ export default async function ToolsPage() {
               </div>
               <div className="rd-row">
                 <StatusDot tone={hasStagingBase ? "green" : "violet"} pulse={hasStagingBase} />
-                <span className="rd-name">Staging Base</span>
+                <span className="rd-name">Staging-Basis</span>
                 <span className="rd-layers mono">STAGING_BASE_URL</span>
                 <Badge tone={hasStagingBase ? "green" : "violet"}>{hasStagingBase ? "gesetzt" : "fehlt"}</Badge>
               </div>
@@ -70,25 +70,25 @@ export default async function ToolsPage() {
               </div>
               <div className="rd-row">
                 <StatusDot tone={hasMcp ? "green" : "violet"} pulse={hasMcp} />
-                <span className="rd-name">MCP Gateway</span>
+                <span className="rd-name">MCP-Gateway</span>
                 <span className="rd-layers mono">MCP_GATEWAY_BASE_URL</span>
                 <Badge tone={hasMcp ? "green" : "violet"}>{hasMcp ? "gesetzt" : "fehlt"}</Badge>
               </div>
               <div className="rd-row">
                 <StatusDot tone={hasLlm ? "green" : "violet"} pulse={hasLlm} />
-                <span className="rd-name">LLM Gateway</span>
+                <span className="rd-name">LLM-Gateway</span>
                 <span className="rd-layers mono">LLM_GATEWAY_BASE_URL</span>
                 <Badge tone={hasLlm ? "green" : "violet"}>{hasLlm ? "gesetzt" : "fehlt"}</Badge>
               </div>
             </div>
             <p className="text-12 text-dim mt-10">
-              Hinweis: Das sind reine Verdrahtungs-Flags/URLs (Status only). Gefährliche Write/Deploy-Gates bleiben separat geschlossen.
+              Hinweis: Das sind reine Verdrahtungs-Flags und URLs; angezeigt wird nur der Status. Gefährliche Schreib- und Bereitstellungs-Gates bleiben getrennt geschlossen.
             </p>
           </div>
         </Panel>
 
         {live ? (
-          <Panel title="Live Cloud-Readiness (GET /api/v1/clouds)" className="mb-16" actions={<Badge tone="cyan">read-only · keine Token-Werte</Badge>}>
+          <Panel title="Live-Cloud-Bereitschaft (GET /api/v1/clouds)" className="mb-16" actions={<Badge tone="cyan">nur lesend · keine Token-Werte</Badge>}>
             <div className="readiness">
               {readiness!.providers.map((p) => (
                 <div key={p.id} className="rd-row">
@@ -102,47 +102,35 @@ export default async function ToolsPage() {
           </Panel>
         ) : null}
 
-        <Panel title="Live MCP / Tools console" className="mb-16" actions={<Badge tone="cyan">interaktiv · read-only</Badge>}>
+        <Panel title="Werkzeuge sicher ausführen (nur lesend)" className="mb-16" actions={<Badge tone="green">memory_read / task_router</Badge>}>
           <div className="wb-pad">
-            <LiveConsole
-              label="MCP/Tools"
-              endpoints={[
-                { label: "MCP version-pinning contract", path: "/mcp/api/v1/version-pinning/contract" },
-                { label: "MCP audit", path: "/api/v1/audit/mcp" },
-                { label: "Read-only tool contract", path: "/api/v1/tools/read-only/execute/contract" },
-                { label: "Prompt contract", path: "/api/v1/prompt/contract" },
-              ]}
-            />
+            <ToolsReadOnlyPanel filesystemProjectProgressEnabled={filesystemProjectProgressEnabled} />
           </div>
         </Panel>
 
-        <Panel title="Goal B safe execute (read-only tools)" className="mb-16" actions={<Badge tone="green">memory_read / task_router</Badge>}>
-          <div className="wb-pad">
-            <ToolsReadOnlyPanel />
+        <Panel title="MCP-Werkzeuge (erlaubte Agentenwerkzeuge)" className="mb-16">
+          <div className="table-scroll">
+            <table className="tbl">
+              <thead>
+                <tr><th>Werkzeug</th><th>Schicht</th><th>Bereich</th></tr>
+              </thead>
+              <tbody>
+                {MCP_TOOLS.map((m) => {
+                  const layer = LAYERS[m.layer - 1];
+                  return (
+                    <tr key={m.id}>
+                      <td className="mono">{m.id}</td>
+                      <td>
+                        <span className={`layer-tag layer-tag-${m.layer}`}>L{m.layer}</span>{" "}
+                        <span className="layer-sub">{layer.label}</span>
+                      </td>
+                      <td><Badge tone={SCOPE_TONE[m.scope]}>{SCOPE_LABEL[m.scope]}</Badge></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </Panel>
-
-        <Panel title="MCP-Tools (agent allowed_tools)" className="mb-16">
-          <table className="tbl">
-            <thead>
-              <tr><th>Tool</th><th>Layer</th><th>Scope</th></tr>
-            </thead>
-            <tbody>
-              {MCP_TOOLS.map((m) => {
-                const layer = LAYERS[m.layer - 1];
-                return (
-                  <tr key={m.id}>
-                    <td className="mono">{m.id}</td>
-                    <td>
-                      <span className={`layer-tag layer-tag-${m.layer}`}>L{m.layer}</span>{" "}
-                      <span className="layer-sub">{layer.label}</span>
-                    </td>
-                    <td><Badge tone={SCOPE_TONE[m.scope]}>{SCOPE_LABEL[m.scope]}</Badge></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </Panel>
 
         <Panel title={`Cloud-Provider (${PROVIDERS.length})`}>

@@ -16,18 +16,21 @@ Localhost is allowed only as a lightweight development control plane for API con
 
 ## Required Cloud Gates
 
-The contract remains `action_required` until these environment bindings exist in the running Agent API process:
+The contract remains `action_required` until these environment bindings exist in the running Agent API process and the canonical Cloudflare-native hosted-runtime gate is verifier-backed:
 
 - `STAGING_BASE_URL`
 - `AGENT_API_BASE_URL`
 - `MCP_GATEWAY_BASE_URL`
 - `LLM_GATEWAY_BASE_URL`
-- `FLY_API_TOKEN`
+- `CLOUDFLARE_STATEFUL_BASE_URL`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+
+The least-privilege scope evidence is the same scope set and hosted verifier required by the deployment-preflight contract.
 
 Optional provider bindings may enrich proof but do not replace the required gates:
 
 - `VERCEL_TOKEN`
-- `CLOUDFLARE_API_TOKEN`
 - `GITHUB_TOKEN`
 - `GHCR_TOKEN`
 - `GRAFANA_CLOUD_API_KEY`
@@ -47,7 +50,7 @@ Optional provider bindings may enrich proof but do not replace the required gate
 - Missing cloud env bindings are emitted as `cloud_render_offload_requires_<ENV_KEY>` blockers.
 - The contract does not start cloud servers.
 - The contract does not claim production deployment.
-- The contract does not bypass the Fly.io budget guard.
+- The contract does not bypass the zero-card Cloudflare-native hosted-runtime gate.
 - The contract does not store or return provider token values.
 
 ## Verification

@@ -1,0 +1,58 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 824B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.1s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B 0.0s done
+#3 DONE 0.1s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [1/8] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#5 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.1s done
+#5 DONE 0.1s
+
+#4 [internal] load build context
+#4 transferring context: 93.19kB 0.1s done
+#4 DONE 0.1s
+
+#6 [2/8] WORKDIR /app
+#6 CACHED
+
+#7 [3/8] RUN apk upgrade --no-cache
+#7 CACHED
+
+#8 [4/8] COPY services/mcp-gateway/requirements.txt .
+#8 CACHED
+
+#9 [6/8] COPY services/mcp-gateway/app ./app
+#9 CACHED
+
+#10 [7/8] COPY docs/project-progress.manifest.json /app/readonly/project-progress.manifest.json
+#10 CACHED
+
+#11 [5/8] RUN pip install --no-cache-dir -r requirements.txt
+#11 CACHED
+
+#12 [8/8] RUN adduser -D -u 10001 appuser     && chown -R appuser:appuser /app /tmp     && chown -R root:root /app/readonly     && chmod 0555 /app/readonly     && chmod 0444 /app/readonly/project-progress.manifest.json
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers 0.0s done
+#13 exporting manifest sha256:27b29000e08f261e0d614c531380b1c778e06e73576ab7a664f877021e997fa6 0.1s done
+#13 exporting config sha256:cd20a421ef698d708bcfa509a3e7e1a0f6e90422129f67e221d6b8111fb6eb55
+#13 exporting config sha256:cd20a421ef698d708bcfa509a3e7e1a0f6e90422129f67e221d6b8111fb6eb55 0.0s done
+#13 exporting attestation manifest sha256:448298704ed7be063c29d5748a42e9f88a913287cc6e2165ff8119f1348ee16e 0.0s done
+#13 exporting manifest list sha256:4eea24e36e67f057ad3e395880f422a070a9787012f896d6d3a5f097c472e0d6
+#13 exporting manifest list sha256:4eea24e36e67f057ad3e395880f422a070a9787012f896d6d3a5f097c472e0d6 0.0s done
+#13 naming to docker.io/cloud-superbrain-production-candidate/mcp-gateway:19f633f86b33b0aae8e34785bea59b910a3f7157 done
+#13 unpacking to docker.io/cloud-superbrain-production-candidate/mcp-gateway:19f633f86b33b0aae8e34785bea59b910a3f7157 0.0s done
+#13 DONE 0.3s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/sq3axhg7epj9yv56cllhumjqb

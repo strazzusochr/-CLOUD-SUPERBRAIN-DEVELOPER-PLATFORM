@@ -1,0 +1,64 @@
+{
+  "contract_version": "phase6-scale-criterion-v2",
+  "supersedes": "phase6-scale-criterion-v1",
+  "gate_id": "phase6_scale_runtime",
+  "declared_at_utc": "2026-07-31T00:00:00Z",
+  "v2_clarified_at_utc": "2026-08-02T00:00:00Z",
+  "declared_before_first_run": true,
+  "declared_before_first_full_write_run": true,
+  "declaration_note": "V1 was committed before measuring. V2 is declared before the first authorized full write run and only makes the already-required no-loss/no-duplicate write semantics and active-record cleanup explicit; no measured threshold was relaxed.",
+  "target": {
+    "base_url": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
+    "surface": "cloudflare-stateful-runtime worker"
+  },
+  "envelope": {
+    "zero_card": true,
+    "payment_forbidden": true,
+    "paid_fallback_forbidden": true,
+    "max_total_requests": 900,
+    "cap_enforcement": "The verifier counts every request it issues and aborts before exceeding max_total_requests. Overage is structurally impossible, not merely unlikely.",
+    "rationale": "Far inside the Cloudflare Workers free daily request allowance. The proof is about behaviour under concurrency, not about buying capacity."
+  },
+  "read_tiers": [
+    { "concurrency": 1, "requests": 60 },
+    { "concurrency": 10, "requests": 240 },
+    { "concurrency": 50, "requests": 500 }
+  ],
+  "write_tier": {
+    "required": true,
+    "auth_env_name": "AGENT_API_AUTH_TOKEN",
+    "concurrency": 10,
+    "records": 50,
+    "readback_required": true,
+    "no_loss_allowed": true,
+    "no_duplicate_allowed": true,
+    "http_429_allowed": false,
+    "cleanup_semantics": "soft_delete_then_active_row_absence_and_audit_readback",
+    "note": "Parallel D1 writes with full readback are the actual scale proof. Latency numbers alone do not demonstrate that state survives concurrency."
+  },
+  "control_tier": {
+    "added_at_utc": "2026-07-31T08:30:00Z",
+    "purpose": "Attribution control. /cdn-cgi/trace is served by the Cloudflare edge WITHOUT invoking the Worker, so it shares the client, the TLS path and the edge but excludes our code. Worker latency minus control latency at the same concurrency is the Worker's own contribution.",
+    "path": "/cdn-cgi/trace",
+    "max_control_requests": 500,
+    "budget_note": "Separate hard cap. The Worker-path budget in envelope.max_total_requests is deliberately left untouched so the measured Worker tiers stay exactly comparable to the first run.",
+    "not_a_pass_criterion": "This block adds a measurement control only. It changes no threshold in pass_criteria."
+  },
+  "pass_criteria": {
+    "min_success_ratio": 0.99,
+    "max_p95_ms": 1500,
+    "own_5xx_allowed": 0,
+    "throttle_must_fail_closed": true,
+    "http_429_scope": "health_read_tiers_only",
+    "throttle_note": "HTTP 429 is acceptable only on health-read tiers and must fail closed. Every planned write and cleanup still requires its exact readback, so a write/delete 429 is a failed run."
+  },
+  "fail_closed": {
+    "missing_write_auth_is_failure": true,
+    "note": "If AGENT_API_AUTH_TOKEN is absent the verifier MUST exit non-zero and report BLOCKED. Silently downgrading to a read-only run and printing green is the false-green failure mode this project has already hit once."
+  },
+  "non_claims": [
+    "A pass proves capacity within the declared zero-card envelope only. It does not claim unlimited or production-grade scale.",
+    "A pass does not open phase6_scale_runtime by itself. Only the verifier may record evidence, and the Owner gate remains authoritative.",
+    "This criterion grants no percentage credit to any matrix cell."
+  ]
+}

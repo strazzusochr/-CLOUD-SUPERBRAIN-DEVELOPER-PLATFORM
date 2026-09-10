@@ -38,6 +38,7 @@ Pinned dependencies:
 | `github` | `plan_branch_pr` | `github-branch-pr-plan-v1` | `GET /mcp/api/v1/github/branch-pr/contract` |
 | `postgresql` | `query_readonly` | `postgresql-readonly-query-v1` | `GET /mcp/api/v1/postgresql/readonly-query/contract` |
 | `filesystem` | `plan_workspace_access` | `filesystem-workspace-scope-v1` | `GET /mcp/api/v1/filesystem/workspace-scope/contract` |
+| `filesystem` | `read_project_progress` | `filesystem-project-progress-read-v1` | `GET /mcp/api/v1/filesystem/project-progress/contract` |
 | `playwright` | `plan_browser_proof` | `playwright-browser-proof-v1` | `GET /mcp/api/v1/playwright/browser-proof/contract` |
 | `e2b` | `plan_sandbox_lifecycle` | `e2b-sandbox-lifecycle-v1` | `GET /mcp/api/v1/e2b/sandbox-lifecycle/contract` |
 
@@ -61,6 +62,7 @@ Pinned dependencies:
 ## Evidence
 
 - `GET /mcp/api/v1/version-pinning/contract` returns `mcp-version-pinning-v1`.
+- The additive `filesystem-project-progress-read-v1` pin covers the fixed DEV-ONLY read adapter without changing the global v1 pinning contract.
 - Frontend renders `MCP Version Pinning Contract` with `mcp_version_pinning_contract_visible`.
 - Static, runtime, hosted, and browser-contract verifiers assert exact dependency pins, pinned tool contract versions, drift policy, evidence refs, and non-claims.
 

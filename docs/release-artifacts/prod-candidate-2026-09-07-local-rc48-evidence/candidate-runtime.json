@@ -1,0 +1,49 @@
+{
+  "contract_version": "phase5-production-candidate-local-verification-v2",
+  "evidence_ref": "phase5_local_production_candidate_verified",
+  "status": "verified",
+  "verification_scope": "full_with_browser",
+  "generated_at": "2026-09-08T10:32:32.0503299Z",
+  "release_id": "prod-candidate-2026-09-07-local-rc48",
+  "source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+  "service_count": 6,
+  "api_contract_verified": true,
+  "local_image_identity_verified": true,
+  "embedded_source_hash_parity_verified": true,
+  "candidate_runtime_source_parity_verified": true,
+  "rollback_target": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+  "browser_click_verified": true,
+  "registry_publish": false,
+  "hosted_staging_parity": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "secret_output": false,
+  "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir docs\\release-artifacts\\prod-candidate-2026-09-07-local-rc48-evidence -AllowLocalhost -EvidenceRunId d568d71f-bb55-4b70-8654-ab81cd897cba",
+  "evidence_run_id": "d568d71f-bb55-4b70-8654-ab81cd897cba",
+  "raw_log_path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/raw/candidate-runtime.log",
+  "raw_log_sha256": "78276B51931CB0C1075352F41974FBFC0D99BC247F40FB84D42DC5E26625EF9E",
+  "observed_success_anchors": [
+    "[phase5-candidate-local] api_contract_verified=true",
+    "[phase5-candidate-local] local_image_identity_verified=true",
+    "[phase5-candidate-local] embedded_source_hash_parity_verified=true",
+    "[phase5-candidate-local] candidate_runtime_source_parity_verified=true",
+    "[phase5-candidate-local] browser_click_verified=true",
+    "[phase5-candidate-local] playwright_passed=1",
+    "[phase5-candidate-local] status=verified service_count=6"
+  ],
+  "raw_evidence": {
+    "candidate_images": {
+      "path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/candidate-images.json",
+      "sha256": "636ADD433B022FBB01D4A3ACD611A3BCC1B4BD8A623440AE7EAF66A817231280"
+    },
+    "api_contract": {
+      "path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/raw/candidate-runtime-api-contract.json",
+      "sha256": "5D2E9A6444C58CA8B56AA427D1CC6D3CA25194E5C645FC84A964A07ABA6FCD22"
+    },
+    "browser_screenshot": {
+      "path": "docs/release-artifacts/prod-candidate-2026-09-07-local-rc48-evidence/raw/candidate-runtime-browser.png",
+      "sha256": "9197217ADAA7C1A3C58E6E253BB178F220ED6882EEE22B8D437F45274AFDE6C2",
+      "size_bytes": 158529
+    }
+  }
+}

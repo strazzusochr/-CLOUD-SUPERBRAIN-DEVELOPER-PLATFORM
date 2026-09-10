@@ -1,0 +1,122 @@
+name: i1-codespaces-candidate-verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Public HTTPS origin of the running digest-only Codespace
+        required: true
+        type: string
+      release_id:
+        description: Exact qualified release identifier
+        required: true
+        type: string
+      source_sha:
+        description: Exact frozen product source S
+        required: true
+        type: string
+      control_sha:
+        description: Exact evidence/control commit checked out by this verifier
+        required: true
+        type: string
+      publication_run_id:
+        description: main-deploy run that emitted the immutable manifest
+        required: true
+        type: string
+      publication_run_attempt:
+        description: Exact main-deploy attempt, normally one
+        required: true
+        type: string
+      publication_artifact_name:
+        description: Exact immutable candidate-manifest artifact name
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+jobs:
+  verify:
+    name: Independent digest and HTTPS verifier
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out exact control source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.control_sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+
+      - name: Set up read-only registry inspection
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Authenticate for private package reads
+        uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate immutable inputs and download publication artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          CONTROL_SHA: ${{ inputs.control_sha }}
+          PUBLICATION_RUN_ID: ${{ inputs.publication_run_id }}
+          PUBLICATION_RUN_ATTEMPT: ${{ inputs.publication_run_attempt }}
+          PUBLICATION_ARTIFACT_NAME: ${{ inputs.publication_artifact_name }}
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${CONTROL_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${PUBLICATION_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${PUBLICATION_RUN_ATTEMPT}" =~ ^[1-9][0-9]*$ ]]
+          test "${PUBLICATION_ARTIFACT_NAME}" = "ghcr-candidate-${SOURCE_SHA}-${PUBLICATION_RUN_ID}-${PUBLICATION_RUN_ATTEMPT}"
+          test "$(git rev-parse HEAD)" = "${CONTROL_SHA}"
+          mkdir -p .i1-input .i1-output
+          gh run download "${PUBLICATION_RUN_ID}" --name "${PUBLICATION_ARTIFACT_NAME}" --dir .i1-input
+          test -s .i1-input/ghcr-candidate-manifest.json
+          docker buildx imagetools inspect --help >/dev/null
+
+      - name: Verify static I1 controls
+        run: python scripts/verify_i1_codespaces_static.py
+
+      - name: Verify hosted digest parity, HTTPS, health, persistence surface, and SSE
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          CONTROL_SHA: ${{ inputs.control_sha }}
+          PUBLICATION_RUN_ID: ${{ inputs.publication_run_id }}
+          PUBLICATION_RUN_ATTEMPT: ${{ inputs.publication_run_attempt }}
+        run: >-
+          python scripts/verify_i1_codespaces_candidate.py
+          --base-url "${BASE_URL}"
+          --release-id "${RELEASE_ID}"
+          --source-sha "${SOURCE_SHA}"
+          --repository "${GITHUB_REPOSITORY}"
+          --control-sha "${CONTROL_SHA}"
+          --registry-manifest .i1-input/ghcr-candidate-manifest.json
+          --publication-run-id "${PUBLICATION_RUN_ID}"
+          --publication-run-attempt "${PUBLICATION_RUN_ATTEMPT}"
+          --hosting-provider github_codespaces
+          --output .i1-output/i1-hosted-candidate-parity.json
+
+      - name: Upload immutable independent verifier evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: i1-hosted-candidate-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .i1-output/i1-hosted-candidate-parity.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+          overwrite: false
+          include-hidden-files: false

@@ -1,0 +1,32 @@
+{
+  "contract_version": "owner-grant-record-v1",
+  "granted_by": "strazzusochr",
+  "granted_at_utc": "2026-09-02T06:55:01.879215+00:00",
+  "corrected_at_utc": "2026-09-02T09:00:00+00:00",
+  "correction_note": "owner_grant_ref auf das vertragsgueltige Token-Format gebracht. Der Verifier verlangt '^[A-Za-z0-9_.:-]+$' (scripts/verify-phase6-scale-evidence.ps1:345, Assert-BoundedIdentifier); die urspruenglichen Referenzen enthielten Leerzeichen, Apostroph und Gedankenstrich und waren damit nicht aufloesbar. Der beschreibende Text steht jetzt in 'description'. Es wurde keine Entscheidung geaendert, kein Gate geoeffnet und kein Punkt vergeben.",
+  "scope_note": "Nur owner_granted und owner_grant_ref. live_verified bleibt dem Verifier vorbehalten.",
+  "grants": {
+    "production_auth_identity": {
+      "owner_granted": true,
+      "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O1:production_auth_identity",
+      "description": "O1 Production OAuth identity, Owner strazzusochr, an Owner-AI-Agent delegiert"
+    },
+    "phase6_scale_runtime": {
+      "owner_granted": true,
+      "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O2:phase6_scale_runtime",
+      "description": "O2-Strich Phase-6 Scale/Capacity, zero-card, Owner strazzusochr"
+    },
+    "docker_registry_publish": {
+      "owner_granted": true,
+      "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
+      "description": "O3 GHCR-Publikation, Owner strazzusochr - NUR nach ausdruecklicher Veroeffentlichungsentscheidung pro Zeile"
+    }
+  },
+  "non_claims": [
+    "Diese Urkunde oeffnet kein Gate allein; jedes verlangt zusaetzlich seinen Verifier und ein Evidence-Artefakt.",
+    "Sie vergibt keinen Prozentpunkt und aendert kein Manifest.",
+    "live_verified wurde nicht angefasst.",
+    "Sie autorisiert keine Production-Promotion und keinen Release.",
+    "Die Korrektur betrifft ausschliesslich das Referenzformat, nicht den Inhalt der Entscheidung."
+  ]
+}

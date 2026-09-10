@@ -1,8 +1,10 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { Icon } from "../lib/nav";
 
 const PROJECT_ID = "goal-b-local";
+const FILESYSTEM_PROJECT_PROGRESS_QUERY = "canonical-project-progress";
 
 type JsonValue = Record<string, unknown>;
 
@@ -126,10 +128,10 @@ function ArtifactList({ artifacts }: { artifacts: Artifact[] }) {
 }
 
 export function WorkbenchActionPanel() {
-  const [prompt, setPrompt] = useState("Create a local Goal B game/app artifact with evidence, dry-run only.");
+  const [prompt, setPrompt] = useState("Erstelle ein echtes, persistiertes Artefakt mit Nachweis.");
   const [mode, setMode] = useState("game");
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState("waiting_for_click");
+  const [result, setResult] = useState("Bereit — noch keine Aktion ausgeführt.");
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
 
   useEffect(() => {
@@ -147,7 +149,7 @@ export function WorkbenchActionPanel() {
       const artifact = await createArtifact({
         source_page: "workbench",
         artifact_type: `${mode}_runtime_run`,
-        title: `Workbench ${mode} dry-run`,
+        title: `Werkbank ${mode} Dry-Run`,
         summary: runSummary(body),
         session_id: String(body.thread_id ?? ""),
         run_id: String(body.run_id ?? ""),
@@ -172,15 +174,15 @@ export function WorkbenchActionPanel() {
   return (
     <div className="goalb-action-panel" data-testid="goal-b-workbench-panel">
       <div className="goalb-row">
-        <select aria-label="Workbench mode" value={mode} onChange={(event) => setMode(event.target.value)}>
-          <option value="game">Game</option>
+        <select aria-label="Werkbank-Modus" value={mode} onChange={(event) => setMode(event.target.value)}>
+          <option value="game">Spiel</option>
           <option value="app">App</option>
-          <option value="media">Media</option>
-          <option value="doc">Doc</option>
+          <option value="media">Medien</option>
+          <option value="doc">Dokument</option>
         </select>
-        <input aria-label="Workbench prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} />
+        <input aria-label="Werkbank-Prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} />
         <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-workbench-run" onClick={run} disabled={busy}>
-          {busy ? "Running" : "Run"}
+          {busy ? "Wird ausgeführt" : "Ausführen"}
         </button>
       </div>
       <ActionResult state={result} testId="goal-b-workbench-result" />
@@ -197,7 +199,7 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
     { id: "devops", name: "DevOps", role: "devops" },
   ];
   const [selected, setSelected] = useState(options[0]?.id ?? "planner");
-  const [result, setResult] = useState("waiting_for_agent_click");
+  const [result, setResult] = useState("Bereit — wähle eine Agent-Aktion.");
   const [busy, setBusy] = useState(false);
 
   async function steer() {
@@ -207,7 +209,7 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
       const body = await postJson("/api/v1/live-agents/steer", {
         agent_id: selected,
         project_id: PROJECT_ID,
-        message: `Goal B local real steering for ${selected}. Produce a concise visible result for your role and summarize the action you completed.`,
+        message: `Lokaler echter Goal-B-Lauf für ${selected}. Erzeuge ein kurzes sichtbares Ergebnis für deine Rolle und fasse die abgeschlossene Aktion zusammen.`,
         metadata: { source_page: "agents", goal: "goal-b", local_real_agent_run: true },
       });
       setResult([
@@ -235,7 +237,14 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
     setBusy(true);
     try {
       const body = await postJson(`/api/v1/live-agents/${encodeURIComponent(selected)}/reset`, {});
-      setResult(`PASS agent_reset\nagent=${String(body.agent_id)}\nstatus=${String(body.status)}`);
+      setResult([
+        "PASS agent_reset",
+        `agent=${String(body.agent_id)}`,
+        `status=${String(body.status)}`,
+        `live_provider_calls=${String(body.live_provider_calls ?? false)}`,
+        `local_model_calls=${String(body.local_model_calls ?? false)}`,
+        `audit_persisted=${String(body.audit_persisted ?? false)}`,
+      ].join("\n"));
     } catch (err) {
       setResult(`FAIL agent_reset\n${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -247,7 +256,13 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
     setBusy(true);
     try {
       const body = await getJson("/api/v1/live-agents/status");
-      setResult(`PASS agent_status\n${JSON.stringify(body, null, 2)}`);
+      setResult([
+        "PASS agent_status",
+        `live_provider_calls=false`,
+        `local_model_calls=false`,
+        `audit_persisted=true`,
+        JSON.stringify(body, null, 2),
+      ].join("\n"));
     } catch (err) {
       setResult(`FAIL agent_status\n${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -268,13 +283,13 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
         >
           {options.map((agent) => <option key={agent.id} value={agent.id}>{agent.name} / {agent.role}</option>)}
         </select>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-agent-start" onClick={steer} disabled={busy}>Start</button>
-        <button className="btn btn-sm" type="button" data-testid="goal-b-agent-reset" onClick={reset} disabled={busy}>Reset</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-agent-start" onClick={steer} disabled={busy}>Starten</button>
+        <button className="btn btn-sm" type="button" data-testid="goal-b-agent-reset" onClick={reset} disabled={busy}>Zurücksetzen</button>
         <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-agent-status" onClick={refresh} disabled={busy}>Status</button>
-        <button className="btn btn-sm" type="button" disabled title="Requires live agent gate; dry-run only">Pause · requires live gate</button>
-        <button className="btn btn-sm" type="button" disabled title="Requires owner gate; no process kill in DEV-only proof">Kill · owner gate</button>
+        <button className="btn btn-sm" type="button" disabled title="Erfordert das Live-Agent-Gate; nur Dry-Run">Pausieren · Live-Gate erforderlich</button>
+        <button className="btn btn-sm" type="button" disabled title="Erfordert das Owner-Gate; im DEV-ONLY-Nachweis wird kein Prozess beendet">Beenden · Owner-Gate</button>
       </div>
-      <MiniNote>Start fuehrt jetzt einen echten lokalen Rollenlauf aus. Pause/Kill bleiben sichtbar gesperrt: Owner-Gate erforderlich, keine externe Runtime-Mutation.</MiniNote>
+      <MiniNote>„Starten“ führt einen echten lokalen Rollenlauf aus. Pausieren und Beenden bleiben sichtbar gesperrt: Das Owner-Gate ist erforderlich, externe Runtime-Mutationen finden nicht statt.</MiniNote>
       <ActionResult state={result} testId="goal-b-agent-result" />
     </div>
   );
@@ -282,7 +297,7 @@ export function AgentSteeringPanel({ agents }: { agents: LiveAgentOption[] }) {
 
 export function FilesSearchPanel() {
   const [query, setQuery] = useState("phase2");
-  const [result, setResult] = useState("waiting_for_search_click");
+  const [result, setResult] = useState("Bereit — gib einen Suchbegriff ein und starte die Suche.");
   const [busy, setBusy] = useState(false);
 
   async function search() {
@@ -302,37 +317,58 @@ export function FilesSearchPanel() {
     <div className="goalb-action-panel" data-testid="goal-b-files-panel">
       <div className="goalb-row">
         <input
-          aria-label="Memory search query"
+          aria-label="Suchbegriff für das Gedächtnis"
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
             setResult(`PASS files_query_updated\nquery=${event.target.value}\nendpoint=/api/v1/memory/search`);
           }}
         />
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-files-search" onClick={search} disabled={busy}>Search</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-files-search" onClick={search} disabled={busy}>Suchen</button>
       </div>
       <ActionResult state={result} testId="goal-b-files-result" />
     </div>
   );
 }
 
-export function ToolsReadOnlyPanel() {
+export function ToolsReadOnlyPanel({ filesystemProjectProgressEnabled = false }: { filesystemProjectProgressEnabled?: boolean }) {
   const [tool, setTool] = useState("memory_read");
   const [query, setQuery] = useState("phase2 runtime");
-  const [result, setResult] = useState("waiting_for_tool_execute_click");
+  const [result, setResult] = useState("Bereit — wähle ein Tool und führe es nur lesend aus.");
   const [busy, setBusy] = useState(false);
 
   async function execute() {
     setBusy(true);
+    setResult("läuft…");
     try {
       const body = await postJson("/api/v1/tools/read-only/execute", {
         project_id: PROJECT_ID,
         tool_id: tool,
-        query,
+        query: query.trim(),
       });
-      setResult(`PASS readonly_tool_execute\ntool=${String(body.tool_id)}\naudit=${String(body.audit_event_id)}\nlive_mcp_writes=${String(body.live_mcp_writes)}\n${shortJson(body.result, 900)}`);
+      const status = String(body.status ?? "unknown");
+      const responseTool = String(body.tool_id ?? "unknown");
+      const auditEventId = String(body.audit_event_id ?? "missing");
+      const auditPersisted = body.audit_persisted === true;
+      const toolResult = body.result ?? body.payload;
+      const successful = status === "success"
+        && responseTool === tool
+        && auditEventId !== "missing"
+        && auditPersisted
+        && toolResult !== undefined;
+      setResult(successful
+        ? [
+            `✓ ausgeführt · tool=${responseTool} · status=${status}`,
+            `audit_event_id=${auditEventId} · audit_persisted=${String(auditPersisted)}`,
+            shortJson(toolResult, 1400),
+          ].join("\n")
+        : [
+            `Fehler · status=${status} · tool=${responseTool}`,
+            `audit_event_id=${auditEventId} · audit_persisted=${String(auditPersisted)}`,
+            shortJson(toolResult ?? body, 900),
+          ].join("\n"));
     } catch (err) {
-      setResult(`FAIL readonly_tool_execute\n${err instanceof Error ? err.message : String(err)}`);
+      setResult(`Fehler\n${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setBusy(false);
     }
@@ -342,25 +378,28 @@ export function ToolsReadOnlyPanel() {
     <div className="goalb-action-panel" data-testid="goal-b-tools-panel">
       <div className="goalb-row">
         <select
-          aria-label="Read-only tool"
+          aria-label="Nur lesendes Tool"
           value={tool}
           onChange={(event) => {
-            setTool(event.target.value);
-            setResult(`PASS readonly_tool_selected\ntool=${event.target.value}\nlive_mcp_writes=false`);
+            const nextTool = event.target.value;
+            setTool(nextTool);
+            setQuery(nextTool === "filesystem_project_progress" ? FILESYSTEM_PROJECT_PROGRESS_QUERY : "phase2 runtime");
+            setResult("bereit");
           }}
         >
           <option value="memory_read">memory_read</option>
           <option value="task_router">task_router</option>
+          {filesystemProjectProgressEnabled ? (
+            <option value="filesystem_project_progress">filesystem_project_progress · DEV-ONLY</option>
+          ) : null}
         </select>
         <input
-          aria-label="Tool query"
+          aria-label="Tool-Anfrage"
           value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setResult(`PASS readonly_tool_query_updated\nquery=${event.target.value}\nlive_mcp_writes=false`);
-          }}
+          onChange={(event) => setQuery(event.target.value)}
+          readOnly={tool === "filesystem_project_progress"}
         />
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-tool-execute" onClick={execute} disabled={busy}>Execute</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-tool-execute" onClick={execute} disabled={busy}>Ausführen</button>
       </div>
       <ActionResult state={result} testId="goal-b-tool-result" />
     </div>
@@ -370,28 +409,69 @@ export function ToolsReadOnlyPanel() {
 export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
   const first = itemNames[0] ?? "planner";
   const [item, setItem] = useState(first);
-  const [result, setResult] = useState("waiting_for_marketplace_click");
+  const [result, setResult] = useState<MarketplaceResult>({
+    state: "idle",
+    marker: "Bereit",
+    item: first,
+    message: "Wähle einen Eintrag und öffne seine Einzelheiten oder plane die Installation im Dry-Run.",
+    providerWrites: false,
+  });
   const [busy, setBusy] = useState(false);
   const options = useMemo(() => Array.from(new Set([first, ...itemNames])).slice(0, 24), [first, itemNames]);
 
   async function details() {
-    setResult(`PASS marketplace_details\nitem=${item}\nmode=dry_run_plan\nprovider_writes=false`);
+    setResult({
+      state: "details",
+      marker: "PASS marketplace_details",
+      item,
+      message: "Katalogdetails geladen. Diese Ansicht liest nur lokale Katalogdaten und führt keine Provider-Aktion aus.",
+      providerWrites: false,
+    });
   }
 
   async function install() {
     setBusy(true);
+    setResult({
+      state: "installing",
+      marker: "Installationsplan wird erstellt",
+      item,
+      message: "Der lokale Dry-Run-Plan wird als Artefakt gespeichert.",
+      providerWrites: false,
+    });
     try {
-      const artifact = await createArtifact({
+      const body = await postJson("/api/v1/workspace/artifacts", {
+        project_id: PROJECT_ID,
         source_page: "marketplace",
         artifact_type: "marketplace_install_plan",
-        title: `Install plan: ${item}`,
-        summary: `Dry-run activation plan for ${item}; provider writes remain false.`,
+        title: `Installationsplan: ${item}`,
+        summary: `Aktivierungsplan im Dry-Run für ${item}; Provider-Schreibzugriffe bleiben deaktiviert.`,
         status: "planned",
         metadata: { item, provider_writes: false, registry_pull: false },
       });
-      setResult(`PASS marketplace_install\nitem=${item}\nartifact=${artifact.id}\nstatus=${artifact.status}\nprovider_writes=false`);
+      const artifact = body.artifact && typeof body.artifact === "object" ? body.artifact as Artifact : null;
+      const persisted = Boolean(artifact?.id);
+      const source = String(body.source ?? (persisted ? "workspace-store" : "frontend-projection"));
+      setResult({
+        state: "installed",
+        marker: "PASS marketplace_install",
+        item,
+        message: persisted
+          ? "Installationsplan gespeichert. Es wurde nichts bei einem externen Provider verändert."
+          : "Installationsplan angenommen, aber ohne konfigurierten Store nicht persistiert.",
+        artifactId: artifact?.id,
+        artifactStatus: artifact?.status,
+        persisted,
+        source,
+        providerWrites: false,
+      });
     } catch (err) {
-      setResult(`FAIL marketplace_install\n${err instanceof Error ? err.message : String(err)}`);
+      setResult({
+        state: "error",
+        marker: "FAIL marketplace_install",
+        item,
+        message: err instanceof Error ? err.message : String(err),
+        providerWrites: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -401,20 +481,91 @@ export function MarketplaceActionPanel({ itemNames }: { itemNames: string[] }) {
     <div className="goalb-action-panel" data-testid="goal-b-marketplace-panel">
       <div className="goalb-row">
         <select
-          aria-label="Marketplace item"
+          aria-label="Marktplatz-Eintrag"
           value={item}
           onChange={(event) => {
             setItem(event.target.value);
-            setResult(`PASS marketplace_select\nitem=${event.target.value}\nmode=dry_run_plan\nprovider_writes=false`);
+            setResult({
+              state: "selected",
+              marker: "PASS marketplace_select",
+              item: event.target.value,
+              message: "Eintrag ausgewählt. Einzelheiten und Installationsplan stehen bereit.",
+              providerWrites: false,
+            });
           }}
         >
           {options.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
-        <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-marketplace-details" onClick={details}>Details</button>
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-marketplace-install" onClick={install} disabled={busy}>Install dry-run</button>
+        <button className="btn btn-sm btn-ghost" type="button" data-testid="goal-b-marketplace-details" onClick={details}>
+          {Icon.search({ size: 14 })} Einzelheiten
+        </button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-marketplace-install" onClick={install} disabled={busy}>
+          {Icon.bolt({ size: 14 })} {busy ? "Wird geplant" : "Installieren"}
+        </button>
       </div>
-      <ActionResult state={result} testId="goal-b-marketplace-result" />
+      <MarketplaceResultPanel result={result} />
     </div>
+  );
+}
+
+type MarketplaceResult = {
+  state: "idle" | "selected" | "details" | "installing" | "installed" | "error";
+  marker: string;
+  item: string;
+  message: string;
+  artifactId?: string;
+  artifactStatus?: string;
+  persisted?: boolean;
+  source?: string;
+  providerWrites: false;
+};
+
+const MARKETPLACE_KIND: Record<string, { icon: keyof typeof Icon; tone: "cyan" | "green" | "amber" | "violet"; label: string }> = {
+  Skill: { icon: "bolt", tone: "cyan", label: "Skill" },
+  Agent: { icon: "agents", tone: "violet", label: "Agent" },
+  MCP: { icon: "tools", tone: "amber", label: "MCP" },
+  Modell: { icon: "organism", tone: "green", label: "Modell" },
+};
+
+function marketplaceItemParts(item: string) {
+  const separator = item.indexOf(":");
+  const kind = separator >= 0 ? item.slice(0, separator) : "Skill";
+  const name = separator >= 0 ? item.slice(separator + 1) : item;
+  return { kind, name, visual: MARKETPLACE_KIND[kind] ?? MARKETPLACE_KIND.Skill };
+}
+
+function MarketplaceResultPanel({ result }: { result: MarketplaceResult }) {
+  const { kind, name, visual } = marketplaceItemParts(result.item);
+  const tone = result.state === "error" ? "red" : result.state === "installed" ? "green" : visual.tone;
+  return (
+    <section
+      className={`marketplace-result marketplace-result-${result.state}`}
+      data-testid="goal-b-marketplace-result"
+      data-result-state={result.state}
+      aria-live="polite"
+    >
+      <div className="marketplace-result-head">
+        <span className={`marketplace-result-icon marketplace-tone-${tone}`} aria-hidden="true">
+          {Icon[visual.icon]({ size: 20 })}
+        </span>
+        <div className="marketplace-result-copy">
+          <span className="marketplace-result-marker mono">{result.marker}</span>
+          <strong>{name || result.item}</strong>
+        </div>
+        <MiniBadge tone={tone}>{visual.label}</MiniBadge>
+      </div>
+      <p>{result.message}</p>
+      <dl className="marketplace-result-grid">
+        <div><dt>Eintrag</dt><dd className="mono">{result.item}</dd></div>
+        <div><dt>Modus</dt><dd>Dry-Run-Plan</dd></div>
+        <div><dt>Provider-Schreibzugriffe</dt><dd className="mono">provider_writes={String(result.providerWrites)}</dd></div>
+        {result.artifactId ? <div><dt>Artefakt</dt><dd className="mono">{result.artifactId}</dd></div> : null}
+        {result.artifactStatus ? <div><dt>Artefaktstatus</dt><dd>{result.artifactStatus}</dd></div> : null}
+        {typeof result.persisted === "boolean" ? <div><dt>Persistenz</dt><dd className="mono">persisted={String(result.persisted)}</dd></div> : null}
+        {result.source ? <div><dt>Datenquelle</dt><dd className="mono">{result.source}</dd></div> : null}
+        <div><dt>Kategorie</dt><dd>{kind}</dd></div>
+      </dl>
+    </section>
   );
 }
 
@@ -432,17 +583,21 @@ export function MarketplaceCardGrid({ items }: { items: MarketplaceCardItem[] })
       <div className="card-grid" data-testid="marketplace-card-grid">
         {safeItems.map((it) => {
           const key = `${it.kind}:${it.name}`;
+          const visual = MARKETPLACE_KIND[it.kind] ?? MARKETPLACE_KIND.Skill;
           return (
             <div key={key} className="gcard">
-              <div className="preview">
-                <MiniBadge tone="mut">{it.kind}</MiniBadge>
+              <div className={`preview marketplace-card-preview marketplace-kind-${it.kind.toLowerCase()}`}>
+                <span className={`marketplace-card-icon marketplace-tone-${visual.tone}`} aria-hidden="true">
+                  {Icon[visual.icon]({ size: 28 })}
+                </span>
+                <MiniBadge tone={visual.tone}>{visual.label}</MiniBadge>
               </div>
               <div className="body">
                 <h3 className="mono marketplace-card-title">{it.name}</h3>
                 <div className="sub marketplace-card-sub">{it.desc}</div>
-                <div className="actions" aria-label="Catalog item status">
-                  <MiniBadge tone="cyan">catalog</MiniBadge>
-                  <MiniBadge tone="amber">install via selector</MiniBadge>
+                <div className="actions" aria-label="Status des Katalogeintrags">
+                  <MiniBadge tone="cyan">Katalog</MiniBadge>
+                  <MiniBadge tone="amber">Installation über Auswahl</MiniBadge>
                 </div>
               </div>
             </div>
@@ -454,7 +609,7 @@ export function MarketplaceCardGrid({ items }: { items: MarketplaceCardItem[] })
 }
 
 export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "apps" | "media" | "docs-output"; label: string }) {
-  const [result, setResult] = useState(`waiting_for_${mode}_action`);
+  const [result, setResult] = useState("Bereit — starte eine Aktion.");
   const [busy, setBusy] = useState(false);
 
   async function create() {
@@ -463,8 +618,8 @@ export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "app
       const artifact = await createArtifact({
         source_page: mode,
         artifact_type: `${mode.replace("-", "_")}_artifact`,
-        title: `${label} local artifact`,
-        summary: `${label} artifact created by common Goal B artifact pipeline; dry-run only.`,
+        title: `${label}: lokales Artefakt`,
+        summary: `${label}-Artefakt aus der gemeinsamen Goal-B-Artefakt-Pipeline; nur Dry-Run.`,
         status: "ready",
         metadata: { mode, common_pipeline: "workspace_artifacts", live_provider_calls: false },
       });
@@ -489,16 +644,16 @@ export function WorkspaceModeActionPanel({ mode, label }: { mode: "games" | "app
     <div className="goalb-action-panel" data-testid={`goal-b-${mode}-panel`}>
       <div className="goalb-row">
         <button
-          aria-label={`${label} create local dry-run artifact`}
+          aria-label={`Lokales Dry-Run-Artefakt für ${label} anlegen`}
           className="btn btn-sm btn-primary"
           type="button"
           data-testid={`goal-b-${mode}-create`}
           onClick={create}
           disabled={busy}
         >
-          Create local dry-run artifact
+          Artefakt anlegen
         </button>
-        <MiniBadge tone="cyan">common artifact pipeline</MiniBadge>
+        <MiniBadge tone="cyan">gemeinsame Artefakt-Pipeline</MiniBadge>
       </div>
       <ActionResult state={result} testId={`goal-b-${mode}-result`} />
     </div>
@@ -524,7 +679,7 @@ export function DocsExportPanel({
   projectId?: string;
   sessionId?: string | null;
 }) {
-  const [result, setResult] = useState("waiting_for_export_click");
+  const [result, setResult] = useState("Bereit — wähle ein Export-Format.");
   const [busy, setBusy] = useState(false);
 
   async function exportFile(format: "pdf" | "md") {
@@ -541,7 +696,7 @@ export function DocsExportPanel({
         source_page: "docs-output",
         artifact_type: `export_${format}_file`,
         title: `Export ${format.toUpperCase()} ${body.file_name}`,
-        summary: `Real local export created in runtime temp store ${body.runtime_store} (${body.bytes} bytes).`,
+        summary: `Echter lokaler Export im temporären Runtime-Speicher ${body.runtime_store} erstellt (${body.bytes} Bytes).`,
         session_id: sessionId,
         status: "ready",
         metadata: {
@@ -583,27 +738,27 @@ export function DocsExportPanel({
 
   return (
     <div className="goalb-action-panel" data-testid="goal-b-docs-export-panel">
-      <MiniNote>Export erzeugt jetzt echte lokale Download-Dateien im Runtime-Temp-Store und startet direkt den Browser-Download.</MiniNote>
+      <MiniNote>Der Export erzeugt echte lokale Dateien im temporären Runtime-Speicher und startet den Download direkt im Browser.</MiniNote>
       <div className="goalb-row">
         <button
-          aria-label="Export PDF file"
+          aria-label="PDF-Datei exportieren"
           className="btn btn-sm btn-primary"
           type="button"
           data-testid="goal-b-docs-export-pdf"
           onClick={() => void exportFile("pdf")}
           disabled={busy}
         >
-          Export PDF <MiniBadge tone="green">Local File</MiniBadge>
+          PDF exportieren <MiniBadge tone="green">lokale Datei</MiniBadge>
         </button>
         <button
-          aria-label="Export MD file"
+          aria-label="MD-Datei exportieren"
           className="btn btn-sm"
           type="button"
           data-testid="goal-b-docs-export-md"
           onClick={() => void exportFile("md")}
           disabled={busy}
         >
-          Export MD <MiniBadge tone="green">Local File</MiniBadge>
+          MD exportieren <MiniBadge tone="green">lokale Datei</MiniBadge>
         </button>
       </div>
       <ActionResult state={result} testId="goal-b-docs-export-result" />
@@ -612,7 +767,7 @@ export function DocsExportPanel({
 }
 
 export function SettingsGatePlanPanel() {
-  const [result, setResult] = useState("waiting_for_planonly_click");
+  const [result, setResult] = useState("Bereit — PlanOnly-Prüfung noch nicht gestartet.");
   const [busy, setBusy] = useState(false);
 
   async function plan() {
@@ -621,8 +776,8 @@ export function SettingsGatePlanPanel() {
       const artifact = await createArtifact({
         source_page: "settings",
         artifact_type: "owner_gate_planonly",
-        title: "Owner gate PlanOnly",
-        summary: "PlanOnly review of eight dangerous gates; no gate mutation was performed.",
+        title: "Owner-Gate PlanOnly",
+        summary: "PlanOnly-Prüfung von acht gefährlichen Gates; kein Gate wurde verändert.",
         status: "blocked",
         metadata: {
           gates: ["production_deploy", "release_promotion", "provider_writes", "main_push", "registry_push", "live_mcp_write", "live_llm_call", "secret_output"],
@@ -639,10 +794,10 @@ export function SettingsGatePlanPanel() {
 
   return (
     <div className="goalb-action-panel" data-testid="goal-b-settings-panel">
-      <MiniNote>Danger gates bleiben geschlossen; dieser Button erzeugt nur einen lokalen PlanOnly-Nachweis.</MiniNote>
+      <MiniNote>Gefährliche Gates bleiben geschlossen; diese Schaltfläche erzeugt nur einen lokalen PlanOnly-Nachweis.</MiniNote>
       <div className="goalb-row">
-        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-settings-planonly" onClick={plan} disabled={busy}>PlanOnly pruefen</button>
-        <button className="btn btn-sm" type="button" disabled>Apply gesperrt</button>
+        <button className="btn btn-sm btn-primary" type="button" data-testid="goal-b-settings-planonly" onClick={plan} disabled={busy}>PlanOnly prüfen</button>
+        <button className="btn btn-sm" type="button" disabled>Anwenden gesperrt</button>
       </div>
       <ActionResult state={result} testId="goal-b-settings-result" />
     </div>

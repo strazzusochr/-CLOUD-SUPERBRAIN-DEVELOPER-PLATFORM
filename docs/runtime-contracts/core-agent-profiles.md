@@ -116,7 +116,10 @@ Eskalation: Intent bleibt nach 2 Versuchen unklar oder ein Stop-Gate wird erkann
 Agent-ID: `coder`
 Rolle: Runtime- und Integrationsaenderungen in kontrollierten Arbeitskontexten umsetzen.
 Modellslot: `coder`.
-Erlaubte Modelle: DeepSeek-Chat oder Claude Haiku 4.5, nur ueber Gateway.
+Primaermodell: `qwen3.7-plus` ueber den LLM-Gateway-gebundenen Alibaba-Model-Studio-Adapter.
+Fallbacks: DeepSeek-V4-Flash oder Gemma-4-31B, nur ueber Gateway und Budget-/Policy-Pruefung.
+Der Model-Studio-Pfad bleibt `configured_only`, bis dedizierter Key, expliziter Gateway-Modus,
+Audit-Persistenz und Live-Beweis gemeinsam vorliegen.
 Erlaubte Tools: GitHub-MCP fuer Branch-/PR-Arbeit, Filesystem-MCP im freigegebenen Workspace, Memory-Read.
 Verbotene Aktionen: Push auf `main`, Force-Push, Production-Deploy, direkte DB-Schreiboperationen ausserhalb freigegebener App-Pfade, Secret-Erzeugung im Repo.
 Max-Execution-Time: 300 Sekunden.

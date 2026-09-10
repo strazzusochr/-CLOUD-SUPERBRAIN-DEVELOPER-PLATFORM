@@ -1,0 +1,44 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloud-superbrain-llm-gateway",
+  "main": "src/index.js",
+  "compatibility_date": "2026-07-20",
+  "workers_dev": true,
+  "ai": {
+    "binding": "AI"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.1
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cloud-superbrain-state-prod",
+      "database_id": "91520f43-5d38-4a31-9d5a-6fca890e1dd6"
+    }
+  ],
+  "vars": {
+    "GATEWAY_MODE": "cloudflare_workers_ai_live",
+    "AI_GATEWAY_ID": "cloud-superbrain-llm-gateway"
+  },
+  "env": {
+    "preview": {
+      "name": "cloud-superbrain-llm-gateway-preview",
+      "workers_dev": true,
+      "ai": {
+        "binding": "AI"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "cloud-superbrain-state-preview"
+        }
+      ],
+      "vars": {
+        "GATEWAY_MODE": "cloudflare_workers_ai_live",
+        "AI_GATEWAY_ID": "cloud-superbrain-llm-gateway-preview"
+      }
+    }
+  }
+}

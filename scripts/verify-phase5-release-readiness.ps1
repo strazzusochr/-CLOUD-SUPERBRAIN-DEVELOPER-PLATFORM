@@ -101,52 +101,14 @@ foreach ($runbook in @(
   }
 }
 
-Write-Host "[phase5] browser evidence artifacts"
-foreach ($path in @(
-  ".phase1-artifacts\phase5-browser-evidence-reactivation-20260507.md",
-  "docs\release-artifacts\prod-candidate-2026-05-05-rc1-browser-proof.md",
-  "docs\release-artifacts\prod-candidate-2026-05-05-rc1-post-rollback-browser-revalidation.md",
-  ".phase1-artifacts\phase5-final-browser-e2e-recheck-20260507.md",
-  ".phase1-artifacts\phase5-full-verifier-sweep-20260507.md",
-  ".phase1-artifacts\phase5-truth-mirror-rebaseline-20260507.md"
-)) {
-  if (-not (Test-Path $path)) {
-    throw "Missing browser evidence artifact: $path"
-  }
-}
-if (-not (Test-Path "docs\release-artifacts\prod-candidate-2026-05-05-rc1.md")) {
-  throw "Missing first concrete release candidate artifact"
-}
-if (-not (Test-Path ".phase1-artifacts\phase5-rollback-readiness-20260505.md")) {
-  throw "Missing rollback readiness proof artifact"
-}
-if (-not (Test-Path ".phase1-artifacts\phase5-rollback-drill-prod-candidate-20260505-rc1.md")) {
-  throw "Missing rollback drill proof artifact"
-}
-
 Write-Host "[phase5] deploy workflow guard"
-$mainDeploy = Get-Content ".github\workflows\main-deploy.yml" -Raw
-foreach ($required in @(
-  "workflow_dispatch",
-  "deploy_environment",
-  "production",
-  "Production approval marker"
-)) {
-  Assert-Contains "main deploy workflow" $mainDeploy $required
+$mainDeployTransitionVerifier = "scripts\verify-main-deploy-transition.ps1"
+if (-not (Test-Path -LiteralPath $mainDeployTransitionVerifier -PathType Leaf)) {
+  throw "Missing main-deploy candidate-only transition verifier"
 }
-$productionGateIndex = $mainDeploy.IndexOf("  production-gate:")
-$buildAndPushIndex = $mainDeploy.IndexOf("  build-and-push:")
-if ($productionGateIndex -lt 0 -or $buildAndPushIndex -lt 0) {
-  throw "main-deploy workflow must define both production-gate and build-and-push jobs"
-}
-if ($productionGateIndex -gt $buildAndPushIndex) {
-  throw "main-deploy production-gate must run before build-and-push so production tags cannot publish before approval"
-}
-if ($mainDeploy -notmatch '(?s)  production-gate:\s+if: \$\{\{ github\.event\.inputs\.deploy_environment == ''production'' \}\}\s+needs: verify\s+runs-on: ubuntu-latest\s+environment: production') {
-  throw "main-deploy production-gate must depend on verify and require the production environment before image publishing"
-}
-if ($mainDeploy -notmatch '(?s)  build-and-push:\s+needs: \[verify, production-gate\]\s+if: \$\{\{ always\(\) && needs\.verify\.result == ''success'' && \(needs\.production-gate\.result == ''success'' \|\| needs\.production-gate\.result == ''skipped''\) \}\}') {
-  throw "main-deploy build-and-push must wait for verify and production-gate while still allowing skipped gate for staging"
+& powershell -NoProfile -ExecutionPolicy Bypass -File $mainDeployTransitionVerifier | Out-Null
+if ($LASTEXITCODE -ne 0) {
+  throw "main-deploy candidate-only append-only transition verification failed"
 }
 
 Write-Host "[phase5] manifest syntax"

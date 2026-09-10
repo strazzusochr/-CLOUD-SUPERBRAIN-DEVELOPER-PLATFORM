@@ -115,9 +115,9 @@ $proof = [ordered]@{
   live_provider_calls = $false
   evidence_ref = "autopilot-mode-stream-proof"
   non_claims = @(
-    "No live LLM provider calls are verified.",
+    "No live LLM provider calls are enabled in the stateless backend gateway; hosted Cloudflare Workers AI has separate frontend proof.",
     "No live MCP writes are verified.",
-    "No production deployment is verified."
+    "No production release readiness or release promotion is verified."
   )
 }
 

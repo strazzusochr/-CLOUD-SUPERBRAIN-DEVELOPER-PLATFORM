@@ -27,3 +27,4 @@ primary_region = "fra"
 
 [env]
   FILESYSTEM_ROOT = "/tmp/agent-workspace"
+  AGENT_API_INTERNAL_URL = "http://cloud-superbrain-agent-api.flycast:8000"

@@ -1,7 +1,7 @@
 # MCP Toolsets Runtime Contract
 
-Stand: 2026-04-23
-Status: Phase 1 safe envelope, audit persistence, timeout, blocked, and degraded paths implemented
+Stand: 2026-07-21
+Status: Phase 1 safe envelope plus current hosted read-only contract parity verified
 Phase: Phase 2 / WP-06
 Owner-Schicht: Schicht 5 - Tool-MCP-Schicht
 
@@ -11,6 +11,25 @@ Dieser Vertrag definiert die erlaubten MCP-Toolsets fuer den ersten Runtime-Ausb
 Er legt Request-Envelope, Rechte, Timeouts, Audit-Pflichten, Fehlerklassen und Stop-Gates fest.
 
 Dieser Vertrag ist in Phase 1 fuer sichere Envelope-, Timeout-, Blocked-, Degraded- und Audit-Persistenz-Pfade im MCP-Gateway aktiviert. Er startet keine Browser-Automation, keine E2B-Sandbox, keine Docker-Publishes, keine GitHub-Schreibaktion und gibt dem MCP-Gateway keine direkten Datenbankcredentials.
+
+## Current Hosted Read-only Proof
+
+`scripts/verify-mcp-hosted-current-readonly.ps1` bindet den oeffentlichen Vercel Contract
+Origin an Deployment `dpl_AQaBJxdQwHLcQKid8xYXkNJ3wva2`, Source
+`21913f8c3ef13949ca962980c143e757ca87a7cc` und das aufgezeichnete Backend-Verifikationsartefakt.
+Der Verifier beweist blob-identische aktuelle MCP-Deploymentquellen und liest ausschliesslich per
+HTTPS GET:
+
+1. MCP Health.
+2. GitHub-, PostgreSQL-, Filesystem-, Playwright- und E2B-Dry-run-Vertraege.
+3. Exakte Dependency- und Tool-Contract-Pins.
+4. Den MCP-Audit-Vertrag.
+
+Evidence: `.codex/runs/CURRENT/mcp-gateway/hosted-readonly-contract/report.json`, SHA-256
+`67281BB2B9CE8A411D88954D7604D9205E13726644FDA21BA0DE5673A596D15C`, Marker
+`mcp_current_hosted_readonly_contract_parity_verified`. Der Beweis verwendet keinen Token,
+fuehrt kein MCP-Tool aus und schreibt weder Audit- noch Providerdaten. Er beansprucht kein
+stateful Hosted Backend, keine Release-Freigabe und keinen Production Rollout.
 
 ## Phase-1-Runtime-Surface
 
@@ -56,7 +75,7 @@ In Scope:
 - GitHub-MCP fuer Branch-, PR- und Workflow-Status-Operationen
 - E2B-Sandbox-MCP fuer isolierte Build- und Testausfuehrung
 - Playwright-MCP fuer Browser-Smoke- und Runtime-Evidence-Flows
-- Filesystem-MCP fuer streng begrenzte Workspace-Operationen
+- Filesystem-MCP: aktuell exakt der feste DEV-ONLY `filesystem_project_progress`-Read; breitere Workspace-Operationen bleiben gegatet
 - PostgreSQL-MCP als spaeteres read-only Projektkontext-Tool nach Gate-Freigabe
 - Puppeteer-MCP als zusaetzlicher Evidence-Pfad fuer UI- und Gameplay-Aufgaben
 - Request-Envelope, Timeout, Audit-Event, Retry-Grenze und Fehlermodus je Toolcall
@@ -204,6 +223,7 @@ Jedes Audit-Event muss mindestens enthalten:
 | MCP-010 | Mehr als `2` Retries pro Toolcall | wird blockiert |
 | MCP-011 | Tool-Ergebnis `degraded` | darf nicht als fertig gelten |
 | MCP-012 | UI-/Gameplay-Task ohne Browser-Evidence | bleibt `evidence-blocked` |
+| MCP-013 | Filesystem-Projektfortschritt mit Caller-Pfad, falscher Query, Symlink, Write-Bit, Schema-Drift oder fehlendem Audit | wird fail-closed ohne Ergebnis blockiert |
 
 ## Stop-Gates
 
@@ -224,12 +244,12 @@ Sofortiger Halt mit Review-Gate ist Pflicht bei:
 
 - Es ist ein Phase-1-MCP-Gateway mit sicheren Envelope-, Timeout-, Blocked- und Degraded-Pfaden live verdrahtet.
 - Es wurde keine E2B-Sandbox gestartet.
-- Es wurde keine Browser-Automation ausgefuehrt.
+- Durch den MCP-Adapter wurde keine Browser-Automation ausgefuehrt; der separate Chromium-Akzeptanztest prueft nur den sichtbaren DEV-ONLY UI-zu-Read-Pfad.
 - Es wurde keine GitHub-Schreiboperation ausgefuehrt.
 - Es wurde kein Docker-Image gepusht.
-- Es wurde kein Filesystem-MCP verbunden.
+- Es wurde kein allgemeines oder caller-gesteuertes Filesystem-MCP verbunden; aktiviert ist nur der feste DEV-ONLY Read von `docs/project-progress.manifest.json` gemaess `filesystem-project-progress-read-v1`.
 - Es wurde keine Datenbank verbunden.
 
 ## Naechster sicherer Schritt
 
-Nach diesem Vertrag folgt eine Phase-2-Readiness-Matrix, die alle Runtime-Vertraege gegen Tests, Evidence-Artefakte und offene Stop-Gates abgleicht.
+Der naechste sichere L5-Ausbau bleibt ein separat test-first gegateter Adapter ohne neue Credentials, Rechte oder beliebige Pfade. PostgreSQL, GitHub, Playwright, E2B sowie breitere Filesystem-Rechte bleiben Owner-/Security-gesteuert.

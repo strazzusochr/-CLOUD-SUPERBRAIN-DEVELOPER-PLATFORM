@@ -5,12 +5,8 @@ primary_region = "fra"
 #   flyctl secrets set -a cloud-superbrain-agent-api \
 #     DATABASE_URL="postgresql://USER:PASS@HOST:5432/DB" \
 #     REDIS_URL="redis://HOST:6379/0"
-# Deploy the prebuilt GHCR image (Fly source-build fails on the repo-root build context):
-#   flyctl deploy -c fly.agent-api.toml \
-#     --image ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api:staging
-# NOTE: the agent-api image does NOT bake docs/project-progress.manifest.json, PROJECT_STATE.md, the
-# agent roster, or external-gate-summary.json (those are bind-mounts in docker-compose.cloud.yml).
-# Hosted health degrades gracefully without them, but progress/gate DATA stays empty until baked in.
+# Source builds use the repository root so the image can include the read-only
+# manifest/state files required by hosted progress and gate endpoints.
 
 [build]
   dockerfile = "services/agent-api/Dockerfile"
@@ -38,6 +34,7 @@ primary_region = "fra"
 
 [env]
   PORT = "8000"
+  SUPERBRAIN_RUNTIME_MODE = "production"
   CLOUD_PROVIDER_INVENTORY_ENABLED = "true"
   LLM_GATEWAY_MODE = "deterministic_dry_run"
   # Inter-service calls use <app>.flycast (Fly proxy private address) — unlike <app>.internal it

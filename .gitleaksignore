@@ -1,0 +1,6 @@
+# Reviewed historical generic-api-key false positives only.
+# Exact source/hash review and same-path PAT negative probes:
+# scripts/verify_gitleaks_history_exceptions.py
+fde53cb1011b445b0b385aa860da484e114fe388:CODEX_UEBERPRUEFUNG_RC5_2026-07-22.md:generic-api-key:127
+d35f546b8789e16b5440b12fbe5a84ddc75cf342:LAYER_MATRIX.md:generic-api-key:24
+9c38c59238043dbda2d02ee4fcd0c59d44bac812:scripts/verify-browser-contract.ps1:generic-api-key:518

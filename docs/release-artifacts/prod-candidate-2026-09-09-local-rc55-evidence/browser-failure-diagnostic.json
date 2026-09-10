@@ -1,0 +1,67 @@
+{
+  "contract_version": "phase5-browser-failure-diagnostic-v1",
+  "generated_at_utc": "2026-09-09T14:02:55.949Z",
+  "release_id": "prod-candidate-2026-09-09-local-rc55",
+  "runtime_source_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+  "qualification_sha": "4f9cef19cb3fee9d926c2981fb2bb5fc82138cd3",
+  "evidence_run_id": "1d623872-490e-4fc7-af5c-9d1d343cba53",
+  "status": "blocked_after_provider_and_click_pass",
+  "provider_calls_consumed": 3,
+  "automatic_retry": false,
+  "component_results": {
+    "product_acceptance": {
+      "status": "passed",
+      "tests_passed": 1,
+      "tests_total": 1,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/raw/browser-attempt-1/product-acceptance/report.json",
+      "report_sha256": "a8624e29ea4bdc6141853bd622674396b89846e01632115ac1c87ddf383a72b2"
+    },
+    "page_actions": {
+      "status": "passed",
+      "tests_passed": 1,
+      "tests_total": 1,
+      "routes": 22,
+      "families": 29,
+      "members": 161,
+      "direct": 160,
+      "preverified_exact": 1,
+      "report_path": "docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/raw/browser-attempt-1/22-page-actions/report.json",
+      "report_sha256": "c02a5a903e53e9ff4b72d5f1ead579ba14ca8034148be541ff2fea78862d85ff"
+    },
+    "o4_initial_promotion": {
+      "status": "failed",
+      "reason": "runtime_report_branch_mismatch",
+      "runtime_report_branch": "codex/rc97-github-oauth-issuer",
+      "runtime_report_source_sha": "175411b84b2051bd5f1fb5fb084c42234eabfc92",
+      "browser_report_branch": "codex/rc98-oauth-current-source-binding",
+      "browser_report_source_sha": "4f9cef19cb3fee9d926c2981fb2bb5fc82138cd3"
+    },
+    "o4_zero_provider_repair": {
+      "status": "verified",
+      "provider_calls": 0,
+      "proof_path": "docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/o4-proof.json",
+      "proof_sha256": "f02eae49f25a1776e4bb492354b6769d8df044b90144a1beb79891aefccbba67"
+    }
+  },
+  "aggregate_result": {
+    "command": "npm run verify:browser",
+    "exit_code": 1,
+    "status": "failed",
+    "canonical_browser_log_written": false,
+    "canonical_browser_summary_written": false,
+    "credit_awarded": false
+  },
+  "retry_resolution": {
+    "authorization_ref": "CONFIRM_RC56_S9_Q9_BROWSER_RETRY_EXACTLY_3_PROVIDER_CALLS_AFTER_O4_RUNTIME_REPAIR",
+    "evidence_run_id": "ae7f4d02-fa2d-4f52-8b73-ef0fc992311c",
+    "provider_calls_consumed": 3,
+    "automatic_retry": false,
+    "browser_summary_path": "docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/browser.json",
+    "browser_summary_sha256": "03b860b3705435ca265582e78da9fe92b480a4f46ab12ab8ad33aa9bebb7de4f",
+    "o4_proof_path": "docs/release-artifacts/prod-candidate-2026-09-09-local-rc55-evidence/o4-proof-browser-retry.json",
+    "o4_proof_sha256": "95c282ddb580ee6cd975d22f4c1b1db3e0181f515634dbc51ccac92d5550c14b",
+    "status": "passed"
+  },
+  "claim_boundary": "DEV-ONLY; hosted proof still blocked",
+  "secret_output": false
+}

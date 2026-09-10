@@ -221,6 +221,10 @@ print(json.dumps({
 '@
 $seed = Invoke-AgentApiPython $seedCode | ConvertFrom-Json
 
+Write-Host "[worker-status] fresh queued status remains queued"
+$freshStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/internal/tasks/$($seed.fresh_task_id)', timeout=5).read().decode())"
+Assert-Contains "fresh queued untouched" $freshStatus '"status":"queued"'
+
 Write-Host "[worker-status] wait for abandoned stale queued status"
 $abandonedStatus = Wait-TaskStatus $seed.abandon_task_id "abandoned_after_queue_drain"
 Assert-Contains "abandoned error" $abandonedStatus "queued status had no matching queue item"
@@ -233,10 +237,6 @@ Assert-Contains "rehydrated done validation" $rehydratedStatus '"logged":true'
 Write-Host "[worker-status] wait for malformed completion audit to abandon"
 $malformedStatus = Wait-TaskStatus $seed.malformed_task_id "abandoned_after_queue_drain"
 Assert-Contains "malformed audit did not rehydrate" $malformedStatus "queued status had no matching queue item"
-
-Write-Host "[worker-status] fresh queued status remains queued"
-$freshStatus = docker exec cloud-superbrain-phase1-dev-agent-api-1 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/api/v1/internal/tasks/$($seed.fresh_task_id)', timeout=5).read().decode())"
-Assert-Contains "fresh queued untouched" $freshStatus '"status":"queued"'
 
 Write-Host "[worker-status] queued list item is processed rather than abandoned"
 $queuedStatus = Wait-TaskStatus $seed.queued_task_id "completed"

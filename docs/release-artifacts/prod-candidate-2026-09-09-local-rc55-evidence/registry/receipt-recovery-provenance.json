@@ -1,0 +1,21 @@
+{
+  "candidate_sha": "f15ad6e336318860a9e3f89b04388d120a7bc9b4",
+  "collected_at_utc": "2026-09-09T17:29:43Z",
+  "contract_version": "ghcr-publication-receipt-recovery-v1",
+  "production_deploy": false,
+  "publication_receipt_sha256": "f941d6a4876d7e4f664086d3585798d5eb5c5c7e584754a08b122290ffc4e859",
+  "recovery_control_sha": "3edde4ecf62ac5644e0c459a972688e22558b930",
+  "recovery_run_attempt": 1,
+  "recovery_run_id": "34383219636",
+  "registry_digest_contract_sha256": "2e3cfd064b509c66c66b7b7e3448159adb4545705402537e8a3b3316468dc388",
+  "registry_write_performed": false,
+  "release_promotion": false,
+  "repository": "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "secret_output": false,
+  "source_artifact_digest": "sha256:5f8838b5c0e73a72f32e828ab6b21b578b71439990ca45a786f71e6dda8348b4",
+  "source_artifact_id": "10111985694",
+  "source_control_sha": "4f396916e300bb9ab03d0762f7bc0ff8519647f3",
+  "source_run_attempt": 1,
+  "source_run_id": "34369195520",
+  "status": "verified"
+}

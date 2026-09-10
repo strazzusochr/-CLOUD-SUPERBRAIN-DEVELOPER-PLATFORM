@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="de">
+<head><script>(function(){var _r=window.requestAnimationFrame.bind(window),last=0;window.requestAnimationFrame=function(cb){return _r(function(t){if(document.hidden){window.requestAnimationFrame(cb);return;}if(t-last<15){window.requestAnimationFrame(cb);return;}last=t;cb(t);});};})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Jump-and-Run</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #hud { position: absolute; top: 10px; left: 10px; color: #fff; font-family: Arial, sans-serif; }
+    </style>
+</head>
+<body>
+<div id="hud">Score: <span id="score">0</span></div>
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87CEEB, 100, 950);
+
+    const clock = new THREE.Clock();
+    let delta;
+
+    const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
+    const playerMaterial = new THREE.MeshStandardMaterial({ color: 0xFF4500 });
+    const player = new THREE.Mesh(playerGeometry, playerMaterial);
+    player.position.set(0, 1, 0);
+    scene.add(player);
+
+    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const platforms = [];
+    const numPlatforms = 5;
+    for (let i = 0; i < numPlatforms; i++) {
+        const platformGeometry = new THREE.BoxGeometry(10, 1, 10);
+        const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x8A2BE2 });
+        const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+        platform.position.set(Math.random() * 150 - 75, Math.random() * 50 + 5, Math.random() * 150 - 75);
+        platform.receiveShadow = true;
+        platform.castShadow = true;
+        scene.add(platform);
+        platforms.push(platform);
+    }
+
+    const coins = [];
+    const numCoins = 10;
+    for (let i = 0; i < numCoins; i++) {
+        const coinGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.1, 32);
+        const coinMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFF00, emissive: 0xFFFF00 });
+        const coin = new THREE.Mesh(coinGeometry, coinMaterial);
+        coin.position.set(Math.random() * 150 - 75, Math.random() * 50 + 5.5, Math.random() * 150 - 75);
+        coin.castShadow = true;
+        scene.add(coin);
+        coins.push(coin);
+    }
+
+    const enemyGeometry = new THREE.ConeGeometry(0.5, 1, 32);
+    const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xFF0000 });
+    const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+    enemy.position.set(-50, 1, 0);
+    enemy.castShadow = true;
+    scene.add(enemy);
+
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 3);
+    directionalLight.position.set(100, 100, 50);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 1024;
+    directionalLight.shadow.mapSize.height = 1024;
+    directionalLight.shadow.camera.near = 0.1;
+    directionalLight.shadow.camera.far = 1000;
+    scene.add(directionalLight);
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+    scene.add(ambientLight);
+
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    camera.position.z = 30;
+    camera.position.y = 10;
+    camera.lookAt(player.position);
+
+    const controls = {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        jump: false
+    };
+
+    document.addEventListener('keydown', (event) => {
+        switch (event.key) {
+            case 'ArrowUp':
+            case 'w':
+                controls.forward = true;
+                break;
+            case 'ArrowDown':
+            case 's':
+                controls.backward = true;
+                break;
+            case 'ArrowLeft':
+            case 'a':
+                controls.left = true;
+                break;
+            case 'ArrowRight':
+            case 'd':
+                controls.right = true;
+                break;
+            case ' ':
+                controls.jump = true;
+                break;
+        }
+    });
+
+    document.addEventListener('keyup', (event) => {
+        switch (event.key) {
+            case 'ArrowUp':
+            case 'w':
+                controls.forward = false;
+                break;
+            case 'ArrowDown':
+            case 's':
+                controls.backward = false;
+                break;
+            case 'ArrowLeft':
+            case 'a':
+                controls.left = false;
+                break;
+            case 'ArrowRight':
+            case 'd':
+                controls.right = false;
+                break;
+            case ' ':
+                controls.jump = false;
+                break;
+        }
+    });
+
+    let velocity = new THREE.Vector3();
+    const speed = 5;
+    const jumpForce = 10;
+    let canJump = true;
+    let score = 0;
+    const scoreDisplay = document.getElementById('score');
+
+    function updatePlayer() {
+        if (controls.forward) player.translateZ(-speed * delta);
+        if (controls.backward) player.translateZ(speed * delta);
+        if (controls.left) player.translateX(-speed * delta);
+        if (controls.right) player.translateX(speed * delta);
+
+        if (controls.jump && canJump) {
+            velocity.y += jumpForce;
+            canJump = false;
+        }
+
+        velocity.y -= 9.8 * delta;
+        player.position.y += velocity.y * delta;
+
+        if (player.position.y <= 1) {
+            player.position.y = 1;
+            velocity.y = 0;
+            canJump = true;
+        }
+
+        platforms.forEach(platform => {
+            if (player.position.y === 1 && player.position.distanceTo(platform.position) < 6) {
+                canJump = true;
+            }
+        });
+
+        coins.forEach((coin, index) => {
+            if (player.position.distanceTo(coin.position) < 1.5) {
+                scene.remove(coin);
+                coins.splice(index, 1);
+                score += 10;
+                scoreDisplay.textContent = score;
+            }
+        });
+
+        if (player.position.distanceTo(enemy.position) < 2) {
+            alert('Game Over! Your score: ' + score);
+            document.location.reload();
+        }
+    }
+
+    function updateEnemy() {
+        const targetPosition = new THREE.Vector3(
+            Math.random() * 150 - 75,
+            1,
+            Math.random() * 150 - 75
+        );
+
+        const direction = new THREE.Vector3().subVectors(targetPosition, enemy.position).normalize();
+        enemy.position.addScaledVector(direction, speed * delta);
+    }
+
+    function animate() {
+        if (document.hidden) return;
+        delta = clock.getDelta();
+
+        updatePlayer();
+        updateEnemy();
+
+        camera.position.lerp(new THREE.Vector3(player.position.x, player.position.y + 10, player.position.z + 30), 0.05);
+        camera.lookAt(player.position);
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+{
+  "all_publish_jobs_successful": true,
+  "all_publish_steps_executed": true,
+  "api_readback_sha256": {
+    "approvals": "e76845816dad0535bf4d73eff0fbd3be510cc64cad9fd65ca2ff640ad790f7fc",
+    "artifact": "90e7c8185211349bb166d063b9d4047dfdd390639106c79e534e5d261a50b513",
+    "environment": "72b776970e029e1a11934c97b2e2cda6f92a221feb989350c7a064597b75ed0e",
+    "jobs": "c93793c4cb3c0291285a85189068dfe595df4544adbe742404bd22a634649921",
+    "run": "375c4ee604eb1713db6346dae347e447f6eaaf990670b2969df23dfcd0b6d013"
+  },
+  "approval_required_before_publish_jobs": true,
+  "artifact": {
+    "archive_download_url": "https://api.github.com/repos/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/artifacts/9979916975/zip",
+    "digest": "sha256:f3fd36fd26d8f1dd7539c19e1ae622cb89a3633733201ac770855a0656da589a",
+    "expired": false,
+    "id": "9979916975",
+    "manifest_sha256": "687eeef45ea63e1b9532fecb22100ac893267f6aaa03e7ece2957b4cdcbf4c3d",
+    "name": "ghcr-candidate-efd6826228c8e0b664a44d9a24ab38677e3b86f8-34001565002-1",
+    "remote_scan_sha256": "ceb306adb802223bb0244bb5649755137700f56454088e2088628b7a525f437d",
+    "size_in_bytes": 1301959
+  },
+  "collected_at_utc": "2026-09-06T00:56:08Z",
+  "contract_version": "registry-publication-review-evidence-v1",
+  "control_commit_sha": "7a3a5f2acbadda74044b331a74812aaf4e9e3eaf",
+  "environment": "registry-publication",
+  "environment_id": 20813849135,
+  "environment_protection_verified": true,
+  "owner_grant": {
+    "capability_gate_contract": "capability-gate-state-v1",
+    "capability_gate_sha256": "3b49558d70ca8790f3a247fa7fbd98a6bb9e74a421ab568f1bfd08d03c724978",
+    "gate_id": "docker_registry_publish",
+    "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
+    "owner_granted": true,
+    "paid_provider": false
+  },
+  "plan_only": false,
+  "production_deploy": false,
+  "provider_writes": false,
+  "publish_job_count": 6,
+  "publish_jobs": [
+    {
+      "completed_at": "2026-09-06T00:46:05Z",
+      "conclusion": "success",
+      "job_id": 101401923220,
+      "name": "Publish immutable agent-api candidate",
+      "push_step": {
+        "completed_at": "2026-09-06T00:45:58Z",
+        "conclusion": "success",
+        "name": "Build and push absent candidate tag once",
+        "started_at": "2026-09-06T00:43:12Z",
+        "status": "completed"
+      },
+      "service": "agent-api",
+      "started_at": "2026-09-06T00:42:52Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-09-06T00:44:36Z",
+      "conclusion": "success",
+      "job_id": 101401923221,
+      "name": "Publish immutable mcp-gateway candidate",
+      "push_step": {
+        "completed_at": "2026-09-06T00:44:33Z",
+        "conclusion": "success",
+        "name": "Build and push absent candidate tag once",
+        "started_at": "2026-09-06T00:43:09Z",
+        "status": "completed"
+      },
+      "service": "mcp-gateway",
+      "started_at": "2026-09-06T00:42:52Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-09-06T00:55:03Z",
+      "conclusion": "success",
+      "job_id": 101401923251,
+      "name": "Publish immutable frontend candidate",
+      "push_step": {
+        "completed_at": "2026-09-06T00:54:53Z",
+        "conclusion": "success",
+        "name": "Build and push absent candidate tag once",
+        "started_at": "2026-09-06T00:43:04Z",
+        "status": "completed"
+      },
+      "service": "frontend",
+      "started_at": "2026-09-06T00:42:52Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-09-06T00:44:36Z",
+      "conclusion": "success",
+      "job_id": 101401923385,
+      "name": "Publish immutable llm-gateway candidate",
+      "push_step": {
+        "completed_at": "2026-09-06T00:44:31Z",
+        "conclusion": "success",
+        "name": "Build and push absent candidate tag once",
+        "started_at": "2026-09-06T00:43:04Z",
+        "status": "completed"
+      },
+      "service": "llm-gateway",
+      "started_at": "2026-09-06T00:42:52Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-09-06T00:44:22Z",
+      "conclusion": "success",
+      "job_id": 101401923232,
+      "name": "Publish immutable agent-worker candidate",
+      "push_step": {
+        "completed_at": "2026-09-06T00:44:16Z",
+        "conclusion": "success",
+        "name": "Build and push absent candidate tag once",
+        "started_at": "2026-09-06T00:43:19Z",
+        "status": "completed"
+      },
+      "service": "agent-worker",
+      "started_at": "2026-09-06T00:42:52Z",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-09-06T00:44:06Z",
+      "conclusion": "success",
+      "job_id": 101401923272,
+      "name": "Publish immutable memory-worker candidate",
+      "push_step": {
+        "completed_at": "2026-09-06T00:44:01Z",
+        "conclusion": "success",
+        "name": "Build and push absent candidate tag once",
+        "started_at": "2026-09-06T00:43:06Z",
+        "status": "completed"
+      },
+      "service": "memory-worker",
+      "started_at": "2026-09-06T00:42:52Z",
+      "status": "completed"
+    }
+  ],
+  "registry_publish_performed": true,
+  "registry_publish_verified": true,
+  "release_id": "prod-candidate-2026-09-05-local-rc44",
+  "release_promotion": false,
+  "repository": "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "review": {
+    "approval_history_source": "GET /repos/{owner}/{repo}/actions/runs/{run_id}/approvals",
+    "comment_persisted": false,
+    "prevent_self_review": true,
+    "required_reviewers_configured": true,
+    "reviewer": {
+      "id": 231157481,
+      "login": "endzeit2030666-lang",
+      "node_id": "U_kgDODccu6Q",
+      "type": "User"
+    },
+    "reviewer_distinct_from_triggering_actor": true,
+    "state": "approved"
+  },
+  "secret_output": false,
+  "source_commit_sha": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+  "status": "verified",
+  "workflow": {
+    "candidate_sha": "efd6826228c8e0b664a44d9a24ab38677e3b86f8",
+    "event": "workflow_dispatch",
+    "head_sha": "7a3a5f2acbadda74044b331a74812aaf4e9e3eaf",
+    "name": "main-deploy",
+    "ref": "refs/heads/chore/repo-bootstrap",
+    "run_attempt": 1,
+    "run_id": "34001565002",
+    "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34001565002",
+    "triggering_actor": "strazzusochr",
+    "workflow_path": ".github/workflows/main-deploy.yml",
+    "workflow_sha256": "43de92ece0986e455e0c98c9b6629f965ac912d05f90b08d1839fe4ac134aaf6"
+  }
+}

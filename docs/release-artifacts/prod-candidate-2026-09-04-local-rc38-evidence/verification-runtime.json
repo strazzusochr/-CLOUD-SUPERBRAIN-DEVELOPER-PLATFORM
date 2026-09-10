@@ -1,0 +1,36 @@
+{
+  "contract_version": "phase5-production-candidate-local-verification-v2",
+  "evidence_ref": "phase5_local_production_candidate_verified",
+  "status": "verified",
+  "verification_scope": "runtime_without_browser",
+  "generated_at": "2026-09-04T03:46:15.1725677Z",
+  "release_id": "prod-candidate-2026-09-04-local-rc38",
+  "source_commit_sha": "5668e7cb89eac03a929853f004204b56bd171cb9",
+  "service_count": 6,
+  "api_contract_verified": true,
+  "local_image_identity_verified": true,
+  "embedded_source_hash_parity_verified": true,
+  "candidate_runtime_source_parity_verified": true,
+  "rollback_target": "a632372863a39faa0e53d780c1942938a2b3241c",
+  "browser_click_verified": false,
+  "registry_publish": false,
+  "hosted_staging_parity": false,
+  "production_deploy": false,
+  "release_promotion": false,
+  "secret_output": false,
+  "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/verify-phase5-production-candidate-local.ps1 -BaseUrl http://localhost:8081 -ArtifactDir .codex\\runs\\CURRENT\\master-goal\\phase5\\production-candidate-local -AllowLocalhost -EvidenceRunId b180a7a1-fdf1-4b6e-b19d-987268f28bc1",
+  "evidence_run_id": "b180a7a1-fdf1-4b6e-b19d-987268f28bc1",
+  "raw_log_path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-evidence/raw/candidate-runtime.log",
+  "raw_log_sha256": "1FDC978F53559745279E2AD5261ABD43C41B92A35CBAD67865B64BF1B798D6A9",
+  "observed_success_anchors": "[phase5-candidate-local] status=verified service_count=6",
+  "raw_evidence": {
+    "candidate_images": {
+      "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-evidence/candidate-images.json",
+      "sha256": "43ACD94B6480C38AD96614889E59541049FB2D8C473FFBFDE27B8F3D775BCAE7"
+    },
+    "api_contract": {
+      "path": "docs/release-artifacts/prod-candidate-2026-09-04-local-rc38-evidence/raw/candidate-runtime-api-contract.json",
+      "sha256": "5D2E9A6444C58CA8B56AA427D1CC6D3CA25194E5C645FC84A964A07ABA6FCD22"
+    }
+  }
+}

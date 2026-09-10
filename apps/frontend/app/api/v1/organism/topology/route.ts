@@ -14,9 +14,36 @@ export function GET() {
   const workspacePages = workspaceWiringSurfaces();
   const workspaceDataSources = uniqueStrings(workspacePages.flatMap((page) => page.dataSources));
   const workspaceVerifierRefs = uniqueStrings(workspacePages.flatMap((page) => page.verifierRefs));
+  const activeProviderIds = uniqueStrings(LAYERS.flatMap((layer) => layer.providers));
+  const directCapabilityEdges = workspacePages.flatMap((page) => {
+    const edges: Array<{ from: string; to: string; kind: string }> = [];
+    const from = `page:${page.pageId}`;
+    if (page.hub === "models") {
+      edges.push(...MODELS.map((model) => ({ from, to: `model:${model.id}`, kind: "page_to_llm_model" })));
+    }
+    if (page.hub === "tools") {
+      edges.push(...MCP_TOOLS.map((tool) => ({ from, to: `tool:${tool.id}`, kind: "page_to_mcp_tool" })));
+      edges.push(...SKILLS.map((skill) => ({ from, to: `skill:${skill.id}`, kind: "page_to_skill" })));
+    }
+    if (page.hub === "agents") {
+      edges.push(...AGENTS.map((agent) => ({ from, to: `agent:${agent.type}`, kind: "page_to_agent_profile" })));
+    }
+    if (page.hub === "cloud") {
+      edges.push(...activeProviderIds.map((providerId) => ({ from, to: `provider:${providerId}`, kind: "page_to_cloud_provider" })));
+    }
+    if (page.brainRegion === "amygdala") {
+      edges.push(...CLOSED_GATES.map((gate) => ({
+        from,
+        to: `gate:${gate.toLowerCase().replaceAll(" ", "_")}`,
+        kind: "page_to_safety_gate",
+      })));
+    }
+    return edges;
+  });
 
   return Response.json({
     contract_version: "organism-topology-v1",
+    evidence_ref: "organism_topology_visible",
     endpoint: "/api/v1/organism/topology",
     source: "static_runtime_contract",
     live: false,
@@ -46,6 +73,7 @@ export function GET() {
         kind: "capability_hub",
         label: hub.label,
         layer: hub.layer,
+        region: hub.region,
         route: hub.route,
         agents: hub.agents,
         secret_output: false,
@@ -146,7 +174,7 @@ export function GET() {
       })),
       ...HUBS.map((hub) => ({
         from: `hub:${hub.id}`,
-        to: `region:${hub.id === "memory" ? "hippocampus" : hub.id === "observe" ? "cerebellum" : hub.id === "tools" ? "basal" : "prefrontal"}`,
+        to: `region:${hub.region}`,
         kind: "capability_to_region",
       })),
       ...HUBS.map((hub) => ({
@@ -212,6 +240,7 @@ export function GET() {
         to: `verifier:${nodeSlug(verifier)}`,
         kind: "page_to_verifier",
       }))),
+      ...directCapabilityEdges,
       ...LAYERS.flatMap((layer) => layer.providers.map((providerId) => ({
         from: `layer:${layer.code}`,
         to: `provider:${providerId}`,

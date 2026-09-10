@@ -1,68 +1,68 @@
-# Release Verification Matrix — every route vs the live 7-layer runtime (localhost:8081)
+# Release Verification Matrix
 
-Produced by a 6-agent `release-verification-audit` workflow (each agent read the page
-source **and** probed `http://localhost:8081`), then synthesized. Honest, evidence-based —
-no route over-claims live status in a way that survives source inspection.
+Updated: 2026-07-12
 
-7 layers: **L1** Frontend · **L2** Orchestrator/LangGraph · **L3** Agent Pool ·
-**L4** LLM Gateway · **L5** MCP Gateway · **L6** Memory/pgvector · **L7** Observability.
-Runtime probe at audit time: `/api/v1/clouds/layers` → **L1…L7 all `live_verified`**,
-`/api/v1/health` → **6/6 services healthy**. ⚠️ **Progress caveat:** the committed ledger
-`docs/project-progress.manifest.json` is **overall 70 %** (P6 Scale & 3D = 0 %, P3 = 40 %,
-P5 = 67 %, P2 = 86 %; L4 = 54 %, L5 = 55 %, L3 = 68 %, L6 = 72 %). The local runtime serves a
-divergent 100 % from a stale manifest mount — the **70 % committed value is the evidence-based
-truth**; cloud-layer-readiness (`live_verified`) is a separate, genuinely-passing signal.
+This is the current 22-page browser matrix. Local proof uses
+`http://localhost:8081` and is strictly `DEV-ONLY`.
 
-Every workspace page also shows the global **`N/7 layers verified`** pill (AppShell topbar,
-`/api/v1/platform/verify`). "live+fallback" = live when the runtime is reachable, honest
-spec/mock label otherwise (Vercel) — never fake-live.
+## Runtime Baseline
 
-## Matrix (25 routes)
+- Docker Compose: 10/10 services running healthy.
+- Project progress: Overall 76 percent; P3 41 percent; P6 40 percent.
+- Progress integrity: `verified` with computed and manifest overall both 75.
+- Workspace contract: exactly 22 canonical pages and seven architecture layers.
+- External audit: `blocked` on hosted Agent API, GitHub branch-protection current
+  verification, Vercel backend-origin health, and Fly live-budget proof.
+- Production deployment and release promotion: not allowed and not performed.
 
-| Route | Mode | Layers | Verified | Backing |
-|-------|------|--------|----------|---------|
-| `/` | static | — | — | marketing landing (demo cortex visual) |
-| `/home` | live+fallback | L1–L7 | ✅ | fetchLiveAgents + SevenLayerBar |
-| `/login` | static | — | — | auth form (pre-workspace) |
-| `/workbench` | static | — | — | IDE workspace canvas (sr-only h1) |
-| `/files` | live+fallback | L6,L7 | ✅ | fetchMetrics → memory_entries (pgvector) |
-| `/files/local` | static | L1 | — | read-only redacted file tree |
-| `/organism` | live+fallback | L1–L7 | ✅ | live-state + SevenLayerBar + GLB |
-| `/organism/live` | live+fallback | L1–L7 | ✅ | /api/v1/organism/live-state |
-| `/organism/replay` | live+fallback | L1–L7 | ✅ | /api/v1/organism/replay (activity trace) |
-| `/organism/map` | live+fallback | L1–L7 | ✅ | /api/v1/organism/live-state |
-| `/agents` | live | L1,L3 | ✅ | fetchLiveAgents → /api/v1/live-agents/status (12) |
-| `/tools` | live+fallback | L1,L2,L4,L5,L6 | ✅ | fetchProviders → /api/v1/clouds (8/8) |
-| `/marketplace` | live+fallback | L4,L5 | ✅ | fetchProviders provider readiness *(gap closed)* |
-| `/observe` | live+fallback | L2,L4,L5,L6,L7 | ✅ | fetchMetrics + /api/v1/health (chart honestly spec) |
-| `/evidence` | live | L1–L7 | ✅ | fetchMetrics (gates+services) + SevenLayerBar |
-| `/settings` | static | — | — | governance + gate matrix (spec) |
-| `/diagnostics` | live | L1–L7 | ✅ | fetchProgress (7 phases × 7 layers) + SevenLayerBar |
-| `/design-system` | static | — | — | NeuroGlass tokens/components |
-| `/responsive` | static | — | — | breakpoint matrix + a11y |
-| `/technology` | live+fallback | L1–L7 | ✅ | SevenLayerBar (cloud-layer-readiness) + toolstack |
-| `/open-source` | static | — | — | OSS licence catalog |
-| `/games` | demo | L6/L7* | ⚠️ | static templates · generators *blocked by plan* |
-| `/media` | spec_only | L4/L5/L6* | ⚠️ | empty stage · providers *blocked by plan* |
-| `/docs-output` | local_files | L6* | ⚠️ | static markdown preview · artifact store *not wired* |
-| `/apps` | demo | L6* | ⚠️ | generated-app cards · artifact store *not wired (badge added)* |
+## Canonical Pages
 
-`*` = the layer this surface *would* project once its generator/artifact store exists.
+| Route | Layer | Browser proof | Runtime boundary |
+| --- | --- | --- | --- |
+| `/home` | FE | HTTP 200, shell and product markers | Read-only navigation/data wiring |
+| `/login` | FE | HTTP 200, shell and page markers | Auth contract; no live OAuth claim |
+| `/workbench` | FE | HTTP 200, IDE controls and preview | Deterministic runtime paths |
+| `/organism` | FE | HTTP 200, nonblank WebGL/2D proof | Redacted runtime projection |
+| `/organism/replay` | OBS | HTTP 200, replay surface | Read-only redacted events |
+| `/organism/map` | FE | HTTP 200, topology surface | Read-only topology contract |
+| `/agents` | AP | HTTP 200, agent surface | Dry-run/policy-gated agent runtime |
+| `/files` | MEM | HTTP 200, memory surface | PostgreSQL/pgvector plus lexical fallback |
+| `/files/local` | MEM | HTTP 200, read-only search surface | No host filesystem read/write |
+| `/tools` | MCP | HTTP 200, safe tool surface | Read-only/dry-run envelopes |
+| `/marketplace` | LLM | HTTP 200, model/skill surface | Capability inventory, no install write |
+| `/observe` | OBS | HTTP 200, metrics surface | Local metrics and audit contracts |
+| `/games` | AP | HTTP 200, product surface | Client preview only; gated generation |
+| `/apps` | AP | HTTP 200, product surface | Client preview only; gated generation |
+| `/media` | LLM | HTTP 200, product surface | No live provider generation claim |
+| `/docs-output` | MEM | HTTP 200, document surface | Local browser artifact behavior |
+| `/evidence` | OBS | HTTP 200, evidence surface | Read-only gate/progress truth |
+| `/diagnostics` | OBS | HTTP 200, live contract console | Read-only contracts; local CSP test audited |
+| `/design-system` | FE | HTTP 200, design tokens | Static design contract |
+| `/technology` | ORC | HTTP 200, seven-layer inventory | Read-only architecture/cloud inventory |
+| `/settings` | MCP | HTTP 200, governance surface | All dangerous actions remain gated |
+| `/open-source` | FE | HTTP 200, OSS surface | Static license/package inventory |
 
-## Verdict
+The workspace browser verifier checks every route for the application shell, active
+navigation state, visible page markers, bounded panel styling, hidden retired providers,
+hidden product-surface progress walls, and non-claims `live=false`, `writes=false`, and
+`secretOutput=false` in the workspace contract. It writes one artifact per canonical
+page plus `.phase1-artifacts/workspace-pages-browser-proof-latest.json`.
 
-- **13 routes live-verified** against the runtime; **9 legitimately static** by design
-  (`/`, `/login`, `/workbench`, `/files/local`, `/settings`, `/design-system`,
-  `/responsive`, `/open-source`); **the 22 workspace pages all carry the global 7-layer
-  verified pill**.
-- **Gaps closed this pass:** `/marketplace` now projects live provider readiness (L4/L5);
-  `/apps` now carries an honest `demo` SpecModeBadge.
-- **Honest remaining limits:** `/games`, `/media`, `/docs-output` are preview/spec/demo
-  surfaces. Their generators and the binary artifact store are **intentionally blocked by
-  the project plan** (Phase 6: `binary_asset_upload_blocked`, `external_asset_fetch_blocked`,
-  `cloud_save_sync_blocked`, `multiplayer_netcode_blocked`). They are honestly labelled and
-  will project live L4/L5/L6 data only when those gates are opened — wiring them now would
-  violate the no-fake-live rule.
+## Additional Browser Proof
 
-No secret/token value is read or surfaced; production deploy / provider writes / pushes stay
-OPA-gate-closed. Live proof is on the local docker-compose runtime (LLM `deterministic_dry_run`).
+- Phase 3 CSP: `/diagnostics` selection and Refresh click return HTTP 200 and render
+  `csp-report-contract-v1`, `csp_report_contract_visible`, and
+  `csp_report_audit_persisted`.
+- Phase 6 local and hosted frontend proof: visible nonblank WebGL canvas, keyboard and
+  camera-reset interaction, frame-budget HUD, and Reduced Motion to 2D with zero console
+  errors. The additional local camera/lighting proof covers all presets, FOV steps,
+  light profiles, exposure bounds, applied Three.js state, browser-local behavior, and
+  zero console errors. Together these credit the first five Phase-6 rubric blocks
+  (40 percent).
+
+## Release Verdict
+
+The 22 local pages are browser-functional, but this is not a release proof. Hosted
+backend origins, current branch protection, Fly budget, immutable candidate parity,
+Owner review, and promotion approval remain open. No secret use, provider write,
+registry push, deployment, release promotion, live LLM call, or live MCP write is claimed.

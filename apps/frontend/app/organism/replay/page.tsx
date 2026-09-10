@@ -4,31 +4,31 @@ import { LiveConsole } from "../../../components/live-console";
 import OrganismView from "../../../components/organism/OrganismView";
 import { PageHeader, Panel, Badge } from "../../../components/ui";
 
-export const metadata = { title: "Organism · Replay — Cloud Superbrain" };
+export const metadata = { title: "Organismus · Wiedergabe — Cloud Superbrain" };
 
 export default function OrganismReplayPage() {
   return (
-    <AppShell crumb="Organism · Replay" runState="verifying">
+    <AppShell crumb="Organismus · Wiedergabe" runState="verifying">
       <div className="page-wide">
         <PageHeader
-          eyebrow="Organism"
-          title="Replay"
-          subtitle="Interaktive Replay-Ansicht mit Run-ID Auswahl im Canvas. Endpoints sind read-only."
+          eyebrow="Organismus"
+          title="Wiedergabe"
+          subtitle="Interaktive Wiedergabe mit Auswahl der Run-ID in der Ansicht. Die Endpunkte sind nur lesend."
           actions={
             <>
               <Link href="/organism" className="btn btn-sm btn-ghost">Live</Link>
-              <Link href="/organism/map" className="btn btn-sm btn-ghost">Map</Link>
+              <Link href="/organism/map" className="btn btn-sm btn-ghost">Karte</Link>
             </>
           }
         />
-        <Panel title="Live endpoints" className="mb-16" actions={<Badge tone="cyan">interaktiv · read-only</Badge>}>
+        <Panel title="Live-Endpunkte" className="mb-16" actions={<Badge tone="cyan">interaktiv · nur lesend</Badge>}>
           <div className="wb-pad">
             <LiveConsole
-              label="Organism replay"
+              label="Organismus-Wiedergabe"
               endpoints={[
-                { label: "Replay", path: "/api/v1/organism/replay" },
-                { label: "Events", path: "/api/v1/organism/events" },
-                { label: "Health", path: "/api/v1/health" },
+                { label: "Wiedergabe", path: "/api/v1/organism/replay" },
+                { label: "Ereignisse", path: "/api/v1/organism/events" },
+                { label: "Systemzustand", path: "/api/v1/health" },
               ]}
             />
           </div>

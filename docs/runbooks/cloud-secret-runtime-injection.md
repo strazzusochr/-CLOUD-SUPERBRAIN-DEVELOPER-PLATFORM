@@ -10,12 +10,13 @@ The cloud inventory endpoints read provider credentials only from process enviro
 
 ## Runtime Keys
 
-The Agent API can consume these environment variable names:
+The Agent API can consume these active environment variable names:
 
 - `VERCEL_TOKEN`
 - `STAGING_BASE_URL`
-- `FLY_API_TOKEN`
 - `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_STATEFUL_BASE_URL`
 - `GITHUB_TOKEN`
 - `BRANCH_PROTECTION_TOKEN`
 - `GHCR_TOKEN`
@@ -27,12 +28,6 @@ Optional metadata keys:
 
 - `VERCEL_PROJECT_ID`
 - `VERCEL_ORG_ID`
-- `FLY_ORG_SLUG`
-- `FLY_APP_NAME`
-- `FLY_MACHINE_ID`
-- `FLY_REGION`
-- `FLY_DASHBOARD_URL`
-- `CLOUDFLARE_ACCOUNT_ID`
 - `CLOUDFLARE_ZONE_ID`
 - `CLOUDFLARE_AI_GATEWAY_URL`
 - `CLOUDFLARE_DASHBOARD_URL`
@@ -43,6 +38,11 @@ Optional metadata keys:
 - `GITLAB_PROFILE_URL`
 - `GITLAB_API_URL`
 - `GRAFANA_CLOUD_URL`
+
+Historical read-only inventory compatibility may consume `FLY_API_TOKEN`,
+`FLY_ORG_SLUG`, `FLY_APP_NAME`, `FLY_MACHINE_ID`, `FLY_REGION`, and
+`FLY_DASHBOARD_URL`. These values cannot satisfy an active gate and must not be
+required by readiness or rollout tooling.
 
 ## Local Rule
 
@@ -58,7 +58,7 @@ By default it reads `C:\Users\<user>\.codex\secrets\cloud-superbrain.local.env`,
 
 - `VERCEL_TEAM_ID -> VERCEL_ORG_ID`
 - `VERCEL_ORG_ID -> VERCEL_TEAM_ID`
-- `FLY_TOKEN -> FLY_API_TOKEN`
+- `FLY_TOKEN -> FLY_API_TOKEN` (historical read-only inventory only)
 - `GITHUB_TOKEN -> BRANCH_PROTECTION_TOKEN`
 
 Use `scripts\verify-all-gates-with-tokens.ps1` for external gate verification with the same private env bootstrap. Optional identity provider tokens remain optional unless the verifier is run with an explicit strict identity policy.

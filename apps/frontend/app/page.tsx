@@ -163,8 +163,8 @@ export default function Landing() {
               ))}
             </div>
             <p className="landing-arch-note">
-              Each layer is backed by real cloud providers (Vercel · Fly.io · Cloudflare · GitHub Actions ·
-              GHCR · Hugging Face · GitLab · Grafana Cloud). Tokens live under{" "}
+              Active layers use Vercel · Cloudflare-native · GitHub Actions · GHCR ·
+              Hugging Face · GitLab · Grafana Cloud; Fly.io is historical-only. Tokens live under{" "}
               <span className="mono">.codex/secrets</span> — surfaced only as status
               (configured / verified / blocked), never printed.
             </p>

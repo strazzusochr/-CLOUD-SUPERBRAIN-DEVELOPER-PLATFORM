@@ -1,6 +1,6 @@
 # ADR Index
 
-Stand: 2026-04-29
+Stand: 2026-07-25
 Status: Active
 
 ## Zweck
@@ -20,6 +20,7 @@ Dieses Dokument ist das Verzeichnis aller Architecture Decision Records im Proje
 | `ADR-007` | Shared PostgreSQL and pgvector for Phase 1 | accepted |
 | `ADR-008` | Single-Tenant Assumption Through Phase 5 | accepted |
 | `ADR-009` | Auth Design For Owner-Gated Runtime | accepted |
+| `ADR-010` | Cloudflare-Native Free Runtime | accepted target; DEV-ONLY migration |
 
 ## Audit Mapping
 

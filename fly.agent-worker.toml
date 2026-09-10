@@ -8,10 +8,8 @@ primary_region = "fra"
 #     DATABASE_URL="postgresql://USER:PASS@HOST:5432/DB" \
 #     REDIS_URL="redis://HOST:6379/0"
 #
-# Deploy the prebuilt GHCR image (a Fly source-build fails: the Dockerfile COPY paths are relative
-# to services/agent-worker/, but Fly's build context is the repo root):
-#   flyctl deploy -c fly.agent-worker.toml \
-#     --image ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-worker:staging
+# Source builds use the repository root; the Dockerfile COPY paths are
+# repository-root relative.
 
 [build]
   dockerfile = "services/agent-worker/Dockerfile"

@@ -1,0 +1,148 @@
+{
+  "contract_version": "product-acceptance-3d-game-v1",
+  "status": "verified",
+  "started_at": "2026-09-09T14:27:18.648Z",
+  "completed_at": "2026-09-09T14:28:09.538Z",
+  "base_url": "http://localhost:8081",
+  "dev_only": true,
+  "hosted_proof": false,
+  "proof_scope": "dev_only_localhost",
+  "source_binding": {
+    "source_commit_sha": null,
+    "source_archive_sha256": null,
+    "deployment_id": null
+  },
+  "prompt": "Baue ein 3D-Web-Game mit Three.js: drehbarer Würfel, Punktestand, Tastatursteuerung.",
+  "prompt_sha256": "5852eb571cdf3713d8ddb8389e6cc5cbc5e09e42645fea34557369d7618f88c1",
+  "expected_gateway_provider": "cloudflare-workers-ai",
+  "auth": {
+    "status": "signed_in",
+    "provider": "guest",
+    "session_scope": "signed_http_only_cookie",
+    "session_backend": "local-hmac",
+    "persisted": false,
+    "http_only_cookie": true,
+    "secure_cookie": true,
+    "same_site": "Strict",
+    "credential_segments": 2,
+    "credential_format": "hmac_signed_payload",
+    "external_provider_write": false,
+    "session_id_sha256": "4e792552e9150934243ad2ab0032393c491edbadaa65a038c23277ebe6edbbd9"
+  },
+  "build": {
+    "response_status": 200,
+    "response_source": "llm-gateway-boundary",
+    "build_id": "c8992ee6-0fc4-42d6-ae9d-46128efdc7b1",
+    "contract_version": "postgres-build-registry-v1",
+    "model": "@cf/qwen/qwen2.5-coder-32b-instruct",
+    "gateway_mode": "cloudflare_workers_ai_live",
+    "gateway_provider": "cloudflare-workers-ai",
+    "live_provider_calls": true,
+    "audit_persisted": true,
+    "persisted": true,
+    "share_path": "/run/c8992ee6-0fc4-42d6-ae9d-46128efdc7b1",
+    "direct_provider_calls": false,
+    "live_mcp_writes": false,
+    "secret_output": false
+  },
+  "html": {
+    "sha256": "566cacfc2e60b75008dbb8ab06d4d3bf9f84b260ec6d694792d9efd14371f61d",
+    "bytes": 4702,
+    "markers": {
+      "complete_document": true,
+      "canvas": true,
+      "three_js": true,
+      "webgl": true,
+      "keyboard_control": true
+    }
+  },
+  "run": {
+    "route": "/run/c8992ee6-0fc4-42d6-ae9d-46128efdc7b1",
+    "http_status": 200,
+    "webgl_canvas_visible": true,
+    "nonblank_canvas": true,
+    "initial_pixel_probe": {
+      "pngSha256": "6b098cad85b0fabf9ad519cf3276b9dd0a342ded12dbd1d184ae0787cb660462",
+      "pngBytes": 15335,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 4096,
+      "uniqueColorBuckets": 33
+    },
+    "reloaded_pixel_probe": {
+      "pngSha256": "994696cfab7933fb68349ec03336ae401de705881c2cf2f94bead450a4d9ce70",
+      "pngBytes": 13389,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 4096,
+      "uniqueColorBuckets": 27
+    }
+  },
+  "interaction": {
+    "input_events": [
+      "click",
+      "ArrowRight",
+      "ArrowUp",
+      "Space"
+    ],
+    "click_pixel_changed": true,
+    "keyboard_pixel_changed": true,
+    "visible_dom_state_changed": false,
+    "before": {
+      "pngSha256": "6b098cad85b0fabf9ad519cf3276b9dd0a342ded12dbd1d184ae0787cb660462",
+      "pngBytes": 15335,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 4096,
+      "uniqueColorBuckets": 33
+    },
+    "after_click": {
+      "pngSha256": "9248d8cc3fac4d984d6f45ec822e4287f50dc8f7750edbd1bcd4c9eb7a579e41",
+      "pngBytes": 15293,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 4096,
+      "uniqueColorBuckets": 33
+    },
+    "after_keyboard": {
+      "pngSha256": "dffce680649b4161760cf7e7a6e48e45aa5b6b22ab1caa57c00f66cfd7827cd3",
+      "pngBytes": 13190,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 4096,
+      "uniqueColorBuckets": 26
+    }
+  },
+  "persistence": {
+    "build_id": "c8992ee6-0fc4-42d6-ae9d-46128efdc7b1",
+    "initial_read_http": 200,
+    "reload_read_http": 200,
+    "persisted": true,
+    "audit_persisted_on_create": true,
+    "live_provider_calls": true,
+    "gateway_provider": "cloudflare-workers-ai",
+    "initial_html_sha256": "566cacfc2e60b75008dbb8ab06d4d3bf9f84b260ec6d694792d9efd14371f61d",
+    "reloaded_html_sha256": "566cacfc2e60b75008dbb8ab06d4d3bf9f84b260ec6d694792d9efd14371f61d",
+    "same_artifact_after_reload": true
+  },
+  "browser": {
+    "project": "chromium",
+    "version": "148.0.7778.96"
+  },
+  "screenshot": "product-acceptance.png",
+  "mocks_used": false,
+  "route_interception_used": false,
+  "secret_output": false,
+  "build_post_count": 1,
+  "console_errors": [],
+  "console_error_count": 0,
+  "expected_anonymous_auth_console_errors": [
+    "http://localhost:8081/api/v1/auth/me",
+    "http://localhost:8081/api/v1/auth/refresh"
+  ],
+  "expected_anonymous_auth_console_error_count": 2,
+  "page_errors": [],
+  "page_error_count": 0,
+  "failed_requests": [],
+  "failed_request_count": 0
+}

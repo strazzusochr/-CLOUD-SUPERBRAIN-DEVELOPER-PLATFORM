@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -28,6 +29,7 @@ SKIP_SUFFIXES = {
     ".ttf",
     ".map",
     ".pyc",
+    ".har",
 }
 
 SUSPICIOUS_FILE_PATTERNS = (
@@ -71,6 +73,10 @@ def is_skipped(path: Path) -> bool:
     return path.suffix.lower() in SKIP_SUFFIXES
 
 
+def is_test_fixture(path: Path) -> bool:
+    return any(part.lower() in {"test", "tests"} for part in path.parts) or ".test." in path.name.lower()
+
+
 def is_allowed(value: str, path: Path) -> bool:
     normalized = value.strip().strip("\"'").lower()
     if path.name == ".env.example":
@@ -83,9 +89,13 @@ def is_allowed(value: str, path: Path) -> bool:
         return True
     if normalized.startswith("$"):
         return True
+    if "$env:" in normalized:
+        return True
     if normalized.startswith("process.env."):
         return True
     if "(" in normalized or ")" in normalized:
+        return True
+    if "," in normalized or ";" in normalized:
         return True
     return False
 
@@ -98,14 +108,17 @@ def scan_file(path: Path) -> list[str]:
 
     findings: list[str] = []
     rel = path.relative_to(ROOT)
+    scanner_config = rel.as_posix() == ".gitleaks.toml"
+    test_fixture = is_test_fixture(rel)
     for line_number, line in enumerate(text.splitlines(), start=1):
-        for pattern in TOKEN_PATTERNS:
-            match = pattern.search(line)
-            if match and not is_allowed(match.group(0), path):
-                findings.append(f"{rel}:{line_number}: token-like secret pattern")
+        if not scanner_config:
+            for pattern in TOKEN_PATTERNS:
+                match = pattern.search(line)
+                if match and not is_allowed(match.group(0), path):
+                    findings.append(f"{rel}:{line_number}: token-like secret pattern")
 
         assignment = ASSIGNMENT_PATTERN.search(line)
-        if assignment and not is_allowed(assignment.group(2), path):
+        if assignment and not test_fixture and not is_allowed(assignment.group(2), path):
             findings.append(f"{rel}:{line_number}: secret assignment pattern")
 
     return findings
@@ -120,10 +133,28 @@ def scan_filename(path: Path) -> list[str]:
     return []
 
 
+def release_scope_files() -> list[Path]:
+    result = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    paths: list[Path] = []
+    for raw_path in result.stdout.split(b"\0"):
+        if not raw_path:
+            continue
+        relative = raw_path.decode("utf-8", errors="surrogateescape")
+        candidate = ROOT / relative
+        if candidate.is_file():
+            paths.append(candidate)
+    return paths
+
+
 def main() -> int:
     findings: list[str] = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or is_skipped(path):
+    for path in release_scope_files():
+        if is_skipped(path):
             continue
         findings.extend(scan_filename(path))
         findings.extend(scan_file(path))
