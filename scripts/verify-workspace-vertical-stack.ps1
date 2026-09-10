@@ -78,11 +78,11 @@ $wiring = Invoke-Json "$BaseUrl/api/v1/workspace/wiring"
 Assert-Equal "vertical contract version" $vertical.contract_version "workspace-vertical-stack-v1"
 Assert-Equal "vertical endpoint" $vertical.endpoint "/api/v1/workspace/vertical-stack"
 Assert-Equal "vertical evidence" $vertical.evidence_ref "workspace_vertical_stack_visible"
-Assert-Equal "vertical page count" ([int]$vertical.page_count) 22
-Assert-Equal "vertical expected page count" ([int]$vertical.expected_page_count) 22
+Assert-Equal "vertical page count" ([int]$vertical.page_count) 26
+Assert-Equal "vertical expected page count" ([int]$vertical.expected_page_count) 26
 Assert-Equal "vertical layers required" ([int]$vertical.layers_required) 7
 Assert-Equal "wiring contract version" $wiring.contract_version "workspace-surface-wiring-v1"
-Assert-Equal "wiring page count" ([int]$wiring.page_count) 22
+Assert-Equal "wiring page count" ([int]$wiring.page_count) 26
 
 $stageKeys = @($vertical.required_stage_keys | ForEach-Object { [string]$_ })
 foreach ($stage in @("ui", "api", "data", "verification", "deploy", "safety")) {
@@ -91,8 +91,8 @@ foreach ($stage in @("ui", "api", "data", "verification", "deploy", "safety")) {
 
 $stackItems = @($vertical.stacks)
 $wiringItems = @($wiring.surfaces)
-Assert-Equal "stack item count" $stackItems.Count 22
-Assert-Equal "wiring item count" $wiringItems.Count 22
+Assert-Equal "stack item count" $stackItems.Count 26
+Assert-Equal "wiring item count" $wiringItems.Count 26
 
 $wiringByPageId = @{}
 foreach ($surface in $wiringItems) {

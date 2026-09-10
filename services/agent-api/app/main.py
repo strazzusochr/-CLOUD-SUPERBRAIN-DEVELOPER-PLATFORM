@@ -7862,6 +7862,10 @@ ORGANISM_PAGES = [
     (20, "stack", "/technology", "Technologie-Stack", "ORC"),
     (21, "settings", "/settings", "Einstellungen / Governance", "MCP"),
     (22, "open-source", "/open-source", "Open Source", "FE"),
+    (23, "landing", "/", "Landing", "FE"),
+    (24, "organism-live", "/organism/live", "Organismus / Live", "FE"),
+    (25, "responsive", "/responsive", "Responsive", "FE"),
+    (26, "run-detail", "/run/[id]", "Build-Ergebnis", "OBS"),
 ]
 
 ORGANISM_PROVIDER_LABELS = {
@@ -7920,6 +7924,10 @@ ORGANISM_PAGE_WIRING = {
     "stack": {"brain_region": "thalamus", "hub": "cloud", "primary_mode": "inspect", "data_sources": ["docs/system-architecture.md", "/api/v1/clouds", "/api/v1/clouds/layers", "/api/v1/clouds/deployment-preflight", "/api/v1/devops/workflow-dispatch/plan", "/api/v1/devops/workflow-dispatch/plan/contract", "/api/v1/devops/workflow-dispatch/validate", "/api/v1/devops/workflow-dispatch/validate/contract", "/api/v1/project/progress", "/api/v1/project/progress/completion", "/api/v1/project/progress/completion/contract", "/api/v1/project/progress/contract", "/api/v1/project/progress/layers", "/api/v1/project/progress/layers/contract"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying", "blocked"]},
     "settings": {"brain_region": "amygdala", "hub": "tools", "primary_mode": "govern", "data_sources": ["/api/v1/clouds/deployment-preflight", "/api/v1/auth/contract", "CLOSED_GATES", "/api/v1/auth/callback", "/api/v1/auth/me", "/api/v1/auth/logout", "/api/v1/auth/refresh"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-owner-cloud-gate-activation.ps1"], "event_kinds": ["blocked", "verifying"]},
     "open-source": {"brain_region": "callosum", "hub": "cloud", "primary_mode": "navigate", "data_sources": ["package.json", "LICENSE", "docs/verification-register.md"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-phase1.ps1"], "event_kinds": ["planning", "verifying"]},
+    "landing": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "navigate", "data_sources": ["WORKSPACE_PAGES", "/api/v1/project/progress"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["planning", "blocked"]},
+    "organism-live": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["executing", "llm_call", "tool_call", "verifying", "blocked"]},
+    "responsive": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "verify", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["verifying", "blocked"]},
+    "run-detail": {"brain_region": "hippocampus", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/build/{id}", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-product-acceptance.ps1"], "event_kinds": ["executing", "verifying", "blocked"]},
 }
 
 ORGANISM_TOOLS = [
@@ -8129,7 +8137,7 @@ def workspace_vertical_stack_payload() -> dict[str, object]:
         "evidence_ref": WORKSPACE_VERTICAL_STACK_EVIDENCE_REF,
         "source": "agent-api-static-contract",
         "page_count": len(stacks),
-        "expected_page_count": 22,
+        "expected_page_count": 26,
         "layers_required": 7,
         "stacks": stacks,
         "required_stage_keys": ["ui", "api", "data", "verification", "deploy", "safety"],
@@ -8150,7 +8158,7 @@ def workspace_vertical_stack_payload() -> dict[str, object]:
 def reference_design_contract_payload() -> dict[str, object]:
     pages = [
         {"id": page_id, "no": no, "route": route, "layer": layer}
-        for no, page_id, route, _label, layer in ORGANISM_PAGES
+        for no, page_id, route, _label, layer in ORGANISM_PAGES[:22]
     ]
     return {
         "contract_version": REFERENCE_DESIGN_CONTRACT_VERSION,
@@ -8269,7 +8277,7 @@ def organism_contract_payload() -> dict[str, object]:
         ],
         "policy_checks": [
             "No secret values are returned by this endpoint.",
-            "All 22 workspace pages map onto layer, brain-region, hub, data-source, and verifier references.",
+            "All 26 application routes map onto layer, brain-region, hub, data-source, and verifier references.",
             "Topology edges must reference existing nodes.",
             "No provider write, deploy, push, live LLM call, or live MCP write is performed.",
         ],

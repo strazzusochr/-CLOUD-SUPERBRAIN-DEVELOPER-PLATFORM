@@ -92,7 +92,7 @@ export function workspaceVerticalStackContract() {
     evidence_ref: WORKSPACE_VERTICAL_STACK_EVIDENCE_REF,
     source: "static_runtime_contract",
     page_count: stacks.length,
-    expected_page_count: 22,
+    expected_page_count: 26,
     layers_required: 7,
     stacks,
     required_stage_keys: ["ui", "api", "data", "verification", "deploy", "safety"],
