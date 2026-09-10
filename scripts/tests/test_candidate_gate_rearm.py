@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "rearm-candidate-capability-gates.ps1"
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
 def write_json(path: Path, value: object) -> bytes:
@@ -30,6 +31,10 @@ def run(cmd: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedPr
             f"command failed: {cmd}\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
         )
     return completed
+
+
+def normalized_terminal_text(value: str) -> str:
+    return " ".join(ANSI_ESCAPE.sub("", value).split())
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -432,7 +437,7 @@ class CandidateGateRearmTests(unittest.TestCase):
                     original = (repo / "docs/runtime-state/capability-gates.json").read_bytes()
                     result = run(ps_base(repo, fixture, "docker_registry_publish"), repo, check=False)
                     self.assertNotEqual(result.returncode, 0, result.stdout)
-                    self.assertIn(message, result.stderr)
+                    self.assertIn(message, normalized_terminal_text(result.stderr))
                     self.assertEqual((repo / "docs/runtime-state/capability-gates.json").read_bytes(), original)
 
     def test_preserves_dirty_unrelated_gate_and_timestamp_exactly(self) -> None:
