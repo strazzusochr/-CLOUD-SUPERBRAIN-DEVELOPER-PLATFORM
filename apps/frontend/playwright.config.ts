@@ -22,8 +22,9 @@ export default defineConfig({
         ...devices["Desktop Chrome"],
         launchOptions: {
           args: [
-            "--disable-gpu",
-            "--disable-gpu-compositing",
+            // Keep the deterministic software renderer available in headless CI.
+            // Disabling GPU/compositing here makes WebGL2 unavailable and forces the
+            // normal-motion Cortex into its accessibility-only 2D fallback.
             "--use-gl=swiftshader",
             "--ignore-gpu-blocklist",
           ],
