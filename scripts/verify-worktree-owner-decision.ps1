@@ -16,6 +16,15 @@ function Test-TruthyBoolean([object]$Value) {
   return ($Value -is [bool] -and $Value)
 }
 
+function ConvertFrom-JsonWithStringDates([string]$Json) {
+  $command = Get-Command ConvertFrom-Json -ErrorAction Stop
+  if ($command.Parameters.ContainsKey("DateKind")) {
+    return ($Json | ConvertFrom-Json -DateKind String)
+  }
+
+  return ($Json | ConvertFrom-Json)
+}
+
 function Get-AllowedAction([object]$Decision, [string]$Name) {
   if ($null -eq $Decision -or $null -eq $Decision.allowed_actions) {
     return $false
@@ -146,7 +155,7 @@ try {
 
   if ($decisionPresent) {
     try {
-      $decision = Get-Content -LiteralPath $DecisionPath -Raw | ConvertFrom-Json -DateKind String
+      $decision = ConvertFrom-JsonWithStringDates -Json (Get-Content -LiteralPath $DecisionPath -Raw)
     } catch {
       $errors.Add("decision_file_is_not_valid_json")
     }
