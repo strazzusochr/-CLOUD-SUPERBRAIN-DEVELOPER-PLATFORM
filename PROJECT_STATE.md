@@ -1,6 +1,36 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-## AKTUELLER CONTROL-CHECKPOINT 2026-09-09 — RC100 RC57/S10 FREEZE-KANDIDAT
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-10 — RC59/S12 NO-CREDIT-NEUQUALIFIKATION
+
+### Session 2026-09-10 — S12/Q12 lokal qualifiziert, I1/I5 bleiben geschlossen
+
+- **Aktiver Kandidat:** `prod-candidate-2026-09-10-local-rc59`, Source
+  `005ddb46f572520ac182c4f08cc177f07dfe1ae8`, direkter Q12-Kindcommit
+  `4e3029fc99b7370e78a26f2a5dfd6f14c917f647`. Source-CI-Run `34429494180`
+  ist erfolgreich und bindet Q12 als Run-Head sowie S12 als unveraenderliche
+  Source; failed=0 und skipped=0.
+- **Lokale Qualifikation:** Runtime, Browser, sechs lokale Kandidatenimages,
+  Candidate-Runtime und Security sind S12-gebunden. Die Browserkette pruefte
+  22/22 Seiten, 29/29 Funktionsfamilien und 161/161 Aktionen mit exakt drei
+  autorisierten Gateway-/Provideraufrufen. Der Cortex blieb als sichtbares
+  WebGL-Canvas stabil. Diese Beweise sind `DEV-ONLY`; echte OAuth-Consent-Klicks
+  und sechsfaches Hosted-Parity-Staging sind nicht behauptet.
+- **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
+  `700/700`, insgesamt `1333/1400` belegt und `67` offen. I1 und I5 bleiben
+  blockiert; `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
+- **Hosted-Blocker nachgemessen:** Der kanonische Frontend-Alias zeigt noch auf
+  Deployment `dpl_EPvGNiv1mseuHVJ5m2xtkZhMeLvf` aus Commit `d76cb75`, also vor
+  dem in PR #97 integrierten GitHub-Issuer-Guard-Fix. Der echte OAuth-Callback
+  wurde deshalb vom Frontend-Redirect-Guard abgewiesen; `credentials_issued=false`.
+  Der Default-Current-Candidate-Read bleibt zusaetzlich am kanonischen Backend-
+  Health mit HTTP 404 blockiert. Beides vergibt keinen Credit.
+- **Naechster Pfad:** RC59 atomar als No-Credit-Neuqualifikation verifizieren;
+  danach den Frontend-Alias nur nach separater Owner-Freigabe auf S12 bringen
+  und ausschliesslich frische, S12-gebundene Hosted-Beweise fuer I1 und I5.
+  Keine Production-Promotion oder Secret-Ausgabe. Exakte Fortsetzung:
+  `AI_HANDOFF.md`.
+
+## HISTORISCHER CONTROL-CHECKPOINT 2026-09-09 — RC100 RC57/S10 FREEZE-KANDIDAT
 
 ### Session 2026-09-09 — RC55/S9 qualifiziert, RC57/S10 geplant und UNQUALIFIED
 

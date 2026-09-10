@@ -25,6 +25,7 @@ const PINNED_THREE_CLASSIC = '<script src="https://unpkg.com/three@0.160.0/build
 const SIMPLE_KEYS_DECLARATION = /^[ \t]*(?:const|let)\s+keys\s*=\s*\{\s*\}\s*;[ \t]*$/m;
 const FUNCTION_DECLARATION = /\bfunction\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g;
 const SIMPLE_BOUNDING_SPHERE_RADIUS = /(?<![.\w$])([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*geometry\s*\.\s*boundingSphere\s*\.\s*radius\b/g;
+const SIMPLE_GEOMETRY_SPHERE_GET_BOUNDING_SPHERE = /(?<![.\w$])([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*boundingSphere\s*\.\s*getBoundingSphere\s*\(\s*([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\)/g;
 const SIMPLE_BOX3_DECLARATION = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+THREE\s*\.\s*Box3\s*\([^;]*?\)\s*(?:\.\s*setFromObject\s*\([^;]*?\)\s*)?;/g;
 const BOUNDING_SPHERE_RADIUS_HELPER = `
 function __superbrainBoundingSphereRadius(object) {
@@ -315,6 +316,28 @@ function repairBox3ComputeBoundingSphereCalls(scriptBody: string): string {
   return repaired;
 }
 
+function repairGeometrySphereGetBoundingSphereCalls(scriptBody: string): string {
+  const code = maskJavaScriptNonCode(scriptBody);
+  const replacements: Array<{ index: number; length: number; value: string }> = [];
+  for (const match of code.matchAll(SIMPLE_GEOMETRY_SPHERE_GET_BOUNDING_SPHERE)) {
+    if (match.index === undefined) continue;
+    const geometry = match[1];
+    const targetSphere = match[2];
+    replacements.push({
+      index: match.index,
+      length: match[0].length,
+      value: `${targetSphere}.copy(${geometry}.boundingSphere)`,
+    });
+  }
+  if (replacements.length === 0) return scriptBody;
+
+  let repaired = scriptBody;
+  for (const replacement of replacements.sort((left, right) => right.index - left.index)) {
+    repaired = `${repaired.slice(0, replacement.index)}${replacement.value}${repaired.slice(replacement.index + replacement.length)}`;
+  }
+  return repaired;
+}
+
 function findEarlyKeyboardStartup(scriptBody: string): EarlyKeyboardStartup | null {
   const keysDeclaration = scriptBody.match(SIMPLE_KEYS_DECLARATION);
   const keysIndex = keysDeclaration?.index ?? -1;
@@ -431,7 +454,9 @@ export function ensureGeneratedHtmlBoundingSpheres(html: string): string {
   return html.replace(SCRIPT_BLOCK, (script, attributes: string, body: string) => {
     if (attributeValue(attributes, SRC_ATTR)) return script;
     const repairedBody = repairBox3ComputeBoundingSphereCalls(
-      repairBoundingSphereRadiusReads(body),
+      repairGeometrySphereGetBoundingSphereCalls(
+        repairBoundingSphereRadiusReads(body),
+      ),
     );
     if (repairedBody === body) return script;
     const bodyStart = script.indexOf(">") + 1;

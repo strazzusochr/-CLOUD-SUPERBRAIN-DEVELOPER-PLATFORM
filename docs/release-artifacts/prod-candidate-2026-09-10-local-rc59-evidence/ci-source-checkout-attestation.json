@@ -1,0 +1,27 @@
+{
+  "binding_mode": "source_checkout_attestation_v1",
+  "candidate_sha": "005ddb46f572520ac182c4f08cc177f07dfe1ae8",
+  "checked_out_sha": "005ddb46f572520ac182c4f08cc177f07dfe1ae8",
+  "contract_version": "pr-check-source-checkout-attestation-v1",
+  "control_delta": [
+    "docs/runtime-state/source-qualification-control.json"
+  ],
+  "control_sha": "4e3029fc99b7370e78a26f2a5dfd6f14c917f647",
+  "event_name": "workflow_dispatch",
+  "github_actions_artifact_upload": true,
+  "non_claims": [
+    "This attestation proves only the exact source checkout boundary for this CI run.",
+    "This attestation does not convert DEV-ONLY evidence into hosted proof.",
+    "This attestation does not claim GHCR publication, production deployment, release promotion, or Owner approval."
+  ],
+  "production_deploy": false,
+  "ref": "refs/heads/codex/rc101-generated-sphere-repair",
+  "registry_publish": false,
+  "release_promotion": false,
+  "run_attempt": 1,
+  "run_id": 34429494180,
+  "run_sha": "4e3029fc99b7370e78a26f2a5dfd6f14c917f647",
+  "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34429494180",
+  "secret_output": false,
+  "source_prequalification": true
+}
