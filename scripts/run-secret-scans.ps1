@@ -164,6 +164,16 @@ if (-not $SkipGitleaks) {
     }
     Write-Host "[secret-scans] gitleaks report: $GitleaksReportPath"
     Write-Host "[secret-scans] gitleaks findings: $(Get-GitleaksFindingCount -Path $GitleaksReportPath)"
+  } elseif (Get-Command docker -ErrorAction SilentlyContinue) {
+    $gitleaksReportDir = Split-Path $GitleaksReportPath -Parent
+    $repoMount = $repoRoot -replace '\\', '/'
+    $reportMount = ([System.IO.Path]::GetFullPath($gitleaksReportDir)) -replace '\\', '/'
+    & docker run --rm -v "${repoMount}:/repo" -v "${reportMount}:/out" zricethezav/gitleaks:latest detect --source=/repo --config=/repo/.gitleaks.toml --no-banner --redact --report-format json --report-path=/out/gitleaks.json
+    if ($LASTEXITCODE -gt 1) {
+      throw "dockerized gitleaks execution failed with exit code $LASTEXITCODE"
+    }
+    Write-Host "[secret-scans] gitleaks report: $GitleaksReportPath"
+    Write-Host "[secret-scans] gitleaks findings: $(Get-GitleaksFindingCount -Path $GitleaksReportPath)"
   } else {
     if (-not (Test-Path $GitleaksReportPath)) {
       '[]' | Set-Content -Path $GitleaksReportPath -Encoding UTF8

@@ -86,9 +86,15 @@ Assert-True "contract version" ($contract.contract_version -eq "memory-search-ru
 Assert-True "results section visible" (@($contract.top_level_sections) -contains "results")
 Assert-True "search mode parity" ($contract.search_mode -eq "lexical_fallback")
 Assert-True "result field relevance_score visible" (@($contract.result_fields) -contains "relevance_score")
+Assert-True "trimmed query policy visible" ([int]$contract.query_parameters.q.min_trimmed_length -eq 1)
+Assert-True "empty query blocked evidence" ($contract.empty_query_policy.evidence_ref -eq "memory_search_empty_query_blocked")
 
 $embedding = Invoke-JsonApi -url "$BaseUrl/api/v1/memory/embedding-consistency/contract" -method "GET" -contentType $null -timeoutSeconds 20
 Assert-True "embedding contract search mode parity" ($embedding.current_embedding.search_mode -eq $contract.search_mode)
+
+$emptyQueryResponse = Invoke-WebResponse -url "$BaseUrl/api/v1/memory/search?q=%20%20%20&project_id=empty-query-proof&limit=5&threshold=0.0" -method "GET" -contentType $null -timeoutSeconds 20
+Assert-True "empty query blocked status" ([int]$emptyQueryResponse.StatusCode -eq 422)
+Assert-True "empty query blocked evidence" (($emptyQueryResponse.Content | Out-String).Contains("memory_search_empty_query_blocked"))
 
 $projectId = "hosted-phase4-memory-search-contract-" + [Guid]::NewGuid().ToString("N")
 $needle = "phase4 hosted memory search " + [Guid]::NewGuid().ToString("N")

@@ -24,12 +24,26 @@ LLM_LIVE_PROVIDER_DEFAULT = os.getenv("LLM_LIVE_PROVIDER_DEFAULT", "false").stri
     "true",
     "yes",
 }
+LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE = os.getenv(
+    "LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE",
+    "false",
+).strip().lower() in {"1", "true", "yes"}
 ROTATION_BACKOFF_SECONDS = [30, 60, 120, 300]
 PROVIDER_RESET_AFTER_SECONDS = 900
 STREAMING_PROTOCOL = "openai_compatible_sse"
 ROUTING_POLICY_CONTRACT_VERSION = "llm-routing-policy-v1"
+LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
+LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
+LLM_MODEL_CATALOG_CONTRACT_VERSION = "llm-model-catalog-v1"
+LLM_MODEL_CATALOG_EVIDENCE_REF = "llm_model_catalog_visible"
+LLM_PROVIDER_READINESS_CONTRACT_VERSION = "llm-provider-readiness-contract-v1"
+LLM_PROVIDER_READINESS_EVIDENCE_REF = "llm_provider_readiness_contract_visible"
 MAX_FALLBACKS_PER_REQUEST = 2
 MAX_RETRY_CYCLES_PER_RUN = 5
+DIRECT_PROVIDER_METADATA_KEYS = {"direct_provider_url", "direct_provider_key_ref", "provider_api_key_ref"}
+LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF = "llm_output_token_budget_guard"
+LLM_UNKNOWN_MODEL_EVIDENCE_REF = "llm_routing_policy_unknown_model_blocked"
+LLM_GUARD_CORRELATION_EVIDENCE_REF = "llm_guard_correlation_audit_visible"
 
 LEGACY_MODEL_ALIASES = {
     "deepseek-chat": "deepseek-ai/DeepSeek-V4-Flash:fastest",
@@ -150,6 +164,7 @@ def huggingface_router_capability_snapshot() -> dict[str, object]:
         "model_downloads": False,
         "open_source_first": True,
         "live_provider_calls_default": LLM_LIVE_PROVIDER_DEFAULT,
+        "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
         "non_claim": "Responses requests are adapted to the Hugging Face OpenAI-compatible chat endpoint; no OpenAI key is required.",
     }
 
@@ -209,10 +224,121 @@ def model_ids() -> list[str]:
     return sorted(set(values))
 
 
+def route_models(route: dict[str, object]) -> set[str]:
+    return {str(route["primary"]), *{str(item) for item in route["fallbacks"]}}
+
+
 def normalize_model_id(model: str | None) -> str:
     if not model:
         return HF_DEFAULT_CHAT_MODEL
     return LEGACY_MODEL_ALIASES.get(model, model)
+
+
+def route_output_token_limit(model: str | None, metadata: dict[str, Any] | None = None) -> int | None:
+    normalized = normalize_model_id(model)
+    metadata = metadata or {}
+    requested_agent_type = str(metadata.get("agent_type") or "").strip()
+    candidate_limits: list[int] = []
+
+    for route in MODEL_ROUTES:
+        if normalized not in route_models(route):
+            continue
+        route_limit = int(route["max_output_tokens"])
+        if requested_agent_type and requested_agent_type == str(route["agent_type"]):
+            return route_limit
+        candidate_limits.append(route_limit)
+
+    if candidate_limits:
+        return max(candidate_limits)
+    return None
+
+
+def is_url_like_model(model: str | None) -> bool:
+    value = (model or "").strip().lower()
+    return "://" in value or value.startswith(("http:", "https:", "ws:", "wss:"))
+
+
+def direct_provider_metadata_keys(metadata: dict[str, Any] | None) -> list[str]:
+    metadata = metadata or {}
+    return sorted(key for key in DIRECT_PROVIDER_METADATA_KEYS if metadata.get(key))
+
+
+def enforce_no_direct_provider_bypass(*, model: str | None, metadata: dict[str, Any] | None) -> None:
+    violations: list[str] = []
+    if is_url_like_model(model):
+        violations.append("model_must_be_configured_model_id_not_provider_url")
+    blocked_metadata_keys = direct_provider_metadata_keys(metadata)
+    if blocked_metadata_keys:
+        violations.append("metadata_must_not_supply_direct_provider_credentials_or_urls")
+    if not violations:
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "llm_routing_policy_direct_provider_blocked",
+            "evidence_ref": "llm_routing_policy_direct_provider_blocked",
+            "violations": violations,
+            "blocked_metadata_keys": blocked_metadata_keys,
+            "live_provider_calls": False,
+            "model_downloads": False,
+        },
+    )
+
+
+def enforce_model_and_output_budget(
+    *,
+    model: str | None,
+    requested_max_output_tokens: int | None,
+    metadata: dict[str, Any] | None,
+) -> None:
+    normalized_model = normalize_model_id(model)
+    allowed_max_output_tokens = route_output_token_limit(model, metadata)
+    if allowed_max_output_tokens is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+                "evidence_ref": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+                "model": model,
+                "normalized_model": normalized_model,
+                "configured_models": model_ids(),
+                "live_provider_calls": False,
+                "model_downloads": False,
+            },
+        )
+
+    if requested_max_output_tokens is None:
+        return
+    if requested_max_output_tokens <= 0:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "reason": "requested_max_output_tokens_must_be_positive",
+                "model": model,
+                "normalized_model": normalized_model,
+                "requested_max_output_tokens": requested_max_output_tokens,
+                "allowed_max_output_tokens": allowed_max_output_tokens,
+                "live_provider_calls": False,
+                "model_downloads": False,
+            },
+        )
+    if requested_max_output_tokens <= allowed_max_output_tokens:
+        return
+    raise HTTPException(
+        status_code=422,
+        detail={
+            "code": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "model": model,
+            "normalized_model": normalized_model,
+            "requested_max_output_tokens": requested_max_output_tokens,
+            "allowed_max_output_tokens": allowed_max_output_tokens,
+            "live_provider_calls": False,
+            "model_downloads": False,
+        },
+    )
 
 
 def model_family(model: str) -> str:
@@ -238,6 +364,82 @@ def model_family(model: str) -> str:
 
 def provider_for_model(model: str) -> str:
     return "huggingface_inference_router"
+
+
+def route_model_chain(route: dict[str, object]) -> list[str]:
+    return [str(route["primary"]), *[str(item) for item in route["fallbacks"]]]
+
+
+def configured_route_catalog() -> list[dict[str, object]]:
+    routes: list[dict[str, object]] = []
+    for route in MODEL_ROUTES:
+        models = route_model_chain(route)
+        routes.append(
+            {
+                "agent_type": str(route["agent_type"]),
+                "primary": str(route["primary"]),
+                "fallbacks": [str(item) for item in route["fallbacks"]],
+                "models": models,
+                "provider_chain": [provider_for_model(model) for model in models],
+                "model_families": [model_family(model) for model in models],
+                "max_output_tokens": int(route["max_output_tokens"]),
+                "supports_streaming": bool(route["supports_streaming"]),
+                "configured_only": bool(route["configured_only"]),
+                "open_source_first": bool(route["open_source_first"]),
+                "api_inference_only": True,
+                "model_downloads": False,
+            }
+        )
+    return routes
+
+
+def model_catalog_snapshot() -> dict[str, object]:
+    aliases = [
+        {
+            "alias": alias,
+            "model": target,
+            "provider": provider_for_model(target),
+            "model_family": model_family(target),
+            "api_inference_only": True,
+            "model_downloads": False,
+        }
+        for alias, target in sorted(LEGACY_MODEL_ALIASES.items())
+    ]
+    return {
+        "contract_version": LLM_MODEL_CATALOG_CONTRACT_VERSION,
+        "status": "verified",
+        "mode": GATEWAY_MODE,
+        "endpoint": "GET /api/v1/models/catalog",
+        "public_endpoint": "GET /llm/api/v1/models/catalog",
+        "openai_compatible_models_endpoint": "GET /v1/models",
+        "routing_resolve_endpoint": "POST /api/v1/routing/resolve",
+        "provider_status_endpoint": "GET /api/v1/providers/status",
+        "evidence_ref": LLM_MODEL_CATALOG_EVIDENCE_REF,
+        "provider": "huggingface_inference_router",
+        "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
+        "model_downloads": False,
+        "local_model_downloads_allowed": False,
+        "open_source_first": True,
+        "api_inference_only": True,
+        "route_count": len(MODEL_ROUTES),
+        "configured_model_count": len(model_ids()),
+        "alias_count": len(LEGACY_MODEL_ALIASES),
+        "routes": configured_route_catalog(),
+        "aliases": aliases,
+        "evidence_refs": {
+            "catalog_visible": LLM_MODEL_CATALOG_EVIDENCE_REF,
+            "runtime_guard_parity_visible": LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            "unknown_model_blocked": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+            "output_token_budget_blocked": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "direct_provider_blocked": "llm_routing_policy_direct_provider_blocked",
+        },
+        "non_claims": [
+            "This catalog is an API inference routing contract, not a local model download plan.",
+            "No provider credential, direct provider URL, or live billing path is exposed by this catalog.",
+            "Live generation remains disabled unless environment and request policy gates both explicitly allow it.",
+        ],
+    }
 
 
 def hf_router_model_snapshot(limit: int = 20) -> dict[str, object]:
@@ -299,7 +501,15 @@ def provider_status_snapshot() -> dict[str, object]:
             "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
             "never_break_budget": True,
             "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
-            "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+            "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
+            "requires_request_metadata": "metadata.live_provider_calls_allowed=true and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
+            "direct_provider_metadata_keys_blocked": sorted(DIRECT_PROVIDER_METADATA_KEYS),
+            "url_like_model_ids_blocked": True,
+            "unknown_model_ids_blocked": True,
+            "output_token_budget_guard": {
+                "mode": "fail_closed_over_route_limit",
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            },
         },
         "providers": [
             {
@@ -317,6 +527,81 @@ def provider_status_snapshot() -> dict[str, object]:
                 "open_source_first": True,
                 "non_claim": "HF router model listing is verified when token is present; generation still requires policy/metadata approval per request.",
             },
+        ],
+    }
+
+
+def provider_readiness_contract_snapshot() -> dict[str, object]:
+    live_generation_ready = (
+        hf_router_available()
+        and LLM_LIVE_PROVIDER_DEFAULT
+        and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE
+    )
+    return {
+        "contract_version": LLM_PROVIDER_READINESS_CONTRACT_VERSION,
+        "status": "verified",
+        "mode": "llm_provider_readiness_fail_closed_contract",
+        "endpoint": "GET /api/v1/providers/readiness/contract",
+        "public_endpoint": "GET /llm/api/v1/providers/readiness/contract",
+        "provider_status_endpoint": "GET /api/v1/providers/status",
+        "model_catalog_endpoint": "GET /api/v1/models/catalog",
+        "runtime_guard_endpoint": "GET /api/v1/runtime/guard-parity",
+        "evidence_ref": LLM_PROVIDER_READINESS_EVIDENCE_REF,
+        "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "external_probe_performed": False,
+        "model_downloads": False,
+        "local_model_downloads_allowed": False,
+        "provider": "huggingface_inference_router",
+        "provider_token_configured": hf_router_available(),
+        "provider_token_env": "HF_TOKEN",
+        "provider_token_returned": False,
+        "live_generation_default_allowed": LLM_LIVE_PROVIDER_DEFAULT,
+        "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
+        "live_generation_ready": live_generation_ready,
+        "default_generation_decision": "deterministic_dry_run",
+        "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+        "requires_env_gates": [
+            "HF_TOKEN configured",
+            "LLM_LIVE_PROVIDER_DEFAULT=true",
+            "LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
+        ],
+        "direct_provider_metadata_keys_blocked": sorted(DIRECT_PROVIDER_METADATA_KEYS),
+        "url_like_model_ids_blocked": True,
+        "unknown_model_ids_blocked": True,
+        "output_token_budget_guard": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+        "route_count": len(MODEL_ROUTES),
+        "configured_model_count": len(model_ids()),
+        "route_readiness": [
+            {
+                "agent_type": str(route["agent_type"]),
+                "primary": str(route["primary"]),
+                "fallback_count": len(route["fallbacks"]),
+                "provider": provider_for_model(str(route["primary"])),
+                "max_output_tokens": int(route["max_output_tokens"]),
+                "api_inference_only": True,
+                "model_downloads": False,
+                "live_provider_calls": LIVE_PROVIDER_CALLS,
+            }
+            for route in MODEL_ROUTES
+        ],
+        "evidence_refs": [
+            LLM_PROVIDER_READINESS_EVIDENCE_REF,
+            LLM_MODEL_CATALOG_EVIDENCE_REF,
+            LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            "llm_routing_policy_direct_provider_blocked",
+            LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+        ],
+        "policy_checks": [
+            "This contract does not call the upstream provider while proving readiness.",
+            "Default generation remains deterministic_dry_run unless all env gates and per-request metadata allow live calls.",
+            "Provider tokens, direct provider URLs, and provider key refs are never returned.",
+            "Configured routes remain API-inference-only and local model downloads remain disabled.",
+            "Unknown model IDs and output-token budget overages fail closed before generation.",
+        ],
+        "non_claims": [
+            "No live provider generation call is made by this contract.",
+            "No upstream model-list probe is made by this contract.",
+            "No provider credential, direct provider URL, local model download, production rollout, release promotion, or hosted parity is claimed by this local contract.",
         ],
     }
 
@@ -374,6 +659,8 @@ def routing_policy_contract_snapshot() -> dict[str, object]:
         "evidence_refs": {
             "contract_visible": "llm_routing_policy_contract_visible",
             "direct_provider_blocked": "llm_routing_policy_direct_provider_blocked",
+            "unknown_model_blocked": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+            "output_token_budget_blocked": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
             "fallback_limit_blocked": "llm_routing_policy_fallback_limit_blocked",
             "retry_limit_blocked": "llm_routing_policy_retry_limit_blocked",
             "sensitive_cache_blocked": "llm_routing_policy_sensitive_cache_blocked",
@@ -384,6 +671,104 @@ def routing_policy_contract_snapshot() -> dict[str, object]:
             "This contract evaluates local routing policy only.",
             "No external provider is called by this policy evaluator.",
             "No provider credential, direct provider URL, or live billing path is accepted.",
+            "Chat and Responses ingress reject URL-like model ids and direct-provider metadata before routing.",
+        ],
+    }
+
+
+def runtime_guard_parity_snapshot() -> dict[str, object]:
+    return {
+        "contract_version": LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "status": "verified",
+        "mode": GATEWAY_MODE,
+        "endpoint": "GET /api/v1/runtime/guard-parity",
+        "evidence_ref": LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "live_provider_calls": LIVE_PROVIDER_CALLS,
+        "live_provider_calls_available": hf_router_available(),
+        "model_downloads": False,
+        "open_source_api_only": True,
+        "ingress_surface": {
+            "chat_completions": "POST /v1/chat/completions",
+            "responses": "POST /v1/responses",
+            "models": "GET /v1/models",
+            "routing_policy": "POST /api/v1/routing/policy/evaluate",
+            "streaming_contract": "GET /api/v1/streaming/contract",
+        },
+        "configured_routes": len(MODEL_ROUTES),
+        "configured_models": model_ids(),
+        "guard_matrix": [
+            {
+                "guard": "direct_provider_bypass",
+                "status": "enforced",
+                "evidence_ref": "llm_routing_policy_direct_provider_blocked",
+                "enforced_on": ["/v1/chat/completions", "/v1/responses"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "unknown_model_id",
+                "status": "enforced",
+                "evidence_ref": LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+                "enforced_on": ["/v1/chat/completions", "/v1/responses"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "output_token_budget",
+                "status": "enforced",
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "enforced_on": ["/v1/chat/completions", "/v1/responses"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "streaming_terminal_done",
+                "status": "enforced",
+                "evidence_ref": "llm_gateway_streaming_dry_run",
+                "enforced_on": ["/v1/chat/completions?stream=true"],
+                "fail_closed": True,
+            },
+            {
+                "guard": "routing_policy_preflight",
+                "status": "enforced",
+                "evidence_ref": "llm_routing_policy_primary_allowed",
+                "enforced_on": ["/api/v1/routing/policy/evaluate"],
+                "fail_closed": True,
+            },
+        ],
+        "route_parity": [
+            {
+                "agent_type": str(route["agent_type"]),
+                "primary": str(route["primary"]),
+                "fallbacks": [str(item) for item in route["fallbacks"]],
+                "provider_chain": [provider_for_model(model) for model in [str(route["primary"]), *[str(item) for item in route["fallbacks"]]]],
+                "max_output_tokens": int(route["max_output_tokens"]),
+                "supports_streaming": bool(route["supports_streaming"]),
+                "open_source_first": bool(route["open_source_first"]),
+                "model_downloads": False,
+            }
+            for route in MODEL_ROUTES
+        ],
+        "agent_executor_contract": {
+            "consumer_module": "services/agent-api/app/orchestrator.py",
+            "consumer_function": "call_llm_gateway_for_task",
+            "preflight_required": "POST /api/v1/routing/policy/evaluate before POST /v1/chat/completions",
+            "required_state_fields": [
+                "llm_gateway_calls[].routing_policy_checked",
+                "llm_gateway_calls[].routing_policy_decision",
+                "llm_gateway_calls[].stream_done_seen",
+                "llm_gateway_calls[].live_provider_calls_proven_false",
+            ],
+        },
+        "evidence_refs": [
+            LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+            "llm_routing_policy_direct_provider_blocked",
+            LLM_UNKNOWN_MODEL_EVIDENCE_REF,
+            LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+            "llm_gateway_streaming_dry_run",
+            "llm_routing_policy_primary_allowed",
+        ],
+        "non_claims": [
+            "This parity endpoint is a deterministic runtime guard proof, not a live provider generation proof.",
+            "No provider credential, direct provider URL, local model download, or production rollout is enabled by this endpoint.",
+            "Live provider calls stay disabled unless environment and request policy gates both explicitly allow them.",
         ],
     }
 
@@ -514,7 +899,8 @@ def resolve_route(request: RoutingResolveRequest) -> dict[str, object]:
             "reset_after_seconds": PROVIDER_RESET_AFTER_SECONDS,
             "never_break_budget": True,
             "external_provider_calls_disabled_by_default": not LLM_LIVE_PROVIDER_DEFAULT,
-            "requires_request_metadata": "metadata.live_provider_calls_allowed=true",
+            "request_live_provider_override_enabled": LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE,
+            "requires_request_metadata": "metadata.live_provider_calls_allowed=true and LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE=true",
         },
     }
 
@@ -539,7 +925,10 @@ def request_allows_live_provider(metadata: dict[str, Any] | None) -> bool:
     value = metadata.get("live_provider_calls_allowed")
     if value is None:
         return LLM_LIVE_PROVIDER_DEFAULT
-    return value is True or (isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"})
+    requested = value is True or (isinstance(value, str) and value.strip().lower() in {"1", "true", "yes"})
+    if not requested:
+        return False
+    return LLM_LIVE_PROVIDER_DEFAULT or LLM_ALLOW_REQUEST_LIVE_PROVIDER_OVERRIDE
 
 
 def chat_message_payloads(messages: list[ChatMessage]) -> list[dict[str, Any]]:
@@ -665,12 +1054,17 @@ def audit_event(
     base_url = os.getenv("AGENT_API_INTERNAL_URL", "").rstrip("/")
     if not base_url:
         return False
-    trace_id = str(request.metadata.get("trace_id") or f"llm-dry-run-{uuid4()}")
+    metadata = request.metadata or {}
+    trace_id = str(metadata.get("trace_id") or f"llm-dry-run-{uuid4()}")
+    request_id = metadata.get("request_id")
+    session_id = metadata.get("session_id")
     payload = {
         "trace_id": trace_id,
+        "request_id": str(request_id) if request_id else None,
+        "session_id": str(session_id) if session_id else None,
         "model_name": request.model,
         "provider_name": provider_name,
-        "agent_type": str(request.metadata.get("agent_type") or "unknown"),
+        "agent_type": str(metadata.get("agent_type") or "unknown"),
         "status": status,
         "input_tokens": usage["prompt_tokens"],
         "output_tokens": usage["completion_tokens"],
@@ -698,8 +1092,10 @@ def audit_responses_event(request_payload: dict[str, Any], response_payload: dic
     summary = extract_response_output_text(response_payload) or "Responses API call completed without text output."
     payload = {
         "trace_id": str(metadata_map.get("trace_id") or f"llm-responses-{uuid4()}"),
+        "request_id": str(metadata_map.get("request_id")) if metadata_map.get("request_id") else None,
+        "session_id": str(metadata_map.get("session_id")) if metadata_map.get("session_id") else None,
         "model_name": str(response_payload.get("model") or request_payload.get("model") or HF_DEFAULT_CHAT_MODEL),
-        "provider_name": "huggingface_router_responses_adapter",
+        "provider_name": str(response_payload.get("provider_name") or "huggingface_router_responses_adapter"),
         "agent_type": str(metadata_map.get("agent_type") or "unknown"),
         "status": "success" if response_payload.get("status") == "completed" else "error",
         "input_tokens": usage["input_tokens"],
@@ -707,6 +1103,43 @@ def audit_responses_event(request_payload: dict[str, Any], response_payload: dic
         "cost_cents": 0,
         "live_provider_calls": bool(response_payload.get("live_provider_calls")),
         "summary": summary[:500],
+    }
+    try:
+        with httpx.Client(timeout=3) as client:
+            response = client.post(f"{base_url}/internal/audit/llm-events", json=payload)
+            response.raise_for_status()
+        return True
+    except Exception:
+        return False
+
+
+def audit_guard_block_event(request_payload: dict[str, Any], exc: HTTPException, *, model: str | None = None) -> bool:
+    base_url = os.getenv("AGENT_API_INTERNAL_URL", "").rstrip("/")
+    if not base_url:
+        return False
+
+    metadata = request_payload.get("metadata")
+    metadata_map = metadata if isinstance(metadata, dict) else {}
+    detail = exc.detail if isinstance(exc.detail, dict) else {"code": str(exc.detail)}
+    guard_ref = str(detail.get("evidence_ref") or detail.get("code") or "llm_runtime_guard_blocked")
+    payload = {
+        "trace_id": str(metadata_map.get("trace_id") or f"llm-guard-block-{uuid4()}"),
+        "request_id": str(metadata_map.get("request_id")) if metadata_map.get("request_id") else None,
+        "session_id": str(metadata_map.get("session_id")) if metadata_map.get("session_id") else None,
+        "model_name": str(model or request_payload.get("model") or HF_DEFAULT_CHAT_MODEL),
+        "provider_name": "deterministic-guard",
+        "agent_type": str(metadata_map.get("agent_type") or "unknown"),
+        "status": "blocked",
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cost_cents": 0,
+        "live_provider_calls": False,
+        "summary": f"LLM runtime guard blocked request: {guard_ref}",
+        "guard_evidence_ref": guard_ref,
+        "blocked_reason": str(detail.get("code") or guard_ref),
+        "http_status": int(exc.status_code),
+        "llm_guard_correlation_evidence_ref": LLM_GUARD_CORRELATION_EVIDENCE_REF,
+        "model_downloads": False,
     }
     try:
         with httpx.Client(timeout=3) as client:
@@ -732,6 +1165,24 @@ def normalize_responses_request(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(metadata, dict):
         raise HTTPException(status_code=422, detail="metadata must be an object")
     normalized["metadata"] = {"gateway_path": "responses_proxy", **metadata}
+    if "max_output_tokens" in normalized and (
+        isinstance(normalized.get("max_output_tokens"), bool)
+        or not isinstance(normalized.get("max_output_tokens"), int)
+    ):
+        model = str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL)
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "code": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "evidence_ref": LLM_OUTPUT_TOKEN_BUDGET_EVIDENCE_REF,
+                "reason": "max_output_tokens_must_be_integer",
+                "model": model,
+                "normalized_model": normalize_model_id(model),
+                "requested_max_output_tokens": normalized.get("max_output_tokens"),
+                "live_provider_calls": False,
+                "model_downloads": False,
+            },
+        )
     return normalized
 
 
@@ -811,9 +1262,15 @@ def health() -> dict[str, object]:
         "provider_live_verified": bool(router["live_verified"]),
         "provider_status": router["status"],
         "provider_model_count_visible": router["model_count_visible"],
+        "provider_readiness_contract_version": LLM_PROVIDER_READINESS_CONTRACT_VERSION,
+        "provider_readiness_evidence_ref": LLM_PROVIDER_READINESS_EVIDENCE_REF,
+        "provider_readiness_endpoint": "GET /llm/api/v1/providers/readiness/contract",
         "streaming_sse": True,
         "streaming_protocol": STREAMING_PROTOCOL,
         "models_configured": len(model_ids()),
+        "model_catalog_contract_version": LLM_MODEL_CATALOG_CONTRACT_VERSION,
+        "model_catalog_endpoint": "GET /llm/api/v1/models/catalog",
+        "model_catalog_evidence_ref": LLM_MODEL_CATALOG_EVIDENCE_REF,
         "hf_router": huggingface_router_capability_snapshot(),
         "responses_api": huggingface_router_capability_snapshot(),
         "non_claims": [
@@ -840,6 +1297,10 @@ def models() -> dict[str, object]:
                 "configured_route": model_id in route_models,
                 "open_source_first": True,
                 "live_verified": bool(router["live_verified"]),
+                "provider": provider_for_model(model_id),
+                "model_family": model_family(model_id),
+                "api_inference_only": True,
+                "model_downloads": False,
             }
             for model_id in merged
         ],
@@ -849,6 +1310,11 @@ def models() -> dict[str, object]:
         "router_status": router["status"],
         "model_downloads": False,
     }
+
+
+@app.get("/api/v1/models/catalog")
+def model_catalog() -> dict[str, object]:
+    return model_catalog_snapshot()
 
 
 @app.get("/api/v1/routes")
@@ -865,6 +1331,11 @@ def providers_status() -> dict[str, object]:
     return provider_status_snapshot()
 
 
+@app.get("/api/v1/providers/readiness/contract")
+def providers_readiness_contract() -> dict[str, object]:
+    return provider_readiness_contract_snapshot()
+
+
 @app.get("/api/v1/streaming/contract")
 def streaming_contract() -> dict[str, object]:
     return streaming_contract_snapshot()
@@ -873,6 +1344,11 @@ def streaming_contract() -> dict[str, object]:
 @app.get("/api/v1/routing/policy/contract")
 def routing_policy_contract() -> dict[str, object]:
     return routing_policy_contract_snapshot()
+
+
+@app.get("/api/v1/runtime/guard-parity")
+def runtime_guard_parity() -> dict[str, object]:
+    return runtime_guard_parity_snapshot()
 
 
 @app.post("/api/v1/routing/policy/evaluate")
@@ -888,6 +1364,16 @@ def routing_resolve(request: RoutingResolveRequest) -> dict[str, object]:
 @app.post("/v1/chat/completions")
 def chat_completions(request: ChatCompletionRequest):
     created = int(time.time())
+    try:
+        enforce_no_direct_provider_bypass(model=request.model, metadata=request.metadata)
+        enforce_model_and_output_budget(
+            model=request.model,
+            requested_max_output_tokens=request.max_tokens,
+            metadata=request.metadata,
+        )
+    except HTTPException as exc:
+        audit_guard_block_event({"model": request.model, "metadata": request.metadata}, exc, model=request.model)
+        raise
     live_allowed = request_allows_live_provider(request.metadata)
     live_call = live_allowed and hf_router_available()
     completion_id = f"chatcmpl-{'hf' if live_call else 'dryrun'}-{uuid4()}"
@@ -972,14 +1458,31 @@ def chat_completions(request: ChatCompletionRequest):
 @app.post("/v1/responses")
 def create_response(payload: dict[str, Any]) -> dict[str, Any]:
     normalized = normalize_responses_request(payload)
-    chat_request = ChatCompletionRequest(
-        model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
-        messages=responses_input_to_messages(normalized),
-        stream=False,
-        temperature=normalized.get("temperature") if isinstance(normalized.get("temperature"), (int, float)) else None,
-        max_tokens=normalized.get("max_output_tokens") if isinstance(normalized.get("max_output_tokens"), int) else None,
-        metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
-    )
+    try:
+        enforce_no_direct_provider_bypass(
+            model=str(normalized.get("model") or ""),
+            metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
+        )
+        chat_request = ChatCompletionRequest(
+            model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
+            messages=responses_input_to_messages(normalized),
+            stream=False,
+            temperature=normalized.get("temperature") if isinstance(normalized.get("temperature"), (int, float)) else None,
+            max_tokens=normalized.get("max_output_tokens") if isinstance(normalized.get("max_output_tokens"), int) else None,
+            metadata=normalized.get("metadata") if isinstance(normalized.get("metadata"), dict) else {},
+        )
+        enforce_model_and_output_budget(
+            model=chat_request.model,
+            requested_max_output_tokens=chat_request.max_tokens,
+            metadata=chat_request.metadata,
+        )
+    except HTTPException as exc:
+        audit_guard_block_event(
+            normalized,
+            exc,
+            model=str(normalized.get("model") or HF_DEFAULT_CHAT_MODEL),
+        )
+        raise
     live_allowed = request_allows_live_provider(chat_request.metadata)
     if live_allowed and not hf_router_available():
         raise HTTPException(status_code=503, detail="HF_TOKEN is required for live Hugging Face router calls")

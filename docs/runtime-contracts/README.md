@@ -16,6 +16,9 @@ Diese Dateien sind keine Runtime-Implementierung und kein Release-Claim.
 | --- | --- | --- | --- |
 | [budget-rate-control.md](budget-rate-control.md) | Phase 2 / WP-01 | `prepared` | Budget-, Rate-, Cache- und Alert-Schutz vor LLM-Calls |
 | [llm-gateway-routing.md](llm-gateway-routing.md) | Phase 2 / WP-02 | `prepared` | Gateway-only Modellrouting, Kostenklassen und Fallback-Grenzen |
+| [llm-provider-readiness-contract.md](llm-provider-readiness-contract.md) | Phase 5 / LLM readiness | `implemented-local` | Fail-closed Provider-Readiness ohne Upstream-Probe, Credential-Ausgabe, Live-Generation oder lokale Modelldownloads |
+| [llm-audit-feed-contract.md](llm-audit-feed-contract.md) | Phase 3 / LLM audit | `implemented-local` | Read-only LLM-Gateway-Audit-Feed aus `audit_log` ohne Provider-Calls oder Credential-Ausgabe |
+| [langfuse-trace-access-contract.md](langfuse-trace-access-contract.md) | Phase 3 / Observability | `implemented-local` | Read-only Langfuse-style trace lookup aus `audit_log` ohne Provider-Trace-Export oder Public-Langfuse-Claim |
 | [langgraph-orchestrator.md](langgraph-orchestrator.md) | Phase 2 / WP-03 | `prepared` | Kontrollierter Multi-Agent-Graph, State-Vertrag, Retry-Limits und Recovery-Pfade |
 | [core-agent-profiles.md](core-agent-profiles.md) | Phase 2 / WP-04 | `prepared` | Vier MVP-Agentenprofile, Toolrechte, Output-Envelope und Eskalationsregeln |
 | [memory-consolidation-job.md](memory-consolidation-job.md) | Phase 2 / WP-05 | `prepared` | Memory-Konsolidierung, Quellenpflicht, Write-Vertrag und Retention-Gates |

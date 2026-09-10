@@ -1,5 +1,5 @@
 param(
-  [string]$ReleaseId = "prod-candidate-2026-05-05-rc1",
+  [string]$ReleaseId = "",
   [string]$BaseUrl = "https://188-34-191-140.sslip.io"
 )
 
@@ -46,6 +46,20 @@ function Invoke-DockerManifestInspect($ref, [switch]$Verbose) {
     }
   }
   throw "Verification failed: GHCR manifest inspect failed for $ref after $attempts attempts. Last output: $lastOutput"
+}
+
+$currentConfigPath = "docs\release-artifacts\current-release-candidate.json"
+if ([string]::IsNullOrWhiteSpace($ReleaseId) -and (Test-Path -LiteralPath $currentConfigPath)) {
+  $currentConfig = Get-Content -LiteralPath $currentConfigPath -Raw | ConvertFrom-Json
+  $ReleaseId = [string]$currentConfig.active_release_id
+}
+
+if ($ReleaseId -ne "prod-candidate-2026-05-05-rc1") {
+  & "$PSScriptRoot\verify-current-release-candidate.ps1" -ReleaseId $ReleaseId -BaseUrl $BaseUrl
+  if ($LASTEXITCODE -ne 0) {
+    throw "Verification failed: current release candidate verifier failed."
+  }
+  return
 }
 
 $manifest = Get-Content "docs\project-progress.manifest.json" -Raw | ConvertFrom-Json

@@ -180,6 +180,25 @@ Assert-Contains "cloud deployment preflight panel" $frontendHtml "Cloud Deployme
 Assert-Contains "cloud deployment preflight evidence marker" $frontendHtml "cloud_deployment_preflight_visible"
 Assert-Contains "cloud deployment preflight endpoint marker" $frontendHtml "GET /api/v1/clouds/deployment-preflight/contract"
 Assert-Contains "auth contract panel" $frontendHtml "Auth Contract"
+Assert-Contains "auth audit snapshot panel" $frontendHtml "Auth Audit Snapshot"
+Assert-Contains "auth audit snapshot contract marker" $frontendHtml "auth-audit-snapshot-v1"
+Assert-Contains "auth audit snapshot evidence marker" $frontendHtml "auth_audit_snapshot_visible"
+Assert-Contains "auth audit redaction evidence marker" $frontendHtml "auth_audit_redaction_enforced"
+Assert-Contains "auth audit no live oauth marker" $frontendHtml "auth_no_live_oauth_guard"
+Assert-Contains "auth audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/auth/snapshot"
+Assert-Contains "auth audit risk panel" $frontendHtml "Auth Audit Risk Rollup"
+Assert-Contains "auth audit risk contract marker" $frontendHtml "auth-audit-risk-rollup-v1"
+Assert-Contains "auth audit risk evidence marker" $frontendHtml "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit risk endpoint marker" $frontendHtml "GET /api/v1/audit/auth/risk-rollup"
+Assert-Contains "auth audit timeline panel" $frontendHtml "Auth Audit Timeline"
+Assert-Contains "auth audit timeline contract marker" $frontendHtml "auth-audit-timeline-v1"
+Assert-Contains "auth audit timeline evidence marker" $frontendHtml "auth_audit_timeline_visible"
+Assert-Contains "auth audit timeline endpoint marker" $frontendHtml "GET /api/v1/audit/auth/timeline"
+Assert-Contains "auth audit export panel" $frontendHtml "Auth Audit Export"
+Assert-Contains "auth audit export contract marker" $frontendHtml "auth-audit-export-v1"
+Assert-Contains "auth audit export evidence marker" $frontendHtml "auth_audit_export_visible"
+Assert-Contains "auth audit export audit marker" $frontendHtml "auth_audit_export_audit_persisted"
+Assert-Contains "auth audit export endpoint marker" $frontendHtml "GET /api/v1/audit/auth/export"
 Assert-Contains "system fallback panel" $frontendHtml "System Unavailable Fallback"
 Assert-Contains "layer interface contract panel" $frontendHtml "Layer Interface Contracts"
 Assert-Contains "layer interface evidence marker" $frontendHtml "layer_interface_contracts_visible"
@@ -188,11 +207,121 @@ Assert-Contains "task assignment evidence marker" $frontendHtml "task_assignment
 Assert-Contains "task assignment priority routing marker" $frontendHtml "Priority Routing"
 Assert-Contains "agent llm streaming contract panel" $frontendHtml "Agent LLM Streaming Contract"
 Assert-Contains "agent llm streaming evidence marker" $frontendHtml "agent_llm_streaming_contract_visible"
+Assert-Contains "llm runtime guard panel" $frontendHtml "Runtime Guard"
+Assert-Contains "llm runtime guard contract marker" $frontendHtml "llm-runtime-guard-parity-v1"
+Assert-Contains "llm runtime guard evidence marker" $frontendHtml "llm_runtime_guard_parity_visible"
+Assert-Contains "llm model catalog panel" $frontendHtml "Model Catalog"
+Assert-Contains "llm model catalog contract marker" $frontendHtml "llm-model-catalog-v1"
+Assert-Contains "llm model catalog evidence marker" $frontendHtml "llm_model_catalog_visible"
+Assert-Contains "llm model catalog endpoint marker" $frontendHtml "GET /llm/api/v1/models/catalog"
+Assert-Contains "llm provider readiness panel" $frontendHtml "Provider Readiness Contract"
+Assert-Contains "llm provider readiness contract marker" $frontendHtml "llm-provider-readiness-contract-v1"
+Assert-Contains "llm provider readiness evidence marker" $frontendHtml "llm_provider_readiness_contract_visible"
+Assert-Contains "llm provider readiness endpoint marker" $frontendHtml "GET /llm/api/v1/providers/readiness/contract"
+Assert-Contains "llm provider readiness no-probe marker" $frontendHtml "external_probe_performed"
+Assert-Contains "llm audit feed panel" $frontendHtml "LLM Audit Feed"
+Assert-Contains "llm audit feed contract marker" $frontendHtml "llm-audit-feed-v1"
+Assert-Contains "llm audit feed evidence marker" $frontendHtml "llm_audit_feed_visible"
+Assert-Contains "llm audit snapshot panel" $frontendHtml "LLM Audit Snapshot"
+Assert-Contains "llm audit snapshot evidence marker" $frontendHtml "llm_audit_snapshot_visible"
+Assert-Contains "llm audit redaction evidence marker" $frontendHtml "llm_audit_redaction_enforced"
+Assert-Contains "llm audit export panel" $frontendHtml "LLM Audit Export"
+Assert-Contains "llm audit export contract marker" $frontendHtml "llm-audit-export-v1"
+Assert-Contains "llm audit export evidence marker" $frontendHtml "llm_audit_export_visible"
+Assert-Contains "llm audit export audit marker" $frontendHtml "llm_audit_export_audit_persisted"
+Assert-Contains "llm audit export no-live marker" $frontendHtml "llm_audit_no_live_provider_guard"
+Assert-Contains "llm audit feed endpoint marker" $frontendHtml "GET /api/v1/audit/llm"
+Assert-Contains "llm audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/llm/snapshot"
+Assert-Contains "llm audit export endpoint marker" $frontendHtml "GET /api/v1/audit/llm/export"
+Assert-Contains "gateway correlation panel" $frontendHtml "Gateway Correlation Snapshot"
+Assert-Contains "gateway correlation contract marker" $frontendHtml "gateway-correlation-snapshot-v1"
+Assert-Contains "gateway correlation evidence marker" $frontendHtml "gateway_correlation_snapshot_visible"
+Assert-Contains "gateway correlation redaction marker" $frontendHtml "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation no live write marker" $frontendHtml "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/snapshot"
+Assert-Contains "gateway correlation risk rollup panel" $frontendHtml "Gateway Correlation Risk Rollup"
+Assert-Contains "gateway correlation risk contract marker" $frontendHtml "gateway-correlation-risk-rollup-v1"
+Assert-Contains "gateway correlation risk evidence marker" $frontendHtml "gateway_correlation_risk_rollup_visible"
+Assert-Contains "gateway correlation risk endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/risk-rollup"
+Assert-Contains "gateway correlation timeline panel" $frontendHtml "Gateway Correlation Timeline"
+Assert-Contains "gateway correlation timeline contract marker" $frontendHtml "gateway-correlation-timeline-v1"
+Assert-Contains "gateway correlation timeline evidence marker" $frontendHtml "gateway_correlation_timeline_visible"
+Assert-Contains "gateway correlation timeline endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/timeline"
+Assert-Contains "langfuse trace access panel" $frontendHtml "Langfuse Trace Access"
+Assert-Contains "langfuse trace access contract marker" $frontendHtml "langfuse-trace-access-v1"
+Assert-Contains "langfuse trace access evidence marker" $frontendHtml "langfuse_trace_access_visible"
+Assert-Contains "langfuse trace access endpoint marker" $frontendHtml "GET /api/v1/observability/langfuse/trace/{trace_id}"
+Assert-Contains "live agent control panel" $frontendHtml "Live Agent Control"
+Assert-Contains "live agent ui evidence marker" $frontendHtml "live_agent_steering_ui_visible"
+Assert-Contains "live agent history evidence marker" $frontendHtml "live_agent_steering_history_visible"
+Assert-Contains "live agent audit evidence marker" $frontendHtml "live_agent_steering_audit_persisted"
+Assert-Contains "live agent metadata guard marker" $frontendHtml "live_agent_metadata_guard_enforced"
+Assert-Contains "live agent steer endpoint marker" $frontendHtml "POST /api/v1/live-agents/steer"
+Assert-Contains "live agent history endpoint marker" $frontendHtml "GET /api/v1/live-agents/history"
+Assert-Contains "autonomous coding team panel" $frontendHtml "Autonomous Coding Team"
+Assert-Contains "autonomous dispatch objective marker" $frontendHtml "Dispatch Objective"
+Assert-Contains "autonomous dispatch endpoint marker" $frontendHtml "POST /api/v1/task/dispatch"
+Assert-Contains "autonomous dispatch ui evidence marker" $frontendHtml "autonomous_team_dispatch_ui_visible"
+Assert-Contains "autonomous dispatch evidence marker" $frontendHtml "autonomous_team_dispatch_visible"
+Assert-Contains "autonomous dispatch status evidence marker" $frontendHtml "autonomous_team_dispatch_status_visible"
 Assert-Contains "mcp version pinning contract panel" $frontendHtml "MCP Version Pinning Contract"
 Assert-Contains "mcp version pinning evidence marker" $frontendHtml "mcp_version_pinning_contract_visible"
+Assert-Contains "mcp runtime guard parity panel" $frontendHtml "MCP Runtime Guard Parity"
+Assert-Contains "mcp runtime guard parity contract marker" $frontendHtml "mcp-runtime-guard-parity-v1"
+Assert-Contains "mcp runtime guard parity evidence marker" $frontendHtml "mcp_runtime_guard_parity_visible"
+Assert-Contains "workbench system proof visible" $frontendHtml "System Proof"
+Assert-Contains "workbench api only visible" $frontendHtml "api_only"
+Assert-Contains "workbench production non-claim visible" $frontendHtml "production_rollout_claimed=false"
+Assert-Contains "workbench launch lane model router visible" $frontendHtml "Model Router"
+Assert-Contains "workbench launch lane cloud runtime visible" $frontendHtml "Cloud Runtime"
+Assert-Contains "workbench squad mode visible" $frontendHtml "Squad Mode"
+Assert-Contains "workbench supervisor lane visible" $frontendHtml "Supervisor"
+Assert-Contains "workbench active layer accessibility visible" $frontendHtml "aria-pressed=""true"""
+Assert-Contains "agent skill mode panel visible" $frontendHtml "Agent Skill Mode"
+Assert-Contains "agent skill mode contract marker" $frontendHtml "agent-skill-mode-capability-contract-v1"
+Assert-Contains "agent skill mode evidence marker" $frontendHtml "agent_skill_mode_capability_visible"
+Assert-Contains "agent skill mode plugins count visible" $frontendHtml "Plugins 11"
+Assert-Contains "agent skill mode apps count visible" $frontendHtml "Apps 4"
+Assert-Contains "agent skill mode mcp count visible" $frontendHtml "MCPs 1"
+Assert-Contains "agent skill mode skills count visible" $frontendHtml "Skills 140"
+Assert-Contains "agent skill mode no live external marker visible" $frontendHtml "agent_skill_mode_no_live_external_calls"
+Assert-Contains "agent skill mode no secret material marker visible" $frontendHtml "agent_skill_mode_no_secret_material"
+Assert-Contains "agent skill mode no local model marker visible" $frontendHtml "agent_skill_mode_no_local_model_downloads"
+Assert-Contains "mcp runtime guard parity agent endpoint marker" $frontendHtml "GET /api/v1/agents/mcp-runtime-guard-parity"
+Assert-Contains "mcp runtime guard parity gateway endpoint marker" $frontendHtml "GET /mcp/api/v1/runtime/guard-parity"
+Assert-Contains "mcp runtime guard parity no live writes marker" $frontendHtml "live_mcp_writes=false"
+Assert-Contains "mcp runtime guard parity no live mutations marker" $frontendHtml "live_mutations=false"
+Assert-Contains "mcp runtime guard parity no external calls marker" $frontendHtml "external_mcp_server_calls=false"
+Assert-Contains "mcp runtime guard parity no model downloads marker" $frontendHtml "model_downloads=false"
+Assert-Contains "mcp runtime guard parity redaction marker" $frontendHtml "mcp_secret_redaction_guard"
+Assert-Contains "mcp capability catalog panel" $frontendHtml "MCP Capability Catalog"
+Assert-Contains "mcp capability catalog contract marker" $frontendHtml "mcp-capability-catalog-v1"
+Assert-Contains "mcp capability catalog evidence marker" $frontendHtml "mcp_capability_catalog_visible"
+Assert-Contains "mcp capability catalog endpoint marker" $frontendHtml "GET /mcp/api/v1/capabilities/catalog"
+Assert-Contains "mcp audit panel" $frontendHtml "MCP Audit"
+Assert-Contains "mcp audit snapshot panel" $frontendHtml "MCP Audit Snapshot"
+Assert-Contains "mcp audit snapshot evidence marker" $frontendHtml "mcp_audit_snapshot_visible"
+Assert-Contains "mcp audit redaction evidence marker" $frontendHtml "mcp_audit_redaction_enforced"
+Assert-Contains "mcp audit snapshot endpoint marker" $frontendHtml "GET /api/v1/audit/mcp/snapshot"
+Assert-Contains "mcp audit export panel" $frontendHtml "MCP Audit Export"
+Assert-Contains "mcp audit export version marker" $frontendHtml "mcp-audit-export-v1"
+Assert-Contains "mcp audit export evidence marker" $frontendHtml "mcp_audit_export_visible"
+Assert-Contains "mcp audit export audit evidence marker" $frontendHtml "mcp_audit_export_audit_persisted"
+Assert-Contains "mcp audit export no-live marker" $frontendHtml "mcp_audit_no_live_write_guard"
+Assert-Contains "mcp audit export endpoint marker" $frontendHtml "GET /api/v1/audit/mcp/export"
+Assert-Contains "gateway correlation export panel" $frontendHtml "Gateway Correlation Export"
+Assert-Contains "gateway correlation export version marker" $frontendHtml "gateway-correlation-export-v1"
+Assert-Contains "gateway correlation export evidence marker" $frontendHtml "gateway_correlation_export_visible"
+Assert-Contains "gateway correlation export audit marker" $frontendHtml "gateway_correlation_export_audit_persisted"
+Assert-Contains "gateway correlation export no-live marker" $frontendHtml "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation export endpoint marker" $frontendHtml "GET /api/v1/security/gateway-correlation/export"
 Assert-Contains "memory embedding consistency contract panel" $frontendHtml "Memory Embedding Consistency Contract"
 Assert-Contains "memory embedding consistency evidence marker" $frontendHtml "memory_embedding_consistency_contract_visible"
 Assert-Contains "memory consolidation panel" $frontendHtml "Memory Consolidation"
+Assert-Contains "memory worker health contract panel" $frontendHtml "Memory Worker Health Contract"
+Assert-Contains "memory worker health contract version marker" $frontendHtml "memory-worker-health-contract-v1"
+Assert-Contains "memory worker health evidence marker" $frontendHtml "memory_worker_health_contract_visible"
+Assert-Contains "memory worker health endpoint marker" $frontendHtml "GET /api/v1/memory/worker-health/contract"
 Assert-Contains "memory consolidation refresh button" $frontendHtml "Refresh"
 Assert-Contains "project progress panel" $frontendHtml "Project Progress"
 Assert-Contains "project progress completion contract panel" $frontendHtml "100% Contract"
@@ -205,6 +334,30 @@ Assert-Contains "rate limit guard panel" $frontendHtml "Rate Limit Guard"
 Assert-Contains "session limit guard panel" $frontendHtml "Session Limit Guard"
 Assert-Contains "error response contract panel" $frontendHtml "Error Response Contract"
 Assert-Contains "security headers contract panel" $frontendHtml "Security Headers Contract"
+Assert-Contains "csp report contract panel" $frontendHtml "CSP Report Contract"
+Assert-Contains "csp report evidence marker" $frontendHtml "csp_report_contract_visible"
+Assert-Contains "security audit surface panel" $frontendHtml "Security Audit Surface"
+Assert-Contains "security audit surface contract marker" $frontendHtml "security-audit-surface-v1"
+Assert-Contains "security audit surface evidence marker" $frontendHtml "security_audit_surface_visible"
+Assert-Contains "security audit surface event evidence marker" $frontendHtml "security_audit_event_visible"
+Assert-Contains "security audit surface endpoint marker" $frontendHtml "GET /api/v1/security/events"
+Assert-Contains "security review queue panel" $frontendHtml "Security Review Queue"
+Assert-Contains "security review queue contract marker" $frontendHtml "security-review-queue-v1"
+Assert-Contains "security review queue evidence marker" $frontendHtml "security_review_queue_visible"
+Assert-Contains "security review queue item evidence marker" $frontendHtml "security_review_item_visible"
+Assert-Contains "security review queue redaction marker" $frontendHtml "security_review_redaction_enforced"
+Assert-Contains "security review queue mutation marker" $frontendHtml "security_review_mutation_blocked"
+Assert-Contains "security review queue filter marker" $frontendHtml "security_review_filter_state_visible"
+Assert-Contains "security review queue decision marker" $frontendHtml "security_review_decision_history_visible"
+Assert-Contains "security review queue snapshot marker" $frontendHtml "security_review_evidence_snapshot_visible"
+Assert-Contains "security review gate marker" $frontendHtml "security_review_gate_summary_visible"
+Assert-Contains "security review gate panel" $frontendHtml "Security Review Gate Summary"
+Assert-Contains "security review export panel" $frontendHtml "Security Review Export"
+Assert-Contains "security review export version marker" $frontendHtml "security-review-queue-export-v1"
+Assert-Contains "security review export evidence marker" $frontendHtml "security_review_queue_export_visible"
+Assert-Contains "security review export audit marker" $frontendHtml "security_review_queue_export_audit_persisted"
+Assert-Contains "security review export endpoint marker" $frontendHtml "GET /api/v1/security/review-queue/export"
+Assert-Contains "security review queue endpoint marker" $frontendHtml "GET /api/v1/security/review-queue"
 Assert-Contains "trace id contract panel" $frontendHtml "Trace ID Contract"
 Assert-Contains "cache control contract panel" $frontendHtml "Cache Control Contract"
 Assert-Contains "request id contract panel" $frontendHtml "Request ID Contract"
@@ -343,6 +496,120 @@ $authAudit = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=60"
 Assert-Contains "auth audit refresh rotated" $authAudit "auth_refresh_rotated"
 Assert-Contains "auth audit refresh reuse blocked" $authAudit "auth_refresh_reuse_blocked"
 Assert-Contains "auth audit logout revoked" $authAudit "auth_logout_revoked"
+$authAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/auth/contract"
+Assert-Contains "auth audit contract version" $authAuditContract '"contract_version":"auth-audit-snapshot-v1"'
+Assert-Contains "auth audit snapshot endpoint" $authAuditContract "GET /api/v1/audit/auth/snapshot"
+Assert-Contains "auth audit risk endpoint" $authAuditContract "GET /api/v1/audit/auth/risk-rollup"
+Assert-Contains "auth audit timeline endpoint" $authAuditContract "GET /api/v1/audit/auth/timeline"
+Assert-Contains "auth audit export endpoint" $authAuditContract "GET /api/v1/audit/auth/export"
+Assert-Contains "auth audit evidence" $authAuditContract "auth_audit_snapshot_visible"
+Assert-Contains "auth audit risk evidence" $authAuditContract "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit timeline evidence" $authAuditContract "auth_audit_timeline_visible"
+Assert-Contains "auth audit export evidence" $authAuditContract "auth_audit_export_visible"
+Assert-Contains "auth audit export audit evidence" $authAuditContract "auth_audit_export_audit_persisted"
+Assert-Contains "auth audit redaction evidence" $authAuditContract "auth_audit_redaction_enforced"
+Assert-Contains "auth audit no live oauth evidence" $authAuditContract "auth_no_live_oauth_guard"
+$authAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/auth/snapshot?limit=60"
+Assert-Contains "auth audit snapshot version" $authAuditSnapshot '"contract_version":"auth-audit-snapshot-v1"'
+Assert-Contains "auth audit snapshot mode" $authAuditSnapshot "read_only_auth_audit_snapshot"
+Assert-Contains "auth audit snapshot evidence" $authAuditSnapshot "auth_audit_snapshot_visible"
+Assert-Contains "auth audit snapshot read only" $authAuditSnapshot '"read_only":true'
+Assert-Contains "auth audit snapshot no live oauth claim" $authAuditSnapshot '"live_github_oauth_call_claimed":false'
+Assert-Contains "auth audit snapshot tokens absent" $authAuditSnapshot '"tokens_returned":false'
+Assert-Contains "auth audit snapshot cookies absent" $authAuditSnapshot '"cookies_returned":false'
+Assert-Contains "auth audit snapshot blacklist keys absent" $authAuditSnapshot '"blacklist_keys_returned":false'
+Assert-Contains "auth audit snapshot redaction clear" $authAuditSnapshot '"redaction_status":"clear"'
+$authAuditSnapshotJson = $authAuditSnapshot | ConvertFrom-Json
+Assert-True "auth audit snapshot no forbidden hits" ([int]$authAuditSnapshotJson.forbidden_pattern_hits -eq 0)
+Assert-True "auth audit snapshot no live oauth count" ([int]$authAuditSnapshotJson.live_github_oauth_call_count -eq 0)
+Assert-True "auth audit snapshot has lifecycle events" ([int]$authAuditSnapshotJson.events_scanned -ge 1)
+$authAuditRisk = Invoke-Text "$BaseUrl/api/v1/audit/auth/risk-rollup?limit=60"
+Assert-Contains "auth audit risk version" $authAuditRisk '"contract_version":"auth-audit-risk-rollup-v1"'
+Assert-Contains "auth audit risk mode" $authAuditRisk "read_only_auth_audit_risk_rollup"
+Assert-Contains "auth audit risk evidence" $authAuditRisk "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit risk snapshot evidence" $authAuditRisk "auth_audit_snapshot_visible"
+Assert-Contains "auth audit risk read only" $authAuditRisk '"read_only":true'
+Assert-Contains "auth audit risk no live oauth claim" $authAuditRisk '"live_github_oauth_call_claimed":false'
+Assert-Contains "auth audit risk production false" $authAuditRisk '"production_rollout_claimed":false'
+Assert-Contains "auth audit risk promotion false" $authAuditRisk '"promotion_allowed":false'
+Assert-Contains "auth audit risk tokens absent" $authAuditRisk '"tokens_returned":false'
+Assert-Contains "auth audit risk cookies absent" $authAuditRisk '"cookies_returned":false'
+Assert-Contains "auth audit risk blacklist keys absent" $authAuditRisk '"blacklist_keys_returned":false'
+Assert-Contains "auth audit risk redaction clear" $authAuditRisk '"redaction_status":"clear"'
+$authAuditRiskJson = $authAuditRisk | ConvertFrom-Json
+Assert-True "auth audit risk no forbidden hits" ([int]$authAuditRiskJson.forbidden_pattern_hits -eq 0)
+Assert-True "auth audit risk no live oauth count" ([int]$authAuditRiskJson.live_github_oauth_call_count -eq 0)
+Assert-True "auth audit risk blockers clear" ([int]$authAuditRiskJson.blocker_count -eq 0)
+Assert-True "auth audit risk badges visible" (@($authAuditRiskJson.risk_badges).Count -ge 3)
+$authAuditTimeline = Invoke-Text "$BaseUrl/api/v1/audit/auth/timeline?limit=60"
+Assert-Contains "auth audit timeline version" $authAuditTimeline '"contract_version":"auth-audit-timeline-v1"'
+Assert-Contains "auth audit timeline mode" $authAuditTimeline "read_only_auth_audit_timeline"
+Assert-Contains "auth audit timeline evidence" $authAuditTimeline "auth_audit_timeline_visible"
+Assert-Contains "auth audit timeline snapshot evidence" $authAuditTimeline "auth_audit_snapshot_visible"
+Assert-Contains "auth audit timeline risk evidence" $authAuditTimeline "auth_audit_risk_rollup_visible"
+Assert-Contains "auth audit timeline read only" $authAuditTimeline '"read_only":true'
+Assert-Contains "auth audit timeline no live oauth claim" $authAuditTimeline '"live_github_oauth_call_claimed":false'
+Assert-Contains "auth audit timeline production false" $authAuditTimeline '"production_rollout_claimed":false'
+Assert-Contains "auth audit timeline promotion false" $authAuditTimeline '"promotion_allowed":false'
+Assert-Contains "auth audit timeline tokens absent" $authAuditTimeline '"tokens_returned":false'
+Assert-Contains "auth audit timeline cookies absent" $authAuditTimeline '"cookies_returned":false'
+Assert-Contains "auth audit timeline blacklist keys absent" $authAuditTimeline '"blacklist_keys_returned":false'
+Assert-Contains "auth audit timeline redaction clear" $authAuditTimeline '"redaction_status":"clear"'
+$authAuditTimelineJson = $authAuditTimeline | ConvertFrom-Json
+Assert-True "auth audit timeline no forbidden hits" ([int]$authAuditTimelineJson.forbidden_pattern_hits -eq 0)
+Assert-True "auth audit timeline no live oauth count" ([int]$authAuditTimelineJson.live_github_oauth_call_count -eq 0)
+Assert-True "auth audit timeline parity" ([int]$authAuditTimelineJson.events_scanned -eq [int]$authAuditSnapshotJson.events_scanned)
+Assert-True "auth audit timeline count visible" ([int]$authAuditTimelineJson.timeline_count -eq @($authAuditTimelineJson.timeline).Count)
+$authAuditExportContract = Invoke-Text "$BaseUrl/api/v1/audit/auth/export/contract"
+Assert-Contains "auth audit export version" $authAuditExportContract '"contract_version":"auth-audit-export-v1"'
+Assert-Contains "auth audit export mode" $authAuditExportContract "read_only_auth_audit_csv_export"
+Assert-Contains "auth audit export evidence" $authAuditExportContract "auth_audit_export_visible"
+Assert-Contains "auth audit export audit evidence" $authAuditExportContract "auth_audit_export_audit_persisted"
+Assert-Contains "auth audit export read only" $authAuditExportContract '"read_only":true'
+Assert-Contains "auth audit export no live oauth claim" $authAuditExportContract '"live_github_oauth_call_claimed":false'
+Assert-Contains "auth audit export production false" $authAuditExportContract '"production_rollout_claimed":false'
+Assert-Contains "auth audit export tokens absent" $authAuditExportContract '"tokens_returned":false'
+Assert-Contains "auth audit export raw details absent" $authAuditExportContract '"raw_details_returned":false'
+$authAuditExportCsv = Invoke-Text "$BaseUrl/api/v1/audit/auth/export?format=csv&limit=60"
+Assert-Contains "auth audit export csv header" $authAuditExportCsv "sequence_index,event_id,created_at,event_type,lifecycle_step,status,severity,trace_id,code_present,cookie_http_only,cookie_secure,cookie_same_site,live_github_oauth_call,evidence_ref,redaction_evidence_ref,no_live_oauth_evidence_ref"
+Assert-True "auth audit export no secret pattern leak" (-not ($authAuditExportCsv -match "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Cookie:|auth:refresh:blacklist:|csr_[A-Za-z0-9_-]{16,}|eyJ[A-Za-z0-9_-]{10,}\."))
+$authCanaryId = [Guid]::NewGuid().ToString("N")
+$authCanaryTrace = "unsafe $authCanaryId Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJicm93c2VyLWNhbmFyeSJ9.signature Cookie: refresh_token=csr_$authCanaryId auth:refresh:blacklist:$authCanaryId"
+$authCanaryCode = "browser-code-$authCanaryId"
+$authCanaryState = "browser-state-$authCanaryId"
+Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/callback?code=$([uri]::EscapeDataString($authCanaryCode))&state=$([uri]::EscapeDataString($authCanaryState))" -Method "GET" -ContentType "" | Out-Null
+$authCanaryBody = @{ refresh_token = "csr_$authCanaryId"; trace_id = $authCanaryTrace } | ConvertTo-Json -Compress
+Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authCanaryBody -ContentType "application/json" | Out-Null
+try {
+  Invoke-JsonApi -Url "$BaseUrl/api/v1/auth/refresh" -Method "POST" -Body $authCanaryBody -ContentType "application/json" | Out-Null
+} catch {
+  Assert-Contains "auth adversarial reuse blocked" $_.Exception.Message "refresh_token_invalid"
+}
+$authTimelineAfter = Invoke-Text "$BaseUrl/api/v1/audit/auth/timeline?limit=80"
+$authRecentAfter = Invoke-Text "$BaseUrl/api/v1/audit/recent?limit=80"
+$authCanaryCombined = "$authTimelineAfter`n$authRecentAfter"
+foreach ($forbidden in @(
+  $authCanaryTrace,
+  $authCanaryCode,
+  $authCanaryState,
+  "csr_$authCanaryId",
+  "Authorization: Bearer",
+  "Cookie:",
+  "Set-Cookie",
+  "auth:refresh:blacklist:$authCanaryId",
+  "eyJhbGciOiJIUzI1NiJ9",
+  '"access_token":',
+  '"refresh_token":',
+  '"blacklist_key":',
+  '"code":',
+  '"state":'
+)) {
+  Assert-True "auth adversarial canary omitted $forbidden" (-not $authCanaryCombined.Contains($forbidden))
+}
+$authTimelineAfterJson = $authTimelineAfter | ConvertFrom-Json
+$authRecentAfterJson = $authRecentAfter | ConvertFrom-Json
+Assert-True "auth adversarial trace redacted timeline" (@($authTimelineAfterJson.timeline | Where-Object { $_.trace_id -match "^trace-redacted-[0-9a-f]{16}$" }).Count -ge 1)
+Assert-True "auth adversarial trace redacted recent audit" (@($authRecentAfterJson.events | Where-Object { $_.trace_id -match "^trace-redacted-[0-9a-f]{16}$" }).Count -ge 1)
 
 Write-Host "[browser-contract] system unavailable fallback contract"
 $systemFallbackContract = Invoke-Text "$BaseUrl/api/v1/system/fallback/contract"
@@ -381,6 +648,61 @@ Assert-Contains "error contract envelope evidence" $errorContract "error_respons
 $securityHeadersContract = Invoke-Text "$BaseUrl/api/v1/security/headers/contract"
 Assert-Contains "security headers contract version" $securityHeadersContract '"contract_version":"security-headers-v1"'
 Assert-Contains "security headers evidence" $securityHeadersContract "security_headers_enforced"
+Assert-Contains "security csp report endpoint" $securityHeadersContract "POST /api/v1/security/csp/report"
+$cspReportContract = Invoke-Text "$BaseUrl/api/v1/security/csp/contract"
+Assert-Contains "csp report contract version" $cspReportContract '"contract_version":"csp-report-contract-v1"'
+Assert-Contains "csp report evidence" $cspReportContract "csp_report_contract_visible"
+Assert-Contains "csp report audit evidence" $cspReportContract "csp_report_audit_persisted"
+$securityAuditContract = Invoke-Text "$BaseUrl/api/v1/security/events/contract"
+Assert-Contains "security audit contract version" $securityAuditContract '"contract_version":"security-audit-surface-v1"'
+Assert-Contains "security audit endpoint" $securityAuditContract "GET /api/v1/security/events"
+Assert-Contains "security audit source table" $securityAuditContract "audit_log"
+Assert-Contains "security audit surface evidence" $securityAuditContract "security_audit_surface_visible"
+Assert-Contains "security audit event evidence" $securityAuditContract "security_audit_event_visible"
+Assert-Contains "security audit read only" $securityAuditContract '"read_only":true'
+$securityAuditFeed = Invoke-Text "$BaseUrl/api/v1/security/events?limit=5"
+Assert-Contains "security audit feed contract" $securityAuditFeed '"contract_version":"security-audit-surface-v1"'
+Assert-Contains "security audit feed evidence" $securityAuditFeed "security_audit_surface_visible"
+Assert-Contains "security audit feed event evidence" $securityAuditFeed "security_audit_event_visible"
+
+$securityReviewContract = Invoke-Text "$BaseUrl/api/v1/security/review-queue/contract"
+Assert-Contains "security review contract version" $securityReviewContract '"contract_version":"security-review-queue-v1"'
+Assert-Contains "security review endpoint" $securityReviewContract "GET /api/v1/security/review-queue"
+Assert-Contains "security review read only" $securityReviewContract '"read_only":true'
+Assert-Contains "security review queue evidence" $securityReviewContract "security_review_queue_visible"
+Assert-Contains "security review item evidence" $securityReviewContract "security_review_item_visible"
+Assert-Contains "security review redaction evidence" $securityReviewContract "security_review_redaction_enforced"
+Assert-Contains "security review mutation evidence" $securityReviewContract "security_review_mutation_blocked"
+Assert-Contains "security review gate evidence" $securityReviewContract "security_review_gate_summary_visible"
+Assert-Contains "security review gate endpoint" $securityReviewContract "GET /api/v1/security/review-queue/gate"
+Assert-Contains "security review export version" $securityReviewContract "security-review-queue-export-v1"
+Assert-Contains "security review export evidence" $securityReviewContract "security_review_queue_export_visible"
+Assert-Contains "security review export audit evidence" $securityReviewContract "security_review_queue_export_audit_persisted"
+Assert-Contains "security review export endpoint" $securityReviewContract "GET /api/v1/security/review-queue/export"
+
+$securityReviewQueue = Invoke-Text "$BaseUrl/api/v1/security/review-queue?limit=5"
+Assert-Contains "security review queue contract" $securityReviewQueue '"contract_version":"security-review-queue-v1"'
+Assert-Contains "security review queue evidence" $securityReviewQueue "security_review_queue_visible"
+Assert-Contains "security review queue item evidence" $securityReviewQueue "security_review_item_visible"
+$securityReviewGate = Invoke-Text "$BaseUrl/api/v1/security/review-queue/gate?limit=5"
+Assert-Contains "security review gate contract" $securityReviewGate '"contract_version":"security-review-queue-v1"'
+Assert-Contains "security review gate mode" $securityReviewGate "read_only_security_review_gate_summary"
+Assert-Contains "security review gate evidence" $securityReviewGate "security_review_gate_summary_visible"
+Assert-Contains "security review gate non rollout" $securityReviewGate '"production_rollout_claimed":false'
+Assert-Contains "security review gate no promotion" $securityReviewGate '"promotion_allowed":false'
+$securityReviewExportContract = Invoke-Text "$BaseUrl/api/v1/security/review-queue/export/contract"
+Assert-Contains "security review export contract version" $securityReviewExportContract '"contract_version":"security-review-queue-export-v1"'
+Assert-Contains "security review export mode" $securityReviewExportContract "read_only_security_review_queue_csv_export"
+Assert-Contains "security review export evidence" $securityReviewExportContract "security_review_queue_export_visible"
+Assert-Contains "security review export audit evidence" $securityReviewExportContract "security_review_queue_export_audit_persisted"
+Assert-Contains "security review export read only" $securityReviewExportContract '"read_only":true'
+Assert-Contains "security review export no live provider" $securityReviewExportContract '"live_provider_calls_claimed":false'
+Assert-Contains "security review export no live mcp writes" $securityReviewExportContract '"live_mcp_writes_claimed":false'
+Assert-Contains "security review export production false" $securityReviewExportContract '"production_rollout_claimed":false'
+Assert-Contains "security review export raw details false" $securityReviewExportContract '"raw_details_returned":false'
+$securityReviewExportCsv = Invoke-Text "$BaseUrl/api/v1/security/review-queue/export?format=csv&limit=20"
+Assert-Contains "security review export csv header" $securityReviewExportCsv "sequence_index,queue_item_id,source_event_id,created_at,event_type,category,severity,status,risk_badge,request_id,trace_id,summary,redaction_applied,detail_keys,evidence_ref,item_evidence_ref,redaction_evidence_ref,filter_evidence_ref,decision_history_evidence_ref,source_security_surface_evidence_ref"
+Assert-True "security review export no secret pattern leak" (-not ($securityReviewExportCsv -match "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Cookie:|Set-Cookie:|BEGIN PRIVATE KEY"))
 $traceContract = Invoke-Text "$BaseUrl/api/v1/trace/contract"
 Assert-Contains "trace contract version" $traceContract '"contract_version":"trace-id-propagation-v1"'
 Assert-Contains "trace contract evidence" $traceContract "trace_id_header_roundtrip"
@@ -396,6 +718,179 @@ Assert-Contains "agent activity filtered feed evidence" $agentActivityContract "
 $agentActivityFeed = Invoke-Text "$BaseUrl/api/v1/agent-activity/recent?limit=5&severity=info"
 Assert-Contains "agent activity feed contract" $agentActivityFeed '"contract_version":"agent-activity-trace-v1"'
 Assert-Contains "agent activity feed mode" $agentActivityFeed '"mode":"audit_log_backed_filtered_feed"'
+
+Write-Host "[browser-contract] langfuse trace access"
+$langfuseTraceContract = Invoke-Text "$BaseUrl/api/v1/observability/langfuse/contract"
+Assert-Contains "langfuse trace contract version" $langfuseTraceContract '"contract_version":"langfuse-trace-access-v1"'
+Assert-Contains "langfuse trace endpoint" $langfuseTraceContract "GET /api/v1/observability/langfuse/trace/{trace_id}"
+Assert-Contains "langfuse trace source" $langfuseTraceContract "audit_log"
+Assert-Contains "langfuse trace evidence" $langfuseTraceContract "langfuse_trace_access_visible"
+Assert-Contains "langfuse trace event evidence" $langfuseTraceContract "langfuse_trace_event_visible"
+Assert-Contains "langfuse trace read only" $langfuseTraceContract '"read_only":true'
+Assert-Contains "langfuse trace provider export false" $langfuseTraceContract '"provider_trace_export":false'
+
+Write-Host "[browser-contract] llm provider readiness"
+$llmProviderReadiness = Invoke-Text "$BaseUrl/llm/api/v1/providers/readiness/contract"
+Assert-Contains "llm provider readiness version" $llmProviderReadiness '"contract_version":"llm-provider-readiness-contract-v1"'
+Assert-Contains "llm provider readiness status" $llmProviderReadiness '"status":"verified"'
+Assert-Contains "llm provider readiness evidence" $llmProviderReadiness '"evidence_ref":"llm_provider_readiness_contract_visible"'
+Assert-Contains "llm provider readiness endpoint" $llmProviderReadiness "GET /llm/api/v1/providers/readiness/contract"
+Assert-Contains "llm provider readiness no live calls" $llmProviderReadiness '"live_provider_calls":false'
+Assert-Contains "llm provider readiness no external probe" $llmProviderReadiness '"external_probe_performed":false'
+Assert-Contains "llm provider readiness no model downloads" $llmProviderReadiness '"model_downloads":false'
+Assert-Contains "llm provider readiness token absent" $llmProviderReadiness '"provider_token_returned":false'
+Assert-Contains "llm provider readiness deterministic default" $llmProviderReadiness '"default_generation_decision":"deterministic_dry_run"'
+Assert-Contains "llm provider readiness direct-provider guard" $llmProviderReadiness "direct_provider_url"
+Assert-Contains "llm provider readiness no live generation" $llmProviderReadiness "No live provider generation call"
+Assert-Contains "llm provider readiness no upstream probe" $llmProviderReadiness "No upstream model-list probe"
+
+Write-Host "[browser-contract] llm audit feed"
+$llmAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/llm/contract"
+Assert-Contains "llm audit contract version" $llmAuditContract '"contract_version":"llm-audit-feed-v1"'
+Assert-Contains "llm audit endpoint" $llmAuditContract "GET /api/v1/audit/llm"
+Assert-Contains "llm audit snapshot endpoint" $llmAuditContract "GET /api/v1/audit/llm/snapshot"
+Assert-Contains "llm audit source" $llmAuditContract "llm_gateway_request"
+Assert-Contains "llm audit evidence" $llmAuditContract "llm_audit_feed_visible"
+Assert-Contains "llm audit event evidence" $llmAuditContract "llm_audit_feed_event_visible"
+Assert-Contains "llm audit snapshot evidence" $llmAuditContract "llm_audit_snapshot_visible"
+Assert-Contains "llm audit redaction evidence" $llmAuditContract "llm_audit_redaction_enforced"
+Assert-Contains "llm audit export endpoint" $llmAuditContract "GET /api/v1/audit/llm/export"
+Assert-Contains "llm audit export version" $llmAuditContract "llm-audit-export-v1"
+Assert-Contains "llm audit export evidence" $llmAuditContract "llm_audit_export_visible"
+Assert-Contains "llm audit export audit evidence" $llmAuditContract "llm_audit_export_audit_persisted"
+Assert-Contains "llm audit export no-live evidence" $llmAuditContract "llm_audit_no_live_provider_guard"
+$llmAuditFeed = Invoke-Text "$BaseUrl/api/v1/audit/llm?limit=5"
+Assert-Contains "llm audit feed contract" $llmAuditFeed '"contract_version":"llm-audit-feed-v1"'
+Assert-Contains "llm audit feed source" $llmAuditFeed '"source_event_type":"llm_gateway_request"'
+Assert-Contains "llm audit feed evidence" $llmAuditFeed "llm_audit_feed_visible"
+$llmAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/llm/snapshot?limit=5"
+Assert-Contains "llm audit snapshot mode" $llmAuditSnapshot "read_only_llm_audit_redaction_snapshot"
+Assert-Contains "llm audit snapshot evidence" $llmAuditSnapshot "llm_audit_snapshot_visible"
+Assert-Contains "llm audit redaction evidence" $llmAuditSnapshot "llm_audit_redaction_enforced"
+Assert-Contains "llm audit snapshot prompt bodies" $llmAuditSnapshot '"prompt_bodies_returned":false'
+Assert-Contains "llm audit snapshot forbidden hits" $llmAuditSnapshot '"forbidden_pattern_hits":0'
+$llmAuditExportContract = Invoke-Text "$BaseUrl/api/v1/audit/llm/export/contract"
+Assert-Contains "llm audit export contract version" $llmAuditExportContract '"contract_version":"llm-audit-export-v1"'
+Assert-Contains "llm audit export mode" $llmAuditExportContract "read_only_llm_audit_csv_export"
+Assert-Contains "llm audit export evidence" $llmAuditExportContract "llm_audit_export_visible"
+Assert-Contains "llm audit export audit evidence" $llmAuditExportContract "llm_audit_export_audit_persisted"
+Assert-Contains "llm audit export read only" $llmAuditExportContract '"read_only":true'
+Assert-Contains "llm audit export no live provider claim" $llmAuditExportContract '"live_provider_calls_claimed":false'
+Assert-Contains "llm audit export prompt bodies absent" $llmAuditExportContract '"prompt_bodies_returned":false'
+Assert-Contains "llm audit export raw details absent" $llmAuditExportContract '"raw_details_returned":false'
+$llmAuditExportCsv = Invoke-Text "$BaseUrl/api/v1/audit/llm/export?format=csv&limit=20"
+Assert-Contains "llm audit export csv header" $llmAuditExportCsv "sequence_index,event_id,created_at,event_type,severity,trace_id,model_name,provider_name,agent_type,status,input_tokens,output_tokens,cost_cents,live_provider_calls,prompt_body_stored,evidence_ref,audit_feed_evidence_ref,redaction_evidence_ref,no_live_provider_evidence_ref"
+Assert-True "llm audit export no secret pattern leak" (-not ($llmAuditExportCsv -match "sk-proj-[A-Za-z0-9_-]{16,}|github_pat_[A-Za-z0-9_]{16,}|ghp_[A-Za-z0-9_]{16,}|vck_[A-Za-z0-9_-]{24,}|cfat_[A-Za-z0-9_-]{24,}|hcloud_[A-Za-z0-9_-]{16,}|\bhf_[A-Za-z0-9_-]{24,}|glpat-[A-Za-z0-9_.-]{20,}|Authorization: Bearer|Cookie:|eyJ[A-Za-z0-9_-]{10,}\."))
+
+Write-Host "[browser-contract] gateway correlation snapshot"
+$gatewayCorrelationContract = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/contract"
+Assert-Contains "gateway correlation contract version" $gatewayCorrelationContract '"contract_version":"gateway-correlation-snapshot-v1"'
+Assert-Contains "gateway correlation endpoint" $gatewayCorrelationContract "GET /api/v1/security/gateway-correlation/snapshot"
+Assert-Contains "gateway correlation source table" $gatewayCorrelationContract '"source_table":"audit_log"'
+Assert-Contains "gateway correlation task source" $gatewayCorrelationContract "task_completed"
+Assert-Contains "gateway correlation llm source" $gatewayCorrelationContract "llm_gateway_request"
+Assert-Contains "gateway correlation mcp source" $gatewayCorrelationContract "mcp_tool_executed"
+Assert-Contains "gateway correlation evidence" $gatewayCorrelationContract "gateway_correlation_snapshot_visible"
+Assert-Contains "gateway correlation redaction evidence" $gatewayCorrelationContract "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation no live write evidence" $gatewayCorrelationContract "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation risk endpoint" $gatewayCorrelationContract "GET /api/v1/security/gateway-correlation/risk-rollup"
+Assert-Contains "gateway correlation risk version" $gatewayCorrelationContract "gateway-correlation-risk-rollup-v1"
+Assert-Contains "gateway correlation risk evidence" $gatewayCorrelationContract "gateway_correlation_risk_rollup_visible"
+Assert-Contains "gateway correlation timeline endpoint" $gatewayCorrelationContract "GET /api/v1/security/gateway-correlation/timeline"
+Assert-Contains "gateway correlation timeline version" $gatewayCorrelationContract "gateway-correlation-timeline-v1"
+Assert-Contains "gateway correlation timeline evidence" $gatewayCorrelationContract "gateway_correlation_timeline_visible"
+Assert-Contains "gateway correlation read only" $gatewayCorrelationContract '"read_only":true'
+Assert-Contains "gateway correlation no live provider claim" $gatewayCorrelationContract '"live_provider_calls_claimed":false'
+Assert-Contains "gateway correlation no live mcp claim" $gatewayCorrelationContract '"live_mcp_writes_claimed":false'
+$gatewayCorrelationSnapshot = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/snapshot?limit=20"
+Assert-Contains "gateway correlation snapshot mode" $gatewayCorrelationSnapshot "read_only_agent_llm_mcp_correlation_snapshot"
+Assert-Contains "gateway correlation snapshot evidence" $gatewayCorrelationSnapshot "gateway_correlation_snapshot_visible"
+Assert-Contains "gateway correlation snapshot redaction" $gatewayCorrelationSnapshot "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation snapshot no live write" $gatewayCorrelationSnapshot "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation snapshot prompt bodies" $gatewayCorrelationSnapshot '"prompt_bodies_returned":false'
+Assert-Contains "gateway correlation snapshot input refs" $gatewayCorrelationSnapshot '"tool_input_refs_returned":false'
+Assert-Contains "gateway correlation snapshot credentials" $gatewayCorrelationSnapshot '"provider_credentials_returned":false'
+Assert-Contains "gateway correlation snapshot no live provider claim" $gatewayCorrelationSnapshot '"live_provider_calls_claimed":false'
+Assert-Contains "gateway correlation snapshot no live mcp claim" $gatewayCorrelationSnapshot '"live_mcp_writes_claimed":false'
+Assert-Contains "gateway correlation snapshot forbidden hits" $gatewayCorrelationSnapshot '"forbidden_pattern_hits":0'
+Assert-Contains "gateway correlation snapshot redaction clear" $gatewayCorrelationSnapshot '"redaction_status":"clear"'
+$gatewayCorrelationRiskRollup = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/risk-rollup?limit=20"
+Assert-Contains "gateway correlation risk rollup version" $gatewayCorrelationRiskRollup '"contract_version":"gateway-correlation-risk-rollup-v1"'
+Assert-Contains "gateway correlation risk rollup mode" $gatewayCorrelationRiskRollup "read_only_gateway_correlation_risk_rollup"
+Assert-Contains "gateway correlation risk rollup evidence" $gatewayCorrelationRiskRollup "gateway_correlation_risk_rollup_visible"
+Assert-Contains "gateway correlation risk rollup redaction" $gatewayCorrelationRiskRollup "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation risk rollup no live write" $gatewayCorrelationRiskRollup "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation risk rollup read-only" $gatewayCorrelationRiskRollup '"read_only":true'
+Assert-Contains "gateway correlation risk rollup no live provider claim" $gatewayCorrelationRiskRollup '"live_provider_calls_claimed":false'
+Assert-Contains "gateway correlation risk rollup no live mcp claim" $gatewayCorrelationRiskRollup '"live_mcp_writes_claimed":false'
+Assert-Contains "gateway correlation risk rollup no production rollout" $gatewayCorrelationRiskRollup '"production_rollout_claimed":false'
+Assert-Contains "gateway correlation risk rollup promotion blocked" $gatewayCorrelationRiskRollup '"promotion_allowed":false'
+Assert-Contains "gateway correlation risk rollup prompt bodies" $gatewayCorrelationRiskRollup '"prompt_bodies_returned":false'
+Assert-Contains "gateway correlation risk rollup input refs" $gatewayCorrelationRiskRollup '"tool_input_refs_returned":false'
+Assert-Contains "gateway correlation risk rollup credentials" $gatewayCorrelationRiskRollup '"provider_credentials_returned":false'
+Assert-Contains "gateway correlation risk rollup blocker count" $gatewayCorrelationRiskRollup '"blocker_count":0'
+Assert-Contains "gateway correlation risk rollup forbidden hits" $gatewayCorrelationRiskRollup '"forbidden_pattern_hits":0'
+$gatewayCorrelationSnapshotJson = $gatewayCorrelationSnapshot | ConvertFrom-Json
+$gatewayCorrelationRiskRollupJson = $gatewayCorrelationRiskRollup | ConvertFrom-Json
+Assert-True "gateway correlation risk rollup not blocked" ($gatewayCorrelationRiskRollupJson.risk_status -ne "blocked")
+Assert-True "gateway correlation risk rollup event parity" ([int]$gatewayCorrelationRiskRollupJson.events_scanned -eq [int]$gatewayCorrelationSnapshotJson.events_scanned)
+Assert-True "gateway correlation risk rollup group parity" ([int]$gatewayCorrelationRiskRollupJson.groups_scanned -eq [int]$gatewayCorrelationSnapshotJson.groups_scanned)
+Assert-True "gateway correlation risk rollup badge coverage" (@($gatewayCorrelationRiskRollupJson.risk_badges).Count -ge 3)
+
+$gatewayCorrelationTimeline = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/timeline?limit=20"
+Assert-Contains "gateway correlation timeline version" $gatewayCorrelationTimeline '"contract_version":"gateway-correlation-timeline-v1"'
+Assert-Contains "gateway correlation timeline mode" $gatewayCorrelationTimeline "read_only_gateway_correlation_timeline"
+Assert-Contains "gateway correlation timeline evidence" $gatewayCorrelationTimeline "gateway_correlation_timeline_visible"
+Assert-Contains "gateway correlation timeline redaction" $gatewayCorrelationTimeline "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation timeline no live write" $gatewayCorrelationTimeline "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation timeline read-only" $gatewayCorrelationTimeline '"read_only":true'
+Assert-Contains "gateway correlation timeline no live provider claim" $gatewayCorrelationTimeline '"live_provider_calls_claimed":false'
+Assert-Contains "gateway correlation timeline no live mcp claim" $gatewayCorrelationTimeline '"live_mcp_writes_claimed":false'
+Assert-Contains "gateway correlation timeline no production rollout" $gatewayCorrelationTimeline '"production_rollout_claimed":false'
+Assert-Contains "gateway correlation timeline promotion blocked" $gatewayCorrelationTimeline '"promotion_allowed":false'
+Assert-Contains "gateway correlation timeline prompt bodies" $gatewayCorrelationTimeline '"prompt_bodies_returned":false'
+Assert-Contains "gateway correlation timeline input refs" $gatewayCorrelationTimeline '"tool_input_refs_returned":false'
+Assert-Contains "gateway correlation timeline credentials" $gatewayCorrelationTimeline '"provider_credentials_returned":false'
+Assert-Contains "gateway correlation timeline forbidden hits" $gatewayCorrelationTimeline '"forbidden_pattern_hits":0'
+$gatewayCorrelationTimelineJson = $gatewayCorrelationTimeline | ConvertFrom-Json
+Assert-True "gateway correlation timeline event parity" ([int]$gatewayCorrelationTimelineJson.events_scanned -eq [int]$gatewayCorrelationSnapshotJson.events_scanned)
+Assert-True "gateway correlation timeline count parity" ([int]$gatewayCorrelationTimelineJson.timeline_count -eq @($gatewayCorrelationTimelineJson.timeline).Count)
+Assert-True "gateway correlation timeline no live provider count" ([int]$gatewayCorrelationTimelineJson.live_provider_call_count -eq 0)
+Assert-True "gateway correlation timeline no live mcp count" ([int]$gatewayCorrelationTimelineJson.live_mcp_write_count -eq 0)
+Assert-True "gateway correlation timeline redaction clear" ($gatewayCorrelationTimelineJson.redaction_status -eq "clear")
+
+$gatewayCorrelationExportContract = Invoke-Text "$BaseUrl/api/v1/security/gateway-correlation/export/contract"
+Assert-Contains "gateway correlation export contract version" $gatewayCorrelationExportContract '"contract_version":"gateway-correlation-export-v1"'
+Assert-Contains "gateway correlation export contract mode" $gatewayCorrelationExportContract "read_only_gateway_correlation_csv_export"
+Assert-Contains "gateway correlation export contract evidence" $gatewayCorrelationExportContract "gateway_correlation_export_visible"
+Assert-Contains "gateway correlation export contract audit evidence" $gatewayCorrelationExportContract "gateway_correlation_export_audit_persisted"
+Assert-Contains "gateway correlation export contract redaction" $gatewayCorrelationExportContract "gateway_correlation_redaction_enforced"
+Assert-Contains "gateway correlation export contract no-live" $gatewayCorrelationExportContract "gateway_correlation_no_live_write_guard"
+Assert-Contains "gateway correlation export contract endpoint" $gatewayCorrelationExportContract '"endpoint":"GET /api/v1/security/gateway-correlation/export?format=csv&limit=80"'
+
+$mcpAuditContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/contract"
+Assert-Contains "mcp audit contract version" $mcpAuditContract '"contract_version":"mcp-audit-feed-v1"'
+Assert-Contains "mcp audit snapshot endpoint" $mcpAuditContract '"snapshot_endpoint":"GET /api/v1/audit/mcp/snapshot"'
+Assert-Contains "mcp audit export endpoint" $mcpAuditContract '"export_endpoint":"GET /api/v1/audit/mcp/export?format=csv&limit=80"'
+Assert-Contains "mcp audit export contract endpoint" $mcpAuditContract '"export_contract_endpoint":"GET /api/v1/audit/mcp/export/contract"'
+Assert-Contains "mcp audit snapshot evidence" $mcpAuditContract "mcp_audit_snapshot_visible"
+Assert-Contains "mcp audit redaction evidence" $mcpAuditContract "mcp_audit_redaction_enforced"
+Assert-Contains "mcp audit export evidence" $mcpAuditContract "mcp_audit_export_visible"
+Assert-Contains "mcp audit export audit evidence" $mcpAuditContract "mcp_audit_export_audit_persisted"
+Assert-Contains "mcp audit export no-live evidence" $mcpAuditContract "mcp_audit_no_live_write_guard"
+$mcpAuditExportContract = Invoke-Text "$BaseUrl/api/v1/audit/mcp/export/contract"
+Assert-Contains "mcp audit export contract version" $mcpAuditExportContract '"contract_version":"mcp-audit-export-v1"'
+Assert-Contains "mcp audit export contract mode" $mcpAuditExportContract '"mode":"read_only_mcp_audit_csv_export"'
+Assert-Contains "mcp audit export contract evidence" $mcpAuditExportContract "mcp_audit_export_visible"
+Assert-Contains "mcp audit export contract audit evidence" $mcpAuditExportContract "mcp_audit_export_audit_persisted"
+Assert-Contains "mcp audit export contract no-live" $mcpAuditExportContract "mcp_audit_no_live_write_guard"
+$mcpAuditSnapshot = Invoke-Text "$BaseUrl/api/v1/audit/mcp/snapshot?limit=5"
+Assert-Contains "mcp audit snapshot mode" $mcpAuditSnapshot "read_only_mcp_audit_redaction_snapshot"
+Assert-Contains "mcp audit snapshot evidence" $mcpAuditSnapshot "mcp_audit_snapshot_visible"
+Assert-Contains "mcp audit redaction evidence" $mcpAuditSnapshot "mcp_audit_redaction_enforced"
+Assert-Contains "mcp audit snapshot no writes" $mcpAuditSnapshot '"live_mcp_writes_claimed":false'
+Assert-Contains "mcp audit snapshot input refs" $mcpAuditSnapshot '"input_refs_returned":false'
+Assert-Contains "mcp audit snapshot forbidden hits" $mcpAuditSnapshot '"forbidden_pattern_hits":0'
 
 Write-Host "[browser-contract] task assignment queue contract"
 $taskAssignmentContract = Invoke-Text "$BaseUrl/api/v1/tasks/assignment-contract"
@@ -434,6 +929,56 @@ Assert-Contains "mcp version pinning e2b contract" $mcpVersionPinningContract "e
 Assert-Contains "mcp version pinning drift policy" $mcpVersionPinningContract "exact == pinning"
 Assert-Contains "mcp version pinning no live write" $mcpVersionPinningContract "No live MCP write"
 
+Write-Host "[browser-contract] mcp runtime guard parity"
+$mcpRuntimeGuardParity = Invoke-Text "$BaseUrl/api/v1/agents/mcp-runtime-guard-parity"
+Assert-Contains "mcp runtime guard parity contract version" $mcpRuntimeGuardParity '"contract_version":"mcp-runtime-guard-parity-v1"'
+Assert-Contains "mcp runtime guard parity status" $mcpRuntimeGuardParity '"status":"verified"'
+Assert-Contains "mcp runtime guard parity evidence" $mcpRuntimeGuardParity '"evidence_ref":"mcp_runtime_guard_parity_visible"'
+Assert-Contains "mcp runtime guard parity endpoint" $mcpRuntimeGuardParity '"endpoint":"GET /api/v1/agents/mcp-runtime-guard-parity"'
+Assert-Contains "mcp runtime guard parity gateway endpoint" $mcpRuntimeGuardParity '"gateway_endpoint":"GET /mcp/api/v1/runtime/guard-parity"'
+Assert-Contains "mcp runtime guard parity no live writes" $mcpRuntimeGuardParity '"live_mcp_writes":false'
+Assert-Contains "mcp runtime guard parity no live mutations" $mcpRuntimeGuardParity '"live_mutations":false'
+Assert-Contains "mcp runtime guard parity no external calls" $mcpRuntimeGuardParity '"external_mcp_server_calls":false'
+Assert-Contains "mcp runtime guard parity no model downloads" $mcpRuntimeGuardParity '"model_downloads":false'
+Assert-Contains "mcp runtime guard parity redaction policy" $mcpRuntimeGuardParity '"snapshots_redacted":true'
+Assert-Contains "mcp runtime guard parity version ref" $mcpRuntimeGuardParity "mcp_version_pinning_contract_visible"
+Assert-Contains "mcp runtime guard parity catalog ref" $mcpRuntimeGuardParity "mcp_capability_catalog_visible"
+Assert-Contains "mcp runtime guard parity redaction ref" $mcpRuntimeGuardParity "mcp_secret_redaction_guard"
+Assert-Contains "mcp runtime guard parity unsupported toolset ref" $mcpRuntimeGuardParity "mcp_unsupported_toolset_guard"
+Assert-Contains "mcp runtime guard parity unsupported capability ref" $mcpRuntimeGuardParity "mcp_unsupported_capability_guard"
+Assert-Contains "mcp runtime guard parity deny correlation ref" $mcpRuntimeGuardParity "mcp_denied_tool_audit_correlation"
+Assert-Contains "mcp runtime guard parity executor field" $mcpRuntimeGuardParity "mcp_gateway_calls[].live_mcp_writes_proven_false"
+$mcpGatewayRuntimeGuardParity = Invoke-Text "$BaseUrl/mcp/api/v1/runtime/guard-parity"
+Assert-Contains "mcp gateway runtime guard parity contract version" $mcpGatewayRuntimeGuardParity '"contract_version":"mcp-runtime-guard-parity-v1"'
+Assert-Contains "mcp gateway runtime guard parity evidence" $mcpGatewayRuntimeGuardParity '"evidence_ref":"mcp_runtime_guard_parity_visible"'
+Assert-Contains "mcp gateway runtime guard parity no live writes" $mcpGatewayRuntimeGuardParity '"live_mcp_writes":false'
+Assert-Contains "mcp gateway runtime guard parity no live mutations" $mcpGatewayRuntimeGuardParity '"live_mutations":false'
+Assert-Contains "mcp gateway runtime guard parity no external calls" $mcpGatewayRuntimeGuardParity '"external_mcp_server_calls":false'
+Assert-Contains "mcp gateway runtime guard parity no model downloads" $mcpGatewayRuntimeGuardParity '"model_downloads":false'
+Assert-Contains "mcp gateway runtime guard parity fail closed" $mcpGatewayRuntimeGuardParity '"fail_closed":true'
+
+Write-Host "[browser-contract] agent skill mode contract"
+$agentSkillModeContract = Invoke-Text "$BaseUrl/api/v1/agents/skill-mode/contract"
+Assert-Contains "agent skill mode contract version" $agentSkillModeContract '"contract_version":"agent-skill-mode-capability-contract-v1"'
+Assert-Contains "agent skill mode status" $agentSkillModeContract '"status":"verified"'
+Assert-Contains "agent skill mode evidence" $agentSkillModeContract '"evidence_ref":"agent_skill_mode_capability_visible"'
+Assert-Contains "agent skill mode endpoint" $agentSkillModeContract '"endpoint":"GET /api/v1/agents/skill-mode/contract"'
+Assert-Contains "agent skill mode plugins count" $agentSkillModeContract '"plugins":11'
+Assert-Contains "agent skill mode apps count" $agentSkillModeContract '"apps":4'
+Assert-Contains "agent skill mode mcp count" $agentSkillModeContract '"mcp_servers":1'
+Assert-Contains "agent skill mode skills count" $agentSkillModeContract '"skills":140'
+Assert-Contains "agent skill mode api only" $agentSkillModeContract '"api_only":true'
+Assert-Contains "agent skill mode no model downloads" $agentSkillModeContract '"local_model_downloads":false'
+Assert-Contains "agent skill mode no direct providers" $agentSkillModeContract '"direct_provider_calls":false'
+Assert-Contains "agent skill mode no live mcp writes" $agentSkillModeContract '"live_mcp_writes":false'
+Assert-Contains "agent skill mode no external mcp calls" $agentSkillModeContract '"external_mcp_server_calls":false'
+Assert-Contains "agent skill mode production non-claim" $agentSkillModeContract "production_rollout_claimed=false"
+Assert-Contains "agent skill mode secret guard" $agentSkillModeContract "secrets_exposed=false"
+Assert-Contains "agent skill mode no live external marker" $agentSkillModeContract "agent_skill_mode_no_live_external_calls"
+Assert-Contains "agent skill mode no secret material marker" $agentSkillModeContract "agent_skill_mode_no_secret_material"
+Assert-Contains "agent skill mode no local model marker" $agentSkillModeContract "agent_skill_mode_no_local_model_downloads"
+Assert-Contains "agent skill mode roster evidence" $agentSkillModeContract "autonomous_agent_roster_runtime_visible"
+
 Write-Host "[browser-contract] memory embedding consistency contract"
 $memoryEmbeddingConsistencyContract = Invoke-Text "$BaseUrl/api/v1/memory/embedding-consistency/contract"
 Assert-Contains "memory embedding consistency version" $memoryEmbeddingConsistencyContract '"contract_version":"memory-embedding-consistency-v1"'
@@ -444,6 +989,17 @@ Assert-Contains "memory embedding consistency column" $memoryEmbeddingConsistenc
 Assert-Contains "memory embedding consistency vector" $memoryEmbeddingConsistencyContract "vector(1536)"
 Assert-Contains "memory embedding consistency fallback" $memoryEmbeddingConsistencyContract "lexical_fallback"
 Assert-Contains "memory embedding consistency no live provider" $memoryEmbeddingConsistencyContract "No live embedding provider call"
+
+Write-Host "[browser-contract] memory worker health contract"
+$memoryWorkerHealthContract = Invoke-Text "$BaseUrl/api/v1/memory/worker-health/contract"
+Assert-Contains "memory worker health version" $memoryWorkerHealthContract '"contract_version":"memory-worker-health-contract-v1"'
+Assert-Contains "memory worker health status" $memoryWorkerHealthContract '"status":"verified"'
+Assert-Contains "memory worker health evidence" $memoryWorkerHealthContract '"evidence_ref":"memory_worker_health_contract_visible"'
+Assert-Contains "memory worker health endpoint" $memoryWorkerHealthContract 'GET /api/v1/memory/worker-health/contract'
+Assert-Contains "memory worker health docker command" $memoryWorkerHealthContract "python -m app.worker --healthcheck"
+Assert-Contains "memory worker health timeout" $memoryWorkerHealthContract '"docker_healthcheck_timeout_seconds":15'
+Assert-Contains "memory worker health stale false" $memoryWorkerHealthContract '"stale_heartbeat":false'
+Assert-Contains "memory worker health no live embedding" $memoryWorkerHealthContract "No live embedding provider call"
 
 Write-Host "[browser-contract] phase2 runtime contract"
 $runtimeContract = Invoke-Text "$BaseUrl/api/v1/phase2/runtime/contract"

@@ -30,6 +30,13 @@
     ]
   },
   {
+    "id": "phase2",
+    "description": "Phase 2 dual-surface runtime verification.",
+    "patterns": [
+      "verify-phase2-*.ps1"
+    ]
+  },
+  {
     "id": "runtime",
     "description": "Local runtime-focused verification bundle.",
     "suites": [
@@ -205,10 +212,82 @@
     ]
   },
   {
+    "id": "post-release-catalog",
+    "description": "Post-release Model/Agent/Fusion Link Atlas static and optional runtime verification.",
+    "patterns": [
+      "verify-model-agent-fusion-link-atlas.ps1"
+    ]
+  },
+  {
     "id": "phase5",
     "description": "Phase 5 candidate, rollback, and release-readiness suite.",
     "parameter_overrides": {
       "ReleaseId": "prod-candidate-2026-05-05-rc1"
+    },
+    "script_parameter_overrides": {
+      "verify-phase5-candidate.ps1": {
+        "ReleaseId": null
+      },
+      "verify-phase5-active-runtime-evidence-bundle.ps1": {
+        "ReleaseId": null
+      },
+      "verify-phase5-active-security-evidence-bundle.ps1": {
+        "ReleaseId": null
+      },
+      "verify-phase5-active-runtime-guard-matrix-bundle.ps1": {
+        "ReleaseId": null
+      },
+            "verify-phase5-active-gateway-execution-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-memory-operations-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-memory-success-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-agent-operations-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-agent-success-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-llm-operations-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-llm-success-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-llm-guard-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-mcp-operations-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-mcp-success-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-mcp-guard-correlation-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-frontend-orchestrator-evidence-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-active-observability-rebaseline-bundle.ps1": {
+                "ReleaseId": null
+            },
+            "verify-phase5-vercel-github-deployment-status.ps1": {
+                "ReleaseId": null
+            },
+      "verify-phase5-active-verifier-sweep-bundle.ps1": {
+        "ReleaseId": null
+      },
+      "verify-phase5-full-verifier-sweep.ps1": {
+        "ReleaseId": null
+      },
+      "verify-phase5-frontend-source-build-path.ps1": {
+        "ReleaseId": null
+      }
     },
     "patterns": [
       "verify-phase5-*.ps1"
@@ -218,6 +297,8 @@
     "id": "current-release-candidate",
     "description": "Active release-boundary candidate verification without mutating production.",
     "patterns": [
+      "verify-current-immutable-staging-parity.ps1",
+      "verify-current-runtime-selector-truth.ps1",
       "verify-current-release-candidate.ps1"
     ]
   },
@@ -280,6 +361,7 @@
       "phase1",
       "phase1-redis",
       "phase1-runtime",
+      "phase2",
       "browser-contract",
       "cloud-only-staging",
       "external-gates",
@@ -294,6 +376,7 @@
       "autonomy",
       "phase3",
       "phase4",
+      "post-release-catalog",
       "current-release-candidate",
       "active-release-candidate",
       "phase5"

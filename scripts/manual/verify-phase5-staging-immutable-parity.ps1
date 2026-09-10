@@ -1,7 +1,7 @@
 param(
-  [string]$ReleaseId = "prod-candidate-2026-05-05-rc1",
+  [string]$ReleaseId = "",
   [string]$BaseUrl = "https://188-34-191-140.sslip.io",
-  [string]$CandidateSha = "ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5",
+  [string]$CandidateSha = "",
   [string]$RemoteHost = "188.34.191.140",
   [string]$RemoteUser = "root",
   [string]$RemoteAppDir = "/app",
@@ -30,6 +30,34 @@ function Assert-Sha($label, $value) {
   }
 }
 
+function Assert-ReleaseId($label, $value) {
+  if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-rc[0-9]+$') {
+    throw "Verification failed: $label is not a valid release candidate id."
+  }
+}
+
+function Assert-PublicHttpsUrl($label, $value) {
+  if ([string]::IsNullOrWhiteSpace($value)) {
+    throw "Verification failed: $label is empty."
+  }
+  try {
+    $uri = [System.Uri]$value
+  } catch {
+    throw "Verification failed: $label is not a valid URL."
+  }
+  if ($uri.Scheme -ne "https") {
+    throw "Verification failed: $label must use https."
+  }
+  $urlHost = $uri.Host.ToLowerInvariant()
+  if (
+    $urlHost -eq "localhost" -or
+    $urlHost.EndsWith(".local") -or
+    $urlHost -match '^(127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)'
+  ) {
+    throw "Verification failed: $label must be a public hosted URL, not $urlHost."
+  }
+}
+
 function Assert-RemotePath($label, $value) {
   if ([string]::IsNullOrWhiteSpace($value) -or $value -notmatch '^/[A-Za-z0-9_./-]+$') {
     throw "Verification failed: $label contains unsafe remote path characters."
@@ -43,11 +71,7 @@ function Assert-RemoteIdentity($label, $value) {
 }
 
 function Get-Json($uri) {
-@"
-import json, urllib.request
-with urllib.request.urlopen(r'''$uri''', timeout=30) as response:
-    print(json.dumps(json.load(response)))
-"@ | py -3 -
+  (Invoke-WebRequest -UseBasicParsing -Uri $uri -TimeoutSec 30).Content
 }
 
 function Invoke-DeployPlan($Arguments) {
@@ -82,10 +106,20 @@ function Invoke-Ssh($command) {
   }
 }
 
-Assert-Sha "CandidateSha" $CandidateSha
+Assert-PublicHttpsUrl "BaseUrl" $BaseUrl
 Assert-RemotePath "RemoteAppDir" $RemoteAppDir
 Assert-RemoteIdentity "RemoteHost" $RemoteHost
 Assert-RemoteIdentity "RemoteUser" $RemoteUser
+
+$configPath = "docs\release-artifacts\current-release-candidate.json"
+if ([string]::IsNullOrWhiteSpace($ReleaseId)) {
+  if (-not (Test-Path $configPath)) {
+    throw "Missing current release candidate config: $configPath"
+  }
+  $config = Get-Content $configPath -Raw | ConvertFrom-Json
+  $ReleaseId = [string]$config.active_release_id
+}
+Assert-ReleaseId "ReleaseId" $ReleaseId
 
 $candidatePath = "docs\release-artifacts\$ReleaseId.md"
 if (-not (Test-Path $candidatePath)) {
@@ -93,7 +127,6 @@ if (-not (Test-Path $candidatePath)) {
 }
 $candidate = Get-Content $candidatePath -Raw
 Assert-Contains "candidate release id" $candidate "release_id: ``$ReleaseId``"
-Assert-Contains "candidate immutable tag set" $candidate "immutable_tag_set: ``ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:$CandidateSha``"
 if ($candidate -notmatch '(?m)^source_commit_sha:\s*`([^`]+)`\s*$') {
   throw "Verification failed: candidate artifact missing source_commit_sha."
 }
@@ -105,7 +138,12 @@ if ($candidate -match '(?m)^immutable_image_commit_sha:\s*`([^`]+)`\s*$') {
   $immutableImageCommitSha = $candidateSourceSha
 }
 Assert-Sha "candidate immutable image commit sha" $immutableImageCommitSha
+if ([string]::IsNullOrWhiteSpace($CandidateSha)) {
+  $CandidateSha = $immutableImageCommitSha
+}
+Assert-Sha "CandidateSha" $CandidateSha
 Assert-Equal "candidate immutable image commit sha" $immutableImageCommitSha $CandidateSha
+Assert-Contains "candidate immutable tag set" $candidate "immutable_tag_set: ``ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:$CandidateSha``"
 
 $deployScript = Get-Content "scripts\deploy-to-staging.ps1" -Raw
 Assert-Contains "deploy image filesystem switch" $deployScript "[switch]`$UseImageFilesystem"
@@ -160,11 +198,7 @@ foreach ($url in @(
   "$BaseUrl/mcp/api/v1/health",
   "$BaseUrl/llm/api/v1/health"
 )) {
-  $status = @"
-import urllib.request
-with urllib.request.urlopen(r"$url", timeout=30) as response:
-    print(response.status)
-"@ | py -3 -
+  $status = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).StatusCode
   Assert-Contains "hosted status $url" $status "200"
 }
 

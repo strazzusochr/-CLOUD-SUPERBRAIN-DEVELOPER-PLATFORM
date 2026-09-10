@@ -4,10 +4,10 @@ Status: `blocked`
 release_id: `prod-candidate-2026-05-05-rc1`
 environment: `production-candidate`
 base_url: `https://188-34-191-140.sslip.io`
-executed_at_utc: `2026-05-09T12:20:00Z`
-overall_percent: `70`
+executed_at_utc: `2026-05-14T00:05:00Z`
+overall_percent: `71`
 phase_4_percent: `100`
-phase_5_percent: `67`
+phase_5_percent: `69`
 integrity_status: `verified`
 owner_decision: `no-release`
 current_hosted_selector: `IMAGE_TAG=staging`
@@ -28,7 +28,7 @@ This blocker is now classified wider than tag parity. The hosted cloud compose c
 
 - Candidate rollback note still records that the hosted selector was restored to `IMAGE_TAG=staging`.
 - The active integration smoke rerun still records `IMAGE_TAG=staging` as the current hosted selector.
-- Hosted progress remains `overall=70`, `phase_4=100`, `phase_5=67`.
+- Hosted progress remains `overall=71`, `phase_4=100`, `phase_5=69`.
 - Hosted progress integrity remains `verified`.
 - Hosted completion remains fail-closed with `can_set_all_to_100=false`.
 - GHCR top-level digests for the mutable `:staging` tags were compared against the immutable candidate SHA tags for all six services.

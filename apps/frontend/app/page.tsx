@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type AgentStatus = {
   type: string;
@@ -94,6 +94,9 @@ type AutonomousTaskDispatchContract = {
   runtime_endpoint: string;
   status_endpoint: string;
   evidence_ref: string;
+  ui_evidence_ref?: string;
+  status_evidence_ref?: string;
+  evidence_refs?: Record<string, string>;
   required_request_fields: string[];
   required_response_fields: string[];
   required_assignment_fields: string[];
@@ -106,6 +109,33 @@ type AutonomousTaskDispatchContract = {
     constraints: string[];
     acceptance_criteria: string[];
   };
+  non_claims: string[];
+};
+
+type AutonomousTaskDispatchResponse = {
+  dispatch_id: string;
+  status: string;
+  project_id: string;
+  session_id: string;
+  objective: string;
+  trace_id?: string | null;
+  request_id?: string | null;
+  team_mode: string;
+  runtime_source?: string;
+  status_endpoint: string;
+  contract_endpoint: string;
+  runtime_pool_contract_version: string;
+  evidence_ref?: string;
+  ui_evidence_ref?: string;
+  status_evidence_ref?: string;
+  assignments: Array<{
+    logical_role: string;
+    execution_agent_type: string;
+    task_id: string;
+    status: string;
+    evidence_ref?: string;
+    provenance_evidence_ref?: string;
+  }>;
   non_claims: string[];
 };
 
@@ -237,6 +267,100 @@ type AutonomousAgentRosterContract = {
   non_claims: string[];
 };
 
+type LiveAgentProfile = {
+  agent_id: string;
+  display_name: string;
+  execution_role: string;
+  has_session?: boolean;
+  previous_response_id?: string | null;
+  updated_at?: string | null;
+  model?: string | null;
+};
+
+type LiveAgentContract = {
+  contract_version: string;
+  mode: string;
+  status_endpoint: string;
+  steer_endpoint: string;
+  reset_endpoint: string;
+  history_endpoint?: string;
+  compatibility_endpoint: string;
+  llm_gateway_endpoint: string;
+  default_model: string;
+  agents: LiveAgentProfile[];
+  metadata_policy?: {
+    live_provider_calls_allowed?: boolean;
+    system_metadata_wins?: boolean;
+    reserved_keys_stripped?: string[];
+  };
+  evidence_refs?: Record<string, string>;
+  non_claims: string[];
+};
+
+type LiveAgentStatus = {
+  status: string;
+  contract_version: string;
+  runtime_source: string;
+  default_model: string;
+  agent_count: number;
+  agents: LiveAgentProfile[];
+  evidence_ref: string;
+};
+
+type LiveAgentHistoryEvent = {
+  id: string;
+  event_type: string;
+  agent_id: string;
+  execution_role: string;
+  project_id?: string | null;
+  response_id?: string | null;
+  previous_response_id?: string | null;
+  status?: string | null;
+  model?: string | null;
+  trace_id?: string | null;
+  request_id?: string | null;
+  response_preview?: string | null;
+  runtime_source?: string;
+  live_provider_calls?: boolean;
+  audit_persisted?: boolean;
+  evidence_ref?: string;
+  created_at?: string | null;
+};
+
+type LiveAgentHistory = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  history_endpoint: string;
+  history_count: number;
+  events: LiveAgentHistoryEvent[];
+  evidence_ref: string;
+  non_claims: string[];
+};
+
+type LiveAgentSteerResponse = {
+  contract_version: string;
+  runtime_source: string;
+  agent_id: string;
+  response_id?: string | null;
+  responseId?: string | null;
+  previous_response_id?: string | null;
+  status: string;
+  model: string;
+  text: string;
+  execution_role: string;
+  project_id: string;
+  metadata_policy?: {
+    live_provider_calls_allowed?: boolean;
+    user_metadata_fields_forwarded?: string[];
+    evidence_ref?: string;
+  };
+  audit_persisted?: boolean;
+  audit_evidence_ref?: string;
+  trace_id?: string;
+  request_id?: string;
+};
+
 type BudgetState = {
   total_cost_cents: number;
   budget_limit_cents: number;
@@ -292,7 +416,30 @@ type AgentActivityContract = {
     auth_proxy_required: string;
     filtered_feed?: string;
     per_role_results?: string;
+    trace_access?: string;
+    trace_event?: string;
   };
+  non_claims: string[];
+};
+
+type LangfuseTraceAccessContract = {
+  contract_version: string;
+  mode: string;
+  screen: string;
+  endpoint: string;
+  contract_endpoint: string;
+  source_table: string;
+  source_endpoint: string;
+  deep_link_template: string;
+  langfuse_public_url_configured: boolean;
+  auth_proxy_required: boolean;
+  read_only: boolean;
+  live_langfuse_trace_claimed: boolean;
+  provider_trace_export: boolean;
+  evidence_ref: string;
+  event_evidence_ref: string;
+  required_trace_fields: string[];
+  policy_checks: string[];
   non_claims: string[];
 };
 
@@ -559,6 +706,12 @@ type SecurityHeadersContract = {
   enforced_by: string;
   applies_to: string;
   headers: Record<string, string>;
+  csp_report_contract?: {
+    contract_version: string;
+    endpoint: string;
+    evidence_ref: string;
+    audit_event_type: string;
+  };
   cors_policy: {
     mode: string;
     reason: string;
@@ -570,7 +723,22 @@ type SecurityHeadersContract = {
     headers_enforced: string;
     same_origin_cors_policy: string;
     ui_visible: string;
+    csp_report_visible?: string;
   };
+};
+
+type CspReportContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  audit_event_type: string;
+  audit_user_id: string;
+  evidence_ref: string;
+  audit_evidence_ref: string;
+  accepted_shapes: string[];
+  sanitized_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
 };
 
 type TraceIdContract = {
@@ -723,6 +891,48 @@ type AgentLlmStreamingContract = {
   non_claims: string[];
 };
 
+type AgentSkillModeContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  evidence_ref: string;
+  status: string;
+  declared_codex_surfaces: {
+    plugins: number;
+    apps: number;
+    mcp_servers: number;
+    skills: number;
+  };
+  plugin_slots: string[];
+  app_slots: string[];
+  mcp_policy: {
+    configured_mcp_servers: number;
+    live_mcp_writes: boolean;
+    external_mcp_server_calls: boolean;
+    write_access_requires_owner_gate: boolean;
+  };
+  model_policy: {
+    api_only: boolean;
+    local_model_downloads: boolean;
+    direct_provider_calls: boolean;
+    routing_surface: string;
+  };
+  skill_group_bindings: Array<{
+    group: string;
+    examples: string[];
+    guard: string;
+  }>;
+  layer_bindings: Array<{
+    layer: string;
+    binding: string;
+    guard: string;
+  }>;
+  workbench_modules: string[];
+  required_guard_flags: string[];
+  evidence_refs: string[];
+  non_claims: string[];
+};
+
 type ExternalGate = {
   id: string;
   preflight_gate_id: string;
@@ -802,6 +1012,200 @@ type AuthContract = {
   };
   endpoints: Record<string, string>;
   evidence_refs: Record<string, string>;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type AuthAuditEvent = {
+  event_id: string;
+  event_type: string;
+  trace_id: string | null;
+  lifecycle_step: string;
+  status: string;
+  severity: string | null;
+  created_at: string | null;
+  code_present: boolean | null;
+  cookie_flags: {
+    HttpOnly: boolean | null;
+    Secure: boolean | null;
+    SameSite: string | null;
+  };
+  live_github_oauth_call: boolean;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+};
+
+type AuthAuditSnapshot = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  source_table: string;
+  source_event_types: string[];
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  live_github_oauth_call_claimed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  events_scanned: number;
+  event_type_counts: Record<string, number>;
+  lifecycle_step_counts: Record<string, number>;
+  severity_counts: Record<string, number>;
+  live_github_oauth_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  oauth_status: string;
+  events: AuthAuditEvent[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type AuthAuditRiskBadge = {
+  id: string;
+  label: string;
+  status: string;
+  count: number;
+  evidence_ref: string;
+};
+
+type AuthAuditRiskRollup = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  contract_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  live_github_oauth_call_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  events_scanned: number;
+  risk_status: string;
+  blocker_count: number;
+  review_count: number;
+  dry_run_callback_count: number;
+  refresh_rotation_count: number;
+  refresh_reuse_block_count: number;
+  logout_revoke_count: number;
+  live_github_oauth_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  oauth_status: string;
+  event_type_counts: Record<string, number>;
+  lifecycle_step_counts: Record<string, number>;
+  status_counts: Record<string, number>;
+  severity_counts: Record<string, number>;
+  risk_badges: AuthAuditRiskBadge[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type AuthAuditTimelineEvent = {
+  sequence_index: number;
+  event_id: string;
+  created_at: string | null;
+  event_type: string;
+  timeline_leg: string;
+  trace_id: string | null;
+  lifecycle_step: string;
+  status: string;
+  severity: string | null;
+  code_present: boolean | null;
+  cookie_flags: {
+    HttpOnly: boolean | null;
+    Secure: boolean | null;
+    SameSite: string | null;
+  };
+  live_github_oauth_call: boolean;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+};
+
+type AuthAuditTimeline = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  contract_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  risk_rollup_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  live_github_oauth_call_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  events_scanned: number;
+  timeline_count: number;
+  live_github_oauth_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  oauth_status: string;
+  event_type_counts: Record<string, number>;
+  timeline_leg_counts: Record<string, number>;
+  status_counts: Record<string, number>;
+  severity_counts: Record<string, number>;
+  timeline: AuthAuditTimelineEvent[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type AuthAuditExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  timeline_endpoint: string;
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_oauth_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_github_oauth_call_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  tokens_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  blacklist_keys_returned: boolean;
+  oauth_codes_returned: boolean;
+  oauth_states_returned: boolean;
+  raw_details_returned: boolean;
   policy_checks: string[];
   non_claims: string[];
 };
@@ -1005,6 +1409,152 @@ type McpVersionPinningContract = {
   non_claims: string[];
 };
 
+type McpCapabilityCatalog = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  evidence_ref: string;
+  toolset_count: number;
+  capability_count: number;
+  live_mcp_writes: boolean;
+  live_mutations: boolean;
+  external_mcp_server_calls: boolean;
+  toolsets: Array<{
+    toolset: string;
+    mode: string;
+    supported_capabilities: string[];
+    blocked_capability_examples: string[];
+    contract_version: string | null;
+    contract_endpoint: string | null;
+    live_mutation: boolean;
+    live_mcp_writes: boolean;
+    requires_audit: boolean;
+    requires_timeout: boolean;
+    unsupported_capability_guard: string;
+  }>;
+  guards: Record<string, string>;
+  non_claims: string[];
+};
+
+type McpRuntimeGuardParity = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  gateway_endpoint: string;
+  evidence_ref: string;
+  covered_boundary: string;
+  live_mcp_writes: boolean;
+  live_mutations: boolean;
+  external_mcp_server_calls: boolean;
+  model_downloads: boolean;
+  snapshots_redacted: boolean;
+  snapshot_redaction_policy: string;
+  gateway_snapshot?: {
+    contract_version?: string;
+    status?: string;
+    endpoint?: string;
+    evidence_ref?: string;
+    live_mcp_writes?: boolean;
+    live_mutations?: boolean;
+    external_mcp_server_calls?: boolean;
+    model_downloads?: boolean;
+    guard_matrix?: Array<{
+      guard: string;
+      status: string;
+      evidence_ref: string;
+      enforced_on: string[];
+      fail_closed: boolean;
+    }>;
+    version_pinning_contract?: {
+      contract_version: string;
+      endpoint: string;
+      evidence_ref: string;
+      live_mcp_writes: boolean;
+      live_mutations: boolean;
+      external_mcp_server_calls: boolean;
+    };
+    capability_catalog_contract?: {
+      contract_version: string;
+      endpoint: string;
+      evidence_ref: string;
+      toolset_count: number;
+      capability_count: number;
+      live_mcp_writes: boolean;
+      live_mutations: boolean;
+      external_mcp_server_calls: boolean;
+    };
+    agent_executor_contract?: {
+      required_state_fields: string[];
+    };
+    evidence_refs?: string[];
+    non_claims?: string[];
+  };
+  gateway_error: string | null;
+  required_agent_executor_fields: string[];
+  required_gateway_contracts: string[];
+  required_gateway_guards: string[];
+  evidence_refs: string[];
+  non_claims: string[];
+};
+
+type McpAuditSnapshot = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  read_only: boolean;
+  live_mcp_writes_claimed: boolean;
+  input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  blocked_count: number;
+  denied_tool_correlation_count: number;
+  session_bound_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  status_counts: Record<string, number>;
+  toolset_counts: Record<string, number>;
+  capability_counts: Record<string, number>;
+  error_class_counts: Record<string, number>;
+  agent_role_counts: Record<string, number>;
+  safe_fields: string[];
+};
+
+type McpAuditExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  feed_endpoint: string;
+  snapshot_endpoint: string;
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  feed_evidence_ref: string;
+  audit_feed_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_mcp_write_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  raw_details_returned: boolean;
+  provider_side_mutation_claimed: boolean;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type MemoryEmbeddingConsistencyContract = {
   contract_version: string;
   mode: string;
@@ -1038,6 +1588,35 @@ type MemoryEmbeddingConsistencyContract = {
   non_claims: string[];
 };
 
+type MemoryWorkerHealthContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  health_endpoint: string;
+  metrics_endpoint: string;
+  evidence_ref: string;
+  status: string;
+  heartbeat_key: string;
+  accepted_heartbeat_statuses: string[];
+  max_heartbeat_age_seconds: number;
+  max_batch_runtime_seconds: number;
+  docker_healthcheck_command: string;
+  runtime_snapshot: ServiceHealth & {
+    heartbeat_key?: string;
+    heartbeat_status?: string;
+    heartbeat_ttl_seconds?: number;
+    heartbeat_age_seconds?: number;
+    max_heartbeat_age_seconds?: number;
+    max_batch_runtime_seconds?: number;
+    stale_heartbeat?: boolean;
+    contract_version?: string;
+    evidence_ref?: string;
+  };
+  required_runtime_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
 type ServiceHealth = {
   status: string;
   database?: string;
@@ -1045,6 +1624,15 @@ type ServiceHealth = {
   extensions?: string[];
   service?: string;
   error?: string;
+  reason?: string | null;
+  heartbeat_status?: string;
+  heartbeat_ttl_seconds?: number;
+  heartbeat_age_seconds?: number;
+  max_heartbeat_age_seconds?: number;
+  max_batch_runtime_seconds?: number;
+  stale_heartbeat?: boolean;
+  contract_version?: string;
+  evidence_ref?: string;
 };
 
 type SystemHealth = {
@@ -1126,6 +1714,475 @@ type AuditEvent = {
   trace_id?: string | null;
   correlation_evidence_ref?: string | null;
   audit_feed_evidence_ref?: string | null;
+  redaction_evidence_ref?: string | null;
+  input_ref_stored?: boolean | null;
+};
+
+type LlmAuditEvent = AuditEvent & {
+  model_name?: string | null;
+  provider_name?: string | null;
+  agent_type?: string | null;
+  status?: string | null;
+  live_provider_calls?: boolean | null;
+  cost_cents?: number | null;
+  prompt_body_stored?: boolean | null;
+  redaction_evidence_ref?: string | null;
+  evidence_ref?: string | null;
+};
+
+type LlmAuditFeedContract = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint?: string;
+  export_endpoint?: string;
+  export_contract_endpoint?: string;
+  export_contract_version?: string;
+  source_event_type: string;
+  source_table: string;
+  supported_export_formats?: string[];
+  evidence_ref: string;
+  audit_feed_evidence_ref: string;
+  snapshot_evidence_ref?: string;
+  redaction_evidence_ref?: string;
+  export_evidence_ref?: string;
+  export_audit_evidence_ref?: string;
+  no_live_provider_evidence_ref?: string;
+  read_only: boolean;
+  audit_persisted?: boolean;
+  live_provider_calls_claimed: boolean;
+  prompt_bodies_returned?: boolean;
+  provider_credentials_returned?: boolean;
+  raw_details_returned?: boolean;
+  export_columns?: string[];
+  required_detail_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type LlmAuditExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  feed_endpoint: string;
+  snapshot_endpoint: string;
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  feed_evidence_ref: string;
+  audit_feed_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_provider_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_provider_calls_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  provider_credentials_returned: boolean;
+  raw_details_returned: boolean;
+  provider_trace_export: boolean;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type LlmAuditSnapshot = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  source_endpoint: string;
+  source_event_type: string;
+  source_table: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  prompt_bodies_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  dry_run_count: number;
+  live_provider_call_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  status_counts: Record<string, number>;
+  provider_counts: Record<string, number>;
+  agent_counts: Record<string, number>;
+  model_counts: Record<string, number>;
+  safe_fields: string[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type GatewayCorrelationGroup = {
+  correlation_key: string;
+  trace_id: string | null;
+  session_id: string | null;
+  request_id: string | null;
+  event_types: string[];
+  event_count: number;
+  has_agent_task: boolean;
+  has_llm_audit: boolean;
+  has_mcp_audit: boolean;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  correlation_state: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+};
+
+type GatewayCorrelationSnapshot = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  groups_scanned: number;
+  full_correlation_count: number;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  event_type_counts: Record<string, number>;
+  correlation_state_counts: Record<string, number>;
+  groups: GatewayCorrelationGroup[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type GatewayCorrelationRisk = {
+  correlation_key: string;
+  trace_id: string | null;
+  session_id: string | null;
+  request_id: string | null;
+  correlation_state: string;
+  event_count: number;
+  missing_legs: string[];
+  risk_status: string;
+  severity: string;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+};
+
+type GatewayCorrelationRiskBadge = {
+  id: string;
+  label: string;
+  status: string;
+  count: number;
+  evidence_ref: string;
+};
+
+type GatewayCorrelationRiskRollup = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  groups_scanned: number;
+  risk_status: string;
+  blocker_count: number;
+  review_count: number;
+  full_correlation_count: number;
+  partial_correlation_count: number;
+  gateway_pair_count: number;
+  missing_leg_counts: Record<string, number>;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  correlation_state_counts: Record<string, number>;
+  risk_status_counts: Record<string, number>;
+  risk_badges: GatewayCorrelationRiskBadge[];
+  group_risks: GatewayCorrelationRisk[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type GatewayCorrelationTimelineEvent = {
+  sequence_index: number;
+  event_id: string;
+  created_at: string | null;
+  event_type: string;
+  timeline_leg: string;
+  correlation_key: string;
+  trace_id: string | null;
+  request_id: string | null;
+  session_id: string | null;
+  agent_type: string;
+  status: string;
+  severity: string | null;
+  evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  live_provider_calls: boolean;
+  live_mcp_writes: boolean;
+};
+
+type GatewayCorrelationTimeline = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  evidence_ref: string;
+  snapshot_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  events_scanned: number;
+  timeline_count: number;
+  live_provider_call_count: number;
+  live_mcp_write_count: number;
+  forbidden_pattern_hits: number;
+  redaction_status: string;
+  event_type_counts: Record<string, number>;
+  timeline_leg_counts: Record<string, number>;
+  timeline: GatewayCorrelationTimelineEvent[];
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type GatewayCorrelationExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  snapshot_endpoint: string;
+  risk_rollup_endpoint: string;
+  timeline_endpoint: string;
+  source_event_types: string[];
+  supported_formats: string[];
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  risk_rollup_evidence_ref: string;
+  timeline_evidence_ref: string;
+  redaction_evidence_ref: string;
+  no_live_write_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  tool_input_refs_returned: boolean;
+  provider_credentials_returned: boolean;
+  raw_details_returned: boolean;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type SecurityAuditSurfaceContract = {
+  contract_version: string;
+  mode: string;
+  screen: string;
+  endpoint: string;
+  contract_endpoint: string;
+  source_table: string;
+  source_endpoints: string[];
+  supported_event_types: string[];
+  category_map: Record<string, string>;
+  filters: string[];
+  read_only: boolean;
+  evidence_refs: {
+    surface_visible: string;
+    event_visible: string;
+    csp_audit_persisted: string;
+    mcp_deny_correlation: string;
+    llm_audit_event: string;
+  };
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type SecurityAuditEvent = AuditEvent & {
+  category?: string | null;
+  evidence_ref?: string | null;
+  security_surface_evidence_ref?: string | null;
+  summary?: string | null;
+};
+
+type SecurityReviewQueueContract = {
+  contract_version: string;
+  mode: string;
+  screen: string;
+  endpoint: string;
+  contract_endpoint: string;
+  gate_endpoint?: string;
+  export_endpoint?: string;
+  export_contract_endpoint?: string;
+  export_contract_version?: string;
+  source_table: string;
+  source_surface: string;
+  supported_event_types: string[];
+  supported_export_formats?: string[];
+  filters: string[];
+  read_only: boolean;
+  audit_persisted?: boolean;
+  mutation_endpoints_blocked: string[];
+  required_item_fields: string[];
+  export_columns?: string[];
+  safe_fields: string[];
+  forbidden_fields: string[];
+  status_values: string[];
+  evidence_refs: {
+    queue_visible: string;
+    item_visible: string;
+    redaction_enforced: string;
+    mutation_blocked: string;
+    filter_state: string;
+    decision_history: string;
+    evidence_snapshot: string;
+    gate_summary: string;
+    export_visible: string;
+    export_audit_persisted: string;
+    source_security_surface: string;
+  };
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type SecurityReviewExportContract = {
+  contract_version: string;
+  parent_contract_version: string;
+  mode: string;
+  endpoint: string;
+  contract_endpoint: string;
+  queue_endpoint: string;
+  snapshot_endpoint: string;
+  gate_endpoint: string;
+  source_table: string;
+  source_surface: string;
+  source_event_types: string[];
+  supported_formats: string[];
+  default_format: string;
+  default_limit: number;
+  max_limit: number;
+  filename_pattern: string;
+  columns: string[];
+  evidence_ref: string;
+  export_audit_evidence_ref: string;
+  queue_evidence_ref: string;
+  item_evidence_ref: string;
+  redaction_evidence_ref: string;
+  mutation_block_evidence_ref: string;
+  filter_evidence_ref: string;
+  decision_history_evidence_ref: string;
+  source_security_surface_evidence_ref: string;
+  read_only: boolean;
+  audit_persisted: boolean;
+  live_provider_calls_claimed: boolean;
+  live_mcp_writes_claimed: boolean;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  prompt_bodies_returned: boolean;
+  provider_credentials_returned: boolean;
+  cookies_returned: boolean;
+  authorization_headers_returned: boolean;
+  raw_details_returned: boolean;
+  policy_checks: string[];
+  non_claims: string[];
+};
+
+type SecurityReviewQueueItem = {
+  queue_item_id: string;
+  source_event_id: string;
+  event_type: string;
+  category: string;
+  severity?: string | null;
+  status: string;
+  risk_badge?: string;
+  summary: string;
+  request_id?: string | null;
+  trace_id?: string | null;
+  detail_keys: string[];
+  redaction_applied: boolean;
+  created_at?: string | null;
+  evidence_ref: string;
+  item_evidence_ref: string;
+  redaction_evidence_ref: string;
+  filter_evidence_ref?: string;
+  decision_history_evidence_ref?: string;
+  source_security_surface_evidence_ref: string;
+  decision_history?: Array<{
+    state: string;
+    source_event_id: string;
+    evidence_ref: string;
+    created_at?: string | null;
+  }>;
+  evidence_snapshot?: Record<string, string>;
+};
+
+type SecurityReviewGateSummary = {
+  contract_version: string;
+  mode: string;
+  endpoint: string;
+  queue_endpoint: string;
+  snapshot_endpoint: string;
+  evidence_ref: string;
+  queue_evidence_ref: string;
+  snapshot_evidence_ref: string;
+  read_only: boolean;
+  gate_status: string;
+  blocker_count: number;
+  monitoring_count: number;
+  production_rollout_claimed: boolean;
+  promotion_allowed: boolean;
+  release_authority: string;
+  risk_badges: Record<string, number>;
+  blockers: Array<{
+    queue_item_id: string;
+    event_type: string;
+    category: string;
+    severity?: string | null;
+    status: string;
+    risk_badge: string;
+    request_id?: string | null;
+    trace_id?: string | null;
+  }>;
+  policy_checks: string[];
+  non_claims: string[];
 };
 
 type PerRoleResult = {
@@ -1272,11 +2329,82 @@ type LlmGatewayState = {
   streaming_sse: boolean;
   streaming_protocol: string;
   models_configured: number;
+  model_catalog_contract_version?: string;
+  model_catalog_endpoint?: string;
+  model_catalog_evidence_ref?: string;
+  provider_readiness_contract_version?: string;
+  provider_readiness_endpoint?: string;
+  provider_readiness_evidence_ref?: string;
   non_claims: string[];
   routing_resolution?: LlmRoutingResolution;
   provider_snapshot?: LlmProviderSnapshot;
+  provider_readiness_contract?: LlmProviderReadinessContract;
   streaming_contract?: LlmStreamingContract;
   routing_policy_contract?: LlmRoutingPolicyContract;
+  runtime_guard_parity?: LlmRuntimeGuardParity;
+  model_catalog?: LlmModelCatalog;
+};
+
+type LlmModelCatalog = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  public_endpoint?: string;
+  evidence_ref: string;
+  provider: string;
+  live_provider_calls: boolean;
+  live_provider_calls_available?: boolean;
+  model_downloads: boolean;
+  local_model_downloads_allowed: boolean;
+  open_source_first: boolean;
+  api_inference_only: boolean;
+  route_count: number;
+  configured_model_count: number;
+  alias_count: number;
+  routes: Array<{
+    agent_type: string;
+    primary: string;
+    fallbacks: string[];
+    models: string[];
+    provider_chain: string[];
+    model_families: string[];
+    max_output_tokens: number;
+    supports_streaming: boolean;
+    configured_only: boolean;
+    open_source_first: boolean;
+    api_inference_only: boolean;
+    model_downloads: boolean;
+  }>;
+  evidence_refs: {
+    catalog_visible: string;
+    runtime_guard_parity_visible: string;
+    unknown_model_blocked: string;
+    output_token_budget_blocked: string;
+    direct_provider_blocked: string;
+  };
+  non_claims: string[];
+};
+
+type LlmRuntimeGuardParity = {
+  contract_version: string;
+  status: string;
+  endpoint: string;
+  evidence_ref: string;
+  live_provider_calls: boolean;
+  live_provider_calls_available?: boolean;
+  model_downloads: boolean;
+  configured_routes: number;
+  configured_models: string[];
+  guard_matrix: Array<{
+    guard: string;
+    status: string;
+    evidence_ref: string;
+    enforced_on: string[];
+    fail_closed: boolean;
+  }>;
+  evidence_refs: string[];
+  non_claims: string[];
 };
 
 type LlmRoutingResolution = {
@@ -1324,6 +2452,51 @@ type LlmProviderSnapshot = {
     reset_after_seconds?: number;
     non_claim?: string;
   }>;
+};
+
+type LlmProviderReadinessContract = {
+  contract_version: string;
+  status: string;
+  mode: string;
+  endpoint: string;
+  public_endpoint: string;
+  provider_status_endpoint: string;
+  model_catalog_endpoint: string;
+  runtime_guard_endpoint: string;
+  evidence_ref: string;
+  live_provider_calls: boolean;
+  external_probe_performed: boolean;
+  model_downloads: boolean;
+  local_model_downloads_allowed: boolean;
+  provider: string;
+  provider_token_configured: boolean;
+  provider_token_env: string;
+  provider_token_returned: boolean;
+  live_generation_default_allowed: boolean;
+  request_live_provider_override_enabled: boolean;
+  live_generation_ready: boolean;
+  default_generation_decision: string;
+  requires_request_metadata: string;
+  requires_env_gates: string[];
+  direct_provider_metadata_keys_blocked: string[];
+  url_like_model_ids_blocked: boolean;
+  unknown_model_ids_blocked: boolean;
+  output_token_budget_guard: string;
+  route_count: number;
+  configured_model_count: number;
+  route_readiness: Array<{
+    agent_type: string;
+    primary: string;
+    fallback_count: number;
+    provider: string;
+    max_output_tokens: number;
+    api_inference_only: boolean;
+    model_downloads: boolean;
+    live_provider_calls: boolean;
+  }>;
+  evidence_refs: string[];
+  policy_checks: string[];
+  non_claims: string[];
 };
 
 type LlmStreamingContract = {
@@ -1494,6 +2667,328 @@ const defaultAgents: AgentStatus[] = [
   { type: "devops", status: "idle", retries: 0 },
 ];
 
+type WorkbenchModuleId =
+  | "build"
+  | "code"
+  | "game"
+  | "research"
+  | "media"
+  | "docs"
+  | "agents"
+  | "models"
+  | "mcp"
+  | "memory"
+  | "observability"
+  | "settings";
+
+type WorkbenchTabId = "overview" | "create" | "agents" | "tools" | "assets" | "runs" | "audit" | "settings";
+
+const workbenchTabs: Array<{ id: WorkbenchTabId; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "create", label: "Create" },
+  { id: "agents", label: "Agents" },
+  { id: "tools", label: "Tools" },
+  { id: "assets", label: "Assets" },
+  { id: "runs", label: "Runs" },
+  { id: "audit", label: "Audit" },
+  { id: "settings", label: "Settings" },
+];
+
+const workbenchModules: Array<{
+  id: WorkbenchModuleId;
+  label: string;
+  glyph: string;
+  description: string;
+  primary: string;
+  scope: string;
+  target: string;
+  capabilities: string[];
+}> = [
+  {
+    id: "build",
+    label: "Build",
+    glyph: "B",
+    description: "App factory, product slices, full-stack plans, release-ready UI surfaces.",
+    primary: "Create App",
+    scope: "apps, SaaS, internal tools",
+    target: "#project-progress-surface",
+    capabilities: ["App Builder", "Product Plan", "Release Candidate", "UI Workflow"],
+  },
+  {
+    id: "code",
+    label: "Code",
+    glyph: "C",
+    description: "Coding workspace for implementation, review, tests, fixes, and repo navigation.",
+    primary: "Code Task",
+    scope: "frontend, backend, infra",
+    target: "#agent-status",
+    capabilities: ["Feature Work", "Bug Fix", "Code Review", "Test Repair"],
+  },
+  {
+    id: "game",
+    label: "3D/Game",
+    glyph: "3D",
+    description: "3D web games, real-time scenes, game systems, shaders, and browser proof.",
+    primary: "Build Game",
+    scope: "Three.js, WebGL, gameplay",
+    target: "#cloud-render-offload-surface",
+    capabilities: ["3D Scene", "Game Loop", "Multiplayer Plan", "Asset Pipeline"],
+  },
+  {
+    id: "research",
+    label: "Research",
+    glyph: "R",
+    description: "Deep web research, source maps, technical analysis, and decision reports.",
+    primary: "Deep Search",
+    scope: "web, docs, papers, markets",
+    target: "#langgraph-surface",
+    capabilities: ["Deep Search", "Source Atlas", "Comparison", "Report"],
+  },
+  {
+    id: "media",
+    label: "Media",
+    glyph: "M",
+    description: "Images, video, music, audio, design assets, and multimodal production flows.",
+    primary: "Create Media",
+    scope: "image, video, audio, music",
+    target: "#llm-gateway-surface",
+    capabilities: ["Image", "Video", "Music", "Storyboard"],
+  },
+  {
+    id: "docs",
+    label: "Docs",
+    glyph: "D",
+    description: "Documents, spreadsheets, presentations, exports, docs, and release notes.",
+    primary: "Write Doc",
+    scope: "docs, sheets, slides",
+    target: "#memory-surface",
+    capabilities: ["Document", "Deck", "Spreadsheet", "Export"],
+  },
+  {
+    id: "agents",
+    label: "Agents",
+    glyph: "A",
+    description: "Multi-agent teams, specialist roles, dispatch, steering, and run history.",
+    primary: "Route Team",
+    scope: "planner, coder, tester, devops",
+    target: "#agent-status",
+    capabilities: ["Single Agent", "Swarm", "Specialist Team", "Auto Router"],
+  },
+  {
+    id: "models",
+    label: "Models",
+    glyph: "L",
+    description: "LLM gateway routes, model catalog, provider guards, and fallback chains.",
+    primary: "Pick Model",
+    scope: "API-only external models",
+    target: "#llm-gateway-surface",
+    capabilities: ["Model Route", "Fallback Chain", "Streaming", "Guard Parity"],
+  },
+  {
+    id: "mcp",
+    label: "MCP Tools",
+    glyph: "T",
+    description: "Guarded Model Context Protocol tools, capability catalog, and no-write gates.",
+    primary: "Select Tools",
+    scope: "toolsets, contracts, guards",
+    target: "#mcp-builder-surface",
+    capabilities: ["Filesystem Plan", "Browser Proof", "GitHub Plan", "Sandbox Plan"],
+  },
+  {
+    id: "memory",
+    label: "Memory",
+    glyph: "K",
+    description: "Project memory, search, embeddings policy, consolidation, and deletion guards.",
+    primary: "Search Memory",
+    scope: "project knowledge",
+    target: "#memory-surface",
+    capabilities: ["Recall", "Consolidate", "Delete", "Embed Policy"],
+  },
+  {
+    id: "observability",
+    label: "Observability",
+    glyph: "O",
+    description: "Runs, traces, audits, costs, activity, security, and diagnostics.",
+    primary: "Inspect Runs",
+    scope: "audit, traces, metrics",
+    target: "#diagnostics-surface",
+    capabilities: ["Run Log", "Trace", "Cost", "Security Review"],
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    glyph: "S",
+    description: "Workspace policy, budgets, auth, cloud gates, integrations, and release guards.",
+    primary: "Configure",
+    scope: "workspace and governance",
+    target: "#security-surface",
+    capabilities: ["Budget", "Auth", "Cloud Gates", "Policies"],
+  },
+];
+
+const workbenchLaunchPacks: Array<{
+  id: string;
+  module: WorkbenchModuleId;
+  glyph: string;
+  label: string;
+  lane: string;
+  description: string;
+  prompt: string;
+}> = [
+  {
+    id: "app-builder",
+    module: "build",
+    glyph: "APP",
+    label: "App",
+    lane: "Build",
+    description: "Full-stack app, SaaS, dashboard, workflow tool.",
+    prompt: "Build a production-ready app workflow with frontend, backend, tests, and guarded release proof.",
+  },
+  {
+    id: "software",
+    module: "code",
+    glyph: "IDE",
+    label: "Software",
+    lane: "Code",
+    description: "Feature, bug fix, refactor, automation, CLI, service.",
+    prompt: "Implement a software task with code changes, tests, verification, and concise release notes.",
+  },
+  {
+    id: "game-3d",
+    module: "game",
+    glyph: "3D",
+    label: "3D Web Game",
+    lane: "Game",
+    description: "Interactive Three.js/WebGL gameplay and browser proof.",
+    prompt: "Build a polished 3D web game slice with controls, responsive canvas, and browser verification.",
+  },
+  {
+    id: "deep-search",
+    module: "research",
+    glyph: "WEB",
+    label: "Deep Search",
+    lane: "Research",
+    description: "Web, papers, docs, competitors, source-backed analysis.",
+    prompt: "Run deep research, compare sources, extract decisions, and produce a source-backed implementation brief.",
+  },
+  {
+    id: "image",
+    module: "media",
+    glyph: "IMG",
+    label: "Images",
+    lane: "Media",
+    description: "Concept art, UI assets, diagrams, product visuals.",
+    prompt: "Create an image asset plan with style, constraints, target use, and generation/editing steps.",
+  },
+  {
+    id: "video",
+    module: "media",
+    glyph: "VID",
+    label: "Video",
+    lane: "Media",
+    description: "Storyboard, clips, explainers, product demos.",
+    prompt: "Plan a video production workflow with storyboard, assets, scenes, timing, and export checks.",
+  },
+  {
+    id: "music",
+    module: "media",
+    glyph: "AUD",
+    label: "Music",
+    lane: "Media",
+    description: "Audio, sound design, music briefs, voice workflows.",
+    prompt: "Create a music/audio production brief with mood, structure, assets, and validation steps.",
+  },
+  {
+    id: "documents",
+    module: "docs",
+    glyph: "DOC",
+    label: "Documents",
+    lane: "Docs",
+    description: "Docs, decks, spreadsheets, reports, release artifacts.",
+    prompt: "Create a document workflow with outline, data inputs, review gates, and export-ready structure.",
+  },
+  {
+    id: "agent-team",
+    module: "agents",
+    glyph: "AI",
+    label: "Multi-Agent",
+    lane: "Agents",
+    description: "Single agent, swarm, specialist team, auto-router.",
+    prompt: "Route this task through the best multi-agent plan with roles, write scopes, tests, and guardrails.",
+  },
+  {
+    id: "tool-chain",
+    module: "mcp",
+    glyph: "MCP",
+    label: "Tool Chain",
+    lane: "MCP",
+    description: "Guarded MCP tools, catalogs, sandboxes, browser proof.",
+    prompt: "Select a guarded tool chain for this task with no live MCP writes and explicit contract evidence.",
+  },
+  {
+    id: "model-router",
+    module: "models",
+    glyph: "LLM",
+    label: "Model Router",
+    lane: "Models",
+    description: "External API-only models, fallback chains, routing policy.",
+    prompt: "Design a model routing plan with API-only providers, fallbacks, budgets, and no local model downloads.",
+  },
+  {
+    id: "memory-workspace",
+    module: "memory",
+    glyph: "MEM",
+    label: "Memory",
+    lane: "Memory",
+    description: "Project recall, knowledge base, embedding policy, deletion guard.",
+    prompt: "Organize project memory with searchable knowledge, retention policy, audit proof, and safe deletion controls.",
+  },
+  {
+    id: "observability-center",
+    module: "observability",
+    glyph: "OBS",
+    label: "Observability",
+    lane: "Observe",
+    description: "Runs, traces, audit, cost, health, diagnostics.",
+    prompt: "Inspect the platform run state with traces, audit events, costs, health, and failure diagnostics.",
+  },
+  {
+    id: "security-release",
+    module: "settings",
+    glyph: "SEC",
+    label: "Security",
+    lane: "Settings",
+    description: "Security gates, auth, cloud preflight, release blockers.",
+    prompt: "Review security and release gates with fail-closed checks, no production claims, and evidence requirements.",
+  },
+  {
+    id: "cloud-runtime",
+    module: "settings",
+    glyph: "CLD",
+    label: "Cloud Runtime",
+    lane: "Settings",
+    description: "7-layer cloud readiness, staging proof, deployment gates.",
+    prompt: "Plan the cloud runtime path across the 7 layers with staging proof, blockers, and no rollout claim.",
+  },
+];
+
+const agentRunModes = [
+  { id: "auto-router", label: "Auto Router", detail: "Choose best agent or team per task" },
+  { id: "single", label: "Single Agent", detail: "Use the selected specialist only" },
+  { id: "swarm", label: "Swarm", detail: "Coordinate multiple agents for large work" },
+  { id: "specialists", label: "Specialists", detail: "Planner, coder, tester, devops lanes" },
+];
+
+const workbenchLayers: Array<{ label: string; module: WorkbenchModuleId; target: string }> = [
+  { label: "Frontend", module: "build", target: "#project-progress-surface" },
+  { label: "Orchestrator", module: "agents", target: "#langgraph-surface" },
+  { label: "Agent Pool", module: "agents", target: "#agent-status" },
+  { label: "LLM Gateway", module: "models", target: "#llm-gateway-surface" },
+  { label: "MCP Gateway", module: "mcp", target: "#mcp-builder-surface" },
+  { label: "Memory", module: "memory", target: "#memory-surface" },
+  { label: "Observability", module: "observability", target: "#diagnostics-surface" },
+];
+
 function cents(value: number) {
   return (value / 100).toLocaleString("en-US", { style: "currency", currency: "EUR" });
 }
@@ -1548,10 +3043,18 @@ export default function Home() {
   const [projectId, setProjectId] = useState("browser-workspace");
   const [prompt, setPrompt] = useState("Build the next safe platform slice.");
   const [search, setSearch] = useState("platform");
+  const [activeModuleId, setActiveModuleId] = useState<WorkbenchModuleId>("build");
+  const [activeWorkbenchTab, setActiveWorkbenchTab] = useState<WorkbenchTabId>("overview");
+  const [selectedAgentMode, setSelectedAgentMode] = useState("auto-router");
+  const [selectedRouteKey, setSelectedRouteKey] = useState("auto");
+  const [selectedToolsetKey, setSelectedToolsetKey] = useState("auto");
+  const [selectedLaunchPackId, setSelectedLaunchPackId] = useState("app-builder");
+  const [commandQuery, setCommandQuery] = useState("");
   const [budget, setBudget] = useState<BudgetState | null>(null);
   const [costs, setCosts] = useState<CostState | null>(null);
   const [costExportContract, setCostExportContract] = useState<CostExportContract | null>(null);
   const [agentActivityContract, setAgentActivityContract] = useState<AgentActivityContract | null>(null);
+  const [langfuseTraceAccess, setLangfuseTraceAccess] = useState<LangfuseTraceAccessContract | null>(null);
   const [infraBudget, setInfraBudget] = useState<InfraBudgetState | null>(null);
   const [clouds, setClouds] = useState<CloudProviderState | null>(null);
   const [cloudLayers, setCloudLayers] = useState<CloudLayerReadinessState | null>(null);
@@ -1565,6 +3068,7 @@ export default function Home() {
   const [promptContract, setPromptContract] = useState<PromptContract | null>(null);
   const [errorResponseContract, setErrorResponseContract] = useState<ErrorResponseContract | null>(null);
   const [securityHeadersContract, setSecurityHeadersContract] = useState<SecurityHeadersContract | null>(null);
+  const [cspReportContract, setCspReportContract] = useState<CspReportContract | null>(null);
   const [traceIdContract, setTraceIdContract] = useState<TraceIdContract | null>(null);
   const [cacheControlContract, setCacheControlContract] = useState<CacheControlContract | null>(null);
   const [requestIdContract, setRequestIdContract] = useState<RequestIdContract | null>(null);
@@ -1572,9 +3076,14 @@ export default function Home() {
   const [taskAssignmentContract, setTaskAssignmentContract] = useState<TaskAssignmentContract | null>(null);
   const [agentLlmStreamingContract, setAgentLlmStreamingContract] =
     useState<AgentLlmStreamingContract | null>(null);
+  const [agentSkillModeContract, setAgentSkillModeContract] = useState<AgentSkillModeContract | null>(null);
   const [externalGates, setExternalGates] = useState<ExternalGatesState | null>(null);
   const [externalGateMirror, setExternalGateMirror] = useState<ExternalGateMirrorContract | null>(null);
   const [authContract, setAuthContract] = useState<AuthContract | null>(null);
+  const [authAuditSnapshot, setAuthAuditSnapshot] = useState<AuthAuditSnapshot | null>(null);
+  const [authAuditRiskRollup, setAuthAuditRiskRollup] = useState<AuthAuditRiskRollup | null>(null);
+  const [authAuditTimeline, setAuthAuditTimeline] = useState<AuthAuditTimeline | null>(null);
+  const [authAuditExportContract, setAuthAuditExportContract] = useState<AuthAuditExportContract | null>(null);
   const [memoryPurgeContract, setMemoryPurgeContract] = useState<MemoryPurgeContract | null>(null);
   const [workflowDispatch, setWorkflowDispatch] = useState<WorkflowDispatchPlan | null>(null);
   const [githubBranchPrContract, setGithubBranchPrContract] = useState<GithubBranchPrContract | null>(null);
@@ -1586,8 +3095,12 @@ export default function Home() {
     useState<E2bSandboxLifecycleContract | null>(null);
   const [mcpVersionPinningContract, setMcpVersionPinningContract] =
     useState<McpVersionPinningContract | null>(null);
+  const [mcpCapabilityCatalog, setMcpCapabilityCatalog] = useState<McpCapabilityCatalog | null>(null);
+  const [mcpRuntimeGuardParity, setMcpRuntimeGuardParity] = useState<McpRuntimeGuardParity | null>(null);
   const [memoryEmbeddingConsistencyContract, setMemoryEmbeddingConsistencyContract] =
     useState<MemoryEmbeddingConsistencyContract | null>(null);
+  const [memoryWorkerHealthContract, setMemoryWorkerHealthContract] =
+    useState<MemoryWorkerHealthContract | null>(null);
   const [systemFallbackContract, setSystemFallbackContract] = useState<SystemFallbackContract | null>(null);
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [agents, setAgents] = useState<AgentStatus[]>(defaultAgents);
@@ -1595,12 +3108,26 @@ export default function Home() {
   const [autonomousDispatchContract, setAutonomousDispatchContract] = useState<AutonomousTaskDispatchContract | null>(
     null,
   );
+  const [autonomousDispatchObjective, setAutonomousDispatchObjective] = useState(
+    "Continue the current project plan and report exact blockers with evidence.",
+  );
+  const [autonomousDispatchStatus, setAutonomousDispatchStatus] = useState("idle");
+  const [autonomousDispatchResponse, setAutonomousDispatchResponse] =
+    useState<AutonomousTaskDispatchResponse | null>(null);
   const [autonomousMasterPlan, setAutonomousMasterPlan] = useState<AutonomousMasterPlanState | null>(null);
   const [autonomousMasterPlanContract, setAutonomousMasterPlanContract] =
     useState<AutonomousMasterPlanContract | null>(null);
   const [autonomousAgentRoster, setAutonomousAgentRoster] = useState<AutonomousAgentRosterState | null>(null);
   const [autonomousAgentRosterContract, setAutonomousAgentRosterContract] =
     useState<AutonomousAgentRosterContract | null>(null);
+  const [liveAgentContract, setLiveAgentContract] = useState<LiveAgentContract | null>(null);
+  const [liveAgentStatus, setLiveAgentStatus] = useState<LiveAgentStatus | null>(null);
+  const [liveAgentId, setLiveAgentId] = useState("supervisor");
+  const [liveAgentMessage, setLiveAgentMessage] = useState("");
+  const [liveAgentSendStatus, setLiveAgentSendStatus] = useState("idle");
+  const [liveAgentResponse, setLiveAgentResponse] = useState<LiveAgentSteerResponse | null>(null);
+  const [liveAgentHistory, setLiveAgentHistory] = useState<LiveAgentHistory | null>(null);
+  const [liveAgentHistoryStatus, setLiveAgentHistoryStatus] = useState("loading");
   const [lastRun, setLastRun] = useState<PromptResponse | null>(null);
   const [memoryResults, setMemoryResults] = useState<MemoryResult[]>([]);
   const [memoryDeleteStatus, setMemoryDeleteStatus] = useState("No memory entry delete requested.");
@@ -1614,6 +3141,29 @@ export default function Home() {
   const [activityAgentFilter, setActivityAgentFilter] = useState("");
   const [activityTraceFilter, setActivityTraceFilter] = useState("");
   const [mcpAuditEvents, setMcpAuditEvents] = useState<AuditEvent[]>([]);
+  const [mcpAuditSnapshot, setMcpAuditSnapshot] = useState<McpAuditSnapshot | null>(null);
+  const [mcpAuditExportContract, setMcpAuditExportContract] = useState<McpAuditExportContract | null>(null);
+  const [llmAuditFeedContract, setLlmAuditFeedContract] = useState<LlmAuditFeedContract | null>(null);
+  const [llmAuditEvents, setLlmAuditEvents] = useState<LlmAuditEvent[]>([]);
+  const [llmAuditSnapshot, setLlmAuditSnapshot] = useState<LlmAuditSnapshot | null>(null);
+  const [llmAuditExportContract, setLlmAuditExportContract] = useState<LlmAuditExportContract | null>(null);
+  const [gatewayCorrelationSnapshot, setGatewayCorrelationSnapshot] =
+    useState<GatewayCorrelationSnapshot | null>(null);
+  const [gatewayCorrelationRiskRollup, setGatewayCorrelationRiskRollup] =
+    useState<GatewayCorrelationRiskRollup | null>(null);
+  const [gatewayCorrelationTimeline, setGatewayCorrelationTimeline] =
+    useState<GatewayCorrelationTimeline | null>(null);
+  const [gatewayCorrelationExportContract, setGatewayCorrelationExportContract] =
+    useState<GatewayCorrelationExportContract | null>(null);
+  const [securityAuditSurfaceContract, setSecurityAuditSurfaceContract] =
+    useState<SecurityAuditSurfaceContract | null>(null);
+  const [securityAuditEvents, setSecurityAuditEvents] = useState<SecurityAuditEvent[]>([]);
+  const [securityReviewQueueContract, setSecurityReviewQueueContract] =
+    useState<SecurityReviewQueueContract | null>(null);
+  const [securityReviewExportContract, setSecurityReviewExportContract] =
+    useState<SecurityReviewExportContract | null>(null);
+  const [securityReviewQueueItems, setSecurityReviewQueueItems] = useState<SecurityReviewQueueItem[]>([]);
+  const [securityReviewGate, setSecurityReviewGate] = useState<SecurityReviewGateSummary | null>(null);
   const [memoryConsolidationEvents, setMemoryConsolidationEvents] = useState<AuditEvent[]>([]);
   const [escalations, setEscalations] = useState<AuditEvent[]>([]);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
@@ -1634,6 +3184,7 @@ export default function Home() {
   const [events, setEvents] = useState<string[]>([]);
   const [status, setStatus] = useState("ready");
   const [error, setError] = useState<string | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   const budgetLabel = useMemo(() => {
     if (!budget) return "Budget loading";
@@ -1653,6 +3204,18 @@ export default function Home() {
     () => new Map((clouds?.providers ?? []).map((provider) => [provider.id, provider.label])),
     [clouds],
   );
+  const liveAgentProfiles = liveAgentStatus?.agents?.length
+    ? liveAgentStatus.agents
+    : liveAgentContract?.agents ?? [];
+  const selectedLiveAgent =
+    liveAgentProfiles.find((agent) => agent.agent_id === liveAgentId) ?? liveAgentProfiles[0] ?? null;
+  const liveAgentEvidenceRefs = {
+    contract_visible: "live_agent_steering_contract_visible",
+    ui_visible: "live_agent_steering_ui_visible",
+    security_guard: "live_agent_metadata_guard_enforced",
+    history_visible: "live_agent_steering_history_visible",
+    ...(liveAgentContract?.evidence_refs ?? {}),
+  };
 
   async function loadBudget() {
     const response = await fetch("/api/v1/budget", { cache: "no-store" });
@@ -1676,6 +3239,12 @@ export default function Home() {
     const response = await fetch("/api/v1/agent-activity/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`agent activity contract ${response.status}`);
     setAgentActivityContract(await response.json());
+  }
+
+  async function loadLangfuseTraceAccess() {
+    const response = await fetch("/api/v1/observability/langfuse/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`langfuse trace access contract ${response.status}`);
+    setLangfuseTraceAccess(await response.json());
   }
 
   async function loadAgentActivityEvents() {
@@ -1764,6 +3333,12 @@ export default function Home() {
     setSecurityHeadersContract(await response.json());
   }
 
+  async function loadCspReportContract() {
+    const response = await fetch("/api/v1/security/csp/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`csp report contract ${response.status}`);
+    setCspReportContract(await response.json());
+  }
+
   async function loadTraceIdContract() {
     const response = await fetch("/api/v1/trace/contract", {
       cache: "no-store",
@@ -1806,6 +3381,12 @@ export default function Home() {
     setAgentLlmStreamingContract(await response.json());
   }
 
+  async function loadAgentSkillModeContract() {
+    const response = await fetch("/api/v1/agents/skill-mode/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`agent skill mode contract ${response.status}`);
+    setAgentSkillModeContract(await response.json());
+  }
+
   async function loadExternalGates() {
     const response = await fetch("/api/v1/external-gates", { cache: "no-store" });
     if (!response.ok) throw new Error(`external gates ${response.status}`);
@@ -1819,9 +3400,27 @@ export default function Home() {
   }
 
   async function loadAuthContract() {
-    const response = await fetch("/api/v1/auth/contract", { cache: "no-store" });
+    const [response, auditResponse, riskResponse, timelineResponse, exportResponse] = await Promise.all([
+      fetch("/api/v1/auth/contract", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/snapshot?limit=80", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/risk-rollup?limit=80", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/timeline?limit=80", { cache: "no-store" }),
+      fetch("/api/v1/audit/auth/export/contract", { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error(`auth contract ${response.status}`);
     setAuthContract(await response.json());
+    if (auditResponse.ok) {
+      setAuthAuditSnapshot(await auditResponse.json());
+    }
+    if (riskResponse.ok) {
+      setAuthAuditRiskRollup(await riskResponse.json());
+    }
+    if (timelineResponse.ok) {
+      setAuthAuditTimeline(await timelineResponse.json());
+    }
+    if (exportResponse.ok) {
+      setAuthAuditExportContract(await exportResponse.json());
+    }
   }
 
   async function loadMemoryPurgeContract() {
@@ -1872,10 +3471,28 @@ export default function Home() {
     setMcpVersionPinningContract(await response.json());
   }
 
+  async function loadMcpCapabilityCatalog() {
+    const response = await fetch("/mcp/api/v1/capabilities/catalog", { cache: "no-store" });
+    if (!response.ok) throw new Error(`mcp capability catalog ${response.status}`);
+    setMcpCapabilityCatalog(await response.json());
+  }
+
+  async function loadMcpRuntimeGuardParity() {
+    const response = await fetch("/api/v1/agents/mcp-runtime-guard-parity", { cache: "no-store" });
+    if (!response.ok) throw new Error(`mcp runtime guard parity ${response.status}`);
+    setMcpRuntimeGuardParity(await response.json());
+  }
+
   async function loadMemoryEmbeddingConsistencyContract() {
     const response = await fetch("/api/v1/memory/embedding-consistency/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`memory embedding consistency contract ${response.status}`);
     setMemoryEmbeddingConsistencyContract(await response.json());
+  }
+
+  async function loadMemoryWorkerHealthContract() {
+    const response = await fetch("/api/v1/memory/worker-health/contract", { cache: "no-store" });
+    if (!response.ok) throw new Error(`memory worker health contract ${response.status}`);
+    setMemoryWorkerHealthContract(await response.json());
   }
 
   async function loadHealth() {
@@ -1897,8 +3514,11 @@ export default function Home() {
     setAgents(payload.agents ?? defaultAgents);
   }
 
-  async function loadAutonomousTeamStatus() {
-    const response = await fetch("/api/v1/team/status", { cache: "no-store" });
+  async function loadAutonomousTeamStatus(dispatchId?: string | null) {
+    const params = new URLSearchParams();
+    if (dispatchId) params.set("dispatch_id", dispatchId);
+    const url = params.toString() ? `/api/v1/team/status?${params.toString()}` : "/api/v1/team/status";
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`autonomous team ${response.status}`);
     setAutonomousTeam(await response.json());
   }
@@ -1931,6 +3551,147 @@ export default function Home() {
     const response = await fetch("/api/v1/team/roster/contract", { cache: "no-store" });
     if (!response.ok) throw new Error(`autonomous agent roster contract ${response.status}`);
     setAutonomousAgentRosterContract(await response.json());
+  }
+
+  async function dispatchAutonomousTeam(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const objective = autonomousDispatchObjective.trim();
+    if (!objective) {
+      setError("autonomous team dispatch guard: objective is required");
+      return;
+    }
+    setAutonomousDispatchStatus("dispatching");
+    setError(null);
+    try {
+      const response = await fetch("/api/v1/task/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          project_id: projectId,
+          objective,
+          write_scope: autonomousDispatchContract?.defaults?.write_scope ?? [
+            "apps/frontend",
+            "services/agent-api",
+            "scripts",
+          ],
+          acceptance_criteria: autonomousDispatchContract?.defaults?.acceptance_criteria ?? [
+            "result_envelope",
+            "done_validation",
+            "audit_log",
+            "runtime_visibility",
+          ],
+          constraints: [
+            ...(autonomousDispatchContract?.defaults?.constraints ?? []),
+            "no production deployment",
+            "no live provider calls",
+            "no live MCP writes",
+          ],
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`autonomous dispatch ${response.status}: ${body}`);
+      }
+      const payload = (await response.json()) as AutonomousTaskDispatchResponse;
+      setAutonomousDispatchResponse(payload);
+      setAutonomousDispatchStatus(`dispatched ${payload.assignments?.length ?? 0}`);
+      await Promise.all([
+        loadAutonomousTeamStatus(payload.dispatch_id),
+        loadAgents(),
+        loadAgentActivityEvents(),
+        loadRecentSessions(),
+      ]);
+    } catch (caught) {
+      setAutonomousDispatchStatus("error");
+      setError(caught instanceof Error ? caught.message : "autonomous team dispatch failed");
+    }
+  }
+
+  async function loadLiveAgents() {
+    const [contractResponse, statusResponse] = await Promise.all([
+      fetch("/api/v1/live-agents/contract", { cache: "no-store" }),
+      fetch("/api/v1/live-agents/status", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`live agent contract ${contractResponse.status}`);
+    if (!statusResponse.ok) throw new Error(`live agent status ${statusResponse.status}`);
+    const contractPayload = (await contractResponse.json()) as LiveAgentContract;
+    const statusPayload = (await statusResponse.json()) as LiveAgentStatus;
+    setLiveAgentContract(contractPayload);
+    setLiveAgentStatus(statusPayload);
+    const nextAgents = statusPayload.agents?.length ? statusPayload.agents : contractPayload.agents ?? [];
+    if (nextAgents.length && !nextAgents.some((agent) => agent.agent_id === liveAgentId)) {
+      setLiveAgentId(nextAgents[0].agent_id);
+    }
+  }
+
+  async function loadLiveAgentHistory(nextAgentId = liveAgentId, nextProjectId = projectId) {
+    setLiveAgentHistoryStatus("loading");
+    const params = new URLSearchParams({ limit: "8" });
+    if (nextAgentId.trim()) params.set("agent_id", nextAgentId.trim());
+    if (nextProjectId.trim()) params.set("project_id", nextProjectId.trim());
+    const response = await fetch(`/api/v1/live-agents/history?${params.toString()}`, { cache: "no-store" });
+    if (!response.ok) throw new Error(`live agent history ${response.status}`);
+    const payload = (await response.json()) as LiveAgentHistory;
+    setLiveAgentHistory(payload);
+    setLiveAgentHistoryStatus(`loaded ${payload.history_count}`);
+  }
+
+  async function steerLiveAgent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = liveAgentMessage.trim();
+    if (!message) {
+      setError("live agent steering guard: message is required");
+      return;
+    }
+    setLiveAgentSendStatus("sending");
+    setError(null);
+    try {
+      const response = await fetch("/api/v1/live-agents/steer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentId: liveAgentId,
+          projectId,
+          message,
+          metadata: {
+            source: "frontend_live_agent_control",
+            ui_evidence_ref: "live_agent_steering_ui_visible",
+          },
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`live agent steer ${response.status}: ${body}`);
+      }
+      const payload = (await response.json()) as LiveAgentSteerResponse;
+      setLiveAgentResponse(payload);
+      setLiveAgentMessage("");
+      setLiveAgentSendStatus("sent");
+      await Promise.all([loadLiveAgents(), loadLiveAgentHistory(payload.agent_id, payload.project_id)]);
+    } catch (caught) {
+      setLiveAgentSendStatus("error");
+      setError(caught instanceof Error ? caught.message : "live agent steer failed");
+    }
+  }
+
+  async function resetLiveAgentSession() {
+    setLiveAgentSendStatus("resetting");
+    setError(null);
+    try {
+      const response = await fetch(`/api/v1/live-agents/${encodeURIComponent(liveAgentId)}/reset`, {
+        method: "POST",
+      });
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`live agent reset ${response.status}: ${body}`);
+      }
+      setLiveAgentResponse(null);
+      setLiveAgentSendStatus("reset");
+      await Promise.all([loadLiveAgents(), loadLiveAgentHistory(liveAgentId, projectId)]);
+    } catch (caught) {
+      setLiveAgentSendStatus("error");
+      setError(caught instanceof Error ? caught.message : "live agent reset failed");
+    }
   }
 
   async function loadRecentSessions() {
@@ -1966,10 +3727,99 @@ export default function Home() {
   }
 
   async function loadMcpAuditEvents() {
-    const response = await fetch("/api/v1/audit/mcp?limit=8", { cache: "no-store" });
+    const [response, snapshotResponse, exportResponse] = await Promise.all([
+      fetch("/api/v1/audit/mcp?limit=8", { cache: "no-store" }),
+      fetch("/api/v1/audit/mcp/snapshot?limit=50", { cache: "no-store" }),
+      fetch("/api/v1/audit/mcp/export/contract", { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error(`mcp audit ${response.status}`);
+    if (!snapshotResponse.ok) throw new Error(`mcp audit snapshot ${snapshotResponse.status}`);
     const payload = await response.json();
+    const snapshot = (await snapshotResponse.json()) as McpAuditSnapshot;
     setMcpAuditEvents(payload.events ?? []);
+    setMcpAuditSnapshot(snapshot);
+    if (exportResponse.ok) {
+      setMcpAuditExportContract(await exportResponse.json());
+    }
+  }
+
+  async function loadLlmAuditFeed() {
+    const [contractResponse, feedResponse, snapshotResponse, exportResponse] = await Promise.all([
+      fetch("/api/v1/audit/llm/contract", { cache: "no-store" }),
+      fetch("/api/v1/audit/llm?limit=8", { cache: "no-store" }),
+      fetch("/api/v1/audit/llm/snapshot?limit=50", { cache: "no-store" }),
+      fetch("/api/v1/audit/llm/export/contract", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`llm audit contract ${contractResponse.status}`);
+    if (!feedResponse.ok) throw new Error(`llm audit feed ${feedResponse.status}`);
+    if (!snapshotResponse.ok) throw new Error(`llm audit snapshot ${snapshotResponse.status}`);
+    setLlmAuditFeedContract(await contractResponse.json());
+    const payload = await feedResponse.json();
+    setLlmAuditEvents(payload.events ?? []);
+    setLlmAuditSnapshot(await snapshotResponse.json());
+    if (exportResponse.ok) {
+      setLlmAuditExportContract(await exportResponse.json());
+    }
+  }
+
+  async function loadGatewayCorrelationSnapshot() {
+    const response = await fetch("/api/v1/security/gateway-correlation/snapshot?limit=80", {
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error(`gateway correlation snapshot ${response.status}`);
+    setGatewayCorrelationSnapshot(await response.json());
+
+    const riskResponse = await fetch("/api/v1/security/gateway-correlation/risk-rollup?limit=80", {
+      cache: "no-store",
+    });
+    if (riskResponse.ok) {
+      setGatewayCorrelationRiskRollup(await riskResponse.json());
+    }
+
+    const timelineResponse = await fetch("/api/v1/security/gateway-correlation/timeline?limit=80", {
+      cache: "no-store",
+    });
+    if (timelineResponse.ok) {
+      setGatewayCorrelationTimeline(await timelineResponse.json());
+    }
+
+    const exportResponse = await fetch("/api/v1/security/gateway-correlation/export/contract", {
+      cache: "no-store",
+    });
+    if (exportResponse.ok) {
+      setGatewayCorrelationExportContract(await exportResponse.json());
+    }
+  }
+
+  async function loadSecurityAuditSurface() {
+    const [contractResponse, feedResponse] = await Promise.all([
+      fetch("/api/v1/security/events/contract", { cache: "no-store" }),
+      fetch("/api/v1/security/events?limit=8", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`security audit contract ${contractResponse.status}`);
+    if (!feedResponse.ok) throw new Error(`security audit feed ${feedResponse.status}`);
+    setSecurityAuditSurfaceContract(await contractResponse.json());
+    const payload = await feedResponse.json();
+    setSecurityAuditEvents(payload.events ?? []);
+  }
+
+  async function loadSecurityReviewQueue() {
+    const [contractResponse, queueResponse, gateResponse, exportResponse] = await Promise.all([
+      fetch("/api/v1/security/review-queue/contract", { cache: "no-store" }),
+      fetch("/api/v1/security/review-queue?limit=8", { cache: "no-store" }),
+      fetch("/api/v1/security/review-queue/gate?limit=50", { cache: "no-store" }),
+      fetch("/api/v1/security/review-queue/export/contract", { cache: "no-store" }),
+    ]);
+    if (!contractResponse.ok) throw new Error(`security review contract ${contractResponse.status}`);
+    if (!queueResponse.ok) throw new Error(`security review queue ${queueResponse.status}`);
+    if (!gateResponse.ok) throw new Error(`security review gate ${gateResponse.status}`);
+    setSecurityReviewQueueContract(await contractResponse.json());
+    const payload = await queueResponse.json();
+    setSecurityReviewQueueItems(payload.items ?? []);
+    setSecurityReviewGate(await gateResponse.json());
+    if (exportResponse.ok) {
+      setSecurityReviewExportContract(await exportResponse.json());
+    }
   }
 
   async function loadMemoryConsolidationEvents() {
@@ -2014,7 +3864,16 @@ export default function Home() {
   }
 
   async function loadLlmGateway() {
-    const [healthResponse, routingResponse, providerResponse, streamingResponse, policyResponse] = await Promise.all([
+    const [
+      healthResponse,
+      routingResponse,
+      providerResponse,
+      providerReadinessResponse,
+      streamingResponse,
+      policyResponse,
+      runtimeGuardResponse,
+      modelCatalogResponse,
+    ] = await Promise.all([
       fetch("/llm/api/v1/health", { cache: "no-store" }),
       fetch("/llm/api/v1/routing/resolve", {
         method: "POST",
@@ -2027,25 +3886,37 @@ export default function Home() {
         }),
       }),
       fetch("/llm/api/v1/providers/status", { cache: "no-store" }),
+      fetch("/llm/api/v1/providers/readiness/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/streaming/contract", { cache: "no-store" }),
       fetch("/llm/api/v1/routing/policy/contract", { cache: "no-store" }),
+      fetch("/llm/api/v1/runtime/guard-parity", { cache: "no-store" }),
+      fetch("/llm/api/v1/models/catalog", { cache: "no-store" }),
     ]);
     if (!healthResponse.ok) throw new Error(`llm gateway ${healthResponse.status}`);
     if (!routingResponse.ok) throw new Error(`llm routing ${routingResponse.status}`);
     if (!providerResponse.ok) throw new Error(`llm providers ${providerResponse.status}`);
+    if (!providerReadinessResponse.ok) throw new Error(`llm provider readiness ${providerReadinessResponse.status}`);
     if (!streamingResponse.ok) throw new Error(`llm streaming ${streamingResponse.status}`);
     if (!policyResponse.ok) throw new Error(`llm routing policy ${policyResponse.status}`);
+    if (!runtimeGuardResponse.ok) throw new Error(`llm runtime guard parity ${runtimeGuardResponse.status}`);
+    if (!modelCatalogResponse.ok) throw new Error(`llm model catalog ${modelCatalogResponse.status}`);
     const health = (await healthResponse.json()) as LlmGatewayState;
     const routing = (await routingResponse.json()) as LlmRoutingResolution;
     const providerSnapshot = (await providerResponse.json()) as LlmProviderSnapshot;
+    const providerReadinessContract = (await providerReadinessResponse.json()) as LlmProviderReadinessContract;
     const streamingContract = (await streamingResponse.json()) as LlmStreamingContract;
     const routingPolicyContract = (await policyResponse.json()) as LlmRoutingPolicyContract;
+    const runtimeGuardParity = (await runtimeGuardResponse.json()) as LlmRuntimeGuardParity;
+    const modelCatalog = (await modelCatalogResponse.json()) as LlmModelCatalog;
     setLlmGateway({
       ...health,
       routing_resolution: routing,
       provider_snapshot: providerSnapshot,
+      provider_readiness_contract: providerReadinessContract,
       streaming_contract: streamingContract,
       routing_policy_contract: routingPolicyContract,
+      runtime_guard_parity: runtimeGuardParity,
+      model_catalog: modelCatalog,
     });
   }
 
@@ -2122,10 +3993,13 @@ export default function Home() {
       setError(`prompt input guard: prompt must be between ${minPromptChars} and ${maxPromptChars} characters`);
       return;
     }
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
     try {
       const response = await fetch("/api/v1/prompt", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({ project_id: projectId, prompt, stream: true }),
       });
       if (!response.ok) {
@@ -2135,12 +4009,13 @@ export default function Home() {
       const payload: PromptResponse = await response.json();
       setLastRun(payload);
       setStatus("streaming");
-      await streamRun(payload.stream_url);
+      await streamRun(payload.stream_url, controller.signal);
       await Promise.all([
         loadBudget(),
         loadCosts(),
         loadCostExportContract(),
         loadAgentActivityContract(),
+        loadLangfuseTraceAccess(),
         loadAgentActivityEvents(),
         loadInfraBudget(),
         loadCloudDeploymentPreflight(),
@@ -2151,6 +4026,9 @@ export default function Home() {
         loadPromptContract(),
         loadErrorResponseContract(),
         loadSecurityHeadersContract(),
+        loadCspReportContract(),
+        loadSecurityAuditSurface(),
+        loadSecurityReviewQueue(),
         loadTraceIdContract(),
         loadCacheControlContract(),
         loadRequestIdContract(),
@@ -2168,7 +4046,10 @@ export default function Home() {
         loadPlaywrightBrowserProofContract(),
         loadE2bSandboxLifecycleContract(),
         loadMcpVersionPinningContract(),
+        loadMcpCapabilityCatalog(),
+        loadMcpRuntimeGuardParity(),
         loadMemoryEmbeddingConsistencyContract(),
+        loadMemoryWorkerHealthContract(),
         loadHealth(),
         loadSystemFallbackContract(),
         loadAgents(),
@@ -2179,6 +4060,7 @@ export default function Home() {
         loadAutonomousAgentRoster(),
         loadAutonomousAgentRosterContract(),
         loadRecentTasks(),
+        loadLiveAgentHistory(liveAgentId, projectId),
         loadTaskPolicy(),
         loadRotationEvents(),
         loadModelCapabilities(),
@@ -2191,6 +4073,10 @@ export default function Home() {
         loadRecentSessions(),
         loadAuditEvents(),
         loadMcpAuditEvents(),
+        loadLlmAuditFeed(),
+        loadGatewayCorrelationSnapshot(),
+        loadSecurityAuditSurface(),
+        loadSecurityReviewQueue(),
         loadMemoryConsolidationEvents(),
         loadEscalations(),
         runMemorySearch(prompt.split(" ").slice(-2).join(" ")),
@@ -2198,13 +4084,20 @@ export default function Home() {
       setSearch(prompt.split(" ").slice(-2).join(" "));
       setStatus("ready");
     } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        setStatus("stopped");
+        setEvents((current) => [...current.slice(-10), "event: operator_stop_requested"]);
+        return;
+      }
       setStatus("error");
       setError(caught instanceof Error ? caught.message : "unknown error");
+    } finally {
+      if (streamAbortRef.current === controller) streamAbortRef.current = null;
     }
   }
 
-  async function streamRun(url: string) {
-    const response = await fetch(url, { cache: "no-store" });
+  async function streamRun(url: string, signal?: AbortSignal) {
+    const response = await fetch(url, { cache: "no-store", signal });
     if (!response.ok || !response.body) throw new Error(`stream ${response.status}`);
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -2323,6 +4216,7 @@ export default function Home() {
       loadAutonomousTeamStatus,
       loadAutonomousMasterPlan,
       loadAutonomousAgentRoster,
+      loadLiveAgents,
       loadRecentTasks,
       loadProjectProgress,
       loadProjectProgressIntegrity,
@@ -2334,6 +4228,7 @@ export default function Home() {
     const backgroundLoads: Array<() => Promise<unknown>> = [
       loadCostExportContract,
       loadAgentActivityContract,
+      loadLangfuseTraceAccess,
       loadAgentActivityEvents,
       loadInfraBudget,
       loadClouds,
@@ -2347,6 +4242,9 @@ export default function Home() {
       loadPromptContract,
       loadErrorResponseContract,
       loadSecurityHeadersContract,
+      loadCspReportContract,
+      loadSecurityAuditSurface,
+      loadSecurityReviewQueue,
       loadTraceIdContract,
       loadCacheControlContract,
       loadRequestIdContract,
@@ -2355,7 +4253,9 @@ export default function Home() {
       loadAutonomousDispatchContract,
       loadAutonomousMasterPlanContract,
       loadAutonomousAgentRosterContract,
+      loadLiveAgents,
       loadAgentLlmStreamingContract,
+      loadAgentSkillModeContract,
       loadExternalGates,
       loadExternalGateMirror,
       loadAuthContract,
@@ -2367,13 +4267,20 @@ export default function Home() {
       loadPlaywrightBrowserProofContract,
       loadE2bSandboxLifecycleContract,
       loadMcpVersionPinningContract,
+      loadMcpCapabilityCatalog,
+      loadMcpRuntimeGuardParity,
       loadMemoryEmbeddingConsistencyContract,
+      loadMemoryWorkerHealthContract,
       loadTaskPolicy,
       loadRotationEvents,
       loadModelCapabilities,
       loadLlmGateway,
       loadAuditEvents,
       loadMcpAuditEvents,
+      loadLlmAuditFeed,
+      loadGatewayCorrelationSnapshot,
+      loadSecurityAuditSurface,
+      loadSecurityReviewQueue,
       loadMemoryConsolidationEvents,
       loadEscalations,
     ];
@@ -2383,6 +4290,7 @@ export default function Home() {
       loadAutonomousTeamStatus,
       loadAutonomousMasterPlan,
       loadAutonomousAgentRoster,
+      loadLiveAgents,
       loadRecentTasks,
       loadRecentSessions,
       loadProjectProgress,
@@ -2396,6 +4304,10 @@ export default function Home() {
     const activityLoads: Array<() => Promise<unknown>> = [
       loadAuditEvents,
       loadMcpAuditEvents,
+      loadLlmAuditFeed,
+      loadGatewayCorrelationSnapshot,
+      loadSecurityAuditSurface,
+      loadLangfuseTraceAccess,
       loadMemoryConsolidationEvents,
       loadEscalations,
       loadAgentActivityEvents,
@@ -2433,6 +4345,7 @@ export default function Home() {
       window.clearInterval(liveTimer);
       window.clearInterval(activityTimer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const degradedServices = health
@@ -2457,6 +4370,7 @@ export default function Home() {
       "X-Frame-Options": "DENY",
       "Referrer-Policy": "no-referrer",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+      "Content-Security-Policy": "default-src 'self'; report-uri /api/v1/security/csp/report",
     },
   );
   const securityHeaderEvidenceRefs = securityHeadersContract?.evidence_refs ?? {
@@ -2464,7 +4378,36 @@ export default function Home() {
     headers_enforced: "security_headers_enforced",
     same_origin_cors_policy: "security_headers_same_origin_policy",
     ui_visible: "security_headers_ui_visible",
+    csp_report_visible: "csp_report_contract_visible",
   };
+  const cspSanitizedFields = stringList(cspReportContract?.sanitized_fields);
+  const cspPolicyChecks = stringList(cspReportContract?.policy_checks);
+  const cspNonClaims = stringList(cspReportContract?.non_claims);
+  const securityAuditEvidenceRefs = securityAuditSurfaceContract?.evidence_refs ?? {
+    surface_visible: "security_audit_surface_visible",
+    event_visible: "security_audit_event_visible",
+    csp_audit_persisted: "csp_report_audit_persisted",
+    mcp_deny_correlation: "mcp_denied_tool_audit_correlation",
+    llm_audit_event: "llm_audit_feed_event_visible",
+  };
+  const securityAuditEventTypes = stringList(securityAuditSurfaceContract?.supported_event_types);
+  const securityAuditPolicyChecks = stringList(securityAuditSurfaceContract?.policy_checks);
+  const securityAuditNonClaims = stringList(securityAuditSurfaceContract?.non_claims);
+  const securityReviewEvidenceRefs = securityReviewQueueContract?.evidence_refs ?? {
+    queue_visible: "security_review_queue_visible",
+    item_visible: "security_review_item_visible",
+    redaction_enforced: "security_review_redaction_enforced",
+    mutation_blocked: "security_review_mutation_blocked",
+    filter_state: "security_review_filter_state_visible",
+    decision_history: "security_review_decision_history_visible",
+    evidence_snapshot: "security_review_evidence_snapshot_visible",
+    gate_summary: "security_review_gate_summary_visible",
+    export_visible: "security_review_queue_export_visible",
+    export_audit_persisted: "security_review_queue_export_audit_persisted",
+    source_security_surface: "security_audit_surface_visible",
+  };
+  const securityReviewPolicyChecks = stringList(securityReviewQueueContract?.policy_checks);
+  const securityReviewNonClaims = stringList(securityReviewQueueContract?.non_claims);
   const traceIdEvidenceRefs = traceIdContract?.evidence_refs ?? {
     contract_visible: "trace_id_contract_visible",
     header_roundtrip: "trace_id_header_roundtrip",
@@ -2534,6 +4477,30 @@ export default function Home() {
   const mcpDriftPolicy = stringList(mcpVersionPinningContract?.drift_policy);
   const mcpEvidenceRefs = stringList(mcpVersionPinningContract?.evidence_refs);
   const mcpNonClaims = stringList(mcpVersionPinningContract?.non_claims);
+  const mcpCatalogToolsets = Array.isArray(mcpCapabilityCatalog?.toolsets) ? mcpCapabilityCatalog.toolsets : [];
+  const mcpCatalogGuards = recordValue(mcpCapabilityCatalog?.guards) ?? {};
+  const mcpCatalogNonClaims = stringList(mcpCapabilityCatalog?.non_claims);
+  const mcpRuntimeGuardEvidenceRefs = stringList(mcpRuntimeGuardParity?.evidence_refs);
+  const mcpRuntimeGuardMatrix = Array.isArray(mcpRuntimeGuardParity?.gateway_snapshot?.guard_matrix)
+    ? mcpRuntimeGuardParity.gateway_snapshot.guard_matrix
+    : [];
+  const mcpRuntimeExecutorFields = Array.isArray(mcpRuntimeGuardParity?.required_agent_executor_fields)
+    ? mcpRuntimeGuardParity.required_agent_executor_fields
+    : [];
+  const mcpRuntimeNonClaims = stringList(mcpRuntimeGuardParity?.non_claims);
+  const agentSkillModeCounts = agentSkillModeContract?.declared_codex_surfaces ?? {
+    plugins: 11,
+    apps: 4,
+    mcp_servers: 1,
+    skills: 140,
+  };
+  const agentSkillModeGuards = stringList(agentSkillModeContract?.required_guard_flags);
+  const agentSkillModeLayerBindings = Array.isArray(agentSkillModeContract?.layer_bindings)
+    ? agentSkillModeContract.layer_bindings
+    : [];
+  const agentSkillModeGroups = Array.isArray(agentSkillModeContract?.skill_group_bindings)
+    ? agentSkillModeContract.skill_group_bindings
+    : [];
   const memoryCurrentEmbedding = memoryEmbeddingConsistencyContract?.current_embedding;
   const memorySchema = memoryEmbeddingConsistencyContract?.schema;
   const memoryReadPolicy = recordValue(memoryEmbeddingConsistencyContract?.read_policy);
@@ -2545,40 +4512,410 @@ export default function Home() {
   const memoryRequiredSteps = stringList(memoryReembeddingPolicy?.required_steps);
   const memoryEvidenceRefs = stringList(memoryEmbeddingConsistencyContract?.evidence_refs);
   const memoryNonClaims = stringList(memoryEmbeddingConsistencyContract?.non_claims);
+  const memoryWorkerHealthSnapshot =
+    memoryWorkerHealthContract?.runtime_snapshot ?? health?.services?.memory_worker ?? null;
+  const memoryWorkerHealthNonClaims = stringList(memoryWorkerHealthContract?.non_claims);
+  const memoryWorkerHealthChecks = stringList(memoryWorkerHealthContract?.policy_checks);
+
+  const forgeAgentSlots = agents.length ? agents : defaultAgents;
+  const forgeModelRoutes = llmGateway?.model_catalog?.routes?.length
+    ? llmGateway.model_catalog.routes.slice(0, 4)
+    : (modelCapabilities?.routes ?? []).slice(0, 4).map((route) => ({
+        agent_type: route.agent_type,
+        primary: route.primary,
+        fallbacks: route.fallbacks,
+        models: [route.primary, ...route.fallbacks],
+        provider_chain: [],
+        model_families: [],
+        max_output_tokens: route.max_output_tokens,
+        supports_streaming: route.supports_streaming,
+        configured_only: route.configured_only,
+        open_source_first: true,
+        api_inference_only: true,
+        model_downloads: false,
+      }));
+  const forgeToolCards = mcpCatalogToolsets.length
+    ? mcpCatalogToolsets
+    : [
+        {
+          toolset: "github",
+          mode: "dry_run",
+          supported_capabilities: ["plan_branch_pr"],
+          blocked_capability_examples: ["push", "merge"],
+          contract_version: "github-branch-pr-plan-v1",
+          contract_endpoint: "GET /mcp/api/v1/github/branch-pr/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+        {
+          toolset: "postgresql",
+          mode: "readonly",
+          supported_capabilities: ["query_readonly"],
+          blocked_capability_examples: ["insert", "update", "delete"],
+          contract_version: "postgresql-readonly-query-v1",
+          contract_endpoint: "GET /mcp/api/v1/postgresql/readonly-query/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+        {
+          toolset: "filesystem",
+          mode: "workspace_scope_plan",
+          supported_capabilities: ["plan_workspace_access"],
+          blocked_capability_examples: ["host_root_access"],
+          contract_version: "filesystem-workspace-scope-v1",
+          contract_endpoint: "GET /mcp/api/v1/filesystem/workspace-scope/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+        {
+          toolset: "playwright",
+          mode: "browser_proof_plan",
+          supported_capabilities: ["plan_browser_proof"],
+          blocked_capability_examples: ["external_browser_mutation"],
+          contract_version: "playwright-browser-proof-v1",
+          contract_endpoint: "GET /mcp/api/v1/playwright/browser-proof/contract",
+          live_mutation: false,
+          live_mcp_writes: false,
+          requires_audit: true,
+          requires_timeout: true,
+          unsupported_capability_guard: "mcp_unsupported_capability_guard",
+        },
+      ];
+  const activeWorkbenchModule =
+    workbenchModules.find((module) => module.id === activeModuleId) ?? workbenchModules[0];
+  const activeAgentMode =
+    agentRunModes.find((mode) => mode.id === selectedAgentMode) ?? agentRunModes[0];
+  const selectedModelRoute =
+    selectedRouteKey === "auto"
+      ? forgeModelRoutes[0] ?? null
+      : forgeModelRoutes.find((route) => route.agent_type === selectedRouteKey) ?? forgeModelRoutes[0] ?? null;
+  const selectedMcpToolset =
+    selectedToolsetKey === "auto"
+      ? forgeToolCards[0] ?? null
+      : forgeToolCards.find((toolset) => toolset.toolset === selectedToolsetKey) ?? forgeToolCards[0] ?? null;
+  const commandMatches = workbenchModules
+    .filter((module) => {
+      const query = commandQuery.trim().toLowerCase();
+      if (!query) return true;
+      return `${module.label} ${module.description} ${module.capabilities.join(" ")}`
+        .toLowerCase()
+        .includes(query);
+    })
+    .slice(0, 5);
+  const workbenchStats = [
+    { label: "Project", value: projectProgress ? `${projectProgress.overall_percent}%` : "loading" },
+    { label: "Agents", value: `${forgeAgentSlots.length} visible` },
+    { label: "Models", value: `${forgeModelRoutes.length || modelCapabilities?.routes?.length || 0} routes` },
+    { label: "MCP", value: `${forgeToolCards.length} guarded` },
+  ];
+  const activeLaunchPacks = [
+    ...workbenchLaunchPacks.filter((pack) => pack.module === activeModuleId),
+    ...workbenchLaunchPacks.filter((pack) => pack.module !== activeModuleId),
+  ];
+  const selectedLaunchPack =
+    workbenchLaunchPacks.find((pack) => pack.id === selectedLaunchPackId) ?? activeLaunchPacks[0] ?? null;
+  const recentRunCount = recentSessions.length + phase2RuntimeRuns.length;
+  const selectedRouteLabel = selectedModelRoute
+    ? `${selectedModelRoute.agent_type}: ${selectedModelRoute.primary}`
+    : "Auto route";
+  const selectedToolsetLabel = selectedMcpToolset
+    ? `${selectedMcpToolset.toolset} / ${selectedMcpToolset.supported_capabilities[0] ?? "guarded"}`
+    : "Auto MCP scope";
+  const workbenchSystemProof = [
+    { label: "Runtime", value: "api_only" },
+    {
+      label: "Models",
+      value: mcpRuntimeGuardParity?.model_downloads ? "model_downloads=true" : "model_downloads=false",
+    },
+    {
+      label: "MCP",
+      value: mcpRuntimeGuardParity?.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false",
+    },
+    { label: "Release", value: "production_rollout_claimed=false" },
+    { label: "Contract", value: mcpRuntimeGuardParity?.contract_version ?? "mcp-runtime-guard-parity-v1" },
+  ];
+  const workbenchSquadSlots = [
+    { role: "Supervisor", lane: "Gatekeeping", state: "active" },
+    { role: "Planner", lane: "Architecture", state: activeAgentMode.id === "single" ? "standby" : "armed" },
+    { role: "Coder", lane: "Implementation", state: "ready" },
+    { role: "Tester", lane: "Verification", state: "ready" },
+    { role: "DevOps", lane: "Runtime", state: activeModuleId === "settings" ? "active" : "gated" },
+  ];
+  const clearWorkbenchHash = () => {
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    }
+  };
 
   return (
-    <main className="shell">
-      <section className="workspace">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Phase 1 Runtime</p>
-            <h1>Cloud Superbrain</h1>
+    <main className="shell scanline">
+      <div className="forgeChrome">
+        <aside className="forgeSidebar workbenchSidebar" aria-label="Superbrain workbench navigation">
+          <div className="forgeBrand">
+            <span className="forgeBrandIcon">#</span>
+            <div>
+              <strong>Cloud Superbrain</strong>
+              <small>Developer Workbench</small>
+            </div>
           </div>
-          <div className={`budget budget-${budget?.level ?? "loading"}`}>{budgetLabel}</div>
+          <label className="workbenchCommandSearch">
+            <span>Command Palette</span>
+            <input
+              value={commandQuery}
+              onChange={(event) => setCommandQuery(event.target.value)}
+              onFocus={(event) => event.currentTarget.select()}
+              placeholder="Search modules, agents, tools..."
+            />
+          </label>
+          <nav className="workbenchModuleNav" aria-label="Workbench modules">
+            {workbenchModules.map((module) => (
+              <button
+                type="button"
+                className={module.id === activeModuleId ? "workbenchModuleButton workbenchModuleButton-active" : "workbenchModuleButton"}
+                aria-pressed={module.id === activeModuleId}
+                onClick={() => {
+                  setActiveModuleId(module.id);
+                  setActiveWorkbenchTab("overview");
+                  clearWorkbenchHash();
+                }}
+                key={module.id}
+              >
+                <span>{module.glyph}</span>
+                <strong>{module.label}</strong>
+                <small>{module.scope}</small>
+              </button>
+            ))}
+          </nav>
+          <div className="forgeSidebarSection">
+            <div className="forgeSidebarHeader">
+              <span>Active Agents</span>
+              <a href="#agent-status">Roster</a>
+            </div>
+            <div className="forgeAgentList">
+              {forgeAgentSlots.slice(0, 4).map((agent) => (
+                <a className="forgeAgentButton" href="#agent-status" key={agent.type}>
+                  <span className={`forgeAgentDot forgeAgentDot-${agent.status ?? "idle"}`} />
+                  <span>{agent.type}</span>
+                  <small>{agent.status}</small>
+                </a>
+              ))}
+            </div>
+          </div>
+          <div className="forgeSidebarFooter">
+            <span>System Ready</span>
+            <strong>{budgetLabel}</strong>
+          </div>
+        </aside>
+
+      <section className="workspace forgeWorkspace">
+        <header className="topbar workbenchTopbar">
+          <div>
+            <p className="eyebrow">Superbrain Developer Platform</p>
+            <h1>{activeWorkbenchModule.label} Workbench</h1>
+            <p className="workbenchTopline">{activeWorkbenchModule.description}</p>
+          </div>
+          <div className="workbenchTopActions">
+            <a href="#diagnostics-surface">Diagnostics</a>
+            <a href={activeWorkbenchModule.target}>Open Details</a>
+            <div className={`budget budget-${budget?.level ?? "loading"}`}>{budgetLabel}</div>
+          </div>
         </header>
 
-        <form className="promptPanel" onSubmit={startRun} aria-label="Prompt workspace">
-          <label>
-            <span>Project</span>
-            <input value={projectId} onChange={(event) => setProjectId(event.target.value)} />
-          </label>
-          <label>
-            <span>Prompt</span>
-            <textarea
-              value={prompt}
-              maxLength={promptContract?.max_prompt_chars ?? 10_000}
-              onChange={(event) => setPrompt(event.target.value)}
-            />
-            <small>
-              Prompt Input Guard · {prompt.length}/{promptContract?.max_prompt_chars ?? 10_000} ·{" "}
-              {promptContract?.evidence_refs?.contract_visible ?? "prompt_input_contract_visible"} /{" "}
-              {promptContract?.evidence_refs?.frontend_counter_visible ?? "prompt_input_counter_visible"} /{" "}
-              {promptContract?.evidence_refs?.overflow_blocked ?? "prompt_input_422_enforced"}
-            </small>
-          </label>
-          <div className="actions">
+        <form className="promptPanel workbenchComposer" onSubmit={startRun} aria-label="Prompt workspace">
+          <div className="workbenchComposerHeader">
+            <div>
+              <span>{activeWorkbenchModule.primary}</span>
+              <strong>{selectedLaunchPack ? `${selectedLaunchPack.label} / ${activeWorkbenchModule.scope}` : activeWorkbenchModule.scope}</strong>
+            </div>
+            <div className="workbenchStatusPills" aria-label="Workbench status">
+              {workbenchStats.map((item) => (
+                <span key={item.label}>
+                  {item.label}: {item.value}
+                </span>
+              ))}
+            </div>
+          </div>
+          <section className="workbenchSystemProof" aria-label="System Proof">
+            <div className="workbenchSystemProofTitle">
+              <span>System Proof</span>
+              <strong>Fail-closed runtime base</strong>
+            </div>
+            <div className="workbenchSystemProofGrid">
+              {workbenchSystemProof.map((item) => (
+                <a href={item.label === "Contract" ? "#mcp-runtime-guard-surface" : "#diagnostics-surface"} key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </a>
+              ))}
+            </div>
+          </section>
+          <section className="workbenchSquadStrip" aria-label="Squad Mode">
+            <div className="workbenchSquadHeader">
+              <span>Squad Mode</span>
+              <strong>{activeAgentMode.label}</strong>
+            </div>
+            <div className="workbenchSquadGrid">
+              {workbenchSquadSlots.map((slot) => (
+                <article key={slot.role}>
+                  <span>{slot.role}</span>
+                  <strong>{slot.lane}</strong>
+                  <small>{slot.state}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="workbenchCapabilityBridge" aria-label="Agent Skill Mode">
+            <div className="workbenchCapabilityBridgeHeader">
+              <span>Agent Skill Mode</span>
+              <strong>{agentSkillModeContract?.contract_version ?? "agent-skill-mode-capability-contract-v1"}</strong>
+              <small>{agentSkillModeContract?.evidence_ref ?? "agent_skill_mode_capability_visible"}</small>
+            </div>
+            <div className="workbenchCapabilityBridgeGrid">
+              <a href="#agent-skill-mode-surface">
+                <span>Plugins</span>
+                <strong>Plugins {agentSkillModeCounts.plugins}</strong>
+              </a>
+              <a href="#agent-skill-mode-surface">
+                <span>Apps</span>
+                <strong>Apps {agentSkillModeCounts.apps}</strong>
+              </a>
+              <a href="#agent-skill-mode-surface">
+                <span>MCPs</span>
+                <strong>MCPs {agentSkillModeCounts.mcp_servers}</strong>
+              </a>
+              <a href="#agent-skill-mode-surface">
+                <span>Skills</span>
+                <strong>Skills {agentSkillModeCounts.skills}</strong>
+              </a>
+            </div>
+            <p className="workbenchCapabilityBridgeGuards">
+              agent_skill_mode_no_live_external_calls / agent_skill_mode_no_secret_material /
+              agent_skill_mode_no_local_model_downloads
+            </p>
+          </section>
+          <div className="workbenchComposerBody">
+            <label className="workbenchProjectField">
+              <span>Project</span>
+              <input
+                value={projectId}
+                onChange={(event) => setProjectId(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
+              />
+            </label>
+            <label className="workbenchPromptField">
+              <span>Prompt</span>
+              <textarea
+                value={prompt}
+                maxLength={promptContract?.max_prompt_chars ?? 10_000}
+                onChange={(event) => setPrompt(event.target.value)}
+                onFocus={(event) => event.currentTarget.select()}
+              />
+              <small>
+                Prompt Input Guard · {prompt.length}/{promptContract?.max_prompt_chars ?? 10_000} ·{" "}
+                {promptContract?.evidence_refs?.contract_visible ?? "prompt_input_contract_visible"} /{" "}
+                {promptContract?.evidence_refs?.frontend_counter_visible ?? "prompt_input_counter_visible"} /{" "}
+                {promptContract?.evidence_refs?.overflow_blocked ?? "prompt_input_422_enforced"}
+              </small>
+            </label>
+          </div>
+          <div className="workbenchControlGrid">
+            <label>
+              <span>Mode</span>
+              <select value={activeWorkbenchTab} onChange={(event) => setActiveWorkbenchTab(event.target.value as WorkbenchTabId)}>
+                {workbenchTabs.map((tab) => (
+                  <option value={tab.id} key={tab.id}>
+                    {tab.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Agent Team</span>
+              <select value={selectedAgentMode} onChange={(event) => setSelectedAgentMode(event.target.value)}>
+                {agentRunModes.map((mode) => (
+                  <option value={mode.id} key={mode.id}>
+                    {mode.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Model Route</span>
+              <select value={selectedRouteKey} onChange={(event) => setSelectedRouteKey(event.target.value)}>
+                <option value="auto">Auto route</option>
+                {forgeModelRoutes.map((route) => (
+                  <option value={route.agent_type} key={route.agent_type}>
+                    {route.agent_type}: {route.primary}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>MCP Scope</span>
+              <select value={selectedToolsetKey} onChange={(event) => setSelectedToolsetKey(event.target.value)}>
+                <option value="auto">Auto guarded scope</option>
+                {forgeToolCards.map((toolset) => (
+                  <option value={toolset.toolset} key={toolset.toolset}>
+                    {toolset.toolset}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="workbenchFlowMap" aria-label="Task flow map">
+            <article>
+              <span>Intent</span>
+              <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.label}</strong>
+              <small>{selectedLaunchPack?.description ?? activeWorkbenchModule.description}</small>
+            </article>
+            <article>
+              <span>Agents</span>
+              <strong>{activeAgentMode.label}</strong>
+              <small>{activeAgentMode.detail}</small>
+            </article>
+            <article>
+              <span>Tools</span>
+              <strong>{selectedToolsetLabel}</strong>
+              <small>live_mcp_writes=false</small>
+            </article>
+            <article>
+              <span>Proof</span>
+              <strong>Contracts + Audit</strong>
+              <small>no production rollout claim</small>
+            </article>
+          </div>
+          <div className="actions workbenchActionBar">
             <button type="submit" disabled={status === "starting" || status === "streaming"}>
-              Start
+              Run
+            </button>
+            <button
+              type="button"
+              disabled={status !== "streaming"}
+              onClick={() => {
+                setStatus("stopping");
+                streamAbortRef.current?.abort();
+              }}
+            >
+              Stop
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveModuleId("observability");
+                setActiveWorkbenchTab("audit");
+                clearWorkbenchHash();
+              }}
+            >
+              Review
             </button>
             <button type="button" onClick={() => void loadBudget()}>
               Refresh
@@ -2587,6 +4924,237 @@ export default function Home() {
         </form>
 
         {error ? <p className="error">{error}</p> : null}
+
+        <details className="workbenchInlineInspector" aria-label="Context inspector drawer">
+          <summary>
+            <span>Context Inspector</span>
+            <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.primary}</strong>
+          </summary>
+          <div className="workbenchInlineInspectorGrid">
+            <article>
+              <span>Fast Launch</span>
+              <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.primary}</strong>
+              <p>{selectedLaunchPack?.description ?? "Select a launch pack to configure the prompt and workspace."}</p>
+            </article>
+            <article>
+              <span>Agent Mode</span>
+              <strong>{activeAgentMode.label}</strong>
+              <p>{activeAgentMode.detail}</p>
+            </article>
+            <article>
+              <span>Model Route</span>
+              <strong>{selectedRouteLabel}</strong>
+              <p>model_downloads=false / live_provider_calls=false until Owner gate</p>
+            </article>
+            <article>
+              <span>MCP Scope</span>
+              <strong>{selectedToolsetLabel}</strong>
+              <p>live_mcp_writes=false / gateway guarded</p>
+            </article>
+          </div>
+        </details>
+
+        <section className="workbenchLayerDock" aria-label="7-layer cloud system">
+          {workbenchLayers.map((layer, index) => {
+            const layerProgress = projectProgress?.vertical.items.find((item) =>
+              item.label.toLowerCase().includes(layer.label.toLowerCase().split(" ")[0]),
+            );
+            return (
+              <button
+                type="button"
+                className={layer.module === activeModuleId ? "workbenchLayerButton workbenchLayerButton-active" : "workbenchLayerButton"}
+                aria-pressed={layer.module === activeModuleId}
+                onClick={() => {
+                  setActiveModuleId(layer.module);
+                  setActiveWorkbenchTab("overview");
+                  clearWorkbenchHash();
+                }}
+                key={layer.label}
+              >
+                <span>L{index + 1}</span>
+                <strong>{layer.label}</strong>
+                <small>{layerProgress ? `${layerProgress.percent}%` : "loading"}</small>
+              </button>
+            );
+          })}
+        </section>
+
+        <section className="workbenchStage" aria-label="Agent Forge Control Plane">
+          <header className="workbenchStageHeader">
+            <div>
+              <span className="forgeKicker">Agent Forge Control Plane</span>
+              <h2>{activeWorkbenchModule.label}</h2>
+              <p>{activeWorkbenchModule.description}</p>
+            </div>
+            <div className="workbenchStageBadges">
+              <span>API-only / no local models</span>
+              <span>live_mcp_writes=false</span>
+              <span>no production rollout</span>
+            </div>
+          </header>
+          <nav className="workbenchTabs" aria-label="Workspace tabs">
+            {workbenchTabs.map((tab) => (
+              <button
+                type="button"
+                className={tab.id === activeWorkbenchTab ? "workbenchTab workbenchTab-active" : "workbenchTab"}
+                aria-pressed={tab.id === activeWorkbenchTab}
+                onClick={() => setActiveWorkbenchTab(tab.id)}
+                key={tab.id}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          <div className="workbenchLaunchStrip" aria-label="Fast launch workspaces">
+            {activeLaunchPacks.map((pack) => (
+              <button
+                type="button"
+                className={
+                  pack.id === selectedLaunchPackId
+                    ? "workbenchLaunchCard workbenchLaunchCard-active"
+                    : pack.module === activeModuleId
+                      ? "workbenchLaunchCard workbenchLaunchCard-related"
+                      : "workbenchLaunchCard"
+                }
+                onClick={() => {
+                  setSelectedLaunchPackId(pack.id);
+                  setActiveModuleId(pack.module);
+                  setActiveWorkbenchTab("create");
+                  setPrompt(pack.prompt);
+                  clearWorkbenchHash();
+                }}
+                aria-pressed={pack.id === selectedLaunchPackId}
+                key={pack.id}
+              >
+                <span>{pack.glyph}</span>
+                <strong>{pack.label}</strong>
+                <em>{pack.lane}</em>
+                <small>{pack.description}</small>
+              </button>
+            ))}
+          </div>
+          <div className="workbenchCanvas">
+            <article className="workbenchPanel workbenchPrimaryPanel">
+              <header>
+                <span>{activeWorkbenchTab}</span>
+                <strong>{activeWorkbenchModule.primary}</strong>
+              </header>
+              <p>
+                {activeWorkbenchModule.label} is ready for {activeWorkbenchModule.scope}. Pick a capability,
+                route the right agent team, then run with gateway guards.
+              </p>
+              <div className="workbenchCapabilityGrid">
+                {activeWorkbenchModule.capabilities.map((capability) => (
+                  <button
+                    type="button"
+                    className="workbenchCapability"
+                    onClick={() => setPrompt(`${capability}: ${prompt}`)}
+                    key={capability}
+                  >
+                    <strong>{capability}</strong>
+                    <small>{activeWorkbenchModule.label}</small>
+                  </button>
+                ))}
+              </div>
+            </article>
+
+            <article className="workbenchPanel">
+              <header>
+                <span>Routing</span>
+                <strong>{activeAgentMode.label}</strong>
+              </header>
+              <div className="workbenchRouteStack">
+                <div>
+                  <span>Agent Mode</span>
+                  <strong>{activeAgentMode.detail}</strong>
+                </div>
+                <div>
+                  <span>Model Route</span>
+                  <strong>{selectedRouteLabel}</strong>
+                  <small>model_downloads=false / live_provider_calls=false until Owner gate</small>
+                </div>
+                <div>
+                  <span>MCP Scope</span>
+                  <strong>{selectedToolsetLabel}</strong>
+                  <small>guarded through MCP Gateway, never direct browser writes</small>
+                </div>
+              </div>
+            </article>
+
+            <article className="workbenchPanel">
+              <header>
+                <span>Command Results</span>
+                <strong>{commandQuery.trim() ? commandQuery : "All modules"}</strong>
+              </header>
+              <div className="workbenchCommandResults">
+                {commandMatches.length ? (
+                  commandMatches.map((module) => (
+                    <button
+                      type="button"
+                      className="workbenchCommandResult"
+                      onClick={() => {
+                        setActiveModuleId(module.id);
+                        setActiveWorkbenchTab("overview");
+                        clearWorkbenchHash();
+                      }}
+                      key={module.id}
+                    >
+                      <span>{module.glyph}</span>
+                      <strong>{module.label}</strong>
+                      <small>{module.capabilities.join(" / ")}</small>
+                    </button>
+                  ))
+                ) : (
+                  <p className="muted">No module match yet. Try agents, video, game, code, docs, or research.</p>
+                )}
+              </div>
+            </article>
+
+            <article className="workbenchPanel">
+              <header>
+                <span>Submenus</span>
+                <strong>{activeWorkbenchTab}</strong>
+              </header>
+              <div className="workbenchSubmenuGrid">
+                <a href={activeWorkbenchModule.target}>Details</a>
+                <a href="#diagnostics-surface">Diagnostics</a>
+                <a href="#agent-status">Agents</a>
+                <a href="#mcp-runtime-guard-surface">Contracts</a>
+                <a href="#llm-gateway-surface">Models</a>
+                <a href="#memory-surface">Assets</a>
+                <a href="#security-surface">Security</a>
+                <a href="#project-progress-surface">Release</a>
+              </div>
+            </article>
+
+            <article className="workbenchPanel">
+              <header>
+                <span>Runs</span>
+                <strong>{recentRunCount ? `${recentRunCount} recent` : "No run opened"}</strong>
+              </header>
+              <div className="workbenchRunList">
+                <span>Status: {status}</span>
+                <span>Graph: {graphStatus}</span>
+                <span>Queue: {taskQueueDepth}</span>
+                <span>Evidence: prompt_input_contract_visible</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <details className="workbenchEvidenceVault" id="diagnostics-surface">
+          <summary>
+            <span>Contracts, Audit, Diagnostics</span>
+            <strong>Full verification surface</strong>
+          </summary>
+          <div className="workbenchEvidenceBody">
+            <nav className="workbenchDiagnosticsNav" aria-label="Diagnostics sections">
+              <a href="#diagnostics-surface">Diagnostics</a>
+              <a href="#mcp-runtime-guard-surface">Contracts</a>
+              <a href="#llm-gateway-surface">Audit</a>
+              <a href="#security-surface">Exports</a>
+              <a href="#project-progress-surface">Runtime Proof</a>
+            </nav>
 
         <section className="panel" aria-label="Error response contract">
           <header className="panelHeader">
@@ -2706,7 +5274,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel" aria-label="Security headers contract">
+        <section className="panel" id="security-surface" aria-label="Security headers contract">
           <header className="panelHeader">
             <h2>Security Headers Contract</h2>
             <button type="button" onClick={() => void loadSecurityHeadersContract()}>
@@ -2754,6 +5322,285 @@ export default function Home() {
               <span key={check}>{check}</span>
             ))}
           </div>
+        </section>
+
+        <section className="panel" aria-label="CSP report contract">
+          <header className="panelHeader">
+            <h2>CSP Report Contract</h2>
+            <button type="button" onClick={() => void loadCspReportContract()}>
+              Refresh Contract
+            </button>
+          </header>
+          <div className="healthSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{cspReportContract?.contract_version ?? "csp-report-contract-v1"}</strong>
+            </div>
+            <div>
+              <span>Mode</span>
+              <strong>{cspReportContract?.mode ?? "same_origin_csp_violation_audit_sink"}</strong>
+            </div>
+            <div>
+              <span>Endpoint</span>
+              <strong>{cspReportContract?.endpoint ?? "POST /api/v1/security/csp/report"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{cspReportContract?.evidence_ref ?? "csp_report_contract_visible"}</strong>
+            </div>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {cspReportContract?.evidence_ref ?? "csp_report_contract_visible"} /{" "}
+            {cspReportContract?.audit_evidence_ref ?? "csp_report_audit_persisted"} /{" "}
+            {securityHeaderEvidenceRefs.csp_report_visible ?? "csp_report_contract_visible"}
+          </p>
+          <div className="policyGrid">
+            {(cspPolicyChecks.length ? cspPolicyChecks : [
+              "Reports are same-origin only through the Agent API surface.",
+              "Report payloads are redacted before audit persistence.",
+              "No external CSP reporting service is configured or claimed.",
+            ]).map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <p className="muted">
+            Sanitized fields: {cspSanitizedFields.length ? cspSanitizedFields.join(", ") : "document-uri, blocked-uri, violated-directive"}
+          </p>
+          <p className="muted">
+            {cspNonClaims.length ? cspNonClaims.join(" ") : "No production security incident workflow is claimed."}
+          </p>
+        </section>
+
+        <section className="panel securityAuditSurfacePanel" aria-label="Security audit surface">
+          <header className="panelHeader">
+            <h2>Security Audit Surface</h2>
+            <button type="button" onClick={() => void loadSecurityAuditSurface()}>
+              Refresh
+            </button>
+          </header>
+          <div className="healthSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{securityAuditSurfaceContract?.contract_version ?? "security-audit-surface-v1"}</strong>
+            </div>
+            <div>
+              <span>Mode</span>
+              <strong>{securityAuditSurfaceContract?.mode ?? "read_only_security_product_audit_surface"}</strong>
+            </div>
+            <div>
+              <span>Endpoint</span>
+              <strong>{securityAuditSurfaceContract?.endpoint ?? "GET /api/v1/security/events"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{securityAuditEvidenceRefs.surface_visible}</strong>
+            </div>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {securityAuditEvidenceRefs.surface_visible} / {securityAuditEvidenceRefs.event_visible} /{" "}
+            {securityAuditEvidenceRefs.csp_audit_persisted} / {securityAuditEvidenceRefs.mcp_deny_correlation}
+          </p>
+          <div className="policyGrid">
+            {(securityAuditPolicyChecks.length ? securityAuditPolicyChecks : [
+              "The surface reads audit_log only and never executes tools or provider calls.",
+              "Events expose request_id and trace_id when the source event recorded them.",
+              "Returned details are already redacted by the source audit writers.",
+            ]).map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <p className="muted">
+            Event types:{" "}
+            {securityAuditEventTypes.length
+              ? securityAuditEventTypes.join(", ")
+              : "security_csp_violation_reported, auth_refresh_rotated, mcp_tool_executed, llm_gateway_request"}
+          </p>
+          <div className="auditList">
+            {securityAuditEvents.length ? (
+              securityAuditEvents.map((event) => (
+                <article className="auditItem" key={event.id}>
+                  <div>
+                    <strong>{event.event_type}</strong>
+                    <span className={`severity severity-${event.severity}`}>{event.severity}</span>
+                  </div>
+                  <small>Category: {event.category ?? String(event.details.category ?? "security_audit")}</small>
+                  <small>Request ID: {event.request_id ?? String(event.details.request_id ?? "none")}</small>
+                  <small>Trace ID: {event.trace_id ?? String(event.details.trace_id ?? "none")}</small>
+                  <small>
+                    Evidence:{" "}
+                    {event.evidence_ref ??
+                      event.security_surface_evidence_ref ??
+                      event.audit_feed_evidence_ref ??
+                      "security_audit_event_visible"}
+                  </small>
+                  <p>{event.summary ?? String(event.details.summary ?? event.details.sanitized_summary ?? event.event_type)}</p>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No security audit events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/events</small>
+                <small>Contract: security-audit-surface-v1</small>
+                <small>Evidence: security_audit_surface_visible / security_audit_event_visible</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {securityAuditNonClaims[0] ?? "No production SOC, SIEM, or incident-response workflow is claimed."}
+          </p>
+        </section>
+
+        <section className="panel securityReviewQueuePanel" aria-label="Security review queue">
+          <header className="panelHeader">
+            <h2>Security Review Queue</h2>
+            <button type="button" onClick={() => void loadSecurityReviewQueue()}>
+              Refresh
+            </button>
+          </header>
+          <div className="healthSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{securityReviewQueueContract?.contract_version ?? "security-review-queue-v1"}</strong>
+            </div>
+            <div>
+              <span>Mode</span>
+              <strong>{securityReviewQueueContract?.mode ?? "read_only_redacted_security_review_queue"}</strong>
+            </div>
+            <div>
+              <span>Endpoint</span>
+              <strong>{securityReviewQueueContract?.endpoint ?? "GET /api/v1/security/review-queue"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{securityReviewEvidenceRefs.queue_visible}</strong>
+            </div>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {securityReviewEvidenceRefs.queue_visible} / {securityReviewEvidenceRefs.item_visible} /{" "}
+            {securityReviewEvidenceRefs.redaction_enforced} / {securityReviewEvidenceRefs.mutation_blocked}
+          </p>
+          <p className="muted evidenceLine">
+            Snapshot: {securityReviewEvidenceRefs.filter_state} / {securityReviewEvidenceRefs.decision_history} /{" "}
+            {securityReviewEvidenceRefs.evidence_snapshot}
+          </p>
+          <div
+            className={`securityReviewGate ${
+              securityReviewGate?.gate_status === "blocked_by_open_security_reviews"
+                ? "securityReviewGateBlocked"
+                : "securityReviewGateClear"
+            }`}
+          >
+            <div>
+              <strong>Security Review Gate Summary</strong>
+              <span>{securityReviewGate?.gate_status ?? "read_only_security_review_gate_summary"}</span>
+            </div>
+            <small>
+              Blockers: {securityReviewGate?.blocker_count ?? 0} / Monitors:{" "}
+              {securityReviewGate?.monitoring_count ?? 0} / Promotion allowed:{" "}
+              {String(securityReviewGate?.promotion_allowed ?? false)}
+            </small>
+            <small>
+              Evidence: {securityReviewGate?.evidence_ref ?? securityReviewEvidenceRefs.gate_summary} /{" "}
+              {securityReviewGate?.snapshot_evidence_ref ?? securityReviewEvidenceRefs.evidence_snapshot}
+            </small>
+            <small>
+              Authority: {securityReviewGate?.release_authority ?? "outside_security_review_queue"} / Production
+              rollout claimed: {String(securityReviewGate?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Security Review Export</strong>
+            <span>
+              {securityReviewExportContract?.contract_version ?? "security-review-queue-export-v1"} /{" "}
+              {securityReviewExportContract?.evidence_ref ?? securityReviewEvidenceRefs.export_visible}
+            </span>
+            <small>
+              Endpoint:{" "}
+              {securityReviewExportContract?.endpoint ??
+                "GET /api/v1/security/review-queue/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract:{" "}
+              {securityReviewExportContract?.contract_endpoint ??
+                "GET /api/v1/security/review-queue/export/contract"}{" "}
+              / File: {securityReviewExportContract?.filename_pattern ?? "superbrain-security-review-queue.csv"}
+            </small>
+            <small>
+              Audit:{" "}
+              {securityReviewExportContract?.export_audit_evidence_ref ??
+                securityReviewEvidenceRefs.export_audit_persisted}{" "}
+              / Redaction:{" "}
+              {securityReviewExportContract?.redaction_evidence_ref ?? securityReviewEvidenceRefs.redaction_enforced}
+            </small>
+            <small>
+              read_only={String(securityReviewExportContract?.read_only ?? true)} / audit_persisted=
+              {String(securityReviewExportContract?.audit_persisted ?? true)} / production_rollout_claimed=
+              {String(securityReviewExportContract?.production_rollout_claimed ?? false)}
+            </small>
+            <small>
+              prompt_bodies_returned={String(securityReviewExportContract?.prompt_bodies_returned ?? false)} /
+              raw_details_returned={String(securityReviewExportContract?.raw_details_returned ?? false)}
+            </small>
+          </div>
+          <div className="policyGrid">
+            {(securityReviewPolicyChecks.length ? securityReviewPolicyChecks : [
+              "The review queue reads audit_log only and never executes tools, deploys code, or calls providers.",
+              "Items return summaries and detail key names only; raw detail payloads are not returned.",
+              "Mutation methods are blocked with security_review_mutation_blocked.",
+            ]).map((check) => (
+              <span key={check}>{check}</span>
+            ))}
+          </div>
+          <div className="auditList">
+            {securityReviewQueueItems.length ? (
+              securityReviewQueueItems.map((item) => (
+                <article className="auditItem" key={item.queue_item_id}>
+                  <div>
+                    <strong>{item.event_type}</strong>
+                    <span className={`severity severity-${item.status === "needs_review" ? "warning" : "info"}`}>
+                      {item.status}
+                    </span>
+                    <span className={`riskBadge riskBadge-${item.risk_badge ?? "monitor"}`}>
+                      {item.risk_badge ?? "monitor"}
+                    </span>
+                  </div>
+                  <small>Category: {item.category}</small>
+                  <small>Request ID: {item.request_id ?? "none"}</small>
+                  <small>Trace ID: {item.trace_id ?? "none"}</small>
+                  <small>
+                    Decision History: {item.decision_history_evidence_ref ?? securityReviewEvidenceRefs.decision_history}
+                  </small>
+                  <small>
+                    Evidence: {item.evidence_ref} / {item.item_evidence_ref} / {item.redaction_evidence_ref}
+                  </small>
+                  <small>
+                    Snapshot refs:{" "}
+                    {Object.values(item.evidence_snapshot ?? {}).join(" / ") ||
+                      securityReviewEvidenceRefs.evidence_snapshot}
+                  </small>
+                  <small>Detail keys only: {item.detail_keys.join(", ") || "none"}</small>
+                  <p>{item.summary}</p>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No security review queue items yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/review-queue</small>
+                <small>Contract: security-review-queue-v1</small>
+                <small>Evidence: security_review_queue_visible / security_review_item_visible</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {securityReviewNonClaims[0] ??
+              "No production SOC, SIEM, incident ownership, or remediation workflow is claimed."}
+          </p>
         </section>
 
         <section className="panel" aria-label="Trace ID propagation contract">
@@ -3150,7 +5997,12 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel progressPanel" aria-label="Project progress">
+        <section
+          className="panel progressPanel"
+          id="project-progress-surface"
+          aria-label="Project progress"
+          data-evidence="active_frontend_orchestrator_evidence_bundle_visible active_observability_rebaseline_bundle_visible"
+        >
           <header className="panelHeader">
             <h2>Project Progress</h2>
             <button
@@ -3237,7 +6089,10 @@ export default function Home() {
                 )}
               </div>
             </section>
-            <section aria-label="Vertical architecture progress">
+            <section
+              aria-label="Vertical architecture progress"
+              data-layer-evidence="layer_1_100_verified layer_2_100_verified"
+            >
               <h3>Vertical Layers</h3>
               <div className="verticalProgress">
                 {verticalProgressItems.length ? (
@@ -3288,7 +6143,144 @@ export default function Home() {
           ))}
         </section>
 
-        <section className="panel taskPanel" aria-label="Autonomous coding team">
+        <section
+          className="panel liveAgentPanel"
+          aria-label="Live agent steering"
+          data-evidence="live_agent_steering_ui_visible"
+        >
+          <header className="panelHeader">
+            <h2>Live Agent Control</h2>
+            <button
+              type="button"
+              onClick={() => void Promise.all([loadLiveAgents(), loadLiveAgentHistory(liveAgentId, projectId)])}
+            >
+              Refresh
+            </button>
+          </header>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Contract</strong>
+              <p>{liveAgentContract?.contract_version ?? liveAgentStatus?.contract_version ?? "live-agent-steering-v1"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Runtime</strong>
+              <p>{liveAgentStatus?.runtime_source ?? liveAgentContract?.mode ?? "openai_responses_via_llm_gateway"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Endpoint</strong>
+              <p>{liveAgentContract?.steer_endpoint ?? "POST /api/v1/live-agents/steer"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>History</strong>
+              <p>{liveAgentContract?.history_endpoint ?? "GET /api/v1/live-agents/history"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Provider Calls</strong>
+              <p>{liveAgentContract?.metadata_policy?.live_provider_calls_allowed ? "enabled" : "disabled"}</p>
+            </article>
+          </div>
+          <form className="liveAgentForm" onSubmit={steerLiveAgent}>
+            <label>
+              <span>Agent</span>
+              <select
+                value={liveAgentId}
+                onChange={(event) => {
+                  const nextAgentId = event.target.value;
+                  setLiveAgentId(nextAgentId);
+                  void loadLiveAgentHistory(nextAgentId, projectId);
+                }}
+              >
+                {liveAgentProfiles.length ? (
+                  liveAgentProfiles.map((agent) => (
+                    <option key={agent.agent_id} value={agent.agent_id}>
+                      {agent.display_name} / {agent.execution_role}
+                    </option>
+                  ))
+                ) : (
+                  <option value="supervisor">Supervisor / planner</option>
+                )}
+              </select>
+            </label>
+            <label>
+              <span>Message</span>
+              <textarea
+                value={liveAgentMessage}
+                maxLength={10_000}
+                onChange={(event) => setLiveAgentMessage(event.target.value)}
+              />
+              <small>
+                {selectedLiveAgent?.agent_id ?? liveAgentId} | session{" "}
+                {selectedLiveAgent?.has_session ? selectedLiveAgent.previous_response_id ?? "active" : "new"} |{" "}
+                {liveAgentEvidenceRefs.ui_visible} / {liveAgentEvidenceRefs.security_guard}
+              </small>
+            </label>
+            <div className="actions">
+              <button type="submit" disabled={liveAgentSendStatus === "sending" || !liveAgentMessage.trim()}>
+                Send
+              </button>
+              <button type="button" onClick={() => void resetLiveAgentSession()} disabled={!liveAgentProfiles.length}>
+                Reset
+              </button>
+            </div>
+          </form>
+          <div className="liveAgentTranscript" aria-label="Live agent response">
+            <strong>{liveAgentResponse?.agent_id ?? selectedLiveAgent?.agent_id ?? liveAgentId}</strong>
+            <span>{liveAgentResponse?.status ?? liveAgentSendStatus}</span>
+            <small>{liveAgentResponse?.model ?? selectedLiveAgent?.model ?? liveAgentStatus?.default_model ?? "loading"}</small>
+            <p>{liveAgentResponse?.text ?? "No live-agent response in this browser session yet."}</p>
+            <small>
+              Audit: {liveAgentResponse?.audit_persisted ? "persisted" : "pending"} ·{" "}
+              {liveAgentResponse?.audit_evidence_ref ?? "live_agent_steering_audit_persisted"}
+            </small>
+          </div>
+          <div
+            className="liveAgentHistory"
+            aria-label="Live agent message history"
+            data-evidence="live_agent_steering_history_visible"
+          >
+            <div className="historyHeader">
+              <strong>Message History</strong>
+              <button type="button" onClick={() => void loadLiveAgentHistory(liveAgentId, projectId)}>
+                Refresh
+              </button>
+            </div>
+            <small>
+              {liveAgentHistory?.history_endpoint ?? "GET /api/v1/live-agents/history"} /{" "}
+              {liveAgentHistory?.evidence_ref ?? "live_agent_steering_history_visible"} / {liveAgentHistoryStatus}
+            </small>
+            <div className="compactList">
+              {liveAgentHistory?.events?.length ? (
+                liveAgentHistory.events.map((event) => (
+                  <article className="modelItem" key={event.id}>
+                    <strong>
+                      {event.agent_id} / {event.status ?? "unknown"}
+                    </strong>
+                    <small>
+                      {event.created_at ?? "unknown time"} / {event.model ?? "unknown model"} /{" "}
+                      {event.live_provider_calls ? "provider-call" : "live_provider_calls=false"}
+                    </small>
+                    <p>{event.response_preview || "No response preview stored."}</p>
+                    <small>Response: {event.response_id ?? "none"}</small>
+                    <small>Trace: {event.trace_id ?? "none"}</small>
+                    <small>{event.evidence_ref ?? "live_agent_steering_audit_persisted"}</small>
+                  </article>
+                ))
+              ) : (
+                <p className="muted">No persisted live-agent history for this agent yet.</p>
+              )}
+            </div>
+          </div>
+          <p className="muted evidenceLine">
+            Evidence: {liveAgentEvidenceRefs.contract_visible} / {liveAgentEvidenceRefs.ui_visible} /{" "}
+            {liveAgentEvidenceRefs.security_guard} / {liveAgentEvidenceRefs.history_visible}
+          </p>
+        </section>
+
+        <section
+          className="panel taskPanel"
+          aria-label="Autonomous coding team"
+          data-evidence={autonomousDispatchContract?.ui_evidence_ref ?? "autonomous_team_dispatch_ui_visible"}
+        >
           <header className="panelHeader">
             <h2>Autonomous Coding Team</h2>
             <button
@@ -3329,12 +6321,67 @@ export default function Home() {
               <p>{autonomousDispatchContract?.runtime_pool_contract_version ?? "Loading runtime pool contract."}</p>
             </article>
             <article className="policyItem">
+              <strong>Dispatch Endpoint</strong>
+              <p>{autonomousDispatchContract?.runtime_endpoint ?? "POST /api/v1/task/dispatch"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>
+                {autonomousDispatchContract?.evidence_refs?.dispatch_visible ??
+                  autonomousDispatchContract?.evidence_ref ??
+                  "autonomous_team_dispatch_visible"}{" "}
+                / {autonomousDispatchContract?.status_evidence_ref ?? "autonomous_team_dispatch_status_visible"}
+              </p>
+            </article>
+            <article className="policyItem">
               <strong>External Adapter</strong>
               <p>
                 {autonomousTeam?.external_runtime?.provider ?? "none"} |{" "}
                 {autonomousTeam?.external_runtime?.status ?? "disabled"}
               </p>
             </article>
+          </div>
+          <form className="liveAgentForm" onSubmit={dispatchAutonomousTeam}>
+            <label>
+              <span>Dispatch Objective</span>
+              <textarea
+                value={autonomousDispatchObjective}
+                maxLength={10_000}
+                onChange={(event) => setAutonomousDispatchObjective(event.target.value)}
+              />
+              <small>
+                {autonomousDispatchContract?.runtime_endpoint ?? "POST /api/v1/task/dispatch"} /{" "}
+                {autonomousDispatchContract?.evidence_refs?.ui_visible ?? "autonomous_team_dispatch_ui_visible"} / no
+                production deployment
+              </small>
+            </label>
+            <div className="actions">
+              <button
+                type="submit"
+                disabled={autonomousDispatchStatus === "dispatching" || !autonomousDispatchObjective.trim()}
+              >
+                Dispatch
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadAutonomousTeamStatus(autonomousDispatchResponse?.dispatch_id)}
+              >
+                Status
+              </button>
+            </div>
+          </form>
+          <div className="liveAgentTranscript" aria-label="Autonomous team dispatch result">
+            <strong>{autonomousDispatchResponse?.dispatch_id ?? autonomousTeam?.dispatch_id ?? "No dispatch yet"}</strong>
+            <span>{autonomousDispatchStatus}</span>
+            <small>
+              Assignments: {autonomousDispatchResponse?.assignments?.length ?? autonomousTeam?.members?.length ?? 0} /
+              runtime {autonomousDispatchResponse?.runtime_source ?? autonomousTeam?.runtime_source ?? "internal_queue"}
+            </small>
+            <p>{autonomousDispatchResponse?.objective ?? autonomousTeam?.objective ?? "No operator objective dispatched yet."}</p>
+            <small>
+              Contract: {autonomousDispatchResponse?.contract_endpoint ?? "/api/v1/task/dispatch/contract"} / Status:{" "}
+              {autonomousDispatchResponse?.status_endpoint ?? "/api/v1/team/status"}
+            </small>
           </div>
           <div className="modelList compactList">
             {autonomousTeam?.members?.length ? (
@@ -3749,7 +6796,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel modelPanel" aria-label="LLM gateway">
+        <section className="panel modelPanel" id="llm-gateway-surface" aria-label="LLM gateway">
           <header className="panelHeader">
             <h2>LLM Gateway</h2>
             <button type="button" onClick={() => void loadLlmGateway()}>
@@ -3770,8 +6817,16 @@ export default function Home() {
               <p>{llmGateway?.live_provider_calls ? "live provider calls active" : "live_provider_calls=false"}</p>
             </article>
             <article className="policyItem">
+              <strong>Runtime Guard</strong>
+              <p>{llmGateway?.runtime_guard_parity?.status ?? "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Guard Version</strong>
+              <p>{llmGateway?.runtime_guard_parity?.contract_version ?? "llm-runtime-guard-parity-v1"}</p>
+            </article>
+            <article className="policyItem">
               <strong>HF Router Contract</strong>
-              <p>{llmGateway?.hf_router?.available ? "HF router verified" : "router pending"}</p>
+              <p>{llmGateway?.hf_router?.available ? "HF token configured" : "router token absent"}</p>
             </article>
             <article className="policyItem">
               <strong>Routing Resolver</strong>
@@ -3802,14 +6857,63 @@ export default function Home() {
               <p>{llmGateway?.routing_resolution?.provider_health?.status ?? "loading"}</p>
             </article>
             <article className="policyItem">
+              <strong>Provider Readiness Contract</strong>
+              <p>
+                {llmGateway?.provider_readiness_contract?.contract_version ??
+                  llmGateway?.provider_readiness_contract_version ??
+                  "llm-provider-readiness-contract-v1"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Readiness Evidence</strong>
+              <p>
+                {llmGateway?.provider_readiness_contract?.evidence_ref ??
+                  llmGateway?.provider_readiness_evidence_ref ??
+                  "llm_provider_readiness_contract_visible"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Live Gate</strong>
+              <p>
+                {llmGateway?.provider_readiness_contract?.default_generation_decision ?? "deterministic_dry_run"} /
+                external_probe_performed=
+                {String(llmGateway?.provider_readiness_contract?.external_probe_performed ?? false)}
+              </p>
+            </article>
+            <article className="policyItem">
               <strong>Streaming Contract</strong>
               <p>{llmGateway?.streaming_contract?.protocol ?? llmGateway?.streaming_protocol ?? "loading"}</p>
             </article>
             <article className="policyItem">
               <strong>Models</strong>
-              <p>{llmGateway ? `${llmGateway.models_configured} configured routes` : "loading"}</p>
+              <p>
+                {llmGateway
+                  ? `${llmGateway.model_catalog?.configured_model_count ?? llmGateway.models_configured} configured models`
+                  : "loading"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Model Catalog</strong>
+              <p>{llmGateway?.model_catalog?.contract_version ?? "llm-model-catalog-v1"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Inference Mode</strong>
+              <p>{llmGateway?.model_catalog?.api_inference_only === false ? "blocked" : "API-only / no downloads"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Catalog Evidence</strong>
+              <p>{llmGateway?.model_catalog?.evidence_ref ?? "llm_model_catalog_visible"}</p>
             </article>
           </div>
+          <p className="muted">
+            Model catalog:{" "}
+            {llmGateway?.model_catalog?.public_endpoint ??
+              llmGateway?.model_catalog_endpoint ??
+              "GET /llm/api/v1/models/catalog"}{" "}
+            / {llmGateway?.model_catalog?.evidence_refs?.catalog_visible ?? "llm_model_catalog_visible"} /{" "}
+            {llmGateway?.model_catalog?.open_source_first ? "open_source_first=true" : "loading"} /{" "}
+            {llmGateway?.model_catalog?.model_downloads === false ? "model_downloads=false" : "loading"}
+          </p>
           <p className="muted">
             Fallback chain: {llmGateway?.routing_resolution?.fallback_chain?.join(" -> ") ?? "loading"}
           </p>
@@ -3817,7 +6921,29 @@ export default function Home() {
             Provider chain: {llmGateway?.routing_resolution?.provider_chain?.join(" -> ") ?? "loading"}
           </p>
           <p className="muted">
+            Provider readiness:{" "}
+            {llmGateway?.provider_readiness_contract?.public_endpoint ??
+              llmGateway?.provider_readiness_endpoint ??
+              "GET /llm/api/v1/providers/readiness/contract"}{" "}
+            / {llmGateway?.provider_readiness_contract?.evidence_ref ?? "llm_provider_readiness_contract_visible"} /
+            live_provider_calls={String(llmGateway?.provider_readiness_contract?.live_provider_calls ?? false)} /
+            model_downloads={String(llmGateway?.provider_readiness_contract?.model_downloads ?? false)} /
+            provider_token_returned={String(llmGateway?.provider_readiness_contract?.provider_token_returned ?? false)}
+          </p>
+          <p className="muted">
+            Readiness non-claims:{" "}
+            {llmGateway?.provider_readiness_contract?.non_claims?.join(" ") ??
+              "No live provider generation call is made by this contract. No upstream model-list probe is made by this contract. No local model download, hosted parity, or production rollout is claimed."}
+          </p>
+          <p className="muted">
             Streaming frames: {llmGateway?.streaming_contract?.frames?.join(" | ") ?? "loading"}
+          </p>
+          <p className="muted">
+            Runtime guard parity: {llmGateway?.runtime_guard_parity?.endpoint ?? "GET /llm/api/v1/runtime/guard-parity"} /{" "}
+            {llmGateway?.runtime_guard_parity?.evidence_ref ?? "llm_runtime_guard_parity_visible"} /{" "}
+            {(llmGateway?.runtime_guard_parity?.guard_matrix ?? [])
+              .map((guard) => `${guard.guard}:${guard.status}`)
+              .join(" | ") || "loading"}
           </p>
           <p className="muted">
             Policy evidence:{" "}
@@ -3836,6 +6962,28 @@ export default function Home() {
             {llmGateway?.routing_policy_contract?.evidence_refs?.sensitive_cache_blocked ??
               "llm_routing_policy_sensitive_cache_blocked"}
           </p>
+          <div className="modelList">
+            {llmGateway?.model_catalog?.routes?.length ? (
+              llmGateway.model_catalog.routes.map((route) => (
+                <article className="modelItem" key={route.agent_type}>
+                  <div>
+                    <strong>{route.agent_type}</strong>
+                    <span>{route.api_inference_only ? "API-only" : "blocked"}</span>
+                  </div>
+                  <small>Primary: {route.primary}</small>
+                  <small>Fallbacks: {route.fallbacks.join(", ")}</small>
+                  <small>Provider chain: {route.provider_chain.join(" -> ")}</small>
+                  <small>Families: {route.model_families.join(", ")}</small>
+                  <small>
+                    {route.open_source_first ? "open_source_first=true" : "open_source_first=false"} /{" "}
+                    {route.model_downloads ? "model_downloads=true" : "model_downloads=false"}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <p className="muted">Model catalog loading.</p>
+            )}
+          </div>
           <div className="modelList">
             {llmGateway?.provider_snapshot?.providers?.length ? (
               llmGateway.provider_snapshot.providers.map((provider) => {
@@ -3862,7 +7010,7 @@ export default function Home() {
           <p className="muted">{llmGateway?.non_claims?.[0] ?? "No live LLM provider proof is claimed."}</p>
         </section>
 
-        <section className="panel graphPanel" aria-label="LangGraph progress">
+        <section className="panel graphPanel" id="langgraph-surface" aria-label="LangGraph progress">
           <header className="panelHeader">
             <h2>LangGraph Progress</h2>
             <button type="button" onClick={() => void startPhase2RuntimeGraph()} disabled={graphStatus === "streaming"}>
@@ -3993,7 +7141,14 @@ export default function Home() {
             <h2>Agent Activity</h2>
             <button
               type="button"
-              onClick={() => void Promise.all([loadAgentActivityContract(), loadAgentActivityEvents(), loadAuditEvents()])}
+              onClick={() =>
+                void Promise.all([
+                  loadAgentActivityContract(),
+                  loadLangfuseTraceAccess(),
+                  loadAgentActivityEvents(),
+                  loadAuditEvents(),
+                ])
+              }
             >
               Refresh
             </button>
@@ -4021,6 +7176,19 @@ export default function Home() {
               <strong>Trace Deep-Link</strong>
               <p>{agentActivityLangfuse?.deep_link_template ?? "/observability/langfuse/trace/{trace_id}"}</p>
               <small>Evidence: agent_activity_trace_link_template / langfuse_auth_proxy_required</small>
+            </article>
+            <article className="policyItem langfuseTraceAccess">
+              <strong>Langfuse Trace Access</strong>
+              <p>{langfuseTraceAccess?.endpoint ?? "GET /api/v1/observability/langfuse/trace/{trace_id}"}</p>
+              <small>
+                {langfuseTraceAccess?.contract_version ?? "langfuse-trace-access-v1"} / Evidence:{" "}
+                {langfuseTraceAccess?.evidence_ref ?? "langfuse_trace_access_visible"} /{" "}
+                {langfuseTraceAccess?.event_evidence_ref ?? "langfuse_trace_event_visible"}
+              </small>
+              <small>
+                provider_trace_export={String(langfuseTraceAccess?.provider_trace_export ?? false)} /
+                auth_proxy_required={String(langfuseTraceAccess?.auth_proxy_required ?? true)}
+              </small>
             </article>
             <article className="policyItem">
               <strong>Source Endpoints</strong>
@@ -4394,6 +7562,424 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="panel llmAuditPanel" aria-label="LLM audit feed">
+          <header className="panelHeader">
+            <h2>LLM Audit Feed</h2>
+            <button type="button" onClick={() => void loadLlmAuditFeed()}>
+              Refresh
+            </button>
+          </header>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>{llmAuditFeedContract?.contract_version ?? "llm-audit-feed-v1"}</strong>
+              <p>{llmAuditFeedContract?.endpoint ?? "GET /api/v1/audit/llm"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>
+                {llmAuditFeedContract?.evidence_ref ?? "llm_audit_feed_visible"} /{" "}
+                {llmAuditFeedContract?.audit_feed_evidence_ref ?? "llm_audit_feed_event_visible"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>LLM Audit Snapshot</strong>
+              <p>{llmAuditFeedContract?.snapshot_endpoint ?? "GET /api/v1/audit/llm/snapshot"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>LLM Audit Export</strong>
+              <p>{llmAuditExportContract?.endpoint ?? "GET /api/v1/audit/llm/export?format=csv&limit=80"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>{llmAuditExportContract?.contract_version ?? "llm-audit-export-v1"}</strong>
+              <p>
+                {llmAuditExportContract?.evidence_ref ?? "llm_audit_export_visible"} /{" "}
+                {llmAuditExportContract?.export_audit_evidence_ref ?? "llm_audit_export_audit_persisted"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Redaction</strong>
+              <p>
+                {llmAuditSnapshot?.redaction_status ?? "clear"} /{" "}
+                {llmAuditSnapshot?.redaction_evidence_ref ?? "llm_audit_redaction_enforced"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Source</strong>
+              <p>{llmAuditFeedContract?.source_event_type ?? "llm_gateway_request"} from audit_log</p>
+            </article>
+            <article className="policyItem">
+              <strong>Mode</strong>
+              <p>
+                {llmAuditFeedContract?.read_only === false ? "write-enabled" : "read_only=true"} /{" "}
+                {llmAuditFeedContract?.live_provider_calls_claimed
+                  ? "live provider proof claimed"
+                  : "live_provider_calls_claimed=false"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Snapshot Evidence</strong>
+              <p>
+                {llmAuditSnapshot?.snapshot_evidence_ref ?? "llm_audit_snapshot_visible"} / forbidden hits{" "}
+                {String(llmAuditSnapshot?.forbidden_pattern_hits ?? 0)}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Prompt Bodies</strong>
+              <p>
+                {llmAuditSnapshot?.prompt_bodies_returned
+                  ? "prompt bodies returned"
+                  : "prompt_bodies_returned=false"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Export Guard</strong>
+              <p>
+                {llmAuditExportContract?.no_live_provider_evidence_ref ?? "llm_audit_no_live_provider_guard"} /{" "}
+                {llmAuditExportContract?.raw_details_returned ? "raw_details_returned=true" : "raw_details_returned=false"}
+              </p>
+            </article>
+          </div>
+          <div className="auditSnapshot">
+            <strong>LLM Audit Snapshot</strong>
+            <span>{llmAuditSnapshot?.mode ?? "read_only_llm_audit_redaction_snapshot"}</span>
+            <small>
+              Events {String(llmAuditSnapshot?.events_scanned ?? 0)} / Dry-run{" "}
+              {String(llmAuditSnapshot?.dry_run_count ?? 0)} / Live{" "}
+              {String(llmAuditSnapshot?.live_provider_call_count ?? 0)}
+            </small>
+            <small>
+              Evidence: {llmAuditSnapshot?.snapshot_evidence_ref ?? "llm_audit_snapshot_visible"} /{" "}
+              {llmAuditSnapshot?.redaction_evidence_ref ?? "llm_audit_redaction_enforced"}
+            </small>
+          </div>
+          <div className="auditList">
+            {llmAuditEvents.length ? (
+              llmAuditEvents.map((event) => (
+                <article className="auditItem" key={event.id}>
+                  <div>
+                    <strong>{event.model_name ?? String(event.details.model_name ?? "model")}</strong>
+                    <span className={`severity severity-${event.severity}`}>
+                      {event.status ?? String(event.details.status ?? event.severity)}
+                    </span>
+                  </div>
+                  <small>Provider: {event.provider_name ?? String(event.details.provider_name ?? "none")}</small>
+                  <small>Agent: {event.agent_type ?? String(event.details.agent_type ?? event.user_id ?? "unknown")}</small>
+                  <small>Trace ID: {event.trace_id ?? String(event.details.trace_id ?? "none")}</small>
+                  <small>
+                    Live:{" "}
+                    {String(event.live_provider_calls ?? event.details.live_provider_calls ?? false)} / Cost:{" "}
+                    {String(event.cost_cents ?? event.details.cost_cents ?? 0)} cents
+                  </small>
+                  <small>
+                    Evidence:{" "}
+                    {event.evidence_ref ??
+                      event.audit_feed_evidence_ref ??
+                      String(event.details.audit_feed_evidence_ref ?? "llm_audit_feed_visible")}
+                  </small>
+                  <small>
+                    Redaction:{" "}
+                    {event.redaction_evidence_ref ??
+                      String(event.details.redaction_evidence_ref ?? "llm_audit_redaction_enforced")}{" "}
+                    / prompt_body_stored={String(event.prompt_body_stored ?? event.details.prompt_body_stored ?? false)}
+                  </small>
+                  <p>{String(event.details.summary ?? "Audit-backed LLM Gateway dry-run event.")}</p>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No LLM audit events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/audit/llm</small>
+                <small>Contract: llm-audit-feed-v1</small>
+                <small>Evidence: llm_audit_feed_visible / llm_audit_feed_event_visible</small>
+                <small>Snapshot: llm_audit_snapshot_visible / llm_audit_redaction_enforced</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {llmAuditFeedContract?.non_claims?.[0] ?? "No live provider call is enabled by this feed."}
+          </p>
+        </section>
+
+        <section className="panel gatewayCorrelationPanel" aria-label="Gateway correlation snapshot">
+          <header className="panelHeader">
+            <h2>Gateway Correlation Snapshot</h2>
+            <button type="button" onClick={() => void loadGatewayCorrelationSnapshot()}>
+              Refresh
+            </button>
+          </header>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>{gatewayCorrelationSnapshot?.contract_version ?? "gateway-correlation-snapshot-v1"}</strong>
+              <p>{gatewayCorrelationSnapshot?.endpoint ?? "GET /api/v1/security/gateway-correlation/snapshot"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>
+                {gatewayCorrelationSnapshot?.evidence_ref ?? "gateway_correlation_snapshot_visible"} /{" "}
+                {gatewayCorrelationSnapshot?.redaction_evidence_ref ?? "gateway_correlation_redaction_enforced"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>No Live Writes</strong>
+              <p>
+                {gatewayCorrelationSnapshot?.no_live_write_evidence_ref ??
+                  "gateway_correlation_no_live_write_guard"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Mode</strong>
+              <p>{gatewayCorrelationSnapshot?.mode ?? "read_only_agent_llm_mcp_correlation_snapshot"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Live Claims</strong>
+              <p>
+                live_provider_calls_claimed={String(gatewayCorrelationSnapshot?.live_provider_calls_claimed ?? false)} /{" "}
+                live_mcp_writes_claimed={String(gatewayCorrelationSnapshot?.live_mcp_writes_claimed ?? false)}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Raw Data</strong>
+              <p>
+                prompt_bodies_returned={String(gatewayCorrelationSnapshot?.prompt_bodies_returned ?? false)} /{" "}
+                tool_input_refs_returned={String(gatewayCorrelationSnapshot?.tool_input_refs_returned ?? false)}
+              </p>
+            </article>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Agent - LLM - MCP</strong>
+            <span>
+              {gatewayCorrelationSnapshot?.redaction_status ?? "clear"} / forbidden hits{" "}
+              {String(gatewayCorrelationSnapshot?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              Events {String(gatewayCorrelationSnapshot?.events_scanned ?? 0)} / Groups{" "}
+              {String(gatewayCorrelationSnapshot?.groups_scanned ?? 0)} / Full{" "}
+              {String(gatewayCorrelationSnapshot?.full_correlation_count ?? 0)}
+            </small>
+            <small>
+              Live provider {String(gatewayCorrelationSnapshot?.live_provider_call_count ?? 0)} / Live MCP{" "}
+              {String(gatewayCorrelationSnapshot?.live_mcp_write_count ?? 0)}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Gateway Correlation Risk Rollup</strong>
+            <span>
+              {gatewayCorrelationRiskRollup?.risk_status ?? "clear"} / blockers{" "}
+              {String(gatewayCorrelationRiskRollup?.blocker_count ?? 0)} / review{" "}
+              {String(gatewayCorrelationRiskRollup?.review_count ?? 0)}
+            </span>
+            <small>
+              {gatewayCorrelationRiskRollup?.contract_version ?? "gateway-correlation-risk-rollup-v1"} /{" "}
+              {gatewayCorrelationRiskRollup?.evidence_ref ?? "gateway_correlation_risk_rollup_visible"}
+            </small>
+            <small>
+              Full {String(gatewayCorrelationRiskRollup?.full_correlation_count ?? 0)} / Partial{" "}
+              {String(gatewayCorrelationRiskRollup?.partial_correlation_count ?? 0)} / Gateway pair{" "}
+              {String(gatewayCorrelationRiskRollup?.gateway_pair_count ?? 0)}
+            </small>
+            <small>
+              Missing agent {String(gatewayCorrelationRiskRollup?.missing_leg_counts?.agent_task ?? 0)} / LLM{" "}
+              {String(gatewayCorrelationRiskRollup?.missing_leg_counts?.llm_audit ?? 0)} / MCP{" "}
+              {String(gatewayCorrelationRiskRollup?.missing_leg_counts?.mcp_audit ?? 0)}
+            </small>
+            <small>
+              promotion_allowed={String(gatewayCorrelationRiskRollup?.promotion_allowed ?? false)} /
+              production_rollout_claimed={String(gatewayCorrelationRiskRollup?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Gateway Correlation Timeline</strong>
+            <span>
+              {gatewayCorrelationTimeline?.redaction_status ?? "clear"} / timeline{" "}
+              {String(gatewayCorrelationTimeline?.timeline_count ?? 0)} / forbidden hits{" "}
+              {String(gatewayCorrelationTimeline?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              {gatewayCorrelationTimeline?.contract_version ?? "gateway-correlation-timeline-v1"} /{" "}
+              {gatewayCorrelationTimeline?.evidence_ref ?? "gateway_correlation_timeline_visible"}
+            </small>
+            <small>
+              Endpoint:{" "}
+              {gatewayCorrelationTimeline?.endpoint ?? "GET /api/v1/security/gateway-correlation/timeline"}
+            </small>
+            <small>
+              Redaction:{" "}
+              {gatewayCorrelationTimeline?.redaction_evidence_ref ?? "gateway_correlation_redaction_enforced"} /
+              No-live-write:{" "}
+              {gatewayCorrelationTimeline?.no_live_write_evidence_ref ??
+                "gateway_correlation_no_live_write_guard"}
+            </small>
+            <small>
+              promotion_allowed={String(gatewayCorrelationTimeline?.promotion_allowed ?? false)} /
+              production_rollout_claimed={String(gatewayCorrelationTimeline?.production_rollout_claimed ?? false)}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Gateway Correlation Export</strong>
+            <span>
+              {gatewayCorrelationExportContract?.contract_version ?? "gateway-correlation-export-v1"} /{" "}
+              {gatewayCorrelationExportContract?.evidence_ref ?? "gateway_correlation_export_visible"}
+            </span>
+            <small>
+              Endpoint:{" "}
+              {gatewayCorrelationExportContract?.endpoint ??
+                "GET /api/v1/security/gateway-correlation/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract:{" "}
+              {gatewayCorrelationExportContract?.contract_endpoint ??
+                "GET /api/v1/security/gateway-correlation/export/contract"}
+            </small>
+            <small>
+              Audit:{" "}
+              {gatewayCorrelationExportContract?.export_audit_evidence_ref ??
+                "gateway_correlation_export_audit_persisted"}{" "}
+              / Redaction:{" "}
+              {gatewayCorrelationExportContract?.redaction_evidence_ref ??
+                "gateway_correlation_redaction_enforced"}
+            </small>
+            <small>
+              No-live-write:{" "}
+              {gatewayCorrelationExportContract?.no_live_write_evidence_ref ??
+                "gateway_correlation_no_live_write_guard"}{" "}
+              / File: {gatewayCorrelationExportContract?.filename_pattern ?? "superbrain-gateway-correlation.csv"}
+            </small>
+            <small>
+              live_provider_calls_claimed=
+              {String(gatewayCorrelationExportContract?.live_provider_calls_claimed ?? false)} /
+              live_mcp_writes_claimed={String(gatewayCorrelationExportContract?.live_mcp_writes_claimed ?? false)}
+            </small>
+          </div>
+          <div className="statusPills">
+            {(gatewayCorrelationRiskRollup?.risk_badges ?? [
+              {
+                id: "redaction",
+                label: "Redaction",
+                status: "clear",
+                count: 0,
+                evidence_ref: "gateway_correlation_redaction_enforced",
+              },
+              {
+                id: "no_live_write",
+                label: "No Live Write",
+                status: "clear",
+                count: 0,
+                evidence_ref: "gateway_correlation_no_live_write_guard",
+              },
+            ]).map((badge) => (
+              <span className={`statusPill statusPill-${badge.status}`} key={badge.id}>
+                {badge.label}: {badge.status} ({badge.count}) / {badge.evidence_ref}
+              </span>
+            ))}
+          </div>
+          <div className="auditList">
+            {gatewayCorrelationSnapshot?.groups?.length ? (
+              gatewayCorrelationSnapshot.groups.slice(0, 6).map((group) => (
+                <article className="auditItem" key={group.correlation_key}>
+                  <div>
+                    <strong>{group.correlation_state}</strong>
+                    <span className="severity severity-info">{group.event_count}</span>
+                  </div>
+                  <small>Trace: {group.trace_id ?? "none"}</small>
+                  <small>Session: {group.session_id ?? "none"}</small>
+                  <small>Request: {group.request_id ?? "none"}</small>
+                  <small>Events: {group.event_types.join(", ")}</small>
+                  <small>
+                    Agent={String(group.has_agent_task)} / LLM={String(group.has_llm_audit)} / MCP=
+                    {String(group.has_mcp_audit)}
+                  </small>
+                  <small>
+                    Evidence: {group.redaction_evidence_ref} / {group.no_live_write_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No gateway correlation groups yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/gateway-correlation/snapshot</small>
+                <small>Contract: gateway-correlation-snapshot-v1</small>
+                <small>Evidence: gateway_correlation_snapshot_visible / gateway_correlation_redaction_enforced</small>
+                <small>Guard: gateway_correlation_no_live_write_guard</small>
+              </article>
+            )}
+          </div>
+          <div className="auditList">
+            {gatewayCorrelationTimeline?.timeline?.length ? (
+              gatewayCorrelationTimeline.timeline.slice(0, 6).map((event) => (
+                <article className="auditItem" key={`timeline-${event.sequence_index}-${event.event_id}`}>
+                  <div>
+                    <strong>
+                      #{event.sequence_index} {event.timeline_leg}
+                    </strong>
+                    <span className="severity severity-info">{event.status}</span>
+                  </div>
+                  <small>
+                    {event.event_type} / {event.created_at ?? "no timestamp"}
+                  </small>
+                  <small>Trace: {event.trace_id ?? "none"}</small>
+                  <small>Request: {event.request_id ?? "none"}</small>
+                  <small>Session: {event.session_id ?? "none"}</small>
+                  <small>
+                    Evidence: {event.evidence_ref} / {event.redaction_evidence_ref} /{" "}
+                    {event.no_live_write_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No gateway timeline events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/gateway-correlation/timeline</small>
+                <small>Contract: gateway-correlation-timeline-v1</small>
+                <small>Evidence: gateway_correlation_timeline_visible / gateway_correlation_redaction_enforced</small>
+                <small>Guard: gateway_correlation_no_live_write_guard</small>
+              </article>
+            )}
+          </div>
+          <div className="auditList">
+            {gatewayCorrelationRiskRollup?.group_risks?.length ? (
+              gatewayCorrelationRiskRollup.group_risks.slice(0, 6).map((risk) => (
+                <article className="auditItem" key={`risk-${risk.correlation_key}`}>
+                  <div>
+                    <strong>{risk.risk_status}</strong>
+                    <span className={`severity severity-${risk.severity}`}>{risk.correlation_state}</span>
+                  </div>
+                  <small>Trace: {risk.trace_id ?? "none"}</small>
+                  <small>Missing: {risk.missing_legs.length ? risk.missing_legs.join(", ") : "none"}</small>
+                  <small>
+                    Live provider {String(risk.live_provider_call_count)} / Live MCP {String(risk.live_mcp_write_count)}
+                  </small>
+                  <small>
+                    Evidence: {risk.redaction_evidence_ref} / {risk.no_live_write_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No gateway risk groups yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/security/gateway-correlation/risk-rollup</small>
+                <small>Contract: gateway-correlation-risk-rollup-v1</small>
+                <small>Evidence: gateway_correlation_risk_rollup_visible / gateway_correlation_redaction_enforced</small>
+              </article>
+            )}
+          </div>
+          <p className="muted">
+            {gatewayCorrelationSnapshot?.non_claims?.[0] ??
+              "No live provider call or live MCP write is enabled by this snapshot."}
+          </p>
+        </section>
+
         <section className="panel mcpAuditPanel" aria-label="MCP audit">
           <header className="panelHeader">
             <h2>MCP Audit</h2>
@@ -4401,6 +7987,55 @@ export default function Home() {
               Refresh
             </button>
           </header>
+          <div className="auditSnapshot">
+            <strong>MCP Audit Snapshot</strong>
+            <span>{mcpAuditSnapshot?.snapshot_evidence_ref ?? "mcp_audit_snapshot_visible"}</span>
+            <span>{mcpAuditSnapshot?.redaction_evidence_ref ?? "mcp_audit_redaction_enforced"}</span>
+            <small>{mcpAuditSnapshot?.endpoint ?? "GET /api/v1/audit/mcp/snapshot"}</small>
+            <small>{mcpAuditSnapshot?.mode ?? "read_only_mcp_audit_redaction_snapshot"}</small>
+            <small>
+              live_mcp_writes_claimed={String(mcpAuditSnapshot?.live_mcp_writes_claimed ?? false)} / input_refs_returned=
+              {String(mcpAuditSnapshot?.input_refs_returned ?? false)}
+            </small>
+            <small>
+              redaction_status={mcpAuditSnapshot?.redaction_status ?? "loading"} / forbidden_pattern_hits=
+              {mcpAuditSnapshot?.forbidden_pattern_hits ?? 0}
+            </small>
+            <small>
+              blocked={mcpAuditSnapshot?.blocked_count ?? 0} / denied_correlation=
+              {mcpAuditSnapshot?.denied_tool_correlation_count ?? 0} / session_bound={mcpAuditSnapshot?.session_bound_count ?? 0}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>MCP Audit Export</strong>
+            <span>
+              {mcpAuditExportContract?.contract_version ?? "mcp-audit-export-v1"} /{" "}
+              {mcpAuditExportContract?.evidence_ref ?? "mcp_audit_export_visible"}
+            </span>
+            <small>
+              Endpoint: {mcpAuditExportContract?.endpoint ?? "GET /api/v1/audit/mcp/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract: {mcpAuditExportContract?.contract_endpoint ?? "GET /api/v1/audit/mcp/export/contract"} /
+              file {mcpAuditExportContract?.filename_pattern ?? "superbrain-mcp-audit.csv"}
+            </small>
+            <small>
+              Export audit:{" "}
+              {mcpAuditExportContract?.export_audit_evidence_ref ?? "mcp_audit_export_audit_persisted"} /
+              Redaction: {mcpAuditExportContract?.redaction_evidence_ref ?? "mcp_audit_redaction_enforced"} /
+              No-live-write: {mcpAuditExportContract?.no_live_mcp_write_evidence_ref ?? "mcp_audit_no_live_write_guard"}
+            </small>
+            <small>
+              read_only={String(mcpAuditExportContract?.read_only ?? true)} /
+              audit_persisted={String(mcpAuditExportContract?.audit_persisted ?? true)} /
+              production_rollout_claimed={String(mcpAuditExportContract?.production_rollout_claimed ?? false)}
+            </small>
+            <small>
+              input_refs_returned={String(mcpAuditExportContract?.input_refs_returned ?? false)} /
+              provider_credentials_returned={String(mcpAuditExportContract?.provider_credentials_returned ?? false)} /
+              raw_details_returned={String(mcpAuditExportContract?.raw_details_returned ?? false)}
+            </small>
+          </div>
           <div className="mcpAuditList">
             {mcpAuditEvents.length ? (
               mcpAuditEvents.map((event) => (
@@ -4412,6 +8047,8 @@ export default function Home() {
                   <small>{String(event.details.capability ?? "unknown capability")}</small>
                   <small>Request: {String(event.details.tool_request_id ?? "none")}</small>
                   <small>Error: {String(event.details.error_class ?? "none")}</small>
+                  <small>{String(event.details.redaction_evidence_ref ?? event.redaction_evidence_ref ?? "mcp_audit_redaction_enforced")}</small>
+                  <small>input_ref_stored={String(event.details.input_ref_stored ?? event.input_ref_stored ?? false)}</small>
                   <p>{String(event.details.sanitized_summary ?? "No summary.")}</p>
                 </article>
               ))
@@ -4424,10 +8061,68 @@ export default function Home() {
         <section className="panel memoryConsolidationPanel" aria-label="Memory consolidation">
           <header className="panelHeader">
             <h2>Memory Consolidation</h2>
-            <button type="button" onClick={() => void loadMemoryConsolidationEvents()}>
+            <button type="button" onClick={() => void Promise.all([loadMemoryConsolidationEvents(), loadMemoryWorkerHealthContract()])}>
               Refresh
             </button>
           </header>
+          <div className="costSummary" aria-label="Memory Worker Health Contract">
+            <div>
+              <span>Worker Health</span>
+              <strong>{memoryWorkerHealthContract?.contract_version ?? "memory-worker-health-contract-v1"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{memoryWorkerHealthContract?.evidence_ref ?? "memory_worker_health_contract_visible"}</strong>
+            </div>
+            <div>
+              <span>Heartbeat</span>
+              <strong>
+                {memoryWorkerHealthSnapshot?.heartbeat_status ?? "loading"} / stale_heartbeat=
+                {String(memoryWorkerHealthSnapshot?.stale_heartbeat ?? false)}
+              </strong>
+            </div>
+            <div>
+              <span>Max Age</span>
+              <strong>{memoryWorkerHealthContract?.max_heartbeat_age_seconds ?? 450}s</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Memory Worker Health Contract</strong>
+              <p>
+                GET /api/v1/memory/worker-health/contract /{" "}
+                {memoryWorkerHealthContract?.docker_healthcheck_command ?? "python -m app.worker --healthcheck"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Runtime Snapshot</strong>
+              <p>
+                status={memoryWorkerHealthSnapshot?.status ?? "loading"} / age=
+                {memoryWorkerHealthSnapshot?.heartbeat_age_seconds ?? "n/a"}s / ttl=
+                {memoryWorkerHealthSnapshot?.heartbeat_ttl_seconds ?? "n/a"}s
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Policy</strong>
+              <p>
+                {(memoryWorkerHealthChecks.length
+                  ? memoryWorkerHealthChecks.slice(0, 2)
+                  : [
+                      "A Redis heartbeat is required before the memory worker can be reported healthy.",
+                      "Heartbeat age must stay below max_heartbeat_age_seconds.",
+                    ]
+                ).join(" ")}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Non-Claims</strong>
+              <p>
+                {memoryWorkerHealthNonClaims.length
+                  ? memoryWorkerHealthNonClaims.join(" ")
+                  : "No live embedding provider call, local model download, hosted parity, or production rollout is claimed."}
+              </p>
+            </article>
+          </div>
           <div className="auditList">
             {memoryConsolidationEvents.length ? (
               memoryConsolidationEvents.map((event) => (
@@ -4910,7 +8605,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="panel externalGatesPanel" aria-label="Cloud render offload contract">
+        <section className="panel externalGatesPanel" id="cloud-render-offload-surface" aria-label="Cloud render offload contract">
           <header className="panelHeader">
             <h2>Cloud Render Offload</h2>
             <button type="button" onClick={() => void loadCloudRenderOffload()}>
@@ -5246,6 +8941,222 @@ export default function Home() {
                 auth_refresh_reuse_blocked / auth_logout_revoked
               </small>
             </article>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Snapshot</strong>
+            <span>
+              {authAuditSnapshot?.redaction_status ?? "clear"} / events{" "}
+              {String(authAuditSnapshot?.events_scanned ?? 0)} / forbidden hits{" "}
+              {String(authAuditSnapshot?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              {authAuditSnapshot?.contract_version ?? "auth-audit-snapshot-v1"} /{" "}
+              {authAuditSnapshot?.evidence_ref ?? "auth_audit_snapshot_visible"}
+            </small>
+            <small>
+              Endpoint: {authAuditSnapshot?.endpoint ?? "GET /api/v1/audit/auth/snapshot"}
+            </small>
+            <small>
+              Redaction: {authAuditSnapshot?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditSnapshot?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              live_github_oauth_call_claimed={String(authAuditSnapshot?.live_github_oauth_call_claimed ?? false)} /
+              tokens_returned={String(authAuditSnapshot?.tokens_returned ?? false)} /
+              blacklist_keys_returned={String(authAuditSnapshot?.blacklist_keys_returned ?? false)}
+            </small>
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Risk Rollup</strong>
+            <span>
+              {authAuditRiskRollup?.risk_status ?? "loading"} / blockers{" "}
+              {String(authAuditRiskRollup?.blocker_count ?? 0)} / reviews{" "}
+              {String(authAuditRiskRollup?.review_count ?? 0)}
+            </span>
+            <small>
+              {authAuditRiskRollup?.contract_version ?? "auth-audit-risk-rollup-v1"} /{" "}
+              {authAuditRiskRollup?.evidence_ref ?? "auth_audit_risk_rollup_visible"}
+            </small>
+            <small>
+              Endpoint: {authAuditRiskRollup?.endpoint ?? "GET /api/v1/audit/auth/risk-rollup"} / Snapshot:{" "}
+              {authAuditRiskRollup?.snapshot_endpoint ?? "GET /api/v1/audit/auth/snapshot"}
+            </small>
+            <small>
+              Redaction: {authAuditRiskRollup?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditRiskRollup?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              production_rollout_claimed={String(authAuditRiskRollup?.production_rollout_claimed ?? false)} /
+              promotion_allowed={String(authAuditRiskRollup?.promotion_allowed ?? false)} /
+              live_oauth_count={String(authAuditRiskRollup?.live_github_oauth_call_count ?? 0)}
+            </small>
+          </div>
+          <div className="gateList">
+            {(authAuditRiskRollup?.risk_badges ?? [
+              {
+                id: "redaction",
+                label: "Redaction",
+                status: "loading",
+                count: 0,
+                evidence_ref: "auth_audit_redaction_enforced",
+              },
+              {
+                id: "no_live_oauth",
+                label: "No Live OAuth",
+                status: "loading",
+                count: 0,
+                evidence_ref: "auth_no_live_oauth_guard",
+              },
+              {
+                id: "risk_rollup",
+                label: "Auth Audit Risk Rollup",
+                status: "loading",
+                count: 0,
+                evidence_ref: "auth_audit_risk_rollup_visible",
+              },
+            ]).map((badge) => (
+              <article className="gateItem gateReady" key={`auth-risk-${badge.id}`}>
+                <div>
+                  <strong>{badge.label}</strong>
+                  <span>{badge.status}</span>
+                </div>
+                <p>
+                  Count {badge.count} / {badge.evidence_ref}
+                </p>
+              </article>
+            ))}
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Timeline</strong>
+            <span>
+              {authAuditTimeline?.redaction_status ?? "loading"} / timeline{" "}
+              {String(authAuditTimeline?.timeline_count ?? 0)} / forbidden hits{" "}
+              {String(authAuditTimeline?.forbidden_pattern_hits ?? 0)}
+            </span>
+            <small>
+              {authAuditTimeline?.contract_version ?? "auth-audit-timeline-v1"} /{" "}
+              {authAuditTimeline?.evidence_ref ?? "auth_audit_timeline_visible"}
+            </small>
+            <small>
+              Endpoint: {authAuditTimeline?.endpoint ?? "GET /api/v1/audit/auth/timeline"} / Risk:{" "}
+              {authAuditTimeline?.risk_rollup_endpoint ?? "GET /api/v1/audit/auth/risk-rollup"}
+            </small>
+            <small>
+              Redaction: {authAuditTimeline?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditTimeline?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              production_rollout_claimed={String(authAuditTimeline?.production_rollout_claimed ?? false)} /
+              promotion_allowed={String(authAuditTimeline?.promotion_allowed ?? false)} /
+              live_oauth_count={String(authAuditTimeline?.live_github_oauth_call_count ?? 0)}
+            </small>
+          </div>
+          <div className="auditList">
+            {authAuditTimeline?.timeline?.length ? (
+              authAuditTimeline.timeline.slice(0, 6).map((event) => (
+                <article className="auditItem" key={`auth-timeline-${event.sequence_index}-${event.event_id}`}>
+                  <div>
+                    <strong>
+                      #{event.sequence_index} {event.timeline_leg}
+                    </strong>
+                    <span className="severity severity-info">{event.status}</span>
+                  </div>
+                  <small>
+                    {event.event_type} / {event.created_at ?? "no timestamp"}
+                  </small>
+                  <small>Trace: {event.trace_id ?? "none"}</small>
+                  <small>
+                    Cookie flags: HttpOnly={String(event.cookie_flags.HttpOnly ?? false)} / Secure=
+                    {String(event.cookie_flags.Secure ?? false)} / SameSite={event.cookie_flags.SameSite ?? "none"}
+                  </small>
+                  <small>
+                    Evidence: {event.evidence_ref} / {event.redaction_evidence_ref} /{" "}
+                    {event.no_live_oauth_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No auth timeline events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/audit/auth/timeline</small>
+                <small>Contract: auth-audit-timeline-v1</small>
+                <small>Evidence: auth_audit_timeline_visible / auth_audit_redaction_enforced</small>
+                <small>Guard: auth_no_live_oauth_guard</small>
+              </article>
+            )}
+          </div>
+          <div className="auditSnapshot">
+            <strong>Auth Audit Export</strong>
+            <span>
+              {authAuditExportContract?.contract_version ?? "auth-audit-export-v1"} /{" "}
+              {authAuditExportContract?.evidence_ref ?? "auth_audit_export_visible"}
+            </span>
+            <small>
+              Endpoint: {authAuditExportContract?.endpoint ?? "GET /api/v1/audit/auth/export?format=csv&limit=80"}
+            </small>
+            <small>
+              Contract: {authAuditExportContract?.contract_endpoint ?? "GET /api/v1/audit/auth/export/contract"} /
+              file {authAuditExportContract?.filename_pattern ?? "superbrain-auth-audit.csv"}
+            </small>
+            <small>
+              Export audit:{" "}
+              {authAuditExportContract?.export_audit_evidence_ref ?? "auth_audit_export_audit_persisted"} /
+              Redaction: {authAuditExportContract?.redaction_evidence_ref ?? "auth_audit_redaction_enforced"} /
+              No-live-OAuth: {authAuditExportContract?.no_live_oauth_evidence_ref ?? "auth_no_live_oauth_guard"}
+            </small>
+            <small>
+              read_only={String(authAuditExportContract?.read_only ?? true)} /
+              audit_persisted={String(authAuditExportContract?.audit_persisted ?? true)} /
+              production_rollout_claimed={String(authAuditExportContract?.production_rollout_claimed ?? false)}
+            </small>
+            <small>
+              tokens_returned={String(authAuditExportContract?.tokens_returned ?? false)} /
+              cookies_returned={String(authAuditExportContract?.cookies_returned ?? false)} /
+              raw_details_returned={String(authAuditExportContract?.raw_details_returned ?? false)}
+            </small>
+            <small>
+              Columns:{" "}
+              {authAuditExportContract?.columns?.join(", ") ??
+                "sequence_index, event_id, created_at, event_type, lifecycle_step, status, severity, trace_id"}
+            </small>
+          </div>
+          <div className="auditList">
+            {authAuditSnapshot?.events?.length ? (
+              authAuditSnapshot.events.slice(0, 6).map((event) => (
+                <article className="auditItem" key={`auth-audit-${event.event_id}`}>
+                  <div>
+                    <strong>{event.lifecycle_step}</strong>
+                    <span className="severity severity-info">{event.status}</span>
+                  </div>
+                  <small>
+                    {event.event_type} / {event.created_at ?? "no timestamp"}
+                  </small>
+                  <small>Trace: {event.trace_id ?? "none"}</small>
+                  <small>
+                    Cookie flags: HttpOnly={String(event.cookie_flags.HttpOnly ?? false)} / Secure=
+                    {String(event.cookie_flags.Secure ?? false)} / SameSite={event.cookie_flags.SameSite ?? "none"}
+                  </small>
+                  <small>
+                    Evidence: {event.evidence_ref} / {event.redaction_evidence_ref} /{" "}
+                    {event.no_live_oauth_evidence_ref}
+                  </small>
+                </article>
+              ))
+            ) : (
+              <article className="auditItem auditItemEmpty">
+                <div>
+                  <strong>No auth audit events yet.</strong>
+                  <span className="severity severity-info">read-only</span>
+                </div>
+                <small>Endpoint: GET /api/v1/audit/auth/snapshot</small>
+                <small>Contract: auth-audit-snapshot-v1</small>
+                <small>Evidence: auth_audit_snapshot_visible / auth_audit_redaction_enforced</small>
+                <small>Guard: auth_no_live_oauth_guard</small>
+              </article>
+            )}
           </div>
           <div className="gateList">
             {authContract?.policy_checks?.length ? (
@@ -5869,7 +9780,312 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="panel externalGatesPanel" aria-label="Memory Embedding Consistency Contract">
+        <section className="panel externalGatesPanel" id="mcp-runtime-guard-surface" aria-label="MCP Runtime Guard Parity">
+          <header className="panelHeader">
+            <h2>MCP Runtime Guard Parity</h2>
+            <button type="button" onClick={() => void loadMcpRuntimeGuardParity()}>
+              Refresh
+            </button>
+          </header>
+          <div className="costSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{mcpRuntimeGuardParity?.contract_version ?? "mcp-runtime-guard-parity-v1"}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{mcpRuntimeGuardParity?.status ?? "loading"}</strong>
+            </div>
+            <div>
+              <span>Writes</span>
+              <strong>{mcpRuntimeGuardParity?.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{mcpRuntimeGuardParity?.evidence_ref ?? "mcp_runtime_guard_parity_visible"}</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Agent Endpoint</strong>
+              <p>{mcpRuntimeGuardParity?.endpoint ?? "GET /api/v1/agents/mcp-runtime-guard-parity"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Gateway Endpoint</strong>
+              <p>{mcpRuntimeGuardParity?.gateway_endpoint ?? "GET /mcp/api/v1/runtime/guard-parity"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Mutation Guards</strong>
+              <p>
+                {mcpRuntimeGuardParity
+                  ? `live_mutations=${String(mcpRuntimeGuardParity.live_mutations)}; external_mcp_server_calls=${String(
+                      mcpRuntimeGuardParity.external_mcp_server_calls,
+                    )}; model_downloads=${String(mcpRuntimeGuardParity.model_downloads)}`
+                  : "live_mutations=false; external_mcp_server_calls=false; model_downloads=false"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Snapshot Redaction</strong>
+              <p>
+                {mcpRuntimeGuardParity
+                  ? `snapshots_redacted=${String(mcpRuntimeGuardParity.snapshots_redacted)}; ${
+                      mcpRuntimeGuardParity.snapshot_redaction_policy
+                    }`
+                  : "snapshots_redacted=true; app.security.redact_json"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Gateway Contracts</strong>
+              <p>{mcpRuntimeGuardParity?.required_gateway_contracts?.join(", ") ?? "mcp-runtime-guard-parity-v1, mcp-version-pinning-v1, mcp-capability-catalog-v1"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Gateway Guards</strong>
+              <p>{mcpRuntimeGuardParity?.required_gateway_guards?.join(", ") ?? "unsupported_toolset, unsupported_capability, scope_guard, timeout_guard, secret_redaction, denied_audit_correlation"}</p>
+            </article>
+          </div>
+          <div className="gateList">
+            {(mcpRuntimeGuardMatrix.length
+              ? mcpRuntimeGuardMatrix
+              : [
+                  {
+                    guard: "unsupported_toolset",
+                    status: "enforced",
+                    evidence_ref: "mcp_unsupported_toolset_guard",
+                    enforced_on: ["/api/v1/tools/execute"],
+                    fail_closed: true,
+                  },
+                  {
+                    guard: "unsupported_capability",
+                    status: "enforced",
+                    evidence_ref: "mcp_unsupported_capability_guard",
+                    enforced_on: ["/api/v1/tools/execute"],
+                    fail_closed: true,
+                  },
+                  {
+                    guard: "secret_redaction",
+                    status: "enforced",
+                    evidence_ref: "mcp_secret_redaction_guard",
+                    enforced_on: ["/api/v1/tools/execute"],
+                    fail_closed: true,
+                  },
+                ]).map((guard) => (
+              <article className="gateItem gateReady" key={guard.guard}>
+                <div>
+                  <strong>{guard.guard}</strong>
+                  <span>{guard.status}</span>
+                </div>
+                <p>
+                  {guard.evidence_ref} / fail_closed={String(guard.fail_closed)} /{" "}
+                  {guard.enforced_on?.join(", ") ?? "/api/v1/tools/execute"}
+                </p>
+              </article>
+            ))}
+          </div>
+          <p className="infraNote evidenceLine">
+            Agent executor fields:{" "}
+            {(mcpRuntimeExecutorFields.length
+              ? mcpRuntimeExecutorFields
+              : [
+                  "mcp_gateway_calls[].tool_request_id",
+                  "mcp_gateway_calls[].session_id",
+                  "mcp_gateway_calls[].trace_id",
+                  "mcp_gateway_calls[].request_id",
+                  "mcp_gateway_calls[].guard_evidence_ref",
+                  "mcp_gateway_calls[].live_mcp_writes_proven_false",
+                ]).join(" / ")}
+          </p>
+          <p className="infraNote evidenceLine">
+            Evidence:{" "}
+            {(mcpRuntimeGuardEvidenceRefs.length
+              ? mcpRuntimeGuardEvidenceRefs
+              : [
+                  "mcp_runtime_guard_parity_visible",
+                  "mcp_version_pinning_contract_visible",
+                  "mcp_capability_catalog_visible",
+                  "mcp_secret_redaction_guard",
+                  "mcp_unsupported_toolset_guard",
+                  "mcp_unsupported_capability_guard",
+                  "mcp_denied_tool_audit_correlation",
+                ]).join(" / ")}
+          </p>
+          <p className="infraNote">
+            {mcpRuntimeNonClaims.length
+              ? mcpRuntimeNonClaims.join(" ")
+              : "No live MCP write, live mutation, external MCP server call, local model download, production rollout, or release promotion is claimed."}
+          </p>
+        </section>
+
+        <section className="panel externalGatesPanel" id="agent-skill-mode-surface" aria-label="Agent Skill Mode Capability Contract">
+          <header className="panelHeader">
+            <h2>Agent Skill Mode</h2>
+            <button type="button" onClick={() => void loadAgentSkillModeContract()}>
+              Refresh
+            </button>
+          </header>
+          <div className="costSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{agentSkillModeContract?.contract_version ?? "agent-skill-mode-capability-contract-v1"}</strong>
+            </div>
+            <div>
+              <span>Plugins</span>
+              <strong>Plugins {agentSkillModeCounts.plugins}</strong>
+            </div>
+            <div>
+              <span>Apps</span>
+              <strong>Apps {agentSkillModeCounts.apps}</strong>
+            </div>
+            <div>
+              <span>Skills</span>
+              <strong>Skills {agentSkillModeCounts.skills}</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Agent Endpoint</strong>
+              <p>{agentSkillModeContract?.endpoint ?? "GET /api/v1/agents/skill-mode/contract"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>MCP Surface</strong>
+              <p>
+                MCPs {agentSkillModeCounts.mcp_servers}; live_mcp_writes=
+                {String(agentSkillModeContract?.mcp_policy?.live_mcp_writes ?? false)}; external_mcp_server_calls=
+                {String(agentSkillModeContract?.mcp_policy?.external_mcp_server_calls ?? false)}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Model Surface</strong>
+              <p>
+                api_only={String(agentSkillModeContract?.model_policy?.api_only ?? true)}; model_downloads=
+                {String(agentSkillModeContract?.model_policy?.local_model_downloads ?? false)}; route=
+                {agentSkillModeContract?.model_policy?.routing_surface ?? "LLM Gateway"}
+              </p>
+            </article>
+            <article className="policyItem">
+              <strong>Evidence</strong>
+              <p>{agentSkillModeContract?.evidence_ref ?? "agent_skill_mode_capability_visible"}</p>
+            </article>
+          </div>
+          <div className="gateList">
+            {(agentSkillModeLayerBindings.length
+              ? agentSkillModeLayerBindings
+              : [
+                  { layer: "L1 Frontend", binding: "Workbench module registry", guard: "no_hidden_progress_claim" },
+                  { layer: "L3 Agent Pool", binding: "Supervisor squad slots", guard: "role_scope_required" },
+                  { layer: "L5 MCP Gateway", binding: "Safe-envelope tools", guard: "live_mcp_writes_false" },
+                ]).map((item) => (
+              <article className="gateItem gateReady" key={`${item.layer}-${item.guard}`}>
+                <div>
+                  <strong>{item.layer}</strong>
+                  <span>{item.guard}</span>
+                </div>
+                <p>{item.binding}</p>
+              </article>
+            ))}
+          </div>
+          <p className="infraNote evidenceLine">
+            Guard flags:{" "}
+            {(agentSkillModeGuards.length
+              ? agentSkillModeGuards
+              : [
+                  "api_only",
+                  "model_downloads=false",
+                  "live_provider_calls=false",
+                  "live_mcp_writes=false",
+                  "external_mcp_server_calls=false",
+                  "production_rollout_claimed=false",
+                  "secrets_exposed=false",
+                  "agent_skill_mode_no_live_external_calls",
+                  "agent_skill_mode_no_secret_material",
+                  "agent_skill_mode_no_local_model_downloads",
+                ]).join(" / ")}
+          </p>
+          <p className="infraNote evidenceLine">
+            Skill groups:{" "}
+            {(agentSkillModeGroups.length
+              ? agentSkillModeGroups.map((group) => `${group.group}:${group.guard}`)
+              : ["cloud_deploy:owner_gate_required", "ai_gateway:api_only_gateway_route", "security:no_secret_output"]).join(
+              " / ",
+            )}
+          </p>
+          <p className="infraNote">
+            {(agentSkillModeContract?.non_claims?.length
+              ? agentSkillModeContract.non_claims
+              : [
+                  "No live provider call, live MCP write, external MCP server mutation, local model download, production rollout, release promotion, or secret exposure is enabled by this contract.",
+                ]).join(" ")}
+          </p>
+        </section>
+
+        <section className="panel externalGatesPanel" aria-label="MCP Capability Catalog">
+          <header className="panelHeader">
+            <h2>MCP Capability Catalog</h2>
+            <button type="button" onClick={() => void loadMcpCapabilityCatalog()}>
+              Refresh
+            </button>
+          </header>
+          <div className="costSummary">
+            <div>
+              <span>Contract</span>
+              <strong>{mcpCapabilityCatalog?.contract_version ?? "mcp-capability-catalog-v1"}</strong>
+            </div>
+            <div>
+              <span>Status</span>
+              <strong>{mcpCapabilityCatalog?.status ?? "loading"}</strong>
+            </div>
+            <div>
+              <span>Writes</span>
+              <strong>{mcpCapabilityCatalog?.live_mcp_writes ? "live_mcp_writes=true" : "live_mcp_writes=false"}</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>{mcpCapabilityCatalog?.evidence_ref ?? "mcp_capability_catalog_visible"}</strong>
+            </div>
+          </div>
+          <div className="policyGrid">
+            <article className="policyItem">
+              <strong>Endpoint</strong>
+              <p>{mcpCapabilityCatalog?.endpoint ?? "GET /mcp/api/v1/capabilities/catalog"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Toolsets</strong>
+              <p>{mcpCapabilityCatalog ? `${mcpCapabilityCatalog.toolset_count} toolsets` : "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Capabilities</strong>
+              <p>{mcpCapabilityCatalog ? `${mcpCapabilityCatalog.capability_count} allowed capabilities` : "loading"}</p>
+            </article>
+            <article className="policyItem">
+              <strong>Guards</strong>
+              <p>{Object.entries(mcpCatalogGuards).map(([key, value]) => `${key}: ${String(value)}`).join("; ") || "loading"}</p>
+            </article>
+          </div>
+          <div className="modelList">
+            {mcpCatalogToolsets.length ? (
+              mcpCatalogToolsets.map((toolset) => (
+                <article className="modelItem" key={toolset.toolset}>
+                  <div>
+                    <strong>{toolset.toolset}</strong>
+                    <span>{toolset.live_mcp_writes ? "writes enabled" : "dry-run gated"}</span>
+                  </div>
+                  <small>Allowed: {toolset.supported_capabilities.length ? toolset.supported_capabilities.join(", ") : "none"}</small>
+                  <small>Blocked examples: {toolset.blocked_capability_examples.join(", ")}</small>
+                  <small>{toolset.contract_version ?? "no contract"} / {toolset.contract_endpoint ?? "blocked"}</small>
+                  <small>{toolset.unsupported_capability_guard}</small>
+                </article>
+              ))
+            ) : (
+              <p className="muted">MCP capability catalog loading.</p>
+            )}
+          </div>
+          <p className="infraNote">
+            {mcpCatalogNonClaims.length
+              ? mcpCatalogNonClaims.join(" ")
+              : "No live MCP write or external MCP server call is claimed."}
+          </p>
+        </section>
+
+        <section className="panel externalGatesPanel" id="memory-surface" aria-label="Memory Embedding Consistency Contract">
           <header className="panelHeader">
             <h2>Memory Embedding Consistency Contract</h2>
             <button type="button" onClick={() => void loadMemoryEmbeddingConsistencyContract()}>
@@ -6002,7 +10218,56 @@ export default function Home() {
             </div>
           </section>
         </section>
+          </div>
+        </details>
       </section>
+      <aside className="workbenchInspector" aria-label="Context inspector">
+        <section>
+          <span className="forgeKicker">Inspector</span>
+          <h2>{activeWorkbenchModule.label}</h2>
+          <p>{activeWorkbenchModule.description}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Fast Launch</span>
+          <strong>{selectedLaunchPack?.label ?? activeWorkbenchModule.primary}</strong>
+          <p>{selectedLaunchPack?.description ?? "Select a launch pack to configure the prompt and workspace."}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Selected Agent Mode</span>
+          <strong>{activeAgentMode.label}</strong>
+          <p>{activeAgentMode.detail}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Model Route</span>
+          <strong>{selectedRouteLabel}</strong>
+          <p>{selectedModelRoute?.supports_streaming ? "Streaming route available" : "Non-streaming or loading route"}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>MCP Tool Scope</span>
+          <strong>{selectedToolsetLabel}</strong>
+          <p>{selectedMcpToolset?.unsupported_capability_guard ?? "mcp_unsupported_capability_guard"}</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Safety Gates</span>
+          <strong>Fail closed</strong>
+          <p>API-only models, no local model downloads, no live MCP writes, no production rollout claim.</p>
+        </section>
+        <section className="workbenchInspectorCard">
+          <span>Codex Surface</span>
+          <strong>
+            {agentSkillModeCounts.plugins}+{agentSkillModeCounts.apps}+{agentSkillModeCounts.skills}
+          </strong>
+          <p>Plugins 11, Apps 4, MCPs 1, Skills 140 behind guarded seven-layer activation.</p>
+        </section>
+        <section className="workbenchInspectorActions">
+          <a href={activeWorkbenchModule.target}>Open module details</a>
+          <a href="#diagnostics-surface">Open diagnostics</a>
+          <a href="#agent-skill-mode-surface">Skill mode</a>
+          <a href="#mcp-runtime-guard-surface">Guard matrix</a>
+          <a href="#memory-surface">Memory policy</a>
+        </section>
+      </aside>
+      </div>
     </main>
   );
 }

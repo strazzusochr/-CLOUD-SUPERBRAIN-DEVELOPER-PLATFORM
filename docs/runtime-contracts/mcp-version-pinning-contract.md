@@ -14,6 +14,7 @@ This contract closes audit gap `L-08`: MCP Gateway dependencies and tool contrac
 | Purpose | Method | Path | Evidence |
 | --- | --- | --- | --- |
 | Public MCP version pinning contract | `GET` | `/mcp/api/v1/version-pinning/contract` | `mcp_version_pinning_contract_visible` |
+| Public MCP capability catalog contract | `GET` | `/mcp/api/v1/capabilities/catalog` | `mcp_capability_catalog_visible` |
 
 ## Pinned Gateway
 
@@ -55,14 +56,17 @@ Pinned dependencies:
 - Every runtime dependency in `services/mcp-gateway/requirements.txt` must use exact `==` pinning.
 - Every exposed MCP tool contract must publish a stable `contract_version`.
 - Adding or changing a tool capability requires updating this endpoint, docs, UI, and verifiers in the same change.
+- The capability catalog `mcp-capability-catalog-v1` must list every known toolset, its allowed capabilities, blocked examples, contract link, audit requirement, timeout requirement, and no-live-write flags.
 - Unknown toolsets or scope-violating capabilities fail closed before live execution.
 - Live mutations remain disabled until a separate external gate and human review are configured.
 
 ## Evidence
 
 - `GET /mcp/api/v1/version-pinning/contract` returns `mcp-version-pinning-v1`.
+- `GET /mcp/api/v1/capabilities/catalog` returns `mcp-capability-catalog-v1` with `mcp_capability_catalog_visible`.
 - Frontend renders `MCP Version Pinning Contract` with `mcp_version_pinning_contract_visible`.
-- Static, runtime, hosted, and browser-contract verifiers assert exact dependency pins, pinned tool contract versions, drift policy, evidence refs, and non-claims.
+- `scripts/verify-phase4-mcp-capability-catalog.ps1` asserts catalog linkage, toolset capability drift, guard evidence refs, and no-live-write non-claims.
+- `scripts/verify-browser-contract.ps1` asserts the frontend visibility markers for the version-pinning and capability-catalog surfaces.
 
 ## Non-Claims
 

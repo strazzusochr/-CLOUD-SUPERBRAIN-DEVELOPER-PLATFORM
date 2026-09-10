@@ -1,6 +1,6 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-Letzte Aktualisierung: 2026-05-07 11:55 Uhr
+Letzte Aktualisierung: 2026-05-15 11:30 Uhr
 ══════════════════════════════════════════════════════════════════
 
 ## AKTUELLER PROJEKTANKER
@@ -9,7 +9,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - **Anchor-Datei:** `PROJECT_ANCHOR.md`
 - **Checkpoint:** `docs/project-checkpoint-2026-04-30.json`
 - **Live-Snapshot:** `2026-04-30 00:49:26 +02:00`
-- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `70%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Project Progress Integrity `verified`; Task-Assignment nutzt echte high/mid/low-Priority-Queues; Cloud Inventory umfasst Vercel, Hetzner, Cloudflare, GitHub, GHCR, Hugging Face, GitLab und GitKraken als nicht-geheime Provider-Oberflaechen; Cloud Render Offload und Cloud Deployment Preflight sind als eigene gehostete Runtime-Surfaces mit dedizierten Contracts auf `<hosted-staging-url>` verifiziert; die Layer-Interface-Register-Surface, die Phase-2-Runtime-Contract-, Phase-2-Runtime-Start- und Phase-2-Runs-Surfaces, die Orchestrator-Manifest-, Orchestrator-Dry-Run-, Orchestrator-Dry-Run-Stream- und Orchestrator-Checkpoint-Surfaces, die DevOps-Workflow-Plan- und DevOps-Workflow-Validate-Surfaces, die Session-Stream-Surface, die Memory-Purge-Job-Status-Surface, die Memory-Embedding-Consistency-Surface, die Task-Assignment-Surface, die Agent-LLM-Streaming-Surface, die Cache-Control-Surface, die Cost-Export-Surface, die System-Fallback-Surface, die Project-Progress-Completion-Surface, die Project-Progress-Hauptsurface und die Project-Progress-Layer-Surface sind jetzt ebenfalls gehostet gegen echte Runtime-Projektion gebunden; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert; External-Gate-Audit, GHCR-Digest, Branch-Protection, Hosted Backend Origins, canonical Gitleaks und Hetzner-Live-Budget sind evidenzbasiert geschlossen. Phase 4 ist manifestseitig `100%`; die AI-Browser-Reruns fuer den letzten verifizierten Candidate, die Post-Rollback-Revalidation und der finale lokale-plus-hosted Browser-E2E-Recheck sind auf `2026-05-07` live verifiziert. Der letzte verifizierte Candidate bleibt an `overall=70`, `phase_4=100`, `phase_5=67`, `integrity=verified`, `external_gates=verified`, weiter fail-closed `completion=false`, unveraendertem `no-release`, explizit blockierter `staging`-zu-immutable-Digest-Paritaet und aktuell blockierter Repo-Worktree-Paritaet zu `source_commit_sha=ddde3b4c11b9e50e641190ad85b2d0b69d7af7e5` gebunden. Production bleibt weiterhin nicht ausgerollt.
+- **Kernstand:** Localhost `8081` bleibt Dev-Control-Plane; Gesamtfortschritt laut bindendem Manifest `82%`; Phase 1 Foundation Runtime ist manifestseitig `100%`; Phase 2 Core Runtime steht durch die Autonomous-Team-Dispatch-Provenance, die Autonomous-Roster/Master-Plan-Proofs, den Phase-2-Runtime-Dual-Surface-Proof und die Active Agent Success Correlation auf `89%`; Phase 3 Product Surface & Security steht weiterhin auf `95%`; Phase 5 steht jetzt auf `89%`; Agent Pool steht bei `76%`; LLM Gateway steht bei `67%`; Memory steht bei `74%`; MCP Gateway steht bei `68%`; Frontend / Next.js steht bei `100%`; Orchestrator / LangGraph steht bei `100%`; Observability bleibt extern blockiert bei `99%`; Project Progress Integrity `verified`; echtes Hosted HTTPS Staging auf `<hosted-staging-url>` ist verifiziert. Der aktive Candidate ist als immutable Staging-Selector `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1` plus Active Observability Rebaseline Bundle, Active Frontend-Orchestrator Evidence Bundle, Active MCP Guard Correlation Bundle, Active LLM Guard Correlation Bundle, Active Memory Success Correlation Bundle, Active Agent Success Correlation Bundle, Active LLM Success Correlation Bundle, Active MCP Success Correlation Bundle, Active MCP Operations Bundle, Active LLM Operations Bundle, Active Agent Operations Bundle, Active Memory Operations Bundle, Active Gateway Execution Bundle, Active Runtime Selector Truth Rebaseline, Active Full-Suite Rebaseline, Active Verifier Sweep Bundle Rebaseline, Active Runtime Guard Matrix Bundle, Active Gateway Policy Bundle, Runtime Evidence Bundle, Security Evidence Bundle, Vercel/GitHub-Status, Autonomous Roster Master Plan und Phase 2 Runtime Dual Surface verifiziert; Production bleibt weiterhin nicht ausgerollt.
 
 ## PROJEKT-IDENTITÄT
 
@@ -30,7 +30,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 70%
+## AKTUELLER FORTSCHRITT: 82%
 
 ### Horizontal (nach Priorität)
 
@@ -38,22 +38,22 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 |------|--------|
 | P0   | 100%   |
 | P1   | 100%   |
-| P2   | 86%    |
-| P3   | 40%    |
+| P2   | 89%    |
+| P3   | 95%    |
 | P4   | 100%   |
-| P5   | 67%    |
+| P5   | 89%    |
 | P6   | 0%     |
 
 ### Vertikal (nach Modul)
 
 | Modul         | Status |
 |---------------|--------|
-| Frontend      | 97%    |
-| Orchestrator  | 99%    |
-| Agent Pool    | 68%    |
-| LLM Gateway   | 54%    |
-| MCP Gateway   | 55%    |
-| Memory        | 72%    |
+| Frontend      | 100%   |
+| Orchestrator  | 100%   |
+| Agent Pool    | 76%    |
+| LLM Gateway   | 67%    |
+| MCP Gateway   | 68%    |
+| Memory        | 74%    |
 | Observability | 99%    |
 
 ## LAUFENDE DOCKER-CONTAINER (cloud-superbrain-phase1-dev)
@@ -70,13 +70,313 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 
 ## NÄCHSTER KONKRETER ARBEITSSCHRITT
 
-- **Staging-Tag-Paritaet explizit blockiert halten oder sauber aufloesen** — Phase 4 ist jetzt manifestseitig `100%`; der naechste harte Pfad ist die repo-ehrliche Aufloesung der bekannten Luecke zwischen mutablem `IMAGE_TAG=staging` und dem immutable Candidate-SHA
-- danach folgen weitere `P5`-Slices statt eines Rollouts
+- **Naechster grosser Fortschrittshebel: Phase 5 Release Readiness** — der aktive RC1 ist als immutable Staging-Selector `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1` verifiziert und bindet jetzt das Active Observability Rebaseline Bundle, das Active Frontend-Orchestrator Evidence Bundle, das Active MCP Guard Correlation Bundle, Active LLM Guard Correlation Bundle, Active Memory Success Correlation Bundle, Active Agent Success Correlation Bundle, Active LLM Success Correlation Bundle, Active MCP Success Correlation Bundle, Active MCP Operations Bundle, Active LLM Operations Bundle, Active Agent Operations Bundle, Active Memory Operations Bundle, Active Gateway Execution Bundle, Active Full-Suite Rebaseline, den Active Verifier Sweep Rebaseline, die Runtime-Guard-Surfaces im Active Runtime Guard Matrix Bundle, die LLM-/MCP-Gateway-Policy-Surfaces im Active Gateway Policy Bundle, die Runtime-Flaechen im Active Runtime Evidence Bundle, die wichtigsten Security-Exportflaechen im Active Security Evidence Bundle sowie den GitHub/Vercel Deployment-Status.
+- danach folgen P3-Auth/Security- und LLM/MCP-Layer-Slices, kein Production-Rollout ohne separates Gate
 - lokal und hosted bleiben weiterhin deterministische Proofs ohne Live-Provider und ohne Live-MCP-Writes; `production_deploy_claim_allowed=true` ist kein Deployment-Nachweis
 
 ## ZULETZT ABGESCHLOSSEN
 
-**Phase 5 Integration Smoke Plan Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den gehosteten Integration-/Smoke-Pfad auf `overall=70`, `phase_5=67` nachgezogen:
+**Active Observability Rebaseline Bundle Proof** — der aktive RC1 laeuft jetzt als immutable Staging-Selector `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1` und bindet Observability-Rebaseline-Surfaces an dieselbe RC1-Grenze:
+
+- `scripts\verify-phase5-active-observability-rebaseline-bundle.ps1` prueft Project Progress, Integrity, Completion, Health, Metrics, Agent Activity, Audit, Escalations, Langfuse Trace Access, deterministic no-live LLM audit seeding, Gateway-Correlation-Surfaces und Frontend-Marker lokal sowie hosted.
+- Nachgewiesen sind hosted `overall=82`, Phase 5 `89%`, Observability `99%`, `IMAGE_TAG=5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=89`; Gesamt bleibt `82`; Observability bleibt `99` bis zur externen hosted Langfuse/Grafana-Owner-Endpoint-Proof; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Frontend-Orchestrator Evidence Bundle Proof** — die letzten unblockierten vertikalen Readiness-Slices fuer Frontend und Orchestrator sind jetzt als immutable Staging-Selector `5053a8c4a2c9a0e6ff245ec3d9e6c5b2a62a5ad1` geschlossen:
+
+- `scripts\verify-phase5-active-frontend-orchestrator-evidence-bundle.ps1` bindet Project Progress, Progress Integrity, Completion, Frontend-Markierungen, Orchestrator Manifest, Phase-2 Runtime Contract/Runs, Master Plan, Roster und Team Status lokal sowie hosted an dieselbe RC1-Grenze.
+- Fortschritt steigt `frontend=100` und `orchestrator=100`; Gesamt bleibt `82`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active MCP Guard Correlation Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet MCP-Fail-Closed-Guards an Request-/Trace-/Session-Korrelation:
+
+- `scripts\verify-phase5-active-mcp-guard-correlation-bundle.ps1` prueft Unsupported-Toolset-Block, PostgreSQL-Write-Scope-Block, Unsupported-Capability-Block, MCP Audit Feed, globalen Audit Feed, Agent Activity, Gateway-Correlation-Timeline und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=82`, Phase 5 `88%`, MCP Gateway `68%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=88` und `mcp_gateway=68`; Gesamt bleibt `82`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active LLM Guard Correlation Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet LLM-Fail-Closed-Guards an Request-/Trace-/Session-Korrelation:
+
+- `scripts\verify-phase5-active-llm-guard-correlation-bundle.ps1` prueft Direct-Provider-Block, Unknown-Model-Block, Output-Budget-Block, LLM Audit Feed, globalen Audit Feed, Agent Activity, Gateway-Correlation-Timeline und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=82`, Phase 5 `87%`, LLM Gateway `67%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `overall=82`, `phase_5=87` und `llm_gateway=67`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Memory Success Correlation Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet den erfolgreichen Prompt-Memory-Pfad an Request-/Trace-/Session-Korrelation:
+
+- `scripts\verify-phase5-active-memory-success-correlation-bundle.ps1` prueft Prompt-Memory-Write, Memory Search, globalen Audit Feed, Agent Activity, Session History und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=81`, Phase 5 `86%`, Memory `74%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=86` und `memory=74`; Gesamt bleibt `81`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein Live-Embedding-Provider-Call, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active LLM Success Correlation Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet den erfolgreichen LLM-Gateway-Pfad an Request-/Trace-/Session-Korrelation:
+
+- `scripts\verify-phase5-active-llm-success-correlation-bundle.ps1` prueft einen erfolgreichen `/llm/v1/responses` Dry-Run, LLM Audit Feed, globalen Audit Feed, Agent Activity, Gateway-Correlation-Timeline, Redaction Guards und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=81`, Phase 2 `89%`, Phase 5 `85%`, Agent Pool `76%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_2=89`, `phase_5=85` und `agent_pool=76`; Gesamt bleibt `81`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Agent Success Correlation Bundle Proof** — der aktive RC1 laeuft als immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet erfolgreiche Agent-Tasks an Request-/Trace-/Session-Korrelation:
+- Nachgewiesen sind Task-Status, Recent-Tasks, Audit-Feed, Agent-Activity, Gateway-Correlation-Timeline und Autonomous-Team-Dispatch mit gleicher `session_id`, `trace_id` und `request_id`.
+- Fortschritt steigt `phase_2=89`, `phase_5=85` und `agent_pool=76`; Gesamt bleibt `81`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active MCP Success Correlation Bundle Proof** — der aktive RC1 laeuft als immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet den erfolgreichen MCP-Gateway-Pfad an Request-/Trace-/Session-Korrelation:
+
+- `scripts\verify-phase5-active-mcp-success-correlation-bundle.ps1` prueft einen erfolgreichen `github/plan_branch_pr` Dry-Run, MCP Audit Feed, globalen Audit Feed, Agent Activity, Gateway-Correlation-Timeline, Redaction Guards und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=81`, Phase 5 `83%`, MCP Gateway `67%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=83` und `mcp_gateway=67`; Gesamt bleibt `81`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active MCP Operations Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet reale MCP-Gateway-Operations-Pfade:
+
+- `scripts\verify-phase5-active-mcp-operations-bundle.ps1` prueft MCP Health, Capability Catalog, Version-Pinning, Safe Envelope, Security Guard, Audit Feed/Export, Deny-Audit-Correlation und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=81`, Phase 5 `82%`, MCP Gateway `66%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=82` und `mcp_gateway=66`; Gesamt bleibt `81`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active LLM Operations Bundle Proof** — der aktive RC1 laeuft jetzt als neuer immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet reale LLM-Gateway-Operations-Pfade:
+
+- `scripts\verify-phase5-active-llm-operations-bundle.ps1` prueft LLM Health, Model Catalog, Runtime Guard Parity, Streaming Contract, Agent-LLM-Streaming-Contract, LLM Audit Contract/Feed/Export, Live-Provider-Guard und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=81`, Phase 5 `81%`, LLM Gateway `65%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `overall=81`, `phase_5=81` und `llm_gateway=65`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Agent Operations Bundle Proof** — der aktive RC1 laeuft jetzt als immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet reale Agent-Operations-Pfade:
+
+- `scripts\verify-phase5-active-agent-operations-bundle.ps1` prueft Agent Status, Recent-Tasks-Contract, Autonomous Coding Team, Autonomous Roster/Master-Plan, Phase 2 Runtime Dual Surface, Live-Agent-Steering, Live-Agent-History und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=80`, Phase 5 `80%`, Agent Pool `75%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=80` und `agent_pool=75`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Memory Operations Bundle Proof** — der aktive RC1 laeuft jetzt als immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet reale Memory-Operations-Pfade:
+
+- `scripts\verify-phase5-active-memory-operations-bundle.ps1` prueft Memory Search, Memory Purge Job Status, Memory Contracts, Hosted Session-Memory-Parity, Hosted Embedding-Consistency-Parity, Hosted Smoke und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=80`, Phase 5 `79%`, Memory `73%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt `phase_5=79` und `memory=73`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein Live-Embedding-Provider-Call, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Gateway Execution Bundle Proof** — der aktive RC1 laeuft jetzt als immutable Staging-Selector `4ce557f7e195846afa39d89861f296202561f34a` und bindet reale nicht-mutierende Ausfuehrungspfade:
+
+- `scripts\verify-phase5-active-gateway-execution-bundle.ps1` prueft Phase-2 Runtime Dual Surface, Agent-LLM-Streaming, MCP DevOps Safe Envelope, Gateway Correlation Snapshot/Risk/Timeline, Hosted Smoke und Evidence-Artifact-Safety.
+- Nachgewiesen sind hosted `overall=80`, Phase 5 `79%`, `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`, GHCR `linux/arm64` fuer alle sechs Services und immutable Hetzner `-UseImageFilesystem`.
+- Fortschritt steigt in diesem Schritt auf `phase_5=78`; aktueller Manifeststand nach Agent-Operations-Rebaseline ist `phase_5=80`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Active Verifier Sweep Bundle Rebaseline Proof** — der aktive RC1 bindet jetzt elf nicht-mutierende Safety-Gates an den aktuellen Hosted-Candidate:
+
+- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1` prueft current-release-candidate, active-release-candidate bundle, hosted staging smoke, Active Gateway Policy Bundle, Active Runtime Guard Matrix Bundle, Active Gateway Execution Bundle, Active Memory Operations Bundle, LLM Model Catalog, MCP Capability Catalog, Security Scan und Evidence-Artifact-Safety.
+- Nachgewiesen sind `production_rollout_claimed=false`, `verifier_gate_count=11`, hosted progress `80%`, Phase 5 `79%` und Memory `73%`.
+- Fortschritt bleibt unveraendert; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Active Runtime Guard Matrix Bundle Proof** — der aktive RC1 bindet jetzt Live-Agent-, LLM- und MCP-Runtime-Guards an lokale und gehostete Beweise:
+
+- `scripts\verify-phase5-active-runtime-guard-matrix-bundle.ps1` prueft Live-Agent-Steering, Live-Agent-History, LLM Live-Provider Guard, MCP Security Guard, Browser-Contract und Evidence-Artifact-Safety lokal und hosted.
+- Nachgewiesen sind `live_agent_metadata_guard_enforced`, `llm_runtime_guard_parity_visible`, `mcp_unsupported_toolset_guard` und `mcp_secret_redaction_guard` bei hosted progress `80%`, `phase_3=95`, `phase_5=80`, `agent_pool=75`, `llm_gateway=64` und `mcp_gateway=65`.
+- Fortschritt bleibt unveraendert; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Active Full-Suite Rebaseline Proof** — der aktive RC1 bindet jetzt den Phase-5-Suite-Plan und die aktuellen Active-Candidate-Gates an denselben Hosted-Candidate:
+
+- `scripts\verify-phase5-full-verifier-sweep.ps1` prueft fuer den aktiven RC1 Manifest, Phase-5-Suite-Plan, current-release-candidate, active-release-candidate bundle, hosted staging smoke, Active Runtime Evidence Bundle, Active Security Evidence Bundle, Active Verifier Sweep Bundle, Vercel/GitHub Deployment Status und Evidence-Artifact-Safety.
+- Nachgewiesen sind `active_gate_count=10`, `phase5_suite_plan_status=passed`, hosted progress `80%`, Phase 5 aktuell `79%`, immutable selector `4ce557f7e195846afa39d89861f296202561f34a` und `production_rollout_claimed=false`.
+- Fortschritt stieg in diesem Schritt auf `phase_5=76`; aktueller Manifeststand nach Selector-, Gateway-Execution-, Memory-Operations- und Agent-Operations-Rebaseline ist `phase_5=80`, Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Active Verifier Sweep Bundle Proof** — der aktive RC1 bindet jetzt die wichtigsten nicht-mutierenden Verifier-Gates an den aktuellen Hosted-Candidate:
+
+- `scripts\verify-phase5-active-verifier-sweep-bundle.ps1` prueft current-release-candidate, active-release-candidate bundle, hosted staging smoke, Active Gateway Policy Bundle, LLM Model Catalog, MCP Capability Catalog, Security Scan und Evidence-Artifact-Safety.
+- Nachgewiesen sind `production_rollout_claimed=false`, active bundle `status=passed`, hosted progress `80%`, Phase 5 im damaligen Verifier-Sweep `75%` und aktueller Manifeststand `78%`, LLM/MCP catalog proof, Security Scan ohne neue Findings und evidence-artifact-safety `safe`.
+- Fortschritt steigt `phase_5=75`; Gesamt bleibt `80`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Active Gateway Policy Bundle Proof** — der aktive RC1 bindet jetzt LLM-/MCP-Gateway-Policy-Flaechen an lokale und gehostete Beweise:
+
+- `scripts\verify-phase3-active-gateway-policy-bundle.ps1` prueft LLM Health, LLM Model Catalog, LLM Audit Contract/Feed/Snapshot, MCP Health, MCP Capability Catalog, MCP Audit Contract/Feed/Snapshot sowie Gateway-Correlation Contract/Snapshot/Risk-Rollup/Timeline lokal und hosted.
+- Nachgewiesen sind `llm-model-catalog-v1`, `mcp-capability-catalog-v1`, `llm-audit-feed-v1`, `read_only_llm_audit_redaction_snapshot`, `llm_audit_snapshot_visible`, `mcp-audit-feed-v1`, `read_only_mcp_audit_redaction_snapshot`, `mcp_audit_snapshot_visible`, `gateway-correlation-snapshot-v1`, `gateway-correlation-risk-rollup-v1`, `gateway-correlation-timeline-v1`, `open_source_first=true`, `api_inference_only=true`, `model_downloads=false`, `local_model_downloads_allowed=false`, `live_provider_calls=false` und `live_mcp_writes=false`.
+- Fortschritt steigt `overall=80`, `phase_3=95`, `llm_gateway=64`, `mcp_gateway=65`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Active Runtime Evidence Bundle Proof** — der aktive RC1 bindet jetzt read-only Runtime-Flaechen an lokale und gehostete Beweise:
+
+- `scripts\verify-phase5-active-runtime-evidence-bundle.ps1` prueft Project Progress, Progress Integrity, Phase-2-Runtime-Contract/Runs, Orchestrator Manifest, Agent Status, Agent Activity, Master Plan, Roster und Team Status lokal sowie hosted.
+- Nachgewiesen sind `phase2-runtime-v1`, `audit_log_backed_phase2_runtime_runs`, `agent-profiles-v1`, `autonomous-master-plan-v1`, `autonomous-agent-roster-v1`, `langgraph`, `postgres`, completed deterministische Rollen und die Non-Claims fuer Live-Provider, Live-MCP-Writes, Production Deploy, lokale Model-Downloads und Secrets.
+- Fortschritt ist auf aktuellem Stand `overall=80`, `phase_5=80`, `agent_pool=75`, `memory=73`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Phase 2 Runtime Dual Surface Proof** — der aktive RC1 bindet jetzt die Phase-2-Runtime-Contracts, Start-Ausfuehrung und Runs-Feed an lokale und gehostete Beweise:
+
+- `scripts\verify-phase2-runtime-dual-surface.ps1` prueft `GET /api/v1/phase2/runtime/contract`, `GET /api/v1/phase2/runtime/start/contract`, `POST /api/v1/phase2/runtime/start`, `GET /api/v1/phase2/runtime/runs/contract`, `GET /api/v1/phase2/runtime/runs?limit=10` und Homepage-Marker lokal sowie hosted.
+- Nachgewiesen sind `phase2-runtime-v1`, `phase2-runtime-start-surface-v1`, `phase2-runtime-runs-surface-v1`, `deterministic_local_runtime`, `audit_log_backed_phase2_runtime_runs`, `langgraph`, `postgres`, vier completed Rollen und die Evidence-Refs `phase2_runtime_graph_started`, `task_assignment_completed`, `memory_update_persisted` und `agent_result_aggregation_complete`.
+- Fortschritt bleibt `overall=79`, `phase_2=88`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, kein lokaler Model-Download und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Autonomous Roster Master Plan Proof** — der aktive RC1 bindet jetzt die Agenten-Roster- und Master-Plan-Runtime an lokale und gehostete Beweise:
+
+- `scripts\verify-autonomous-roster-master-plan-bundle.ps1` prueft Master-Plan-Contract, Roster-Contract, Team-Status, Recent-Dispatch-Provenance und Homepage-Marker lokal sowie hosted.
+- Nachgewiesen sind `autonomous-master-plan-v1`, `autonomous-agent-roster-v1`, `autonomous_master_plan_runtime_visible`, `autonomous_agent_roster_runtime_visible`, alle fuenf logischen Rollen, mindestens 14 persistierte Roster-Rollen, LangGraph-Binding und ein completed Dispatch mit `autonomous_team_dispatch_task_provenance`.
+- Fortschritt bleibt `overall=79`, `phase_2=88`, `agent_pool=74`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write, keine External-Agent-Uptime-Garantie und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Vercel GitHub Deployment Status Proof** — der aktive RC1 bindet jetzt GitHub-Commitstatus, Vercel-Git-Link-Readiness, die oeffentliche Vercel-Frontend-URL und Hosted Staging:
+
+- `scripts\verify-phase5-vercel-github-deployment-status.ps1` prueft GitHub combined status `Vercel=success`, Vercel-Ziel-URL-Prefix, lokalen Vercel-Git-Link, public Vercel Frontend HTTP `200`, Hosted Staging HTTP `200`, RC1-Artefakt und Non-Claim-Policy.
+- Das Runtime-Selector-Paritaetsartefakt enthaelt jetzt die Metadaten, die `scripts\verify-current-runtime-selector-truth.ps1` erwartet.
+- Fortschritt bleibt `overall=79`, `phase_5=74`; kein Production-Rollout, keine Vercel-Mutation, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Active Security Evidence Bundle Proof** — der aktive RC1 bindet jetzt die wichtigsten redacted Security-Exportflaechen an den immutable Staging-Selector:
+
+- `scripts\verify-phase5-active-security-evidence-bundle.ps1` prueft lokal und hosted die Export-Contracts/CSV-Responses fuer LLM Audit, MCP Audit, Gateway Correlation, Auth Audit und Security Review Queue.
+- Jeder Export ist read-only, audit-persisted, redaction-guarded und wird mit Trace-/Request-ID in `audit_log` nachgewiesen.
+- Lokal verifiziert: `scripts\verify-phase5-active-security-evidence-bundle.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert: `scripts\verify-phase5-active-security-evidence-bundle.ps1 -BaseUrl https://188-34-191-140.sslip.io`.
+- Fortschritt bleibt `overall=79`, `phase_5=74`; kein Production-Rollout, keine Release-Promotion, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Security Review Queue Export Proof** — die Security-Review-Operator-Oberflaeche hat jetzt einen read-only CSV-Export ueber sichere Review-Queue-Eintraege:
+
+- `GET /api/v1/security/review-queue/export/contract` liefert `security-review-queue-export-v1`, `security_review_queue_export_visible`, `security_review_queue_export_audit_persisted`, `security_review_redaction_enforced` und `security_review_mutation_blocked`.
+- `GET /api/v1/security/review-queue/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie Security Review Queue, Snapshot und Gate und gibt ausschliesslich allowlisted CSV-Spalten aus.
+- Export und Export-Audit geben keine raw details, Prompt-Bodies, Cookies, Authorization-Header, Provider-Credentials, Screenshots, Raw-Files, Live-Provider-Claims, Live-MCP-Write-Claims, Production-Rollout-Claims oder Promotion-Claims zurueck.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm --prefix apps/frontend run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --force-recreate agent-api nginx`, `scripts\verify-phase3-security-review-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-phase3-security-review-queue.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost` und `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=4ce557f7e195846afa39d89861f296202561f34a`: Active Memory Operations Bundle, Active Gateway Execution Bundle, Security-Review-Export, Browser-Contract und Hosted-Staging sind gruen.
+- Fortschritt: `overall=79`, `phase_3=94`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Gateway Correlation Export Proof** — die Gateway-Korrelationsansicht hat jetzt einen read-only CSV-Export ueber sichere Agent-/LLM-/MCP-Korrelationsgruppen:
+
+- `GET /api/v1/security/gateway-correlation/export/contract` liefert `gateway-correlation-export-v1`, `gateway_correlation_export_visible`, `gateway_correlation_export_audit_persisted`, `gateway_correlation_redaction_enforced` und `gateway_correlation_no_live_write_guard`.
+- `GET /api/v1/security/gateway-correlation/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie Gateway Correlation Snapshot, Risk Rollup und Timeline und gibt ausschliesslich allowlisted CSV-Spalten aus.
+- Export und Export-Audit geben keine raw details, Prompt-Bodies, MCP-Input-Refs, Cookies, Authorization-Header, Provider-Credentials, Live-Provider-Claims, Live-MCP-Write-Claims, Production-Rollout-Claims oder Promotion-Claims zurueck.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-gateway-correlation-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation`, Gateway Correlation Risk Rollup/Timeline, Browser-Contract, Security, Evidence-Artifact-Safety und Manifest-Validierung.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=819ec616b79059ab727567e5be82edba99b59045`: Gateway-Correlation-Export, Gateway-Correlation-Snapshot/Risk-Rollup/Timeline, Browser-Contract, Hosted-Staging und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=79`, `phase_3=92`, `agent_pool=74`, `llm_gateway=63`, `mcp_gateway=64`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — MCP Audit Export Proof** — die MCP-Operator-Ansicht hat jetzt einen read-only CSV-Export ueber sichere MCP-Gateway-Audit-Ereignisse:
+
+- `GET /api/v1/audit/mcp/export/contract` liefert `mcp-audit-export-v1`, `mcp_audit_export_visible`, `mcp_audit_export_audit_persisted`, `mcp_audit_redaction_enforced` und `mcp_audit_no_live_write_guard`.
+- `GET /api/v1/audit/mcp/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie MCP Audit Feed und Snapshot und gibt ausschliesslich allowlisted CSV-Spalten aus.
+- Export und Export-Audit geben keine Tool-Input-Refs, Prompt-Bodies, Cookies, Authorization-Header, Provider-Credentials, raw details, Live-MCP-Write-Claims, Production-Rollout-Claims oder Promotion-Claims zurueck.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-mcp-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireSeed`, `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, Browser-Contract, Security und Evidence-Artifact-Safety.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=21145b89634b330231b6fd66c8aa2654c55a047e`: MCP-Audit-Export, MCP-Audit-Snapshot, Browser-Contract, Hosted-Staging und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=79`, `phase_3=90`, `mcp_gateway=63`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — LLM Audit Export Proof** — die LLM-Operator-Ansicht hat jetzt einen read-only CSV-Export ueber sichere LLM-Gateway-Audit-Ereignisse:
+
+- `GET /api/v1/audit/llm/export/contract` liefert `llm-audit-export-v1`, `llm_audit_export_visible`, `llm_audit_export_audit_persisted`, `llm_audit_redaction_enforced` und `llm_audit_no_live_provider_guard`.
+- `GET /api/v1/audit/llm/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie LLM Audit Feed und Snapshot und gibt ausschliesslich allowlisted CSV-Spalten aus.
+- Export und Export-Audit geben keine Prompt-Bodies, Tokens, Cookies, Authorization-Header, Provider-Credentials, raw details, Live-Provider-Claims, Production-Rollout-Claims oder Promotion-Claims zurueck.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-llm-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireSeed`, `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, Browser-Contract, Security und Evidence-Artifact-Safety.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=13d02661c5cfbc2e4a881f1a16f303002affca06`: LLM-Audit-Export, LLM-Audit-Feed, Browser-Contract, Hosted-Staging und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=79`, `phase_3=88`, `llm_gateway=62`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Auth Audit Export Proof** — die Auth-Operator-Ansicht hat jetzt einen read-only CSV-Export ueber sichere Auth-Lifecycle-Ereignisse:
+
+- `GET /api/v1/audit/auth/export/contract` liefert `auth-audit-export-v1`, `auth_audit_export_visible`, `auth_audit_export_audit_persisted`, `auth_audit_redaction_enforced` und `auth_no_live_oauth_guard`.
+- `GET /api/v1/audit/auth/export?format=csv&limit=80` liest nur dieselbe sichere `audit_log`-Projektion wie Snapshot, Risk-Rollup und Timeline und gibt ausschliesslich allowlisted CSV-Spalten aus.
+- Export und Export-Audit geben keine Tokens, Cookies, Authorization-Header, OAuth-Code/State-Werte, Redis-Blacklist-Keys, raw details, Live-OAuth-Claims, Production-Rollout-Claims oder Promotion-Claims zurueck.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-auth-audit-export.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, Auth-Audit-Snapshot/Risk-Rollup/Timeline, Browser-Contract, Security, Evidence-Artifact-Safety und Manifest-Validierung.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=efa2035e565a500b4c530fffdbab5016853a910e`: Auth-Lifecycle, Auth-Audit-Export, Auth-Audit-Snapshot, Auth-Audit-Risk-Rollup, Auth-Audit-Timeline, Browser-Contract, Hosted-Staging und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=78`, `phase_3=86`; kein Production-Rollout, kein Live-GitHub-OAuth-Claim, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Auth Audit Timeline Proof** — die Auth-Operator-Ansicht hat jetzt eine read-only Timeline ueber sichere Auth-Lifecycle-Ereignisse:
+
+- `GET /api/v1/audit/auth/contract` liefert zusaetzlich `timeline_endpoint=GET /api/v1/audit/auth/timeline`, `timeline_contract_version=auth-audit-timeline-v1` und `auth_audit_timeline_visible`.
+- `GET /api/v1/audit/auth/timeline` liest nur dieselbe sichere `audit_log`-Projektion wie Snapshot und Risk-Rollup, ordnet Callback/Refresh-Reuse/Refresh-Rotation/Logout-Ereignisse und setzt `production_rollout_claimed=false` sowie `promotion_allowed=false`.
+- Audit-Ausgaben werden fuer Auth-Details oeffentlich redacted: OAuth `state`, `code`, Tokens, Cookies, Authorization-Header und Redis-Blacklist-Keys werden nicht zurueckgegeben; Trace-IDs werden vor Timeline-Ausgabe nochmals public-sanitized.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-phase3-auth-audit-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-phase3-auth-audit-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-phase3-auth-audit-timeline.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-security.ps1` und `scripts\verify-evidence-artifact-safety.ps1`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=9c38c59238043dbda2d02ee4fcd0c59d44bac812`: Auth-Lifecycle, Auth-Audit-Snapshot, Auth-Audit-Risk-Rollup, Auth-Audit-Timeline mit adversarial Redaction-Canaries, Browser-Contract, Hosted-Staging und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=78`, `phase_3=84`; kein Production-Rollout, kein Live-GitHub-OAuth-Claim, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Auth Audit Risk Rollup Proof** — die Auth-Operator-Ansicht hat jetzt einen read-only Risiko-Rollup ueber sichere Auth-Lifecycle-Ereignisse:
+
+- `GET /api/v1/audit/auth/contract` liefert zusaetzlich `risk_rollup_endpoint=GET /api/v1/audit/auth/risk-rollup`, `risk_rollup_contract_version=auth-audit-risk-rollup-v1` und `auth_audit_risk_rollup_visible`.
+- `GET /api/v1/audit/auth/risk-rollup` liest nur dieselbe sichere `audit_log`-Projektion wie der Snapshot, zaehlt Callback/Refresh-Reuse/Refresh-Rotation/Logout-Ereignisse, Risk-Badges, Blocker/Reviews, Redaction-Hits und Live-OAuth-Hits und setzt `production_rollout_claimed=false` sowie `promotion_allowed=false`.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker info --format '{{.ServerVersion}}'`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-auth-audit-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-phase3-auth-audit-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-security.ps1` und `scripts\verify-evidence-artifact-safety.ps1`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=4a59571c77d46728b8c11320e6dc65433b7eeff0`: Auth-Lifecycle, Auth-Audit-Snapshot, Auth-Audit-Risk-Rollup, Browser-Contract, Hosted-Smoke und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=78`, `phase_3=82`; kein Production-Rollout, kein Live-GitHub-OAuth-Claim, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Auth Audit Snapshot Proof** — die Auth-Operator-Ansicht hat jetzt einen read-only Audit-Snapshot ueber Auth-Lifecycle-Ereignisse:
+
+- `GET /api/v1/audit/auth/contract` liefert `auth-audit-snapshot-v1`, `parent_contract_version=auth-github-jwt-refresh-v1`, `read_only=true`, `auth_audit_snapshot_visible`, `auth_audit_redaction_enforced` und `auth_no_live_oauth_guard`.
+- `GET /api/v1/audit/auth/snapshot` liest nur `audit_log`, zeigt sichere Auth-Lifecycle-Felder, zaehlt Callback/Refresh-Reuse/Refresh-Rotation/Logout-Ereignisse und gibt keine Tokens, Cookies, Authorization-Header, OAuth-Code/State-Werte, Redis-Blacklist-Keys oder raw details zurueck.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-auth-audit-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireLifecycle`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-security.ps1` und `scripts\verify-evidence-artifact-safety.ps1`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=7a849155a7b6c3f2dd3ba93ff9fa306ad87b9296`: Auth-Lifecycle, Auth-Audit-Snapshot, Browser-Contract, Hosted-Smoke und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=77`, `phase_3=80`; kein Production-Rollout, kein Live-GitHub-OAuth-Claim, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Gateway Correlation Timeline Proof** — die Operator-Ansicht hat jetzt eine read-only Ereignis-Timeline ueber Agent-/LLM-/MCP-Korrelationen:
+
+- `GET /api/v1/security/gateway-correlation/timeline` liefert `gateway-correlation-timeline-v1`, `gateway_correlation_timeline_visible`, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, `live_provider_calls_claimed=false` und `live_mcp_writes_claimed=false`.
+- Die Timeline ordnet sichere `audit_log`-Projektionen nach Zeit und zeigt nur Sequence, Event-Typ, Timeline-Leg, Trace/Request/Session, Status, Severity und Evidence-Refs; raw details, Prompt-Bodies, MCP-Input-Refs, Credentials, Cookies und Auth-Header bleiben ausgeschlossen.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `docker compose -f docker-compose.dev.yml up -d --build agent-api frontend nginx`, `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation`, `scripts\verify-phase3-gateway-correlation-timeline.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-security.ps1` und `scripts\verify-evidence-artifact-safety.ps1`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=d2c8b9c52785955b698da151edb666c884ac888f`: Gateway-Correlation-Snapshot, Risk-Rollup, Timeline, Browser-Contract, Hosted-Smoke und `scripts\verify.ps1 -Suite phase3` sind gruen.
+- Fortschritt: `overall=77`, `phase_3=78`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Gateway Correlation Risk Rollup Proof** — die Operator-Ansicht hat jetzt einen read-only Risiko-Rollup ueber Agent-/LLM-/MCP-Korrelationen:
+
+- `GET /api/v1/security/gateway-correlation/risk-rollup` liefert `gateway-correlation-risk-rollup-v1`, `gateway_correlation_risk_rollup_visible`, `read_only=true`, `promotion_allowed=false`, `production_rollout_claimed=false`, `live_provider_calls_claimed=false` und `live_mcp_writes_claimed=false`.
+- Der Rollup zaehlt Full-/Partial-/Gateway-Pair-Korrelationen, Missing-Leg-Counts, Risk-Badges, Blocker und Review-Gruppen aus derselben sicheren `audit_log`-Projektion wie der Snapshot.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-phase3-gateway-correlation-risk-rollup.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost -RequireFullCorrelation`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `py -3 scripts\verify_project_progress_manifest.py`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach GHCR-Build/Push und immutable Image-Deploy mit `IMAGE_TAG=5a67227c12bbfb1c9da956158ed2cec6d7b6d8a0`: Gateway-Correlation-Snapshot-Verifier, Gateway-Correlation-Risk-Rollup-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=77`, `phase_3=76`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Gateway Correlation Snapshot Proof** — die Operator-Ansicht korreliert Agent-Task-, LLM-Gateway- und MCP-Gateway-Audit-Evidence jetzt read-only unter gemeinsamen Trace-/Request-/Session-Keys:
+
+- `GET /api/v1/security/gateway-correlation/contract` liefert `gateway-correlation-snapshot-v1`, `read_only=true`, `live_provider_calls_claimed=false`, `live_mcp_writes_claimed=false`, `gateway_correlation_snapshot_visible`, `gateway_correlation_redaction_enforced` und `gateway_correlation_no_live_write_guard`.
+- `GET /api/v1/security/gateway-correlation/snapshot` liest nur `audit_log`, gibt nur sichere Korrelationsfelder aus und setzt `prompt_bodies_returned=false`, `tool_input_refs_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.
+- Der Verifier seedet eine deterministische Agent-Task, einen LLM-Dry-Run und einen denied MCP-Call unter demselben Trace und verlangt `agent_llm_mcp_correlated` mit `live_provider_call_count=0` und `live_mcp_write_count=0`.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-gateway-correlation-snapshot.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `py -3 scripts\verify_project_progress_manifest.py`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=10df3ea48627e6f11787587e3c984b72107e78f5`: Gateway-Correlation-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=77`, `phase_3=74`, `agent_pool=73`, `llm_gateway=61`, `mcp_gateway=61`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — MCP Audit Redaction Snapshot Proof** — die MCP-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Deny-Korrelation und No-Live-MCP-Write-Nachweise:
+
+- `GET /api/v1/audit/mcp/contract` liefert weiter `mcp-audit-feed-v1`, jetzt zusaetzlich mit `snapshot_endpoint=GET /api/v1/audit/mcp/snapshot`, `mcp_audit_snapshot_visible`, `mcp_audit_redaction_enforced` und `live_mcp_writes_claimed=false`.
+- `GET /api/v1/audit/mcp` gibt MCP-Audit-Events mit `input_ref_stored=false` und `redaction_evidence_ref=mcp_audit_redaction_enforced` aus; `GET /api/v1/audit/mcp/snapshot` aggregiert Status-, Toolset-, Capability-, Error-Class- und Agent-Role-Counts und setzt `input_refs_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.
+- Frontend rendert `MCP Audit Snapshot`, Snapshot-Endpunkt, Snapshot-Evidence, Redaction-Evidence, Forbidden-Hit-Status, Blocked-/Denied-/Session-Bound-Zaehler und Input-Ref-Non-Claim im MCP Audit Panel.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-mcp-deny-audit-correlation.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=0a7ca2bed583f2e01af39a73e095e91cee642365`: MCP-Audit-Snapshot-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=76`, `phase_3=72`, `mcp_gateway=60`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — LLM Audit Feed Redaction Snapshot Proof** — die LLM-Gateway-Operator-Ansicht hat jetzt einen read-only Snapshot fuer Redaction, Dry-Run-Zaehler und No-Live-Provider-Nachweise:
+
+- `GET /api/v1/audit/llm/contract` liefert weiter `llm-audit-feed-v1`, jetzt zusaetzlich mit `snapshot_endpoint=GET /api/v1/audit/llm/snapshot`, `llm_audit_snapshot_visible` und `llm_audit_redaction_enforced`.
+- `GET /api/v1/audit/llm` gibt LLM-Audit-Events mit `prompt_body_stored=false` und `redaction_evidence_ref=llm_audit_redaction_enforced` aus; `GET /api/v1/audit/llm/snapshot` aggregiert Status-, Provider-, Agent- und Model-Counts und setzt `prompt_bodies_returned=false`, `provider_credentials_returned=false`, `forbidden_pattern_hits=0`.
+- Frontend rendert `LLM Audit Snapshot`, Snapshot-Endpunkt, Snapshot-Evidence, Redaction-Evidence, Forbidden-Hit-Status und Prompt-Body-Non-Claim im LLM Audit Feed Panel.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py services\agent-api\app\security.py`, `npm run build`, `scripts\verify-phase3-llm-audit-feed.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=f5fb7d221d403b966b38d240bd5b936755ecc245`: LLM-Audit-Feed-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=76`, `phase_3=70`, `llm_gateway=60`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Security Review Gate Summary Proof** — die Operator-Oberflaeche hat jetzt eine read-only Security Review Queue mit Snapshot-, Filter-, Risk-Badge-, Decision-History-, Gate-Summary-, Redaction- und Mutation-Block-Nachweis:
+
+- `GET /api/v1/security/review-queue/contract` liefert `security-review-queue-v1`, `read_only=true` und die Evidence-Refs `security_review_queue_visible`, `security_review_item_visible`, `security_review_filter_state_visible`, `security_review_decision_history_visible`, `security_review_evidence_snapshot_visible`, `security_review_redaction_enforced` und `security_review_mutation_blocked`.
+- `GET /api/v1/security/review-queue` aggregiert Security-Audit-Findings redacted; `GET /api/v1/security/review-queue/snapshot` liefert Filter-State, Status-/Kategorie-Counts, Risk-Badges, Decision-History und Evidence-Snapshots; `GET /api/v1/security/review-queue/gate` liefert den read-only Security Review Gate Summary mit blocker_count, production_rollout_claimed=false und promotion_allowed=false; `POST/PUT/PATCH/DELETE /api/v1/security/review-queue` blocken mit HTTP `403`.
+- Frontend rendert `Security Review Queue`, Security Review Gate Summary, Endpoint, Snapshot-Evidence, Filter-State, Risk-Badges, Decision-History, Status-/Severity-Zaehler und redacted Item Cards.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-security-review-gate.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=9f1e52266b3d9f9ddbdfc226d68bd2379ead9fad`: Security-Review-Gate-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=76`, `phase_3=67`; kein Production-Rollout, kein Live-Provider-Call, kein Live-MCP-Write und keine Secret-Offenlegung.
+
+**Vorheriger Abschluss — Phase 3 Security Audit Surface** — die Product-Surface-&-Security-Schicht hat jetzt eine read-only Operator-Ansicht ueber sicherheitsrelevante Audit-Events:
+
+- `GET /api/v1/security/events/contract` liefert `security-audit-surface-v1`, `security_audit_surface_visible`, `security_audit_event_visible`, `read_only=true`, Eventtypen fuer CSP/Auth/MCP/LLM und klare Non-Claims.
+- `GET /api/v1/security/events` liest nur `audit_log`, zeigt Request-/Trace-Korrelation, MCP-Deny-Evidence und LLM-Dry-Run-Status, ohne Tools oder Provider aufzurufen.
+- Frontend rendert `Security Audit Surface`; `scripts\verify-phase3-security-audit-surface-hosted.ps1` seedet CSP, LLM-Dry-Run und MCP-Deny-Events und prueft Redaction.
+- Lokal verifiziert: `py -3 -m py_compile services\agent-api\app\main.py`, `npm run build`, `scripts\verify-phase3-security-audit-surface-hosted.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`, `scripts\verify-browser-contract.ps1 -BaseUrl http://localhost:8081 -AllowLocalhost`.
+- Hosted verifiziert auf `https://188-34-191-140.sslip.io` nach immutable Image-Deploy mit `IMAGE_TAG=54bb064c8a5650f9a5c811179d3b4d0e1f38cfbf`: Security-Audit-Verifier, Browser-Contract und Hosted-Smoke sind gruen.
+- Fortschritt: `overall=73`, `phase_3=50`, `llm_gateway=57`, `mcp_gateway=57`; kein Production-Rollout, kein Live-Provider-Call und kein Live-MCP-Write.
+
+**Vorheriger Abschluss — Phase 5 Immutable Staging Parity** — der aktive RC1 ist wirklich als immutable Image-Filesystem-Selector auf Hetzner-Staging verifiziert:
+
+- GitHub Actions `main-deploy` Run `25833000061` baute `agent-api`, `agent-worker`, `memory-worker`, `mcp-gateway` und `llm-gateway` fuer `031c95c3e5af1101caf282eee463256285803495`; der unveraenderte Frontend-Manifest wurde vom vorher verifizierten Tag `97c7ea04b5180862ea9862cc18b9c5bac994f794` auf `031c95c3e5af1101caf282eee463256285803495` retagged, nachdem der Frontend-Build-Job hing.
+- `scripts\deploy-to-staging.ps1 -UseImageFilesystem -ImageTag 031c95c3e5af1101caf282eee463256285803495` deployte die Images auf Hetzner und entfernte die service-code Hot-Mounts.
+- Remote `.env` zeigt `IMAGE_TAG=031c95c3e5af1101caf282eee463256285803495`; die laufenden Service-Images tragen denselben SHA-Tag.
+- `scripts\verify-current-immutable-staging-parity.ps1 -RequireVerified` und `scripts\verify-current-runtime-selector-truth.ps1 -RequireRemoteProof` sind gruen.
+- Fortschritt: `overall=72`, `phase_5=74`, `frontend=99`; kein Production-Rollout, keine Production-Tag-Promotion, kein Live-Provider-Call und kein Live-MCP-Write.
+
+**Vorheriger Abschluss — Phase 5 Active Runtime Selector Truth** — der aktive RC1 wurde ehrlich an den damaligen Hosted-Selector gebunden:
+
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1.md` fuehrt jetzt `hosted_selector_observed=IMAGE_TAG=staging`, `frontend_runtime_image_observed=cloud-superbrain-frontend:source-staging` und `immutable_staging_parity_status=blocked_after_frontend_source_build`
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1-runtime-selector-truth.md` dokumentiert die aktuelle Runtime-Truth ohne Production- oder Immutable-Parity-Claim
+- `scripts\verify-current-runtime-selector-truth.ps1` prueft aktiven Candidate, Proof-Artefakt, Hosted-Root, Hosted-Progress und optional den SSH-Beweis fuer `.env`, Frontend-Image und `pull_policy: never`
+- `scripts\verify-current-immutable-staging-parity.ps1` akzeptiert diese Lage nur als `blocked`; echte Paritaet verlangt weiter `-RequireVerified`
+- Fortschritt: `overall=71`, `phase_5=69`, `frontend=99`; kein Production-Rollout, kein GHCR-Push, keine immutable Candidate-Paritaet
+
+**Vorheriger Abschluss — Phase 5 Frontend Source Build Path** — Hetzner ist jetzt ohne GHCR-Frontend-Push auf die aktuelle Frontend-UI nachgezogen:
+
+- `scripts/deploy-to-staging.ps1 -FrontendSourceBuild -ImageTag staging` kopiert nicht-geheime Frontend-Quellen nach `/app/apps/frontend`, legt `docker-compose.frontend-source.yml` an, baut `cloud-superbrain-frontend:source-staging` und erzwingt `pull_policy: never`
+- der erste falsche Versuch mit `staging-src-dba8cb012e8a` ist fail-closed in den Restore gelaufen; danach wurde korrekt mit Backend-Selector `IMAGE_TAG=staging` deployed
+- gehosteter Root zeigt jetzt `Live Agent Control` und `Runtime Guard`; `scripts\verify-browser-contract.ps1 -BaseUrl https://188-34-191-140.sslip.io` ist gruen
+- `scripts\verify-phase5-frontend-source-build-path.ps1` bindet Artefakt, PlanOnly-Guards, Hosted-Root, Hosted-Progress und Remote-Compose-Beweis zusammen
+- Fortschritt: `overall=71`, `phase_5=68`, `frontend=99`; kein Production-Rollout, kein GHCR-Push, keine immutable Candidate-Paritaet
+
+**Vorheriger Abschluss — Phase 5 Active Candidate Gate Rerun** — der aktive `prod-candidate-2026-05-11-rc1` ist jetzt mit einem eigenen Gate-Rerun-Proof gegen die reale Hosted-Surface und die aktuelle Vercel-/Git-Bindung nachgezogen:
+
+- `docs/release-artifacts/prod-candidate-2026-05-11-rc1-active-candidate-gate-rerun.md` bindet `current-release-candidate.json`, den aktiven Candidate, `https://188-34-191-140.sslip.io`, Vercel Git Link, Project Git Readiness und das Active-Release-Candidate-Bundle zusammen
+- `scripts/verify-phase5-active-candidate-gate-rerun.ps1` prueft den Proof, parst das JSON aus `scripts\verify-active-release-candidate-bundle.ps1 -ReportOnly -JsonOnly` und ruft danach `scripts\verify-current-release-candidate.ps1` erneut auf
+- die Proof-Kette bestaetigt `bundle_status=passed`, `bundle_gate_count=3`, `active_release_id=prod-candidate-2026-05-11-rc1`, `production_rollout_claimed=false` und fail-closed Policy-Flags fuer Produktion, Rollout und Secrets
+- dies ist nur ein aktiver Release-Candidate-Gate-Rerun; kein Production-Rollout, kein Production-Deploy, kein Live-Provider-Call und keine Secret-Offenlegung
+- Fortschritt bleibt repo-ehrlich unveraendert: `overall=70`, `phase_5=67`
+
+**Vorheriger Abschluss — Phase 5 Integration Smoke Plan Rerun** — der aktuelle `RC1`-Truth ist jetzt nochmals gegen den gehosteten Integration-/Smoke-Pfad auf `overall=70`, `phase_5=67` nachgezogen:
 
 - `docs/release-artifacts/prod-candidate-2026-05-05-rc1-integration-smoke-plan-rerun.md` dokumentiert einen frischen candidate-scoped Hosted-Smoke-Lauf gegen Root, API-, MCP- und LLM-Health, Project Progress, Integrity, Completion, External Gates, External-Gates-Mirror und Deployment-Preflight
 - `scripts/verify-phase5-integration-smoke-plan-rerun.ps1` bindet denselben Proof an die aktuelle Manifest-Truth, den aktiven Candidate und die reale Hosted-Surface auf `https://188-34-191-140.sslip.io`
@@ -958,7 +1258,7 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 ## API-ENDPOINTS
 
 - Local Health: `GET <local-control-plane-url>/api/v1/health` -> healthy
-- Local Progress: `GET <local-control-plane-url>/api/v1/project/progress` -> 49%
+- Local Progress: `GET <local-control-plane-url>/api/v1/project/progress` -> 82%
 - Hosted Health: `GET <hosted-staging-url>/api/v1/health` -> healthy
 - SSH: `root@<staging-host>` via `STAGING_SSH_KEY_PATH` außerhalb des Repos
 
@@ -1004,8 +1304,9 @@ Letzte Aktualisierung: 2026-05-07 11:55 Uhr
 - Hosted Dry-run bleibt an Manifest-Werte `engine=langgraph`, `checkpointing=postgres`, `live_provider_calls=false` gebunden.
 - Proof: `.phase1-artifacts/phase4-orchestrator-manifest-contract-runtime-hosted-proof-20260507.md`
 
-**Aktueller verifizierter Stand**
+**Historischer Hosted-Proof-Snapshot**
 
-- Gesamt `63%`
-- Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
-- Vertikal `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+- Historisch Gesamt `63%`
+- Historisch Horizontal `P0 100 | P1 100 | P2 86 | P3 40 | P4 84 | P5 28 | P6 0`
+- Historisch Vertikal `Frontend 97 | Orchestrator 99 | Agent Pool 68 | LLM 54 | MCP 55 | Memory 72 | Observability 99`
+- Aktuelle Wahrheit bleibt der Kopf dieses Dokuments und `docs/project-progress.manifest.json`.

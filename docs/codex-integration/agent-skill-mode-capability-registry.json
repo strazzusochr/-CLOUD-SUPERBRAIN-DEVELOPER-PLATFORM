@@ -1,0 +1,22 @@
+{
+  "contract_version": "agent-skill-mode-capability-contract-v1",
+  "evidence_ref": "agent_skill_mode_capability_visible",
+  "declared_codex_surfaces": {
+    "plugins": 11,
+    "apps": 4,
+    "mcp_servers": 1,
+    "skills": 140
+  },
+  "guard_markers": [
+    "agent_skill_mode_no_live_external_calls",
+    "agent_skill_mode_no_secret_material",
+    "agent_skill_mode_no_local_model_downloads",
+    "api_only",
+    "live_mcp_writes=false",
+    "production_rollout_claimed=false"
+  ],
+  "non_claims": [
+    "No plugin, app, MCP, or skill is executed by this registry.",
+    "No live provider call, live MCP write, external MCP server mutation, local model download, production rollout, release promotion, or secret exposure is claimed."
+  ]
+}

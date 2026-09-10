@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import httpx
 import psycopg
 import redis
 from fastapi import Cookie, FastAPI, Header, HTTPException, Query, Request
@@ -39,7 +40,18 @@ from app.budget import (
     session_llm_call_limit,
 )
 from app.clouds import cloud_layer_readiness_state, cloud_provider_state
-from app.db import check_agent_worker, check_llm_gateway, check_mcp, check_memory_worker, check_postgres, check_redis, database_url, redis_url, run_migrations
+from app.db import (
+    check_agent_worker,
+    check_llm_gateway,
+    check_mcp,
+    check_memory_worker,
+    check_postgres,
+    check_redis,
+    database_url,
+    mcp_gateway_url,
+    redis_url,
+    run_migrations,
+)
 from app.memory import (
     EMBEDDING_SEARCH_MODE,
     MemoryWriteRequest,
@@ -62,6 +74,17 @@ from app.orchestrator import (
     stream_dry_graph_events,
 )
 from app.security import redact_json, redact_text
+from app.link_atlas import (
+    LINK_ATLAS_CONTRACT_VERSION,
+    LINK_ATLAS_EVIDENCE_REF,
+    link_atlas_contract_payload,
+    link_atlas_export_csv_text,
+    link_atlas_export_jsonl_text,
+    link_atlas_get_item,
+    link_atlas_items_page,
+    link_atlas_shards_payload,
+    link_atlas_sources_payload,
+)
 from app.tasks import (
     AUTONOMOUS_LOGICAL_ROLES,
     AUTONOMOUS_TEAM_MODE,
@@ -97,6 +120,23 @@ SESSION_LIMIT_CONTRACT_VERSION = "session-llm-call-limit-v1"
 PROMPT_INPUT_CONTRACT_VERSION = "prompt-input-contract-v1"
 ERROR_RESPONSE_CONTRACT_VERSION = "error-response-contract-v1"
 SECURITY_HEADERS_CONTRACT_VERSION = "security-headers-v1"
+CSP_REPORT_CONTRACT_VERSION = "csp-report-contract-v1"
+CSP_REPORT_EVIDENCE_REF = "csp_report_contract_visible"
+SECURITY_AUDIT_SURFACE_CONTRACT_VERSION = "security-audit-surface-v1"
+SECURITY_AUDIT_SURFACE_EVIDENCE_REF = "security_audit_surface_visible"
+SECURITY_AUDIT_EVENT_EVIDENCE_REF = "security_audit_event_visible"
+SECURITY_REVIEW_QUEUE_CONTRACT_VERSION = "security-review-queue-v1"
+SECURITY_REVIEW_QUEUE_EVIDENCE_REF = "security_review_queue_visible"
+SECURITY_REVIEW_ITEM_EVIDENCE_REF = "security_review_item_visible"
+SECURITY_REVIEW_REDACTION_EVIDENCE_REF = "security_review_redaction_enforced"
+SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF = "security_review_mutation_blocked"
+SECURITY_REVIEW_FILTER_EVIDENCE_REF = "security_review_filter_state_visible"
+SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF = "security_review_decision_history_visible"
+SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF = "security_review_evidence_snapshot_visible"
+SECURITY_REVIEW_GATE_EVIDENCE_REF = "security_review_gate_summary_visible"
+SECURITY_REVIEW_EXPORT_CONTRACT_VERSION = "security-review-queue-export-v1"
+SECURITY_REVIEW_EXPORT_EVIDENCE_REF = "security_review_queue_export_visible"
+SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF = "security_review_queue_export_audit_persisted"
 TRACE_ID_CONTRACT_VERSION = "trace-id-propagation-v1"
 CACHE_CONTROL_CONTRACT_VERSION = "cache-control-no-store-v1"
 REQUEST_ID_CONTRACT_VERSION = "request-id-correlation-v1"
@@ -106,12 +146,52 @@ TASK_ASSIGNMENT_CONTRACT_VERSION = "task-assignment-queue-contract-v1"
 TASK_ASSIGNMENT_EVIDENCE_REF = "task_assignment_queue_contract_visible"
 AGENT_LLM_STREAMING_CONTRACT_VERSION = "agent-llm-streaming-contract-v1"
 AGENT_LLM_STREAMING_EVIDENCE_REF = "agent_llm_streaming_contract_visible"
+LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "llm-runtime-guard-parity-v1"
+LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "llm_runtime_guard_parity_visible"
+LLM_AUDIT_FEED_CONTRACT_VERSION = "llm-audit-feed-v1"
+LLM_AUDIT_FEED_EVIDENCE_REF = "llm_audit_feed_visible"
+LLM_AUDIT_SNAPSHOT_EVIDENCE_REF = "llm_audit_snapshot_visible"
+LLM_AUDIT_REDACTION_EVIDENCE_REF = "llm_audit_redaction_enforced"
+LLM_AUDIT_EXPORT_CONTRACT_VERSION = "llm-audit-export-v1"
+LLM_AUDIT_EXPORT_EVIDENCE_REF = "llm_audit_export_visible"
+LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF = "llm_audit_export_audit_persisted"
+LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF = "llm_audit_no_live_provider_guard"
+GATEWAY_CORRELATION_CONTRACT_VERSION = "gateway-correlation-snapshot-v1"
+GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION = "gateway-correlation-risk-rollup-v1"
+GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION = "gateway-correlation-timeline-v1"
+GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION = "gateway-correlation-export-v1"
+GATEWAY_CORRELATION_EVIDENCE_REF = "gateway_correlation_snapshot_visible"
+GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF = "gateway_correlation_risk_rollup_visible"
+GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF = "gateway_correlation_timeline_visible"
+GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF = "gateway_correlation_export_visible"
+GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF = "gateway_correlation_export_audit_persisted"
+GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF = "gateway_correlation_redaction_enforced"
+GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF = "gateway_correlation_no_live_write_guard"
+MCP_AUDIT_FEED_CONTRACT_VERSION = "mcp-audit-feed-v1"
+MCP_AUDIT_FEED_EVIDENCE_REF = "mcp_audit_feed_contract_runtime_visible"
+MCP_AUDIT_SNAPSHOT_EVIDENCE_REF = "mcp_audit_snapshot_visible"
+MCP_AUDIT_REDACTION_EVIDENCE_REF = "mcp_audit_redaction_enforced"
+MCP_AUDIT_EXPORT_CONTRACT_VERSION = "mcp-audit-export-v1"
+MCP_AUDIT_EXPORT_EVIDENCE_REF = "mcp_audit_export_visible"
+MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF = "mcp_audit_export_audit_persisted"
+MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF = "mcp_audit_no_live_write_guard"
+MCP_GUARD_CORRELATION_EVIDENCE_REF = "mcp_guard_correlation_audit_visible"
+MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION = "mcp-runtime-guard-parity-v1"
+MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF = "mcp_runtime_guard_parity_visible"
+AGENT_SKILL_MODE_CONTRACT_VERSION = "agent-skill-mode-capability-contract-v1"
+AGENT_SKILL_MODE_EVIDENCE_REF = "agent_skill_mode_capability_visible"
+LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION = "langfuse-trace-access-v1"
+LANGFUSE_TRACE_ACCESS_EVIDENCE_REF = "langfuse_trace_access_visible"
+LANGFUSE_TRACE_EVENT_EVIDENCE_REF = "langfuse_trace_event_visible"
 MEMORY_EMBEDDING_CONSISTENCY_CONTRACT_VERSION = "memory-embedding-consistency-v1"
 MEMORY_EMBEDDING_CONSISTENCY_EVIDENCE_REF = "memory_embedding_consistency_contract_visible"
 MEMORY_CONSOLIDATION_CONTRACT_VERSION = "memory-consolidation-feed-v1"
 MEMORY_CONSOLIDATION_EVIDENCE_REF = "memory_consolidation_contract_runtime_visible"
+MEMORY_WORKER_HEALTH_CONTRACT_VERSION = "memory-worker-health-contract-v1"
+MEMORY_WORKER_HEALTH_EVIDENCE_REF = "memory_worker_health_contract_visible"
 MEMORY_SEARCH_CONTRACT_VERSION = "memory-search-runtime-v1"
 MEMORY_SEARCH_EVIDENCE_REF = "memory_search_contract_runtime_visible"
+MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF = "memory_success_correlation_runtime_visible"
 MEMORY_EMBEDDING_VECTOR_TYPE = "vector(1536)"
 PROGRESS_INTEGRITY_CONTRACT_VERSION = "project-progress-integrity-v1"
 PROGRESS_INTEGRITY_EVIDENCE_REF = "project_progress_integrity_runtime_proof"
@@ -152,6 +232,8 @@ AUTONOMOUS_TEAM_CONTRACT_VERSION = "autonomous-coding-team-v1"
 AUTONOMOUS_TEAM_EVIDENCE_REF = "autonomous_team_status_runtime_visible"
 AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION = "autonomous-task-dispatch-v1"
 AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF = "autonomous_team_dispatch_visible"
+AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF = "autonomous_team_dispatch_ui_visible"
+AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF = "autonomous_team_dispatch_status_visible"
 AUTONOMOUS_MASTER_PLAN_CONTRACT_VERSION = "autonomous-master-plan-v1"
 AUTONOMOUS_MASTER_PLAN_EVIDENCE_REF = "autonomous_master_plan_runtime_visible"
 AUTONOMOUS_AGENT_ROSTER_CONTRACT_VERSION = "autonomous-agent-roster-v1"
@@ -174,7 +256,7 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /api/v1/security/csp/report",
 }
 CACHE_CONTROL_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -420,6 +502,14 @@ def autonomous_external_agents_url() -> str:
 
 def autonomous_external_timeout_seconds() -> int:
     return max(1, int(os.getenv("AUTONOMOUS_TEAM_EXTERNAL_TIMEOUT_SECONDS", "5")))
+
+
+def llm_gateway_url() -> str:
+    return (
+        os.getenv("LLM_GATEWAY_URL")
+        or os.getenv("LLM_GATEWAY_BASE_URL")
+        or "http://llm-gateway:4000"
+    ).rstrip("/")
 
 
 def load_external_json(url: str) -> dict[str, object]:
@@ -848,7 +938,11 @@ class PromptRequest(BaseModel):
     project_id: str = Field(..., min_length=1)
     prompt: str = Field(..., min_length=1, max_length=10_000)
     session_id: str | None = None
+    trace_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("trace_id", "traceId"))
+    request_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("request_id", "requestId"))
     stream: bool = True
+
+    model_config = {"populate_by_name": True}
 
 
 class LiveAgentSteerRequest(BaseModel):
@@ -871,6 +965,15 @@ class LiveAgentSteerRequest(BaseModel):
     reasoning_effort: str = Field(default="medium", pattern="^(none|minimal|low|medium|high|xhigh)$")
     reset_history: bool = Field(default=False, validation_alias=AliasChoices("reset_history", "resetHistory"))
     metadata: dict[str, object] = Field(default_factory=dict)
+
+    model_config = {"populate_by_name": True}
+
+
+class CspViolationReportRequest(BaseModel):
+    report: dict[str, object] = Field(default_factory=dict, validation_alias=AliasChoices("report", "csp-report", "csp_report"))
+    user_agent: str | None = Field(default=None, max_length=500, validation_alias=AliasChoices("user_agent", "userAgent"))
+    request_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("request_id", "requestId"))
+    trace_id: str | None = Field(default=None, max_length=255, validation_alias=AliasChoices("trace_id", "traceId"))
 
     model_config = {"populate_by_name": True}
 
@@ -938,6 +1041,7 @@ class McpToolAuditRequest(BaseModel):
     run_id: str = Field(..., min_length=1, max_length=120)
     session_id: str | None = Field(default=None, max_length=120)
     trace_id: str | None = Field(default=None, max_length=255)
+    request_id: str | None = Field(default=None, max_length=255)
     agent_role: str = Field(..., pattern="^(planner|coder|tester|devops)$")
     toolset: str = Field(..., pattern="^(github|e2b|playwright|filesystem|postgresql|puppeteer)$")
     capability: str = Field(..., min_length=1, max_length=120)
@@ -948,6 +1052,8 @@ class McpToolAuditRequest(BaseModel):
     result_ref: str = Field(..., min_length=1, max_length=180)
     duration_ms: int = Field(..., ge=0)
     retry_after_ms: int = Field(..., ge=0)
+    guard_evidence_ref: str | None = Field(default=None, max_length=120)
+    mcp_guard_correlation_evidence_ref: str | None = Field(default=None, max_length=120)
     audit_tags: list[str] = Field(default_factory=list)
 
     @field_validator("session_id")
@@ -963,6 +1069,8 @@ class McpToolAuditRequest(BaseModel):
 
 class LlmGatewayAuditRequest(BaseModel):
     trace_id: str = Field(..., min_length=1, max_length=255)
+    request_id: str | None = Field(default=None, max_length=255)
+    session_id: str | None = Field(default=None, max_length=64)
     model_name: str = Field(..., min_length=1, max_length=120)
     provider_name: str = Field(..., min_length=1, max_length=120)
     agent_type: str = Field(default="unknown", max_length=50)
@@ -972,6 +1080,23 @@ class LlmGatewayAuditRequest(BaseModel):
     cost_cents: int = Field(..., ge=0)
     live_provider_calls: bool = False
     summary: str = Field(..., min_length=1, max_length=500)
+    prompt_body_stored: bool = False
+    redaction_evidence_ref: str | None = Field(default=None, max_length=120)
+    guard_evidence_ref: str | None = Field(default=None, max_length=120)
+    blocked_reason: str | None = Field(default=None, max_length=120)
+    http_status: int | None = Field(default=None, ge=100, le=599)
+    llm_guard_correlation_evidence_ref: str | None = Field(default=None, max_length=120)
+    model_downloads: bool = False
+
+    @field_validator("session_id")
+    @classmethod
+    def validate_session_uuid(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            return str(UUID(value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("session_id must be a valid UUID") from exc
 
 
 class AuthRefreshRequest(BaseModel):
@@ -997,6 +1122,52 @@ class MemoryEntryDeleteRequest(BaseModel):
 AUTH_ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 AUTH_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60
 AUTH_BLACKLIST_PREFIX = "auth:refresh:blacklist:"
+AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION = "auth-audit-snapshot-v1"
+AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION = "auth-audit-risk-rollup-v1"
+AUTH_AUDIT_TIMELINE_CONTRACT_VERSION = "auth-audit-timeline-v1"
+AUTH_AUDIT_EXPORT_CONTRACT_VERSION = "auth-audit-export-v1"
+AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF = "auth_audit_snapshot_visible"
+AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF = "auth_audit_risk_rollup_visible"
+AUTH_AUDIT_TIMELINE_EVIDENCE_REF = "auth_audit_timeline_visible"
+AUTH_AUDIT_EXPORT_EVIDENCE_REF = "auth_audit_export_visible"
+AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF = "auth_audit_export_audit_persisted"
+AUTH_AUDIT_REDACTION_EVIDENCE_REF = "auth_audit_redaction_enforced"
+AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF = "auth_no_live_oauth_guard"
+AUTH_PUBLIC_TRACE_ID_ALLOWED_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._:-")
+PUBLIC_AUDIT_OMIT_DETAIL_KEYS = {
+    "access-token",
+    "refresh-token",
+    "blacklist-key",
+    "authorization",
+    "authorization-header",
+    "cookie",
+    "set-cookie",
+    "code",
+    "state",
+}
+PUBLIC_AUDIT_SENSITIVE_KEY_PREFIXES = (
+    "accesstoken",
+    "refreshtoken",
+    "blacklistkey",
+    "authorization",
+    "cookie",
+    "setcookie",
+    "jwttoken",
+    "bearertoken",
+    "tokenhash",
+)
+PUBLIC_AUDIT_SENSITIVE_KEY_EXACT = {
+    "code",
+    "codes",
+    "oauthcode",
+    "oauthcodes",
+    "state",
+    "states",
+    "oauthstate",
+    "oauthstates",
+    "jwt",
+    "bearer",
+}
 DSGVO_PURGE_CONTRACT_VERSION = "memory-dsgvo-purge-v1"
 COST_EXPORT_CONTRACT_VERSION = "cost-monitor-export-v1"
 SYSTEM_FALLBACK_CONTRACT_VERSION = "system-unavailable-fallback-v1"
@@ -1007,6 +1178,17 @@ LIVE_AGENT_STEERING_EVIDENCE_REF = "live_agent_steering_contract_visible"
 LIVE_AGENT_SESSION_PREFIX = "live-agent:responses:"
 LIVE_AGENT_SESSION_TTL_SECONDS = TASK_TTL_SECONDS
 LIVE_AGENT_LLM_TIMEOUT_SECONDS = 120
+LIVE_AGENT_RESERVED_METADATA_KEYS = {
+    "agent_id",
+    "agent_type",
+    "logical_agent_id",
+    "live_provider_calls_allowed",
+    "previous_response_id",
+    "project_id",
+    "response_id",
+    "runtime_policy",
+    "trace_id",
+}
 LIVE_AGENT_PROFILES: dict[str, dict[str, str]] = {
     "supervisor": {
         "display_name": "Supervisor",
@@ -1082,6 +1264,23 @@ def b64url_bytes(raw: bytes) -> str:
 
 def live_agent_default_model() -> str:
     return os.getenv("HF_DEFAULT_CHAT_MODEL", "deepseek-ai/DeepSeek-V4-Flash:fastest")
+
+
+def sanitize_live_agent_metadata(metadata: dict[str, object] | None) -> dict[str, object]:
+    safe_metadata: dict[str, object] = {}
+    for raw_key, value in (metadata or {}).items():
+        key = str(raw_key).strip()
+        normalized_key = key.lower()
+        if (
+            not key
+            or len(key) > 64
+            or normalized_key in LIVE_AGENT_RESERVED_METADATA_KEYS
+            or normalized_key.startswith(("live_provider", "agent_", "logical_agent", "trace_", "project_", "response_"))
+        ):
+            continue
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            safe_metadata[key] = value
+    return safe_metadata
 
 
 def live_agent_session_key(agent_id: str) -> str:
@@ -1194,6 +1393,7 @@ def live_agent_contract_payload() -> dict[str, object]:
         "status_endpoint": "GET /api/v1/live-agents/status",
         "steer_endpoint": "POST /api/v1/live-agents/steer",
         "reset_endpoint": "POST /api/v1/live-agents/{agent_id}/reset",
+        "history_endpoint": "GET /api/v1/live-agents/history",
         "compatibility_endpoint": "POST /api/steer-agent",
         "llm_gateway_endpoint": "POST /llm/v1/responses",
         "session_store": {
@@ -1223,6 +1423,23 @@ def live_agent_contract_payload() -> dict[str, object]:
             "model",
             "usage",
             "runtime_source",
+            "audit_persisted",
+            "audit_evidence_ref",
+            "trace_id",
+            "request_id",
+        ],
+        "history_fields": [
+            "agent_id",
+            "execution_role",
+            "project_id",
+            "response_id",
+            "previous_response_id",
+            "status",
+            "model",
+            "trace_id",
+            "request_id",
+            "response_preview",
+            "created_at",
         ],
         "agents": [
             {
@@ -1236,12 +1453,24 @@ def live_agent_contract_payload() -> dict[str, object]:
             "accepted_request_shape": {"agentId": "string", "message": "string"},
             "returned_response_shape": {"responseId": "string", "text": "string"},
         },
+        "metadata_policy": {
+            "reserved_keys_stripped": sorted(LIVE_AGENT_RESERVED_METADATA_KEYS),
+            "reserved_prefixes_stripped": ["live_provider", "agent_", "logical_agent", "trace_", "project_", "response_"],
+            "live_provider_calls_allowed": False,
+            "system_metadata_wins": True,
+        },
         "evidence_refs": {
             "contract_visible": LIVE_AGENT_STEERING_EVIDENCE_REF,
+            "ui_visible": "live_agent_steering_ui_visible",
+            "security_guard": "live_agent_metadata_guard_enforced",
+            "audit_persisted": "live_agent_steering_audit_persisted",
+            "history_visible": "live_agent_steering_history_visible",
         },
         "non_claims": [
             "No API key is stored by this contract surface.",
             "Responses streaming passthrough is not exposed on this path.",
+            "End-user metadata cannot enable live provider calls or override system trace/agent fields.",
+            "Live agent history is a read-only audit-log projection and does not execute a model request.",
         ],
     }
 
@@ -1268,7 +1497,78 @@ def live_agent_status_payload() -> dict[str, object]:
         "default_model": live_agent_default_model(),
         "agent_count": len(agents),
         "agents": agents,
+        "history_endpoint": "GET /api/v1/live-agents/history",
         "evidence_ref": LIVE_AGENT_STEERING_EVIDENCE_REF,
+    }
+
+
+def live_agent_history_row_to_event(row: tuple[object, ...]) -> dict[str, object]:
+    details = row[4] or {}
+    if not isinstance(details, dict):
+        details = {}
+    return {
+        "id": str(row[0]),
+        "event_type": row[1],
+        "agent_id": str(details.get("agent") or details.get("agent_id") or "unknown"),
+        "execution_role": str(details.get("agent_type") or details.get("agent_role") or row[2] or "unknown"),
+        "project_id": details.get("project_id"),
+        "response_id": details.get("response_id"),
+        "previous_response_id": details.get("previous_response_id"),
+        "status": details.get("status"),
+        "model": details.get("model"),
+        "trace_id": str(details.get("trace_id") or "none"),
+        "request_id": str(details.get("request_id") or "none"),
+        "response_preview": str(details.get("response_preview") or ""),
+        "runtime_source": details.get("runtime_source") or "openai_responses_via_llm_gateway",
+        "live_provider_calls": bool(details.get("live_provider_calls", False)),
+        "audit_persisted": True,
+        "evidence_ref": details.get("evidence_ref") or "live_agent_steering_audit_persisted",
+        "created_at": row[5].isoformat() if row[5] else None,
+        "severity": row[6],
+    }
+
+
+def live_agent_history_payload(
+    agent_id: str | None = None,
+    project_id: str | None = None,
+    limit: int = 10,
+) -> dict[str, object]:
+    conditions = ["event_type = 'live_agent_steered'"]
+    params: list[object] = []
+    if agent_id:
+        profile = resolve_live_agent_profile(agent_id)
+        resolved_agent_id = str(profile["agent_id"])
+        conditions.append("details->>'agent' = %s")
+        params.append(resolved_agent_id)
+    if project_id:
+        conditions.append("details->>'project_id' = %s")
+        params.append(project_id)
+    params.append(limit)
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE {' AND '.join(conditions)}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        ).fetchall()
+    events = [live_agent_history_row_to_event(row) for row in rows]
+    return {
+        "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+        "status": "available",
+        "mode": "audit_log_backed_live_agent_history",
+        "history_endpoint": "GET /api/v1/live-agents/history",
+        "applied_filters": {"agent_id": agent_id, "project_id": project_id, "limit": limit},
+        "history_count": len(events),
+        "events": events,
+        "evidence_ref": "live_agent_steering_history_visible",
+        "non_claims": [
+            "History reads existing live_agent_steered audit rows only.",
+            "History retrieval does not call the LLM Gateway or any model provider.",
+        ],
     }
 
 
@@ -1337,7 +1637,7 @@ def persist_auth_audit(event_type: str, details: dict[str, object], severity: st
                 INSERT INTO audit_log(event_type, user_id, details, severity)
                 VALUES (%s, 'auth', %s::jsonb, %s)
                 """,
-                (event_type, Json(redact_json(details)), severity),
+                (event_type, Json(auth_audit_details(details)), severity),
             )
     except Exception:
         pass
@@ -1371,12 +1671,22 @@ def auth_contract_payload() -> dict[str, object]:
             "callback": "/api/v1/auth/callback",
             "refresh": "/api/v1/auth/refresh",
             "logout": "/api/v1/auth/logout",
+            "audit_contract": "/api/v1/audit/auth/contract",
+            "audit_snapshot": "/api/v1/audit/auth/snapshot",
+            "audit_risk_rollup": "/api/v1/audit/auth/risk-rollup",
+            "audit_timeline": "/api/v1/audit/auth/timeline",
         },
         "evidence_refs": {
             "contract": "auth_contract_visible",
             "refresh_rotated": "auth_refresh_rotated",
             "refresh_reuse_blocked": "auth_refresh_reuse_blocked",
             "logout_revoked": "auth_logout_revoked",
+            "audit_snapshot": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+            "audit_risk_rollup": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+            "audit_timeline": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
+            "audit_export": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
+            "audit_redaction": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+            "no_live_oauth": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
         },
         "policy_checks": [
             "Access JWT expires after 900 seconds.",
@@ -1391,6 +1701,565 @@ def auth_contract_payload() -> dict[str, object]:
             "This local proof validates token lifecycle mechanics, not production identity ownership.",
         ],
     }
+
+
+AUTH_AUDIT_EVENT_TYPES = (
+    "auth_github_callback_contract",
+    "auth_refresh_rotated",
+    "auth_refresh_reuse_blocked",
+    "auth_logout_revoked",
+)
+
+
+def auth_audit_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "parent_contract_version": "auth-github-jwt-refresh-v1",
+        "mode": "read_only_auth_audit_snapshot",
+        "endpoint": "GET /api/v1/audit/auth/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/audit/auth/timeline",
+        "export_endpoint": "GET /api/v1/audit/auth/export?format=csv&limit=80",
+        "export_contract_endpoint": "GET /api/v1/audit/auth/export/contract",
+        "contract_endpoint": "GET /api/v1/audit/auth/contract",
+        "risk_rollup_contract_version": AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION,
+        "timeline_contract_version": AUTH_AUDIT_TIMELINE_CONTRACT_VERSION,
+        "export_contract_version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+        "supported_export_formats": ["csv"],
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+        "timeline_evidence_ref": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
+        "export_evidence_ref": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_github_oauth_call_claimed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "safe_event_fields": [
+            "event_id",
+            "event_type",
+            "trace_id",
+            "lifecycle_step",
+            "status",
+            "severity",
+            "created_at",
+            "code_present",
+            "cookie_flags",
+            "live_github_oauth_call",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_oauth_evidence_ref",
+        ],
+        "timeline_fields": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "timeline_leg",
+            "trace_id",
+            "lifecycle_step",
+            "status",
+            "severity",
+            "code_present",
+            "cookie_flags",
+            "live_github_oauth_call",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_oauth_evidence_ref",
+        ],
+        "export_columns": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "lifecycle_step",
+            "status",
+            "severity",
+            "trace_id",
+            "code_present",
+            "cookie_http_only",
+            "cookie_secure",
+            "cookie_same_site",
+            "live_github_oauth_call",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_oauth_evidence_ref",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only and never starts OAuth, refresh, logout, or token issuance flows.",
+            "Returned events are reduced to safe auth lifecycle fields only.",
+            "Refresh tokens, access tokens, cookies, authorization headers, OAuth code/state values, and Redis blacklist keys are omitted.",
+            "Any live GitHub OAuth call claim or forbidden credential pattern blocks the snapshot.",
+            "The risk rollup is computed from the same safe auth audit projection and never performs auth writes or live OAuth calls.",
+            "The timeline is computed from the same safe auth audit projection and never returns raw audit_log details.",
+            "The CSV export is generated from the same safe auth audit projection and logs only redacted export metadata.",
+        ],
+        "non_claims": [
+            "This endpoint does not perform or prove a live GitHub OAuth exchange.",
+            "This endpoint does not return tokens, cookies, OAuth codes, OAuth states, Redis blacklist keys, or authorization headers.",
+            "This endpoint does not authorize production identity rollout or release promotion.",
+            "The export is operator evidence only and is not a SOC/SIEM completion claim.",
+        ],
+    }
+
+
+def auth_audit_rows(limit: int) -> list[object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        return conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type IN (
+              'auth_github_callback_contract',
+              'auth_refresh_rotated',
+              'auth_refresh_reuse_blocked',
+              'auth_logout_revoked'
+            )
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def auth_lifecycle_step(event_type: str) -> str:
+    if event_type == "auth_github_callback_contract":
+        return "dry_run_callback"
+    if event_type == "auth_refresh_rotated":
+        return "refresh_rotation"
+    if event_type == "auth_refresh_reuse_blocked":
+        return "refresh_reuse_block"
+    if event_type == "auth_logout_revoked":
+        return "logout_revoke"
+    return "unknown"
+
+
+def public_correlation_id(value: object, redacted_prefix: str) -> str | None:
+    if value is None:
+        return None
+    text = redact_text(str(value).strip())
+    if not text:
+        return None
+    if len(text) > 96 or any(char not in AUTH_PUBLIC_TRACE_ID_ALLOWED_CHARS for char in text):
+        return redacted_prefix + "-redacted-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    if redact_text(text) != text:
+        return redacted_prefix + "-redacted-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    return text
+
+
+def public_trace_id(value: object) -> str | None:
+    return public_correlation_id(value, "trace")
+
+
+def public_request_id(value: object) -> str | None:
+    return public_correlation_id(value, "request")
+
+
+def public_audit_key_is_sensitive(key: str) -> bool:
+    compact = "".join(char for char in key.lower() if char.isalnum())
+    return compact in PUBLIC_AUDIT_SENSITIVE_KEY_EXACT or any(
+        compact.startswith(prefix) for prefix in PUBLIC_AUDIT_SENSITIVE_KEY_PREFIXES
+    )
+
+
+def public_audit_details(value: object) -> object:
+    redacted = redact_json(value)
+    if isinstance(redacted, dict):
+        public: dict[str, object] = {}
+        for raw_key, item in redacted.items():
+            key = str(raw_key)
+            normalized = key.strip().lower().replace("_", "-")
+            if normalized in PUBLIC_AUDIT_OMIT_DETAIL_KEYS or public_audit_key_is_sensitive(key):
+                public[f"{normalized.replace('-', '_')}_redacted"] = True
+                continue
+            public[key] = public_audit_details(item)
+        if "trace_id" in public:
+            public["trace_id"] = public_trace_id(public.get("trace_id"))
+        if "request_id" in public:
+            public["request_id"] = public_request_id(public.get("request_id"))
+        return public
+    if isinstance(redacted, list):
+        return [public_audit_details(item) for item in redacted]
+    if isinstance(redacted, tuple):
+        return [public_audit_details(item) for item in redacted]
+    return redacted
+
+
+def auth_audit_details(details: dict[str, object]) -> dict[str, object]:
+    safe_details = public_audit_details(details)
+    return safe_details if isinstance(safe_details, dict) else {}
+
+
+def safe_auth_audit_event(row: object) -> dict[str, object]:
+    details = auth_audit_details(row[4] or {})
+    if not isinstance(details, dict):
+        details = {}
+    event_type = str(row[1])
+    trace_id = public_trace_id(details.get("trace_id"))
+    live_github_oauth_call = bool(details.get("live_github_oauth_call") is True)
+    cookie_flags = details.get("cookie_flags") if isinstance(details.get("cookie_flags"), dict) else {}
+    return {
+        "event_id": str(row[0]),
+        "event_type": event_type,
+        "trace_id": trace_id,
+        "lifecycle_step": auth_lifecycle_step(event_type),
+        "status": "blocked" if event_type == "auth_refresh_reuse_blocked" else "verified",
+        "severity": row[6],
+        "created_at": row[5].isoformat() if row[5] else None,
+        "code_present": bool(details.get("code_present")) if "code_present" in details else None,
+        "cookie_flags": {
+            "HttpOnly": bool(cookie_flags.get("HttpOnly")) if "HttpOnly" in cookie_flags else None,
+            "Secure": bool(cookie_flags.get("Secure")) if "Secure" in cookie_flags else None,
+            "SameSite": str(cookie_flags.get("SameSite")) if cookie_flags.get("SameSite") else None,
+        },
+        "live_github_oauth_call": live_github_oauth_call,
+        "evidence_ref": event_type,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+    }
+
+
+def auth_audit_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hcloud_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "set-cookie",
+        '"access_token":',
+        '"refresh_token":',
+        '"blacklist_key":',
+        '"code":',
+        '"state":',
+        "private key",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
+
+
+def build_auth_audit_snapshot(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = auth_audit_forbidden_pattern_hits(events)
+    live_github_oauth_call_count = sum(1 for event in events if event.get("live_github_oauth_call") is True)
+    return {
+        **auth_audit_contract_payload(),
+        "events_scanned": len(events),
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "lifecycle_step_counts": count_by_key([str(event.get("lifecycle_step")) for event in events]),
+        "severity_counts": count_by_key([str(event.get("severity")) if event.get("severity") else None for event in events]),
+        "live_github_oauth_call_count": live_github_oauth_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "oauth_status": "dry_run_only" if live_github_oauth_call_count == 0 else "blocked",
+        "events": events[:20],
+    }
+
+
+def build_auth_audit_risk_rollup(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = auth_audit_forbidden_pattern_hits(events)
+    live_github_oauth_call_count = sum(1 for event in events if event.get("live_github_oauth_call") is True)
+    event_type_counts = count_by_key([str(event.get("event_type")) for event in events])
+    lifecycle_step_counts = count_by_key([str(event.get("lifecycle_step")) for event in events])
+    status_counts = count_by_key([str(event.get("status")) if event.get("status") else None for event in events])
+    severity_counts = count_by_key([str(event.get("severity")) if event.get("severity") else None for event in events])
+    dry_run_callback_count = int(event_type_counts.get("auth_github_callback_contract", 0))
+    refresh_rotation_count = int(event_type_counts.get("auth_refresh_rotated", 0))
+    refresh_reuse_block_count = int(event_type_counts.get("auth_refresh_reuse_blocked", 0))
+    logout_revoke_count = int(event_type_counts.get("auth_logout_revoked", 0))
+    blocker_count = forbidden_pattern_hits + live_github_oauth_call_count
+    review_count = refresh_reuse_block_count
+    if blocker_count > 0:
+        risk_status = "blocked"
+    elif review_count > 0:
+        risk_status = "review"
+    else:
+        risk_status = "clear"
+    risk_badges = [
+        {
+            "id": "redaction",
+            "label": "Redaction",
+            "status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+            "count": forbidden_pattern_hits,
+            "evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        },
+        {
+            "id": "no_live_oauth",
+            "label": "No Live OAuth",
+            "status": "clear" if live_github_oauth_call_count == 0 else "blocked",
+            "count": live_github_oauth_call_count,
+            "evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        },
+        {
+            "id": "refresh_reuse_blocked",
+            "label": "Refresh Reuse Blocked",
+            "status": "review" if refresh_reuse_block_count > 0 else "clear",
+            "count": refresh_reuse_block_count,
+            "evidence_ref": "auth_refresh_reuse_blocked",
+        },
+        {
+            "id": "refresh_rotation",
+            "label": "Refresh Rotation",
+            "status": "verified" if refresh_rotation_count > 0 else "watch",
+            "count": refresh_rotation_count,
+            "evidence_ref": "auth_refresh_rotated",
+        },
+        {
+            "id": "logout_revoke",
+            "label": "Logout Revoke",
+            "status": "verified" if logout_revoke_count > 0 else "watch",
+            "count": logout_revoke_count,
+            "evidence_ref": "auth_logout_revoked",
+        },
+    ]
+    return {
+        "contract_version": AUTH_AUDIT_RISK_ROLLUP_CONTRACT_VERSION,
+        "parent_contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "mode": "read_only_auth_audit_risk_rollup",
+        "endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "snapshot_endpoint": "GET /api/v1/audit/auth/snapshot",
+        "contract_endpoint": "GET /api/v1/audit/auth/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+        "snapshot_evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "live_github_oauth_call_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "events_scanned": len(events),
+        "risk_status": risk_status,
+        "blocker_count": blocker_count,
+        "review_count": review_count,
+        "dry_run_callback_count": dry_run_callback_count,
+        "refresh_rotation_count": refresh_rotation_count,
+        "refresh_reuse_block_count": refresh_reuse_block_count,
+        "logout_revoke_count": logout_revoke_count,
+        "live_github_oauth_call_count": live_github_oauth_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "oauth_status": "dry_run_only" if live_github_oauth_call_count == 0 else "blocked",
+        "event_type_counts": event_type_counts,
+        "lifecycle_step_counts": lifecycle_step_counts,
+        "status_counts": status_counts,
+        "severity_counts": severity_counts,
+        "risk_badges": risk_badges,
+        "policy_checks": [
+            "Risk rollup reads audit_log through the safe auth audit projection only.",
+            "Risk rollup never starts OAuth, refresh, logout, token issuance, deployment, or production promotion flows.",
+            "Refresh-token reuse blocks are review evidence, not release blockers, when redaction and no-live-OAuth guards stay clear.",
+            "Any forbidden pattern or live GitHub OAuth claim raises blocker_count and risk_status=blocked.",
+        ],
+        "non_claims": auth_audit_contract_payload()["non_claims"],
+    }
+
+
+def build_auth_audit_timeline(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = auth_audit_forbidden_pattern_hits(events)
+    ordered_events = sorted(events, key=lambda event: str(event.get("created_at") or ""))
+    timeline: list[dict[str, object]] = []
+    for index, event in enumerate(ordered_events[:80], start=1):
+        event_type = str(event.get("event_type") or "unknown")
+        timeline.append(
+            {
+                "sequence_index": index,
+                "event_id": event.get("event_id"),
+                "created_at": event.get("created_at"),
+                "event_type": event_type,
+                "timeline_leg": auth_lifecycle_step(event_type),
+                "trace_id": public_trace_id(event.get("trace_id")),
+                "lifecycle_step": event.get("lifecycle_step"),
+                "status": event.get("status"),
+                "severity": event.get("severity"),
+                "code_present": event.get("code_present"),
+                "cookie_flags": event.get("cookie_flags"),
+                "live_github_oauth_call": event.get("live_github_oauth_call") is True,
+                "evidence_ref": event.get("evidence_ref"),
+                "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+                "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+            }
+        )
+    live_github_oauth_call_count = sum(1 for event in timeline if event["live_github_oauth_call"] is True)
+    return {
+        "contract_version": AUTH_AUDIT_TIMELINE_CONTRACT_VERSION,
+        "parent_contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "mode": "read_only_auth_audit_timeline",
+        "endpoint": "GET /api/v1/audit/auth/timeline",
+        "snapshot_endpoint": "GET /api/v1/audit/auth/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "contract_endpoint": "GET /api/v1/audit/auth/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "evidence_ref": AUTH_AUDIT_TIMELINE_EVIDENCE_REF,
+        "snapshot_evidence_ref": AUTH_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": AUTH_AUDIT_RISK_ROLLUP_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "live_github_oauth_call_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "events_scanned": len(events),
+        "timeline_count": len(timeline),
+        "live_github_oauth_call_count": live_github_oauth_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "oauth_status": "dry_run_only" if live_github_oauth_call_count == 0 else "blocked",
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "timeline_leg_counts": count_by_key([str(event.get("timeline_leg")) for event in timeline]),
+        "status_counts": count_by_key([str(event.get("status")) if event.get("status") else None for event in timeline]),
+        "severity_counts": count_by_key([str(event.get("severity")) if event.get("severity") else None for event in timeline]),
+        "timeline": timeline,
+        "policy_checks": [
+            "Timeline reads audit_log through the safe auth audit projection only.",
+            "Timeline never starts OAuth, refresh, logout, token issuance, deployment, or production promotion flows.",
+            "Timeline entries expose ordering and lifecycle fields only; raw audit_log details remain omitted.",
+            "Any forbidden pattern or live GitHub OAuth claim raises redaction/oauth blocked status.",
+        ],
+        "non_claims": auth_audit_contract_payload()["non_claims"],
+    }
+
+
+def auth_audit_export_contract_payload() -> dict[str, object]:
+    contract = auth_audit_contract_payload()
+    return {
+        "contract_version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": AUTH_AUDIT_SNAPSHOT_CONTRACT_VERSION,
+        "mode": "read_only_auth_audit_csv_export",
+        "endpoint": "GET /api/v1/audit/auth/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/audit/auth/export/contract",
+        "snapshot_endpoint": "GET /api/v1/audit/auth/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/audit/auth/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/audit/auth/timeline",
+        "source_table": "audit_log",
+        "source_event_types": list(AUTH_AUDIT_EVENT_TYPES),
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-auth-audit.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_github_oauth_call_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "tokens_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "blacklist_keys_returned": False,
+        "oauth_codes_returned": False,
+        "oauth_states_returned": False,
+        "raw_details_returned": False,
+        "policy_checks": [
+            "Export reads audit_log through the safe auth audit projection only.",
+            "Export emits CSV columns from the allowlisted auth audit fields only.",
+            "Export never starts OAuth, refresh, logout, token issuance, deployment, or production promotion flows.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence ref.",
+            "Any forbidden pattern in exported rows blocks the verifier.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def csv_safe_value(value: object) -> object:
+    if value is None or isinstance(value, bool | int | float):
+        return value
+    text = str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r", "\n")):
+        return "'" + text
+    return text
+
+
+def build_auth_audit_export_csv(events: list[dict[str, object]]) -> str:
+    output = io.StringIO()
+    fieldnames = auth_audit_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    ordered_events = sorted(events, key=lambda event: str(event.get("created_at") or ""))
+    for index, event in enumerate(ordered_events, start=1):
+        cookie_flags = event.get("cookie_flags") if isinstance(event.get("cookie_flags"), dict) else {}
+        row = {
+            "sequence_index": index,
+            "event_id": event.get("event_id"),
+            "created_at": event.get("created_at"),
+            "event_type": event.get("event_type"),
+            "lifecycle_step": event.get("lifecycle_step"),
+            "status": event.get("status"),
+            "severity": event.get("severity"),
+            "trace_id": public_trace_id(event.get("trace_id")),
+            "code_present": event.get("code_present"),
+            "cookie_http_only": cookie_flags.get("HttpOnly"),
+            "cookie_secure": cookie_flags.get("Secure"),
+            "cookie_same_site": cookie_flags.get("SameSite"),
+            "live_github_oauth_call": event.get("live_github_oauth_call") is True,
+            "evidence_ref": event.get("evidence_ref"),
+            "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+            "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+        }
+        writer.writerow({key: csv_safe_value(value) for key, value in row.items()})
+    return output.getvalue()
+
+
+def persist_auth_audit_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('auth_audit_export_generated', 'auth-audit', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+                                "redaction_evidence_ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+                                "no_live_oauth_evidence_ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"auth audit export audit failed: {exc}")
 
 
 def memory_purge_contract_payload() -> dict[str, object]:
@@ -1980,6 +2849,7 @@ def agent_activity_contract_payload() -> dict[str, object]:
         "screen": "Agent Activity",
         "source_endpoints": [
             "GET /api/v1/agent-activity/recent?limit=50&severity=&event_type=&agent_type=&trace_id=",
+            "GET /api/v1/observability/langfuse/trace/{trace_id}",
             "GET /api/v1/audit/recent?limit=50",
             "GET /api/v1/audit/mcp?limit=50",
             "GET /api/v1/escalations/recent?limit=50",
@@ -2001,6 +2871,8 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "partial_failure",
             "partial_failure_reasons",
             "aggregation_evidence_ref",
+            "response_id",
+            "runtime_source",
         ],
         "langfuse": {
             "live_langfuse_deep_link": bool(langfuse_public_url),
@@ -2017,6 +2889,8 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "no_public_langfuse_without_auth",
             "per_role_results_visible",
             "failure_surface_visible",
+            "live_agent_steering_audit_visible",
+            "langfuse_trace_access_audit_backed",
         ],
         "evidence_refs": {
             "contract_visible": "agent_activity_contract_visible",
@@ -2025,11 +2899,53 @@ def agent_activity_contract_payload() -> dict[str, object]:
             "filtered_feed": "agent_activity_filtered_feed_visible",
             "per_role_results": "agent_activity_per_role_results_visible",
             "failure_surface": "agent_activity_failure_surface_visible",
+            "live_agent_steering_audit": "live_agent_steering_audit_persisted",
+            "trace_access": LANGFUSE_TRACE_ACCESS_EVIDENCE_REF,
+            "trace_event": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
         },
         "non_claims": [
             "This contract does not claim public unauthenticated Langfuse access.",
             "This contract does not claim live Langfuse traces until LANGFUSE_PUBLIC_URL is configured.",
             "Audit-log activity remains the local source of truth for Phase 3.",
+        ],
+    }
+
+
+def langfuse_trace_access_contract_payload() -> dict[str, object]:
+    langfuse_public_url = os.getenv("LANGFUSE_PUBLIC_URL", "").rstrip("/")
+    auth_proxy_path = os.getenv("LANGFUSE_AUTH_PROXY_PATH", "/observability/langfuse")
+    deep_link_template = (
+        f"{langfuse_public_url}/trace/{{trace_id}}"
+        if langfuse_public_url
+        else f"{auth_proxy_path}/trace/{{trace_id}}"
+    )
+    return {
+        "contract_version": LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION,
+        "mode": "audit_log_backed_trace_access",
+        "screen": "Langfuse Trace Access",
+        "endpoint": "GET /api/v1/observability/langfuse/trace/{trace_id}",
+        "contract_endpoint": "GET /api/v1/observability/langfuse/contract",
+        "source_table": "audit_log",
+        "source_endpoint": "GET /api/v1/agent-activity/recent?trace_id={trace_id}",
+        "deep_link_template": deep_link_template,
+        "langfuse_public_url_configured": bool(langfuse_public_url),
+        "auth_proxy_required": True,
+        "read_only": True,
+        "live_langfuse_trace_claimed": bool(langfuse_public_url),
+        "provider_trace_export": False,
+        "evidence_ref": LANGFUSE_TRACE_ACCESS_EVIDENCE_REF,
+        "event_evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
+        "required_trace_fields": ["trace_id", "event_type", "severity", "created_at", "details"],
+        "policy_checks": [
+            "Trace lookup reads audit_log only.",
+            "No public unauthenticated Langfuse access is claimed.",
+            "Provider trace export remains disabled until live Langfuse is configured.",
+            "The response redacts audit details before returning them.",
+        ],
+        "non_claims": [
+            "No live Langfuse deployment is claimed unless LANGFUSE_PUBLIC_URL is configured.",
+            "No provider-side trace export or purge is claimed.",
+            "No production observability auth proxy is claimed.",
         ],
     }
 
@@ -2100,6 +3016,9 @@ def recent_tasks_contract_payload() -> dict[str, object]:
             "project_id",
             "session_id",
             "trace_id",
+            "dispatch_id",
+            "logical_role",
+            "provenance_evidence_ref",
             "request_id",
             "correlation_evidence_ref",
             "audit_feed_evidence_ref",
@@ -2139,6 +3058,7 @@ def recent_tasks_contract_payload() -> dict[str, object]:
             "Recent tasks expose top-level request, trace, correlation, and audit-feed evidence fields.",
             "The request_id field is visible on recent tasks and may remain null until correlated audit or session evidence is available.",
             "Recent tasks preserve queue priority metadata and task policy fields.",
+            "Recent tasks expose autonomous dispatch_id, logical_role, and provenance evidence when created by the autonomous team dispatcher.",
             "Recent tasks remain aligned with internal task status and audit evidence.",
         ],
         "evidence_refs": {
@@ -2147,6 +3067,7 @@ def recent_tasks_contract_payload() -> dict[str, object]:
             "request_correlation": "request_id_audit_correlation",
             "audit_feed_visibility": "request_id_audit_feed_visible",
             "priority_queue": "task_priority_queue_correction_proof",
+            "dispatch_provenance": "autonomous_team_dispatch_task_provenance",
         },
         "non_claims": [
             "This does not imply production rollout approval.",
@@ -2486,11 +3407,34 @@ def audit_feed_contract_payload() -> dict[str, object]:
 
 def mcp_audit_feed_contract_payload() -> dict[str, object]:
     return {
-        "contract_version": "mcp-audit-feed-v1",
+        "contract_version": MCP_AUDIT_FEED_CONTRACT_VERSION,
         "mode": "mcp_tool_audit_runtime_feed",
+        "endpoint": "GET /api/v1/audit/mcp",
+        "snapshot_endpoint": "GET /api/v1/audit/mcp/snapshot",
+        "export_endpoint": "GET /api/v1/audit/mcp/export?format=csv&limit=80",
+        "export_contract_endpoint": "GET /api/v1/audit/mcp/export/contract",
+        "export_contract_version": MCP_AUDIT_EXPORT_CONTRACT_VERSION,
+        "source_event_type": "mcp_tool_executed",
+        "source_table": "audit_log",
+        "supported_export_formats": ["csv"],
         "screen": "MCP Audit",
+        "evidence_ref": MCP_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+        "export_evidence_ref": MCP_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "no_live_write_evidence_ref": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
+        "guard_correlation_evidence_ref": MCP_GUARD_CORRELATION_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_mcp_writes_claimed": False,
+        "input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
         "source_endpoints": [
             "GET /api/v1/audit/mcp?limit=20",
+            "GET /api/v1/audit/mcp/snapshot",
+            "GET /api/v1/audit/mcp/export?format=csv&limit=80",
             "POST /internal/audit/mcp-tool-events",
             "GET /api/v1/audit/recent?limit=50",
         ],
@@ -2499,7 +3443,10 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "event_type",
             "user_id",
             "session_id",
+            "request_id",
             "trace_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
             "details",
             "created_at",
             "severity",
@@ -2507,6 +3454,7 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
         "required_detail_fields": [
             "tool_request_id",
             "run_id",
+            "request_id",
             "trace_id",
             "agent_role",
             "toolset",
@@ -2521,6 +3469,40 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "audit_tags",
             "session_bound",
             "audit_evidence_ref",
+            "guard_evidence_ref",
+            "mcp_guard_correlation_evidence_ref",
+            "redaction_evidence_ref",
+            "input_ref_stored",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+        ],
+        "export_columns": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "severity",
+            "trace_id",
+            "request_id",
+            "session_id",
+            "agent_role",
+            "toolset",
+            "capability",
+            "status",
+            "error_class",
+            "duration_ms",
+            "retry_after_ms",
+            "session_bound",
+            "input_ref_stored",
+            "live_mcp_writes",
+            "evidence_ref",
+            "audit_feed_evidence_ref",
+            "correlation_evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_mcp_write_evidence_ref",
+        ],
+        "blocked_detail_fields": [
+            "denied_tool_correlation_evidence_ref",
         ],
         "supported_statuses": ["success", "blocked", "timeout", "degraded"],
         "supported_toolsets": ["github", "e2b", "playwright", "filesystem", "postgresql", "puppeteer"],
@@ -2528,11 +3510,22 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "MCP audit feed exposes session-bound tool execution events as a public runtime surface.",
             "Feed stays aligned with internal MCP audit writes and carries visible trace and evidence references.",
             "Feed remains non-mutating and does not claim live MCP writes were executed.",
+            "The snapshot endpoint aggregates redacted audit fields and never returns tool input refs.",
+            "The CSV export emits only allowlisted MCP audit fields and logs redacted export metadata.",
         ],
         "evidence_refs": {
-            "contract_visible": "mcp_audit_feed_contract_runtime_visible",
+            "contract_visible": MCP_AUDIT_FEED_EVIDENCE_REF,
             "runtime_visible": "hosted_mcp_audit_feed_contract_runtime_parity_proof",
             "session_bound_audit": "mcp_tool_session_bound_audit",
+            "snapshot_visible": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+            "redaction_enforced": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+            "export_visible": MCP_AUDIT_EXPORT_EVIDENCE_REF,
+            "export_audit_persisted": MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+            "no_live_write_guard": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
+            "denied_tool_correlation": "mcp_denied_tool_audit_correlation",
+            "guard_correlation": MCP_GUARD_CORRELATION_EVIDENCE_REF,
+            "request_correlation": "request_id_audit_correlation",
+            "audit_feed_visibility": "request_id_audit_feed_visible",
         },
         "non_claims": [
             "This contract does not claim live MCP writes are enabled.",
@@ -2540,6 +3533,152 @@ def mcp_audit_feed_contract_payload() -> dict[str, object]:
             "This contract does not claim provider-side mutations were executed.",
         ],
     }
+
+
+def mcp_audit_rows(limit: int) -> list[object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        return conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type = 'mcp_tool_executed'
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def mcp_audit_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "redaction-proof-value",
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hcloud_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "private key",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
+
+
+def mcp_audit_export_contract_payload() -> dict[str, object]:
+    contract = mcp_audit_feed_contract_payload()
+    return {
+        "contract_version": MCP_AUDIT_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": MCP_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "read_only_mcp_audit_csv_export",
+        "endpoint": "GET /api/v1/audit/mcp/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/audit/mcp/export/contract",
+        "feed_endpoint": "GET /api/v1/audit/mcp",
+        "snapshot_endpoint": "GET /api/v1/audit/mcp/snapshot",
+        "source_table": "audit_log",
+        "source_event_type": "mcp_tool_executed",
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-mcp-audit.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": MCP_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "feed_evidence_ref": MCP_AUDIT_FEED_EVIDENCE_REF,
+        "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+        "snapshot_evidence_ref": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_mcp_write_evidence_ref": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
+        "provider_side_mutation_claimed": False,
+        "policy_checks": [
+            "Export reads only audit_log rows with event_type=mcp_tool_executed.",
+            "Export emits CSV columns from the allowlisted MCP audit fields only.",
+            "Export never executes MCP tools and never writes to external MCP providers.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence ref.",
+            "Any forbidden pattern in exported rows blocks the verifier.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def build_mcp_audit_export_csv(rows: list[object]) -> str:
+    output = io.StringIO()
+    fieldnames = mcp_audit_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    ordered_rows = sorted(rows, key=lambda row: row[5].isoformat() if row[5] else "")
+    for index, row in enumerate(ordered_rows, start=1):
+        details = public_audit_details(row[4] or {})
+        details = details if isinstance(details, dict) else {}
+        csv_row = {
+            "sequence_index": index,
+            "event_id": str(row[0]),
+            "created_at": row[5].isoformat() if row[5] else None,
+            "event_type": row[1],
+            "severity": row[6],
+            "trace_id": public_trace_id(details.get("trace_id") or (str(row[3]) if row[3] else None)),
+            "request_id": public_request_id(details.get("request_id")),
+            "session_id": str(row[3]) if row[3] else None,
+            "agent_role": details.get("agent_role") or row[2],
+            "toolset": details.get("toolset"),
+            "capability": details.get("capability"),
+            "status": details.get("status"),
+            "error_class": details.get("error_class"),
+            "duration_ms": details.get("duration_ms"),
+            "retry_after_ms": details.get("retry_after_ms"),
+            "session_bound": details.get("session_bound") is True,
+            "input_ref_stored": details.get("input_ref_stored", False) is True,
+            "live_mcp_writes": details.get("live_mcp_write") is True or details.get("live_mcp_writes") is True,
+            "evidence_ref": MCP_AUDIT_EXPORT_EVIDENCE_REF,
+            "audit_feed_evidence_ref": details.get("audit_feed_evidence_ref", "request_id_audit_feed_visible"),
+            "correlation_evidence_ref": details.get("correlation_evidence_ref", "request_id_audit_correlation"),
+            "redaction_evidence_ref": details.get("redaction_evidence_ref", MCP_AUDIT_REDACTION_EVIDENCE_REF),
+            "no_live_mcp_write_evidence_ref": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
+        }
+        writer.writerow({key: csv_safe_value(value) for key, value in csv_row.items()})
+    return output.getvalue()
+
+
+def persist_mcp_audit_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('mcp_audit_export_generated', 'mcp-audit', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": MCP_AUDIT_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+                                "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+                                "no_live_mcp_write_evidence_ref": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"mcp audit export audit failed: {exc}")
 
 
 def memory_consolidation_contract_payload() -> dict[str, object]:
@@ -2589,6 +3728,51 @@ def memory_consolidation_contract_payload() -> dict[str, object]:
     }
 
 
+def memory_worker_health_contract_payload() -> dict[str, object]:
+    snapshot: dict[str, object]
+    try:
+        snapshot = check_memory_worker()
+    except Exception as exc:
+        snapshot = {"status": "down", "reason": type(exc).__name__}
+    return {
+        "contract_version": MEMORY_WORKER_HEALTH_CONTRACT_VERSION,
+        "mode": "redis_heartbeat_freshness_guard",
+        "endpoint": "GET /api/v1/memory/worker-health/contract",
+        "health_endpoint": "GET /api/v1/health",
+        "metrics_endpoint": "GET /api/v1/metrics",
+        "evidence_ref": MEMORY_WORKER_HEALTH_EVIDENCE_REF,
+        "status": "verified" if snapshot.get("status") == "healthy" else "degraded",
+        "heartbeat_key": snapshot.get("heartbeat_key", "memory-worker:heartbeat"),
+        "accepted_heartbeat_statuses": ["running", "healthy"],
+        "max_heartbeat_age_seconds": snapshot.get("max_heartbeat_age_seconds", 450),
+        "max_batch_runtime_seconds": snapshot.get("max_batch_runtime_seconds", 120),
+        "docker_healthcheck_command": "python -m app.worker --healthcheck",
+        "docker_healthcheck_timeout_seconds": 15,
+        "runtime_snapshot": snapshot,
+        "required_runtime_fields": [
+            "heartbeat_status",
+            "heartbeat_age_seconds",
+            "max_heartbeat_age_seconds",
+            "max_batch_runtime_seconds",
+            "stale_heartbeat",
+            "contract_version",
+            "evidence_ref",
+        ],
+        "policy_checks": [
+            "A Redis heartbeat is required before the memory worker can be reported healthy.",
+            "Heartbeat status must be running or healthy.",
+            "Heartbeat age must stay below max_heartbeat_age_seconds, independent of Redis TTL.",
+            "The Docker healthcheck uses the worker-owned --healthcheck path with a 15-second timeout rather than dependency-only pings.",
+            "Health visibility remains DEV-ONLY locally and does not claim hosted parity without deployment proof.",
+        ],
+        "non_claims": [
+            "No live embedding provider call is made by this contract.",
+            "No local model download is made by this contract.",
+            "No live MCP write, production rollout, release promotion, or hosted parity is claimed by this local contract.",
+        ],
+    }
+
+
 def memory_search_contract_payload() -> dict[str, object]:
     return {
         "contract_version": MEMORY_SEARCH_CONTRACT_VERSION,
@@ -2599,13 +3783,30 @@ def memory_search_contract_payload() -> dict[str, object]:
             "GET /api/v1/memory/embedding-consistency/contract",
         ],
         "query_parameters": {
-            "q": {"required": True, "min_length": 1, "max_length": 1000},
+            "q": {"required": True, "min_length": 1, "min_trimmed_length": 1, "max_length": 1000},
             "project_id": {"required": True, "min_length": 1},
             "limit": {"required": False, "default": 5, "min": 1, "max": 20},
             "threshold": {"required": False, "default": 0.0, "min": 0.0, "max": 1.0},
         },
+        "empty_query_policy": {
+            "status_code": 422,
+            "error": "memory_search_empty_query",
+            "evidence_ref": "memory_search_empty_query_blocked",
+        },
         "top_level_sections": ["results", "search_mode"],
-        "result_fields": ["id", "content", "relevance_score", "created_at", "session_id"],
+        "result_fields": [
+            "id",
+            "content",
+            "relevance_score",
+            "created_at",
+            "session_id",
+            "trace_id",
+            "request_id",
+            "correlation_evidence_ref",
+            "audit_feed_evidence_ref",
+            "memory_success_evidence_ref",
+        ],
+        "correlation_fields": ["session_id", "trace_id", "request_id"],
         "search_mode": EMBEDDING_SEARCH_MODE,
         "depends_on": {
             "embedding_consistency_contract": "GET /api/v1/memory/embedding-consistency/contract",
@@ -2613,6 +3814,7 @@ def memory_search_contract_payload() -> dict[str, object]:
             "vector_search_enabled": False,
         },
         "evidence_ref": MEMORY_SEARCH_EVIDENCE_REF,
+        "success_correlation_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
         "status": "verified",
         "non_claims": [
             "No live embedding provider call is made by this search endpoint.",
@@ -2708,6 +3910,58 @@ def persist_cost_export_audit(group_by: str, row_count: int, trace_id: str, requ
             )
     except Exception:
         pass
+
+
+def persist_live_agent_steer_audit(
+    *,
+    agent_id: str,
+    execution_role: str,
+    project_id: str,
+    response_id: str,
+    previous_response_id: str | None,
+    model: str,
+    status: object,
+    text: str,
+    usage: object,
+    trace_id: str,
+    request_id: str,
+    safe_metadata_keys: list[str],
+) -> bool:
+    details = redact_json(
+        {
+            "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
+            "agent": agent_id,
+            "agent_type": execution_role,
+            "agent_role": execution_role,
+            "project_id": project_id,
+            "response_id": response_id or None,
+            "previous_response_id": previous_response_id,
+            "model": model,
+            "status": status,
+            "runtime_source": "openai_responses_via_llm_gateway",
+            "live_provider_calls": False,
+            "metadata_fields_forwarded": safe_metadata_keys,
+            "response_preview": redact_text(text)[:280],
+            "usage": usage,
+            "trace_id": trace_id,
+            "request_id": request_id,
+            "correlation_evidence_ref": "request_id_audit_correlation",
+            "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+            "evidence_ref": "live_agent_steering_audit_persisted",
+        }
+    )
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('live_agent_steered', %s, %s::jsonb, 'info')
+                """,
+                (execution_role, Json(details)),
+            )
+        return True
+    except Exception:
+        return False
 
 
 def persist_task_policy_block(assignment: TaskAssignment, violation: TaskPolicyViolation) -> None:
@@ -2881,6 +4135,115 @@ def phase2_runtime_contract_payload() -> dict[str, object]:
             "It does not call live LLM providers.",
             "It does not perform live MCP writes.",
             "It does not deploy to production.",
+        ],
+    }
+
+
+def agent_skill_mode_contract_payload() -> dict[str, object]:
+    declared_surfaces = {
+        "plugins": 11,
+        "apps": 4,
+        "mcp_servers": 1,
+        "skills": 140,
+    }
+    plugin_slots = [
+        "Browser Use",
+        "Cloudflare",
+        "Codex Security",
+        "Documents",
+        "Expo",
+        "GitHub",
+        "Hugging Face",
+        "OpenAI Developers",
+        "Presentations",
+        "Spreadsheets",
+        "Vercel",
+    ]
+    app_slots = [
+        "GitHub",
+        "OpenAI Platform",
+        "Browser Use",
+        "Vercel",
+    ]
+    skill_group_bindings = [
+        {"group": "cloud_deploy", "examples": ["cloudflare", "vercel", "azure"], "guard": "owner_gate_required"},
+        {"group": "ai_gateway", "examples": ["openai-developers", "hugging-face"], "guard": "api_only_gateway_route"},
+        {"group": "frontend", "examples": ["vercel:nextjs", "expo"], "guard": "browser_contract_required"},
+        {"group": "media_docs", "examples": ["documents", "presentations", "spreadsheets"], "guard": "artifact_redaction_required"},
+        {"group": "security", "examples": ["codex-security"], "guard": "no_secret_output"},
+        {"group": "game_3d", "examples": ["3d-web-game-swarm"], "guard": "cloud_render_offload_required"},
+        {"group": "runtime_research", "examples": ["browser-use", "github"], "guard": "read_only_by_default"},
+    ]
+    layer_bindings = [
+        {"layer": "L1 Frontend", "binding": "Workbench module registry and browser contract markers", "guard": "no_hidden_progress_claim"},
+        {"layer": "L2 Orchestrator", "binding": "LangGraph task envelopes choose skills through policy", "guard": "budget_guard_before_execution"},
+        {"layer": "L3 Agent Pool", "binding": "Supervisor, Planner, Coder, Tester, DevOps squad slots", "guard": "role_scope_and_acceptance_required"},
+        {"layer": "L4 LLM Gateway", "binding": "External models remain behind the gateway", "guard": "direct_provider_bypass_blocked"},
+        {"layer": "L5 MCP Gateway", "binding": "Tools route through safe envelopes and capability catalogs", "guard": "live_mcp_writes_false"},
+        {"layer": "L6 Memory", "binding": "Skill results may be summarized, not raw secrets", "guard": "redacted_memory_only"},
+        {"layer": "L7 Observability", "binding": "Every activation needs evidence refs and audit trails", "guard": "audit_or_contract_required"},
+    ]
+    return {
+        "contract_version": AGENT_SKILL_MODE_CONTRACT_VERSION,
+        "mode": "codex_agent_skill_mode_guarded_capability_registry",
+        "endpoint": "GET /api/v1/agents/skill-mode/contract",
+        "evidence_ref": AGENT_SKILL_MODE_EVIDENCE_REF,
+        "status": "verified",
+        "declared_codex_surfaces": declared_surfaces,
+        "plugin_slots": plugin_slots,
+        "app_slots": app_slots,
+        "mcp_policy": {
+            "configured_mcp_servers": declared_surfaces["mcp_servers"],
+            "live_mcp_writes": False,
+            "external_mcp_server_calls": False,
+            "write_access_requires_owner_gate": True,
+        },
+        "model_policy": {
+            "api_only": True,
+            "local_model_downloads": False,
+            "direct_provider_calls": False,
+            "routing_surface": "LLM Gateway",
+        },
+        "skill_group_bindings": skill_group_bindings,
+        "layer_bindings": layer_bindings,
+        "workbench_modules": [
+            "Build",
+            "Code",
+            "3D/Game",
+            "Research",
+            "Media",
+            "Docs",
+            "Agents",
+            "Models",
+            "MCP Tools",
+            "Memory",
+            "Observability",
+            "Settings",
+        ],
+        "required_guard_flags": [
+            "api_only",
+            "model_downloads=false",
+            "live_provider_calls=false",
+            "live_mcp_writes=false",
+            "external_mcp_server_calls=false",
+            "production_rollout_claimed=false",
+            "secrets_exposed=false",
+            "agent_skill_mode_no_live_external_calls",
+            "agent_skill_mode_no_secret_material",
+            "agent_skill_mode_no_local_model_downloads",
+        ],
+        "evidence_refs": [
+            AGENT_SKILL_MODE_EVIDENCE_REF,
+            "autonomous_agent_roster_runtime_visible",
+            "autonomous_team_dispatch_visible",
+            "mcp_runtime_guard_parity_visible",
+            "llm_runtime_guard_parity_visible",
+            "project_progress_manifest_proof",
+        ],
+        "non_claims": [
+            "This contract inventories the Codex capability surface declared for the current operator context; it does not execute every plugin, app, MCP, or skill.",
+            "No live provider call, live MCP write, external MCP server mutation, local model download, production rollout, release promotion, or secret exposure is enabled by this contract.",
+            "Capability activation remains routed through the seven-layer guard model and existing verifiers.",
         ],
     }
 
@@ -3599,7 +4962,7 @@ def project_progress_completion_payload() -> dict[str, object]:
                     "production_release_requires_hosted_staging_branch_protection_secret_scan_and_owner_review",
                     not verified_flags["production_gate_claim_allowed"],
                 ),
-                ("docker_registry_publish_requires_owner_release_gate", True),
+                ("docker_registry_production_tag_publish_requires_owner_release_gate", True),
             ]
             if enabled
         ],
@@ -4166,9 +5529,160 @@ def cloud_deployment_preflight_contract() -> dict[str, object]:
     return cloud_deployment_preflight_payload()
 
 
+@app.get("/catalog/link-atlas/contract")
+@app.get("/api/v1/catalog/link-atlas/contract")
+def catalog_link_atlas_contract() -> dict[str, object]:
+    return link_atlas_contract_payload()
+
+
+@app.get("/catalog/link-atlas/sources")
+@app.get("/api/v1/catalog/link-atlas/sources")
+def catalog_link_atlas_sources() -> dict[str, object]:
+    return link_atlas_sources_payload()
+
+
+@app.get("/catalog/link-atlas/items")
+@app.get("/api/v1/catalog/link-atlas/items")
+def catalog_link_atlas_items(
+    source: str | None = Query(default=None, min_length=1, max_length=80),
+    kind: str | None = Query(default=None, min_length=1, max_length=80),
+    cursor: str | None = Query(default=None, max_length=40),
+    limit: int = Query(default=50, ge=1, le=500),
+) -> dict[str, object]:
+    return link_atlas_items_page(source=source, kind=kind, cursor=cursor, limit=limit)
+
+
+@app.get("/catalog/link-atlas/items/{canonical_id}")
+@app.get("/api/v1/catalog/link-atlas/items/{canonical_id}")
+def catalog_link_atlas_item(canonical_id: str) -> dict[str, object]:
+    item = link_atlas_get_item(canonical_id)
+    if not item:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "link_atlas_item_not_found",
+                "contract_version": LINK_ATLAS_CONTRACT_VERSION,
+                "evidence_ref": LINK_ATLAS_EVIDENCE_REF,
+                "canonical_id": canonical_id,
+            },
+        )
+    return {
+        "contract_version": LINK_ATLAS_CONTRACT_VERSION,
+        "status": "metadata_only",
+        "evidence_ref": LINK_ATLAS_EVIDENCE_REF,
+        "item": item,
+        "non_claims": [
+            "This item is a metadata link only.",
+            "No provider credential, model download, or live provider call is exposed by this endpoint.",
+        ],
+    }
+
+
+@app.get("/catalog/link-atlas/shards")
+@app.get("/api/v1/catalog/link-atlas/shards")
+def catalog_link_atlas_shards() -> dict[str, object]:
+    return link_atlas_shards_payload()
+
+
+@app.get("/catalog/link-atlas/export.jsonl")
+@app.get("/api/v1/catalog/link-atlas/export.jsonl")
+def catalog_link_atlas_export_jsonl() -> Response:
+    return Response(
+        link_atlas_export_jsonl_text(),
+        media_type="application/x-ndjson",
+        headers={"Content-Disposition": "attachment; filename=model-agent-fusion-link-atlas.jsonl"},
+    )
+
+
+@app.get("/catalog/link-atlas/export.csv")
+@app.get("/api/v1/catalog/link-atlas/export.csv")
+def catalog_link_atlas_export_csv() -> Response:
+    return Response(
+        link_atlas_export_csv_text(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=model-agent-fusion-link-atlas.csv"},
+    )
+
+
 @app.get("/api/v1/auth/contract")
 def auth_contract() -> dict[str, object]:
     return auth_contract_payload()
+
+
+@app.get("/api/v1/audit/auth/contract")
+@app.get("/api/v1/auth/audit/contract")
+def auth_audit_contract() -> dict[str, object]:
+    return auth_audit_contract_payload()
+
+
+@app.get("/api/v1/audit/auth/export/contract")
+@app.get("/api/v1/auth/audit/export/contract")
+def auth_audit_export_contract() -> dict[str, object]:
+    return auth_audit_export_contract_payload()
+
+
+@app.get("/api/v1/audit/auth/snapshot")
+@app.get("/api/v1/auth/audit/snapshot")
+def auth_audit_snapshot(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    return build_auth_audit_snapshot(events)
+
+
+@app.get("/api/v1/audit/auth/risk-rollup")
+@app.get("/api/v1/auth/audit/risk-rollup")
+def auth_audit_risk_rollup(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    return build_auth_audit_risk_rollup(events)
+
+
+@app.get("/api/v1/audit/auth/timeline")
+@app.get("/api/v1/auth/audit/timeline")
+def auth_audit_timeline(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    return build_auth_audit_timeline(events)
+
+
+@app.get("/api/v1/audit/auth/export")
+@app.get("/api/v1/auth/audit/export")
+def auth_audit_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    rows = auth_audit_rows(limit)
+    events = [safe_auth_audit_event(row) for row in rows]
+    csv_payload = build_auth_audit_export_csv(events)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"auth-audit-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_auth_audit_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-auth-audit.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": AUTH_AUDIT_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": AUTH_AUDIT_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": AUTH_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": AUTH_AUDIT_REDACTION_EVIDENCE_REF,
+            "X-No-Live-Oauth-Evidence-Ref": AUTH_AUDIT_NO_LIVE_OAUTH_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
 
 
 @app.get("/api/v1/auth/github")
@@ -4206,7 +5720,7 @@ def auth_callback(
         "auth_github_callback_contract",
         {
             "trace_id": trace_id,
-            "state": state,
+            "state_present": bool(state),
             "code_present": bool(code),
             "live_github_oauth_call": False,
             "cookie_flags": auth_contract_payload()["cookie_flags"],
@@ -4241,7 +5755,11 @@ def auth_refresh(
     if client.get(blacklist_key):
         persist_auth_audit(
             "auth_refresh_reuse_blocked",
-            {"trace_id": request.trace_id if request else None, "blacklist_key": blacklist_key},
+            {
+                "trace_id": request.trace_id if request else None,
+                "blacklist_key_present": True,
+                "blacklist_key_ref": "auth_blacklist_key_redacted",
+            },
             "critical",
         )
         raise HTTPException(status_code=401, detail={"error": "refresh_token_invalid", "reason": "blacklisted"})
@@ -4255,7 +5773,8 @@ def auth_refresh(
         {
             "trace_id": trace_id,
             "old_refresh_blacklisted": True,
-            "blacklist_key": blacklist_key,
+            "blacklist_key_present": True,
+            "blacklist_key_ref": "auth_blacklist_key_redacted",
             "new_refresh_issued": True,
             "cookie_flags": auth_contract_payload()["cookie_flags"],
         },
@@ -4266,7 +5785,8 @@ def auth_refresh(
         "access_token_issued": True,
         "refresh_token_rotated": True,
         "old_refresh_token_blacklisted": True,
-        "blacklist_key": blacklist_key,
+        "blacklist_key_returned": False,
+        "blacklist_key_ref": "auth_blacklist_key_redacted",
         "access_token_expires_in": AUTH_ACCESS_TOKEN_TTL_SECONDS,
         "refresh_token_expires_in": AUTH_REFRESH_TOKEN_TTL_SECONDS,
         "cookie_flags": auth_contract_payload()["cookie_flags"],
@@ -4292,7 +5812,8 @@ def auth_logout(
         {
             "trace_id": trace_id,
             "refresh_token_revoked": bool(supplied_token),
-            "blacklist_key": blacklist_key,
+            "blacklist_key_present": bool(blacklist_key),
+            "blacklist_key_ref": "auth_blacklist_key_redacted" if blacklist_key else None,
             "cookies_cleared": True,
         },
     )
@@ -4301,7 +5822,8 @@ def auth_logout(
         "contract_version": "auth-github-jwt-refresh-v1",
         "refresh_token_revoked": bool(supplied_token),
         "cookies_cleared": True,
-        "blacklist_key": blacklist_key,
+        "blacklist_key_returned": False,
+        "blacklist_key_ref": "auth_blacklist_key_redacted" if blacklist_key else None,
         "trace_id": trace_id,
     }
 
@@ -4451,13 +5973,63 @@ def ensure_agent_session(
     return project_uuid
 
 
+def persist_memory_write_audit(
+    conn: psycopg.Connection,
+    *,
+    project_id: str,
+    session_id: str,
+    memory_id: str,
+    trace_id: str | None,
+    request_id: str | None,
+    source: str,
+) -> None:
+    try:
+        session_db_id: str | None = str(UUID(session_id)) if session_id else None
+    except (TypeError, ValueError):
+        session_db_id = None
+    details = redact_json(
+        {
+            "project_id": project_id,
+            "session_id": session_db_id or session_id or None,
+            "memory_id": memory_id,
+            "trace_id": trace_id,
+            "request_id": request_id,
+            "source": source,
+            "status": "success",
+            "search_mode": EMBEDDING_SEARCH_MODE,
+            "evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
+            "search_evidence_ref": MEMORY_SEARCH_EVIDENCE_REF,
+            "correlation_evidence_ref": "request_id_audit_correlation"
+            if (trace_id or request_id or session_id)
+            else None,
+            "audit_feed_evidence_ref": "request_id_audit_feed_visible"
+            if (trace_id or request_id or session_id)
+            else None,
+            "live_provider_calls": False,
+            "live_mcp_writes": False,
+            "live_embedding_provider_calls": False,
+            "model_downloads": False,
+            "prompt_body_stored": False,
+        }
+    )
+    conn.execute(
+        """
+        INSERT INTO audit_log(event_type, user_id, session_id, details, severity)
+        VALUES ('memory_entry_written', 'memory', %s, %s::jsonb, 'info')
+        """,
+        (session_db_id, Json(details)),
+    )
+
+
 @app.post("/api/v1/prompt", status_code=201)
-def create_prompt(request: PromptRequest) -> dict[str, object]:
-    session_id = request.session_id or str(uuid4())
-    sanitized_prompt = redact_text(request.prompt)
+def create_prompt(prompt_request: PromptRequest, http_request: Request) -> dict[str, object]:
+    session_id = prompt_request.session_id or str(uuid4())
+    trace_id = prompt_request.trace_id or getattr(http_request.state, "trace_id", None) or f"prompt-{uuid4()}"
+    request_id = prompt_request.request_id or getattr(http_request.state, "request_id", None) or f"req-{uuid4()}"
+    sanitized_prompt = redact_text(prompt_request.prompt)
     try:
         budget_state = check_budget_guard()
-        rate_limit = rate_limit_prompt(request.project_id)
+        rate_limit = rate_limit_prompt(prompt_request.project_id)
         llm_call_count = register_session_llm_call(session_id)
     except RuntimeError as exc:
         detail = str(exc)
@@ -4466,14 +6038,27 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
 
     try:
         with psycopg.connect(database_url(), autocommit=True) as conn:
-            project_uuid = ensure_project(conn, request.project_id)
+            project_uuid = ensure_project(conn, prompt_request.project_id)
             conn.execute(
                 """
                 INSERT INTO agent_sessions(id, project_id, agent_list, metadata)
                 VALUES (%s, %s, %s, %s::jsonb)
                 ON CONFLICT (id) DO NOTHING
                 """,
-                (session_id, project_uuid, ["planner"], Json({"source": "phase1-smoke"})),
+                (
+                    session_id,
+                    project_uuid,
+                    ["planner"],
+                    Json(
+                        {
+                            "source": "phase1-smoke",
+                            "trace_id": trace_id,
+                            "request_id": request_id,
+                            "correlation_evidence_ref": "request_id_audit_correlation",
+                            "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+                        }
+                    ),
+                ),
             )
             conn.execute(
                 """
@@ -4487,16 +6072,39 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
                 project_uuid,
                 session_id,
                 sanitized_prompt,
-                {"source": "prompt", "search_mode": "lexical_fallback", "redaction_applied": sanitized_prompt != request.prompt},
+                {
+                    "source": "prompt",
+                    "search_mode": "lexical_fallback",
+                    "redaction_applied": sanitized_prompt != prompt_request.prompt,
+                    "trace_id": trace_id,
+                    "request_id": request_id,
+                    "session_id": session_id,
+                    "correlation_evidence_ref": "request_id_audit_correlation",
+                    "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+                    "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
+                    "live_embedding_provider_calls": False,
+                    "model_downloads": False,
+                },
+            )
+            persist_memory_write_audit(
+                conn,
+                project_id=prompt_request.project_id,
+                session_id=session_id,
+                memory_id=memory_id,
+                trace_id=trace_id,
+                request_id=request_id,
+                source="prompt",
             )
             task = enqueue_task(
                 TaskAssignment(
-                    project_id=request.project_id,
+                    project_id=prompt_request.project_id,
                     session_id=session_id,
                     agent_type="planner",
                     task_type="prompt_intake",
                     task_description=sanitized_prompt,
                     allowed_tools=["memory_read", "task_router"],
+                    trace_id=trace_id,
+                    request_id=request_id,
                 )
             )
             conn.execute(
@@ -4505,7 +6113,21 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
                 SET metadata = metadata || %s::jsonb
                 WHERE id = %s
                 """,
-                (Json({"latest_task_id": task.task_id, "latest_memory_id": memory_id}), session_id),
+                (
+                    Json(
+                        {
+                            "latest_task_id": task.task_id,
+                            "latest_memory_id": memory_id,
+                            "latest_trace_id": trace_id,
+                            "latest_request_id": request_id,
+                            "trace_id": trace_id,
+                            "request_id": request_id,
+                            "correlation_evidence_ref": "request_id_audit_correlation",
+                            "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+                        }
+                    ),
+                    session_id,
+                ),
             )
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"session persistence failed: {exc}") from exc
@@ -4523,6 +6145,11 @@ def create_prompt(request: PromptRequest) -> dict[str, object]:
         "session_llm_call_count": llm_call_count,
         "task_id": task.task_id,
         "memory_id": memory_id,
+        "trace_id": trace_id,
+        "request_id": request_id,
+        "correlation_evidence_ref": "request_id_audit_correlation",
+        "audit_feed_evidence_ref": "request_id_audit_feed_visible",
+        "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
     }
 
 
@@ -4675,6 +6302,9 @@ def recent_tasks(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, obje
                 "project_id": record.project_id,
                 "session_id": record.session_id,
                 "trace_id": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("trace_id") or record.trace_id,
+                "dispatch_id": record.dispatch_id,
+                "logical_role": record.logical_role,
+                "provenance_evidence_ref": record.provenance_evidence_ref,
                 "request_id": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("request_id"),
                 "correlation_evidence_ref": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("correlation_evidence_ref"),
                 "audit_feed_evidence_ref": (task_projection.get(record.task_id, {}) or session_projection.get(str(record.session_id), {})).get("audit_feed_evidence_ref"),
@@ -4733,9 +6363,19 @@ def recent_mcp_audit_contract() -> dict[str, object]:
     return mcp_audit_feed_contract_payload()
 
 
+@app.get("/api/v1/audit/mcp/export/contract")
+def mcp_audit_export_contract() -> dict[str, object]:
+    return mcp_audit_export_contract_payload()
+
+
 @app.get("/api/v1/memory/consolidation/contract")
 def memory_consolidation_contract() -> dict[str, object]:
     return memory_consolidation_contract_payload()
+
+
+@app.get("/api/v1/memory/worker-health/contract")
+def memory_worker_health_contract() -> dict[str, object]:
+    return memory_worker_health_contract_payload()
 
 
 @app.get("/api/v1/sessions/recent")
@@ -4946,9 +6586,9 @@ def session_history(
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "details": row[4] or {},
-                "request_id": (row[4] or {}).get("request_id"),
-                "trace_id": (row[4] or {}).get("trace_id"),
+                "details": public_audit_details(row[4] or {}),
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id")),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
@@ -4994,9 +6634,9 @@ def recent_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[st
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "details": row[4] or {},
-                "request_id": (row[4] or {}).get("request_id"),
-                "trace_id": (row[4] or {}).get("trace_id"),
+                "details": public_audit_details(row[4] or {}),
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id")),
                 "correlation_evidence_ref": (row[4] or {}).get(
                     "correlation_evidence_ref",
                     "request_id_audit_feed_visible",
@@ -5012,32 +6652,2079 @@ def recent_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[st
 
 @app.get("/api/v1/audit/mcp")
 def recent_mcp_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
-    with psycopg.connect(database_url(), autocommit=True) as conn:
-        rows = conn.execute(
-            """
-            SELECT id, event_type, user_id, session_id, details, created_at, severity
-            FROM audit_log
-            WHERE event_type = 'mcp_tool_executed'
-            ORDER BY created_at DESC
-            LIMIT %s
-            """,
-            (limit,),
-        ).fetchall()
+    rows = mcp_audit_rows(limit)
     return {
+        "contract_version": MCP_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "mcp_tool_audit_runtime_feed",
+        "evidence_ref": MCP_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+        "source_event_type": "mcp_tool_executed",
+        "read_only": True,
+        "live_mcp_writes_claimed": False,
         "events": [
             {
                 "id": str(row[0]),
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "trace_id": (row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None),
-                "details": row[4] or {},
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None)),
+                "correlation_evidence_ref": (row[4] or {}).get(
+                    "correlation_evidence_ref",
+                    "request_id_audit_correlation",
+                ),
+                "audit_feed_evidence_ref": (row[4] or {}).get(
+                    "audit_feed_evidence_ref",
+                    "request_id_audit_feed_visible",
+                ),
+                "details": public_audit_details(row[4] or {}),
+                "redaction_evidence_ref": (row[4] or {}).get(
+                    "redaction_evidence_ref",
+                    MCP_AUDIT_REDACTION_EVIDENCE_REF,
+                ),
+                "input_ref_stored": (row[4] or {}).get("input_ref_stored", False),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
             for row in rows
-        ]
+        ],
+        "count": len(rows),
+        "non_claims": mcp_audit_feed_contract_payload()["non_claims"],
     }
+
+
+@app.get("/api/v1/audit/mcp/snapshot")
+def mcp_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, object]:
+    rows = mcp_audit_rows(limit)
+    events = [
+        {
+            "event_id": str(row[0]),
+            "severity": row[6],
+            "details": public_audit_details(row[4] or {}),
+        }
+        for row in rows
+    ]
+    details = [event["details"] for event in events if isinstance(event.get("details"), dict)]
+    status_counts = count_by_key([str(item.get("status")) if item.get("status") is not None else None for item in details])
+    toolset_counts = count_by_key([str(item.get("toolset")) if item.get("toolset") is not None else None for item in details])
+    capability_counts = count_by_key(
+        [str(item.get("capability")) if item.get("capability") is not None else None for item in details]
+    )
+    error_class_counts = count_by_key(
+        [str(item.get("error_class")) if item.get("error_class") is not None else None for item in details]
+    )
+    agent_role_counts = count_by_key(
+        [str(item.get("agent_role")) if item.get("agent_role") is not None else None for item in details]
+    )
+    blocked_count = sum(1 for item in details if item.get("status") == "blocked")
+    denied_tool_correlation_count = sum(
+        1 for item in details if item.get("denied_tool_correlation_evidence_ref") == "mcp_denied_tool_audit_correlation"
+    )
+    guard_correlation_count = sum(
+        1 for item in details if item.get("mcp_guard_correlation_evidence_ref") == MCP_GUARD_CORRELATION_EVIDENCE_REF
+    )
+    session_bound_count = sum(1 for item in details if item.get("session_bound") is True)
+    live_mcp_write_count = sum(
+        1 for item in details if item.get("live_mcp_write") is True or item.get("live_mcp_writes") is True
+    )
+    forbidden_pattern_hits = mcp_audit_forbidden_pattern_hits(events)
+    return {
+        "contract_version": MCP_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "read_only_mcp_audit_redaction_snapshot",
+        "endpoint": "GET /api/v1/audit/mcp/snapshot",
+        "source_endpoint": "GET /api/v1/audit/mcp",
+        "source_event_type": "mcp_tool_executed",
+        "source_table": "audit_log",
+        "evidence_ref": MCP_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": MCP_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+        "read_only": True,
+        "live_mcp_writes_claimed": False,
+        "input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "blocked_count": blocked_count,
+        "denied_tool_correlation_count": denied_tool_correlation_count,
+        "guard_correlation_count": guard_correlation_count,
+        "session_bound_count": session_bound_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "status_counts": status_counts,
+        "toolset_counts": toolset_counts,
+        "capability_counts": capability_counts,
+        "error_class_counts": error_class_counts,
+        "agent_role_counts": agent_role_counts,
+        "safe_fields": [
+            "tool_request_id",
+            "run_id",
+            "request_id",
+            "trace_id",
+            "agent_role",
+            "toolset",
+            "capability",
+            "status",
+            "error_class",
+            "sanitized_summary",
+            "evidence_ref",
+            "audit_evidence_ref",
+            "guard_evidence_ref",
+            "mcp_guard_correlation_evidence_ref",
+            "denied_tool_correlation_evidence_ref",
+            "redaction_evidence_ref",
+            "input_ref_stored",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only.",
+            "Snapshot aggregates safe MCP audit fields and does not return tool input refs.",
+            "Snapshot reports forbidden_pattern_hits before any release claim.",
+            "Snapshot never executes MCP tools or external MCP writes.",
+        ],
+        "non_claims": mcp_audit_feed_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/audit/mcp/export")
+def mcp_audit_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    rows = mcp_audit_rows(limit)
+    csv_payload = build_mcp_audit_export_csv(rows)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"mcp-audit-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_mcp_audit_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-mcp-audit.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": MCP_AUDIT_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": MCP_AUDIT_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": MCP_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+            "X-No-Live-Mcp-Write-Evidence-Ref": MCP_AUDIT_NO_LIVE_WRITE_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
+
+
+def llm_audit_feed_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "audit_log_backed_llm_gateway_feed",
+        "endpoint": "GET /api/v1/audit/llm",
+        "snapshot_endpoint": "GET /api/v1/audit/llm/snapshot",
+        "export_endpoint": "GET /api/v1/audit/llm/export?format=csv&limit=80",
+        "export_contract_endpoint": "GET /api/v1/audit/llm/export/contract",
+        "export_contract_version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
+        "source_event_type": "llm_gateway_request",
+            "source_table": "audit_log",
+            "supported_export_formats": ["csv"],
+            "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "correlation_evidence_ref": "request_id_audit_correlation",
+            "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
+            "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+        "export_evidence_ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
+        "export_columns": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "severity",
+            "trace_id",
+            "model_name",
+            "provider_name",
+            "agent_type",
+            "status",
+            "input_tokens",
+            "output_tokens",
+            "cost_cents",
+            "live_provider_calls",
+            "prompt_body_stored",
+            "evidence_ref",
+            "audit_feed_evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_provider_evidence_ref",
+        ],
+        "required_detail_fields": [
+            "trace_id",
+            "request_id",
+            "session_id",
+            "model_name",
+            "provider_name",
+            "agent_type",
+            "status",
+            "input_tokens",
+            "output_tokens",
+            "cost_cents",
+            "live_provider_calls",
+            "summary",
+            "prompt_body_stored",
+            "redaction_evidence_ref",
+        ],
+        "policy_checks": [
+            "The feed only reads audit_log rows with event_type=llm_gateway_request.",
+            "Every returned event exposes trace_id and live_provider_calls=false for dry-run proofs.",
+            "Request and session identifiers are surfaced when provided so LLM audit rows join cross-gateway correlation safely.",
+            "The endpoint never calls an LLM provider and never changes routing policy.",
+            "Provider credentials and prompts are not returned by this feed.",
+            "The snapshot endpoint aggregates redacted audit fields and never returns prompt bodies.",
+            "The CSV export emits only allowlisted LLM audit fields and logs redacted export metadata.",
+        ],
+        "non_claims": [
+            "No live provider call is enabled by this feed.",
+            "No production deployment or provider billing proof is claimed.",
+            "This is not a long-term telemetry warehouse or Langfuse replacement.",
+        ],
+    }
+
+
+def llm_audit_rows(limit: int) -> list[object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        return conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type = 'llm_gateway_request'
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def count_by_key(values: list[str | None]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for value in values:
+        key = value or "unknown"
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def llm_audit_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "private key",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
+
+
+def llm_audit_export_contract_payload() -> dict[str, object]:
+    contract = llm_audit_feed_contract_payload()
+    return {
+        "contract_version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "read_only_llm_audit_csv_export",
+        "endpoint": "GET /api/v1/audit/llm/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/audit/llm/export/contract",
+        "feed_endpoint": "GET /api/v1/audit/llm",
+        "snapshot_endpoint": "GET /api/v1/audit/llm/snapshot",
+        "source_table": "audit_log",
+        "source_event_type": "llm_gateway_request",
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-llm-audit.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+        "feed_evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+        "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+        "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+        "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
+        "provider_trace_export": False,
+        "policy_checks": [
+            "Export reads only audit_log rows with event_type=llm_gateway_request.",
+            "Export emits CSV columns from the allowlisted LLM audit fields only.",
+            "Export never calls live providers and never changes routing policy.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence ref.",
+            "Any forbidden pattern in exported rows blocks the verifier.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def build_llm_audit_export_csv(rows: list[object]) -> str:
+    output = io.StringIO()
+    fieldnames = llm_audit_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    ordered_rows = sorted(rows, key=lambda row: row[5].isoformat() if row[5] else "")
+    for index, row in enumerate(ordered_rows, start=1):
+        details = public_audit_details(row[4] or {})
+        csv_row = {
+            "sequence_index": index,
+            "event_id": str(row[0]),
+            "created_at": row[5].isoformat() if row[5] else None,
+            "event_type": row[1],
+            "severity": row[6],
+            "trace_id": public_trace_id(details.get("trace_id")),
+            "model_name": details.get("model_name"),
+            "provider_name": details.get("provider_name"),
+            "agent_type": details.get("agent_type") or row[2],
+            "status": details.get("status"),
+            "input_tokens": details.get("input_tokens"),
+            "output_tokens": details.get("output_tokens"),
+            "cost_cents": details.get("cost_cents"),
+            "live_provider_calls": details.get("live_provider_calls") is True,
+            "prompt_body_stored": details.get("prompt_body_stored", False) is True,
+            "evidence_ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+        }
+        writer.writerow({key: csv_safe_value(value) for key, value in csv_row.items()})
+    return output.getvalue()
+
+
+def persist_llm_audit_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('llm_audit_export_generated', 'llm-audit', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+                                "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+                                "no_live_provider_evidence_ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"llm audit export audit failed: {exc}")
+
+
+@app.get("/api/v1/audit/llm/contract")
+def llm_audit_feed_contract() -> dict[str, object]:
+    return llm_audit_feed_contract_payload()
+
+
+@app.get("/api/v1/audit/llm/export/contract")
+def llm_audit_export_contract() -> dict[str, object]:
+    return llm_audit_export_contract_payload()
+
+
+@app.get("/api/v1/audit/llm")
+def recent_llm_audit_events(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, object]:
+    rows = llm_audit_rows(limit)
+    events = [
+        {
+            "id": str(row[0]),
+            "event_type": row[1],
+            "user_id": row[2],
+            "session_id": str(row[3]) if row[3] else None,
+            "trace_id": public_trace_id((row[4] or {}).get("trace_id")),
+            "request_id": public_request_id((row[4] or {}).get("request_id")),
+            "correlation_evidence_ref": (row[4] or {}).get(
+                "correlation_evidence_ref",
+                "request_id_audit_correlation",
+            ),
+            "model_name": (row[4] or {}).get("model_name"),
+            "provider_name": (row[4] or {}).get("provider_name"),
+            "agent_type": (row[4] or {}).get("agent_type") or row[2],
+            "status": (row[4] or {}).get("status"),
+            "live_provider_calls": (row[4] or {}).get("live_provider_calls"),
+            "cost_cents": (row[4] or {}).get("cost_cents"),
+            "prompt_body_stored": (row[4] or {}).get("prompt_body_stored", False),
+            "redaction_evidence_ref": (row[4] or {}).get(
+                "redaction_evidence_ref",
+                LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            ),
+            "details": public_audit_details(row[4] or {}),
+            "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "created_at": row[5].isoformat() if row[5] else None,
+            "severity": row[6],
+        }
+        for row in rows
+    ]
+    return {
+        "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "audit_log_backed_llm_gateway_feed",
+        "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+        "source_event_type": "llm_gateway_request",
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "events": events,
+        "count": len(events),
+        "non_claims": llm_audit_feed_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/audit/llm/snapshot")
+def llm_audit_snapshot(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, object]:
+    rows = llm_audit_rows(limit)
+    events = [
+        {
+            "event_id": str(row[0]),
+            "severity": row[6],
+            "details": public_audit_details(row[4] or {}),
+        }
+        for row in rows
+    ]
+    details = [event["details"] for event in events if isinstance(event.get("details"), dict)]
+    status_counts = count_by_key([str(item.get("status")) if item.get("status") is not None else None for item in details])
+    provider_counts = count_by_key(
+        [str(item.get("provider_name")) if item.get("provider_name") is not None else None for item in details]
+    )
+    agent_counts = count_by_key([str(item.get("agent_type")) if item.get("agent_type") is not None else None for item in details])
+    model_counts = count_by_key([str(item.get("model_name")) if item.get("model_name") is not None else None for item in details])
+    live_provider_call_count = sum(1 for item in details if item.get("live_provider_calls") is True)
+    forbidden_pattern_hits = llm_audit_forbidden_pattern_hits(events)
+    return {
+        "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+        "mode": "read_only_llm_audit_redaction_snapshot",
+        "endpoint": "GET /api/v1/audit/llm/snapshot",
+        "source_endpoint": "GET /api/v1/audit/llm",
+        "source_event_type": "llm_gateway_request",
+        "source_table": "audit_log",
+        "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+        "snapshot_evidence_ref": LLM_AUDIT_SNAPSHOT_EVIDENCE_REF,
+        "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "dry_run_count": status_counts.get("dry_run", 0),
+        "live_provider_call_count": live_provider_call_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "status_counts": status_counts,
+        "provider_counts": provider_counts,
+        "agent_counts": agent_counts,
+        "model_counts": model_counts,
+        "safe_fields": [
+            "trace_id",
+            "request_id",
+            "session_id",
+            "model_name",
+            "provider_name",
+            "agent_type",
+            "status",
+            "cost_cents",
+            "live_provider_calls",
+            "prompt_body_stored",
+            "redaction_evidence_ref",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only.",
+            "Snapshot aggregates safe fields and does not return prompt bodies.",
+            "Snapshot reports forbidden_pattern_hits before any release claim.",
+            "Snapshot never calls LLM providers.",
+        ],
+        "non_claims": llm_audit_feed_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/audit/llm/export")
+def llm_audit_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    rows = llm_audit_rows(limit)
+    csv_payload = build_llm_audit_export_csv(rows)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"llm-audit-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_llm_audit_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-llm-audit.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": LLM_AUDIT_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": LLM_AUDIT_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": LLM_AUDIT_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            "X-No-Live-Provider-Evidence-Ref": LLM_AUDIT_NO_LIVE_PROVIDER_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
+
+
+GATEWAY_CORRELATION_EVENT_TYPES = (
+    "task_completed",
+    "autonomous_team_dispatch",
+    "langgraph_dry_run_completed",
+    "langgraph_dry_run_stopped",
+    "llm_gateway_request",
+    "mcp_tool_executed",
+)
+
+
+def gateway_correlation_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_agent_llm_mcp_correlation_snapshot",
+        "endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/security/gateway-correlation/timeline",
+        "export_endpoint": "GET /api/v1/security/gateway-correlation/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "export_contract_endpoint": "GET /api/v1/security/gateway-correlation/export/contract",
+        "risk_rollup_contract_version": GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION,
+        "timeline_contract_version": GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION,
+        "export_contract_version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "supported_export_formats": ["csv"],
+        "evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+        "export_evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "safe_event_fields": [
+            "event_id",
+            "event_type",
+            "session_id",
+            "trace_id",
+            "request_id",
+            "agent_type",
+            "status",
+            "evidence_ref",
+            "created_at",
+            "severity",
+        ],
+        "group_fields": [
+            "correlation_key",
+            "trace_id",
+            "session_id",
+            "request_id",
+            "event_types",
+            "has_agent_task",
+            "has_llm_audit",
+            "has_mcp_audit",
+            "live_provider_call_count",
+            "live_mcp_write_count",
+            "correlation_state",
+        ],
+        "risk_rollup_fields": [
+            "risk_status",
+            "blocker_count",
+            "review_count",
+            "missing_leg_counts",
+            "risk_badges",
+            "promotion_allowed",
+            "production_rollout_claimed",
+        ],
+        "timeline_fields": [
+            "sequence_index",
+            "event_id",
+            "created_at",
+            "event_type",
+            "timeline_leg",
+            "correlation_key",
+            "trace_id",
+            "request_id",
+            "session_id",
+            "agent_type",
+            "status",
+            "severity",
+            "evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_write_evidence_ref",
+        ],
+        "export_columns": [
+            "sequence_index",
+            "correlation_key",
+            "trace_id",
+            "request_id",
+            "session_id",
+            "correlation_state",
+            "event_count",
+            "event_types",
+            "has_agent_task",
+            "has_llm_audit",
+            "has_mcp_audit",
+            "risk_status",
+            "missing_legs",
+            "live_provider_call_count",
+            "live_mcp_write_count",
+            "evidence_ref",
+            "snapshot_evidence_ref",
+            "risk_rollup_evidence_ref",
+            "timeline_evidence_ref",
+            "export_audit_evidence_ref",
+            "redaction_evidence_ref",
+            "no_live_write_evidence_ref",
+        ],
+        "policy_checks": [
+            "Snapshot reads audit_log only and never executes an agent, LLM provider, MCP tool, or deployment action.",
+            "Returned events are reduced to safe correlation fields; raw prompts, tool input refs, provider credentials, and raw details are omitted.",
+            "A full correlation requires agent task evidence, LLM audit evidence, and MCP audit evidence sharing a trace, request, or session key.",
+            "The snapshot fails closed when live_provider_calls or live_mcp_writes appear in correlated evidence.",
+            "The risk rollup is computed from the same read-only snapshot groups and never performs seed writes or live calls.",
+            "The timeline is computed from the same safe event projection and never returns raw audit_log details.",
+            "The CSV export emits allowlisted correlation group fields and persists only redacted export metadata.",
+        ],
+        "non_claims": [
+            "This endpoint does not authorize production rollout or release promotion.",
+            "This endpoint does not claim live provider calls, live MCP writes, provider billing proof, or external SOC/SIEM completeness.",
+            "This endpoint does not return secrets, prompt bodies, raw tool inputs, cookies, authorization headers, or full audit details.",
+        ],
+    }
+
+
+def gateway_correlation_rows(limit: int) -> list[object]:
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        return conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE event_type IN (
+              'task_completed',
+              'autonomous_team_dispatch',
+              'langgraph_dry_run_completed',
+              'langgraph_dry_run_stopped',
+              'llm_gateway_request',
+              'mcp_tool_executed'
+            )
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        ).fetchall()
+
+
+def safe_gateway_correlation_event(row: object) -> dict[str, object]:
+    details = row[4] or {}
+    if not isinstance(details, dict):
+        details = {}
+    event_type = str(row[1])
+    session_id = str(row[3]) if row[3] else str(details.get("session_id") or "") or None
+    trace_id = str(details.get("trace_id") or session_id or "") or None
+    request_id = str(details.get("request_id") or "") or None
+    agent_type = str(
+        details.get("agent_type")
+        or details.get("agent_role")
+        or details.get("logical_role")
+        or row[2]
+        or "unknown"
+    )
+    status = str(details.get("status") or ("completed" if event_type == "task_completed" else "visible"))
+    live_provider_calls = bool(details.get("live_provider_calls") is True)
+    live_mcp_writes = bool(details.get("live_mcp_write") is True or details.get("live_mcp_writes") is True)
+    return {
+        "event_id": str(row[0]),
+        "event_type": event_type,
+        "session_id": session_id,
+        "trace_id": trace_id,
+        "request_id": request_id,
+        "agent_type": agent_type,
+        "status": status,
+        "evidence_ref": str(details.get("evidence_ref") or details.get("provenance_evidence_ref") or event_type),
+        "audit_feed_evidence_ref": str(details.get("audit_feed_evidence_ref") or "request_id_audit_feed_visible"),
+        "correlation_evidence_ref": str(details.get("correlation_evidence_ref") or GATEWAY_CORRELATION_EVIDENCE_REF),
+        "redaction_evidence_ref": str(
+            details.get("redaction_evidence_ref") or GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF
+        ),
+        "live_provider_calls": live_provider_calls,
+        "live_mcp_writes": live_mcp_writes,
+        "created_at": row[5].isoformat() if row[5] else None,
+        "severity": row[6],
+    }
+
+
+def gateway_correlation_forbidden_pattern_hits(events: list[dict[str, object]]) -> int:
+    forbidden = (
+        "redaction-proof-value",
+        "sk-proj-",
+        "sk-",
+        "ghp_",
+        "github_pat_",
+        "vck_",
+        "cfat_",
+        "hcloud_",
+        "hf_",
+        "glpat-",
+        "authorization:",
+        "cookie:",
+        "private key",
+        "prompt_body",
+        "input_ref",
+    )
+    text = json.dumps(events, sort_keys=True).lower()
+    return sum(1 for marker in forbidden if marker in text)
+
+
+def gateway_correlation_event_key(event: dict[str, object]) -> str:
+    return str(event.get("trace_id") or event.get("request_id") or event.get("session_id") or event["event_id"])
+
+
+def gateway_correlation_timeline_leg(event_type: str) -> str:
+    if event_type in {
+        "task_completed",
+        "autonomous_team_dispatch",
+        "langgraph_dry_run_completed",
+        "langgraph_dry_run_stopped",
+    }:
+        return "agent_task"
+    if event_type == "llm_gateway_request":
+        return "llm_audit"
+    if event_type == "mcp_tool_executed":
+        return "mcp_audit"
+    return "unknown"
+
+
+def build_gateway_correlation_groups(events: list[dict[str, object]]) -> list[dict[str, object]]:
+    grouped: dict[str, list[dict[str, object]]] = {}
+    for event in events:
+        key = gateway_correlation_event_key(event)
+        grouped.setdefault(key, []).append(event)
+
+    groups: list[dict[str, object]] = []
+    for key, group_events in grouped.items():
+        event_types = sorted({str(event["event_type"]) for event in group_events})
+        trace_ids = sorted({str(event["trace_id"]) for event in group_events if event.get("trace_id")})
+        session_ids = sorted({str(event["session_id"]) for event in group_events if event.get("session_id")})
+        request_ids = sorted({str(event["request_id"]) for event in group_events if event.get("request_id")})
+        has_agent_task = any(
+            event_type in event_types
+            for event_type in ("task_completed", "autonomous_team_dispatch", "langgraph_dry_run_completed", "langgraph_dry_run_stopped")
+        )
+        has_llm_audit = "llm_gateway_request" in event_types
+        has_mcp_audit = "mcp_tool_executed" in event_types
+        live_provider_call_count = sum(1 for event in group_events if event.get("live_provider_calls") is True)
+        live_mcp_write_count = sum(1 for event in group_events if event.get("live_mcp_writes") is True)
+        if has_agent_task and has_llm_audit and has_mcp_audit:
+            correlation_state = "agent_llm_mcp_correlated"
+        elif has_llm_audit and has_mcp_audit:
+            correlation_state = "gateway_pair_correlated"
+        else:
+            correlation_state = "partial_correlation"
+        groups.append(
+            {
+                "correlation_key": key,
+                "trace_id": trace_ids[0] if trace_ids else None,
+                "session_id": session_ids[0] if session_ids else None,
+                "request_id": request_ids[0] if request_ids else None,
+                "event_types": event_types,
+                "event_count": len(group_events),
+                "has_agent_task": has_agent_task,
+                "has_llm_audit": has_llm_audit,
+                "has_mcp_audit": has_mcp_audit,
+                "trace_id_count": len(trace_ids),
+                "session_id_count": len(session_ids),
+                "request_id_count": len(request_ids),
+                "live_provider_call_count": live_provider_call_count,
+                "live_mcp_write_count": live_mcp_write_count,
+                "correlation_state": correlation_state,
+                "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+                "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+                "events": group_events[:8],
+            }
+        )
+    return sorted(groups, key=lambda item: int(item["event_count"]), reverse=True)
+
+
+def build_gateway_correlation_timeline(events: list[dict[str, object]]) -> dict[str, object]:
+    forbidden_pattern_hits = gateway_correlation_forbidden_pattern_hits(events)
+    ordered_events = sorted(
+        events,
+        key=lambda event: str(event.get("created_at") or ""),
+    )
+    timeline: list[dict[str, object]] = []
+    for index, event in enumerate(ordered_events, start=1):
+        event_type = str(event.get("event_type") or "unknown")
+        timeline.append(
+            {
+                "sequence_index": index,
+                "event_id": event.get("event_id"),
+                "created_at": event.get("created_at"),
+                "event_type": event_type,
+                "timeline_leg": gateway_correlation_timeline_leg(event_type),
+                "correlation_key": gateway_correlation_event_key(event),
+                "trace_id": event.get("trace_id"),
+                "request_id": event.get("request_id"),
+                "session_id": event.get("session_id"),
+                "agent_type": event.get("agent_type"),
+                "status": event.get("status"),
+                "severity": event.get("severity"),
+                "evidence_ref": event.get("evidence_ref"),
+                "redaction_evidence_ref": event.get("redaction_evidence_ref"),
+                "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+                "live_provider_calls": event.get("live_provider_calls") is True,
+                "live_mcp_writes": event.get("live_mcp_writes") is True,
+            }
+        )
+    live_provider_call_count = sum(1 for event in timeline if event["live_provider_calls"] is True)
+    live_mcp_write_count = sum(1 for event in timeline if event["live_mcp_writes"] is True)
+    return {
+        "contract_version": GATEWAY_CORRELATION_TIMELINE_CONTRACT_VERSION,
+        "parent_contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_gateway_correlation_timeline",
+        "endpoint": "GET /api/v1/security/gateway-correlation/timeline",
+        "snapshot_endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+        "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "timeline_count": len(timeline),
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "timeline_leg_counts": count_by_key([str(event.get("timeline_leg")) for event in timeline]),
+        "timeline": timeline[:80],
+        "policy_checks": [
+            "Timeline reads audit_log through the safe gateway correlation projection only.",
+            "Timeline never seeds audit rows, executes agents, calls LLM providers, executes MCP tools, or dispatches deployments.",
+            "Timeline entries expose ordering and correlation keys only; raw audit_log details remain omitted.",
+            "Production rollout and promotion remain false even when full correlation evidence exists.",
+        ],
+        "non_claims": gateway_correlation_contract_payload()["non_claims"],
+    }
+
+
+def gateway_correlation_group_risk(group: dict[str, object]) -> dict[str, object]:
+    missing_legs: list[str] = []
+    if group.get("has_agent_task") is not True:
+        missing_legs.append("agent_task")
+    if group.get("has_llm_audit") is not True:
+        missing_legs.append("llm_audit")
+    if group.get("has_mcp_audit") is not True:
+        missing_legs.append("mcp_audit")
+    live_provider_call_count = int(group.get("live_provider_call_count") or 0)
+    live_mcp_write_count = int(group.get("live_mcp_write_count") or 0)
+    has_live_violation = live_provider_call_count > 0 or live_mcp_write_count > 0
+    if has_live_violation:
+        risk_status = "blocked"
+        severity = "critical"
+    elif missing_legs:
+        risk_status = "review"
+        severity = "warning"
+    else:
+        risk_status = "verified"
+        severity = "info"
+    return {
+        "correlation_key": group.get("correlation_key"),
+        "trace_id": group.get("trace_id"),
+        "session_id": group.get("session_id"),
+        "request_id": group.get("request_id"),
+        "correlation_state": group.get("correlation_state"),
+        "event_count": int(group.get("event_count") or 0),
+        "missing_legs": missing_legs,
+        "risk_status": risk_status,
+        "severity": severity,
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+    }
+
+
+def build_gateway_correlation_risk_rollup(
+    events: list[dict[str, object]],
+    groups: list[dict[str, object]],
+) -> dict[str, object]:
+    group_risks = [gateway_correlation_group_risk(group) for group in groups]
+    forbidden_pattern_hits = gateway_correlation_forbidden_pattern_hits(events)
+    full_correlation_count = sum(1 for group in groups if group.get("correlation_state") == "agent_llm_mcp_correlated")
+    partial_correlation_count = sum(1 for group in groups if group.get("correlation_state") == "partial_correlation")
+    gateway_pair_count = sum(1 for group in groups if group.get("correlation_state") == "gateway_pair_correlated")
+    live_provider_call_count = sum(int(group.get("live_provider_call_count") or 0) for group in groups)
+    live_mcp_write_count = sum(int(group.get("live_mcp_write_count") or 0) for group in groups)
+    missing_leg_counts = {
+        "agent_task": sum(1 for risk in group_risks if "agent_task" in risk["missing_legs"]),
+        "llm_audit": sum(1 for risk in group_risks if "llm_audit" in risk["missing_legs"]),
+        "mcp_audit": sum(1 for risk in group_risks if "mcp_audit" in risk["missing_legs"]),
+    }
+    blocker_count = live_provider_call_count + live_mcp_write_count + forbidden_pattern_hits
+    review_count = sum(1 for risk in group_risks if risk["risk_status"] == "review")
+    if blocker_count > 0:
+        risk_status = "blocked"
+    elif review_count > 0 or partial_correlation_count > 0 or gateway_pair_count > 0:
+        risk_status = "review"
+    else:
+        risk_status = "clear"
+    risk_badges = [
+        {
+            "id": "redaction",
+            "label": "Redaction",
+            "status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+            "count": forbidden_pattern_hits,
+            "evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        },
+        {
+            "id": "live_provider",
+            "label": "Live Provider",
+            "status": "clear" if live_provider_call_count == 0 else "blocked",
+            "count": live_provider_call_count,
+            "evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        },
+        {
+            "id": "live_mcp_write",
+            "label": "Live MCP Write",
+            "status": "clear" if live_mcp_write_count == 0 else "blocked",
+            "count": live_mcp_write_count,
+            "evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        },
+        {
+            "id": "full_correlation",
+            "label": "Full Correlation",
+            "status": "verified" if full_correlation_count > 0 else "watch",
+            "count": full_correlation_count,
+            "evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        },
+    ]
+    return {
+        "contract_version": GATEWAY_CORRELATION_RISK_ROLLUP_CONTRACT_VERSION,
+        "parent_contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_gateway_correlation_risk_rollup",
+        "endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "snapshot_endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "groups_scanned": len(groups),
+        "risk_status": risk_status,
+        "blocker_count": blocker_count,
+        "review_count": review_count,
+        "full_correlation_count": full_correlation_count,
+        "partial_correlation_count": partial_correlation_count,
+        "gateway_pair_count": gateway_pair_count,
+        "missing_leg_counts": missing_leg_counts,
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "correlation_state_counts": count_by_key([str(group.get("correlation_state")) for group in groups]),
+        "risk_status_counts": count_by_key([str(risk.get("risk_status")) for risk in group_risks]),
+        "risk_badges": risk_badges,
+        "group_risks": group_risks[:12],
+        "policy_checks": [
+            "Risk rollup reads audit_log through the safe gateway correlation projection only.",
+            "Risk rollup never seeds audit rows, executes agents, calls LLM providers, executes MCP tools, or dispatches deployments.",
+            "Production rollout and promotion remain false even when full correlation evidence exists.",
+            "Any forbidden pattern, live provider call, or live MCP write raises blocker_count and risk_status=blocked.",
+        ],
+        "non_claims": gateway_correlation_contract_payload()["non_claims"],
+    }
+
+
+def gateway_correlation_export_contract_payload() -> dict[str, object]:
+    contract = gateway_correlation_contract_payload()
+    return {
+        "contract_version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_gateway_correlation_csv_export",
+        "endpoint": "GET /api/v1/security/gateway-correlation/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/export/contract",
+        "snapshot_endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "risk_rollup_endpoint": "GET /api/v1/security/gateway-correlation/risk-rollup",
+        "timeline_endpoint": "GET /api/v1/security/gateway-correlation/timeline",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-gateway-correlation.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+        "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+        "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "raw_details_returned": False,
+        "policy_checks": [
+            "Export reads audit_log through the same safe gateway correlation projection used by snapshot, risk rollup, and timeline.",
+            "Export emits allowlisted CSV columns over correlation groups only; raw audit details, prompts, tool inputs, and credentials are omitted.",
+            "Export never executes agents, calls LLM providers, executes MCP tools, writes external provider state, or promotes production.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence refs.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def build_gateway_correlation_export_csv(
+    events: list[dict[str, object]],
+    groups: list[dict[str, object]],
+) -> str:
+    output = io.StringIO()
+    fieldnames = gateway_correlation_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    risk_by_key = {
+        str(risk.get("correlation_key")): risk
+        for risk in (gateway_correlation_group_risk(group) for group in groups)
+    }
+    ordered_groups = sorted(groups, key=lambda group: str(group.get("correlation_key") or ""))
+    for index, group in enumerate(ordered_groups, start=1):
+        key = str(group.get("correlation_key") or "")
+        risk = risk_by_key.get(key, {})
+        event_types = group.get("event_types") if isinstance(group.get("event_types"), list) else []
+        missing_legs = risk.get("missing_legs") if isinstance(risk.get("missing_legs"), list) else []
+        csv_row = {
+            "sequence_index": index,
+            "correlation_key": key,
+            "trace_id": public_trace_id(group.get("trace_id")),
+            "request_id": public_request_id(group.get("request_id")),
+            "session_id": group.get("session_id"),
+            "correlation_state": group.get("correlation_state"),
+            "event_count": group.get("event_count"),
+            "event_types": "|".join(str(item) for item in event_types),
+            "has_agent_task": group.get("has_agent_task") is True,
+            "has_llm_audit": group.get("has_llm_audit") is True,
+            "has_mcp_audit": group.get("has_mcp_audit") is True,
+            "risk_status": risk.get("risk_status"),
+            "missing_legs": "|".join(str(item) for item in missing_legs),
+            "live_provider_call_count": group.get("live_provider_call_count"),
+            "live_mcp_write_count": group.get("live_mcp_write_count"),
+            "evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+            "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+            "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+            "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+            "export_audit_evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+            "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+            "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        }
+        writer.writerow({field: csv_safe_value(csv_row.get(field)) for field in fieldnames})
+    return output.getvalue()
+
+
+def persist_gateway_correlation_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('gateway_correlation_export_generated', 'gateway-correlation', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+                                "export_evidence_ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+                                "snapshot_evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+                                "risk_rollup_evidence_ref": GATEWAY_CORRELATION_RISK_ROLLUP_EVIDENCE_REF,
+                                "timeline_evidence_ref": GATEWAY_CORRELATION_TIMELINE_EVIDENCE_REF,
+                                "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+                                "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+                                "live_provider_calls_claimed": False,
+                                "live_mcp_writes_claimed": False,
+                                "production_rollout_claimed": False,
+                                "promotion_allowed": False,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"gateway correlation export audit failed: {exc}")
+
+
+@app.get("/api/v1/security/gateway-correlation/contract")
+def gateway_correlation_contract() -> dict[str, object]:
+    return gateway_correlation_contract_payload()
+
+
+@app.get("/api/v1/security/gateway-correlation/export/contract")
+def gateway_correlation_export_contract() -> dict[str, object]:
+    return gateway_correlation_export_contract_payload()
+
+
+@app.get("/api/v1/security/gateway-correlation/export")
+def gateway_correlation_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    groups = build_gateway_correlation_groups(events)
+    csv_payload = build_gateway_correlation_export_csv(events, groups)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"gateway-correlation-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_gateway_correlation_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-gateway-correlation.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": GATEWAY_CORRELATION_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": GATEWAY_CORRELATION_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": GATEWAY_CORRELATION_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+            "X-No-Live-Write-Evidence-Ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
+
+
+@app.get("/api/v1/security/gateway-correlation/snapshot")
+def gateway_correlation_snapshot(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    groups = build_gateway_correlation_groups(events)
+    full_correlations = [group for group in groups if group["correlation_state"] == "agent_llm_mcp_correlated"]
+    live_provider_call_count = sum(int(group["live_provider_call_count"]) for group in groups)
+    live_mcp_write_count = sum(int(group["live_mcp_write_count"]) for group in groups)
+    forbidden_pattern_hits = gateway_correlation_forbidden_pattern_hits(events)
+    return {
+        "contract_version": GATEWAY_CORRELATION_CONTRACT_VERSION,
+        "mode": "read_only_agent_llm_mcp_correlation_snapshot",
+        "endpoint": "GET /api/v1/security/gateway-correlation/snapshot",
+        "contract_endpoint": "GET /api/v1/security/gateway-correlation/contract",
+        "source_table": "audit_log",
+        "source_event_types": list(GATEWAY_CORRELATION_EVENT_TYPES),
+        "evidence_ref": GATEWAY_CORRELATION_EVIDENCE_REF,
+        "redaction_evidence_ref": GATEWAY_CORRELATION_REDACTION_EVIDENCE_REF,
+        "no_live_write_evidence_ref": GATEWAY_CORRELATION_NO_LIVE_WRITE_EVIDENCE_REF,
+        "read_only": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "prompt_bodies_returned": False,
+        "tool_input_refs_returned": False,
+        "provider_credentials_returned": False,
+        "events_scanned": len(events),
+        "groups_scanned": len(groups),
+        "full_correlation_count": len(full_correlations),
+        "live_provider_call_count": live_provider_call_count,
+        "live_mcp_write_count": live_mcp_write_count,
+        "forbidden_pattern_hits": forbidden_pattern_hits,
+        "redaction_status": "clear" if forbidden_pattern_hits == 0 else "blocked",
+        "event_type_counts": count_by_key([str(event.get("event_type")) for event in events]),
+        "agent_counts": count_by_key([str(event.get("agent_type")) if event.get("agent_type") else None for event in events]),
+        "correlation_state_counts": count_by_key([str(group.get("correlation_state")) for group in groups]),
+        "groups": groups[:12],
+        "policy_checks": gateway_correlation_contract_payload()["policy_checks"],
+        "non_claims": gateway_correlation_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/security/gateway-correlation/risk-rollup")
+def gateway_correlation_risk_rollup(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    groups = build_gateway_correlation_groups(events)
+    return build_gateway_correlation_risk_rollup(events, groups)
+
+
+@app.get("/api/v1/security/gateway-correlation/timeline")
+def gateway_correlation_timeline(limit: int = Query(default=80, ge=1, le=200)) -> dict[str, object]:
+    rows = gateway_correlation_rows(limit)
+    events = [safe_gateway_correlation_event(row) for row in rows]
+    return build_gateway_correlation_timeline(events)
+
+
+SECURITY_AUDIT_EVENT_CATEGORIES = {
+    "security_csp_violation_reported": "browser_security_policy",
+    "auth_refresh_rotated": "auth_lifecycle",
+    "auth_refresh_reuse_blocked": "auth_lifecycle",
+    "auth_logout_revoked": "auth_lifecycle",
+    "mcp_tool_executed": "mcp_guard",
+    "llm_gateway_request": "llm_gateway_guard",
+}
+
+
+def security_audit_surface_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": SECURITY_AUDIT_SURFACE_CONTRACT_VERSION,
+        "mode": "read_only_security_product_audit_surface",
+        "screen": "Security Audit Surface",
+        "endpoint": "GET /api/v1/security/events",
+        "contract_endpoint": "GET /api/v1/security/events/contract",
+        "source_table": "audit_log",
+        "source_endpoints": [
+            "POST /api/v1/security/csp/report",
+            "POST /api/v1/auth/refresh",
+            "POST /api/v1/auth/logout",
+            "POST /mcp/api/v1/tools/execute",
+            "POST /llm/v1/chat/completions",
+        ],
+        "supported_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
+        "category_map": SECURITY_AUDIT_EVENT_CATEGORIES,
+        "filters": ["limit", "event_type", "severity"],
+        "read_only": True,
+        "evidence_refs": {
+            "surface_visible": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+            "event_visible": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+            "csp_audit_persisted": "csp_report_audit_persisted",
+            "mcp_deny_correlation": "mcp_denied_tool_audit_correlation",
+            "llm_audit_event": "llm_audit_feed_event_visible",
+        },
+        "policy_checks": [
+            "The surface reads audit_log only and never executes tools or provider calls.",
+            "Events expose request_id and trace_id when the source event recorded them.",
+            "Returned details are already redacted by the source audit writers.",
+            "MCP denied-tool rows keep mcp_denied_tool_audit_correlation visible.",
+            "LLM rows keep live_provider_calls visible so dry-run proofs cannot look like live billing.",
+        ],
+        "non_claims": [
+            "No production SOC, SIEM, or incident-response workflow is claimed.",
+            "No live provider calls or live MCP writes are enabled by this read-only feed.",
+            "No secrets, prompt bodies, or browser cookies are intentionally returned.",
+        ],
+    }
+
+
+@app.get("/api/v1/security/events/contract")
+def security_audit_surface_contract() -> dict[str, object]:
+    return security_audit_surface_contract_payload()
+
+
+@app.get("/api/v1/security/events")
+def recent_security_audit_events(
+    limit: int = Query(default=20, ge=1, le=100),
+    event_type: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+) -> dict[str, object]:
+    allowed_event_types = set(SECURITY_AUDIT_EVENT_CATEGORIES.keys())
+    if event_type is not None and event_type not in allowed_event_types:
+        raise HTTPException(status_code=400, detail="unsupported_security_audit_event_type")
+
+    where_clauses = [
+        """
+        event_type IN (
+          'security_csp_violation_reported',
+          'auth_refresh_rotated',
+          'auth_refresh_reuse_blocked',
+          'auth_logout_revoked',
+          'mcp_tool_executed',
+          'llm_gateway_request'
+        )
+        """
+    ]
+    params: list[object] = []
+    if event_type:
+        where_clauses.append("event_type = %s")
+        params.append(event_type)
+    if severity:
+        where_clauses.append("severity = %s")
+        params.append(severity)
+    params.append(limit)
+
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE {" AND ".join(where_clauses)}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        ).fetchall()
+
+    events = []
+    for row in rows:
+        details = public_audit_details(row[4] or {})
+        if not isinstance(details, dict):
+            details = {}
+        trace_id = public_trace_id(details.get("trace_id") or (str(row[3]) if row[3] else None))
+        events.append(
+            {
+                "id": str(row[0]),
+                "event_type": row[1],
+                "category": SECURITY_AUDIT_EVENT_CATEGORIES.get(row[1], "security_audit"),
+                "user_id": row[2],
+                "session_id": str(row[3]) if row[3] else None,
+                "request_id": public_request_id(details.get("request_id")),
+                "trace_id": trace_id,
+                "evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+                "audit_feed_evidence_ref": details.get(
+                    "audit_feed_evidence_ref",
+                    SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+                ),
+                "security_surface_evidence_ref": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+                "summary": details.get("summary")
+                or details.get("sanitized_summary")
+                or details.get("error_class")
+                or row[1],
+                "details": details,
+                "created_at": row[5].isoformat() if row[5] else None,
+                "severity": row[6],
+            }
+        )
+
+    return {
+        "contract_version": SECURITY_AUDIT_SURFACE_CONTRACT_VERSION,
+        "mode": "read_only_security_product_audit_surface",
+        "evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        "event_evidence_ref": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "event_type": event_type,
+            "severity": severity,
+            "limit": limit,
+        },
+        "events": events,
+        "count": len(events),
+        "non_claims": security_audit_surface_contract_payload()["non_claims"],
+    }
+
+
+def security_review_queue_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_redacted_security_review_queue",
+        "screen": "Security Review Queue",
+        "endpoint": "GET /api/v1/security/review-queue",
+        "contract_endpoint": "GET /api/v1/security/review-queue/contract",
+        "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "gate_endpoint": "GET /api/v1/security/review-queue/gate",
+        "export_endpoint": "GET /api/v1/security/review-queue/export?format=csv&limit=80",
+        "export_contract_endpoint": "GET /api/v1/security/review-queue/export/contract",
+        "export_contract_version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
+        "source_table": "audit_log",
+        "source_surface": "GET /api/v1/security/events",
+        "supported_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
+        "supported_export_formats": ["csv"],
+        "filters": ["limit", "status", "severity", "category"],
+        "read_only": True,
+        "audit_persisted": True,
+        "mutation_endpoints_blocked": [
+            "POST /api/v1/security/review-queue",
+            "PATCH /api/v1/security/review-queue",
+            "PUT /api/v1/security/review-queue",
+            "DELETE /api/v1/security/review-queue",
+        ],
+        "required_item_fields": [
+            "queue_item_id",
+            "source_event_id",
+            "event_type",
+            "category",
+            "severity",
+            "status",
+            "summary",
+            "request_id",
+            "trace_id",
+            "created_at",
+            "evidence_ref",
+            "item_evidence_ref",
+            "redaction_evidence_ref",
+        ],
+        "export_columns": [
+            "sequence_index",
+            "queue_item_id",
+            "source_event_id",
+            "created_at",
+            "event_type",
+            "category",
+            "severity",
+            "status",
+            "risk_badge",
+            "request_id",
+            "trace_id",
+            "summary",
+            "redaction_applied",
+            "detail_keys",
+            "evidence_ref",
+            "item_evidence_ref",
+            "redaction_evidence_ref",
+            "filter_evidence_ref",
+            "decision_history_evidence_ref",
+            "source_security_surface_evidence_ref",
+        ],
+        "safe_fields": [
+            "ids",
+            "event_type",
+            "category",
+            "severity",
+            "status",
+            "request_id",
+            "trace_id",
+            "redacted_summary",
+            "detail_key_names_only",
+            "evidence_refs",
+        ],
+        "forbidden_fields": [
+            "token",
+            "api_key",
+            "password",
+            "authorization_header",
+            "cookie",
+            "secret_value",
+            "prompt_body",
+            "browser_session",
+            "raw_file_contents",
+        ],
+        "status_values": ["needs_review", "monitoring"],
+        "evidence_refs": {
+            "queue_visible": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+            "item_visible": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+            "redaction_enforced": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+            "mutation_blocked": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+            "filter_state": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+            "decision_history": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+            "evidence_snapshot": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
+            "gate_summary": SECURITY_REVIEW_GATE_EVIDENCE_REF,
+            "export_visible": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+            "export_audit_persisted": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
+            "source_security_surface": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        },
+        "policy_checks": [
+            "The review queue reads audit_log only and never executes tools, deploys code, or calls providers.",
+            "Items return summaries and detail key names only; raw detail payloads are not returned.",
+            "Mutation methods are blocked with security_review_mutation_blocked.",
+            "Risk badges, filters, decision history, and evidence snapshots are derived from read-only audit rows.",
+            "The gate summary is advisory and cannot approve a production rollout.",
+            "The CSV export emits allowlisted queue columns only and persists redacted export metadata.",
+            "Secrets, prompt bodies, cookies, authorization headers, and raw files are forbidden from queue responses.",
+            "Production release decisions remain outside this read-only queue.",
+        ],
+        "non_claims": [
+            "No production SOC, SIEM, incident ownership, or remediation workflow is claimed.",
+            "No live provider calls, live MCP writes, file edits, or cloud mutations are enabled by this queue.",
+            "No secret values, raw prompt bodies, screenshots, browser cookies, or raw file contents are returned.",
+        ],
+    }
+
+
+def security_review_status_for_event(event_type: str, severity: str | None, details: dict[str, object]) -> str:
+    severity_text = str(severity or "").lower()
+    event_status = str(details.get("status") or "").lower()
+    if severity_text in {"critical", "high", "warning", "error"}:
+        return "needs_review"
+    if event_type in {"auth_refresh_reuse_blocked", "security_csp_violation_reported"}:
+        return "needs_review"
+    if event_type == "mcp_tool_executed" and event_status in {"blocked", "denied", "failed"}:
+        return "needs_review"
+    return "monitoring"
+
+
+def security_review_summary(event_type: str, category: str, details: dict[str, object]) -> tuple[str, bool, list[str]]:
+    raw_summary = (
+        details.get("summary")
+        or details.get("sanitized_summary")
+        or details.get("error_class")
+        or details.get("status")
+        or event_type
+    )
+    text = redact_text(str(raw_summary))
+    key_names = sorted(str(key) for key in details.keys())
+    detail_text = json.dumps(details, sort_keys=True, default=str)
+    detail_text_redacted = redact_text(detail_text)
+    redaction_indicators = ("token", "api_key", "authorization", "password", "cookie", "secret", "private key")
+    redaction_applied = (
+        text != str(raw_summary)
+        or detail_text_redacted != detail_text
+        or any(indicator in detail_text.lower() for indicator in redaction_indicators)
+    )
+    return text[:280], redaction_applied, key_names
+
+
+def security_review_risk_badge(status: str, severity: str | None, category: str) -> str:
+    severity_text = str(severity or "").lower()
+    if status == "needs_review" and severity_text in {"critical", "high", "error"}:
+        return "release_blocker_review"
+    if status == "needs_review":
+        return "review_required"
+    if category in {"mcp", "llm"}:
+        return "runtime_monitor"
+    return "monitor"
+
+
+def security_review_decision_history(source_event_id: str, status: str, created_at: object) -> list[dict[str, object]]:
+    created_at_text = created_at.isoformat() if hasattr(created_at, "isoformat") else None
+    return [
+        {
+            "state": "audit_event_ingested",
+            "source_event_id": source_event_id,
+            "evidence_ref": SECURITY_AUDIT_EVENT_EVIDENCE_REF,
+            "created_at": created_at_text,
+        },
+        {
+            "state": status,
+            "source_event_id": source_event_id,
+            "evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+            "created_at": created_at_text,
+        },
+    ]
+
+
+def build_security_review_queue(
+    limit: int,
+    status: str | None,
+    severity: str | None,
+    category: str | None,
+) -> dict[str, object]:
+    allowed_statuses = {"needs_review", "monitoring"}
+    if status is not None and status not in allowed_statuses:
+        raise HTTPException(status_code=400, detail="unsupported_security_review_status")
+    allowed_categories = set(SECURITY_AUDIT_EVENT_CATEGORIES.values())
+    if category is not None and category not in allowed_categories:
+        raise HTTPException(status_code=400, detail="unsupported_security_review_category")
+
+    where_clauses = [
+        """
+        event_type IN (
+          'security_csp_violation_reported',
+          'auth_refresh_rotated',
+          'auth_refresh_reuse_blocked',
+          'auth_logout_revoked',
+          'mcp_tool_executed',
+          'llm_gateway_request'
+        )
+        """
+    ]
+    params: list[object] = []
+    if severity:
+        where_clauses.append("severity = %s")
+        params.append(severity)
+    params.append(limit)
+
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE {" AND ".join(where_clauses)}
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            tuple(params),
+        ).fetchall()
+
+    items: list[dict[str, object]] = []
+    for row in rows:
+        details = public_audit_details(row[4] or {})
+        if not isinstance(details, dict):
+            details = {}
+        row_category = SECURITY_AUDIT_EVENT_CATEGORIES.get(row[1], "security_audit")
+        row_status = security_review_status_for_event(row[1], row[6], details)
+        if status is not None and row_status != status:
+            continue
+        if category is not None and row_category != category:
+            continue
+        summary, redaction_applied, detail_keys = security_review_summary(row[1], row_category, details)
+        trace_id = public_trace_id(details.get("trace_id") or (str(row[3]) if row[3] else None))
+        source_event_id = str(row[0])
+        risk_badge = security_review_risk_badge(row_status, row[6], row_category)
+        items.append(
+            {
+                "queue_item_id": f"security-review-{source_event_id}",
+                "source_event_id": source_event_id,
+                "event_type": row[1],
+                "category": row_category,
+                "severity": row[6],
+                "status": row_status,
+                "risk_badge": risk_badge,
+                "summary": summary,
+                "request_id": public_request_id(details.get("request_id")),
+                "trace_id": trace_id,
+                "detail_keys": detail_keys,
+                "redaction_applied": redaction_applied,
+                "redaction_marker": "***MASKED_SECRET***" if redaction_applied else None,
+                "created_at": row[5].isoformat() if row[5] else None,
+                "decision_history": security_review_decision_history(source_event_id, row_status, row[5]),
+                "evidence_snapshot": {
+                    "queue_visible": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+                    "item_visible": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+                    "redaction_enforced": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+                    "mutation_blocked": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+                    "filter_state": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+                    "decision_history": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+                    "source_security_surface": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+                },
+                "evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+                "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+                "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+                "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+                "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+                "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+            }
+        )
+
+    status_counts = {
+        "needs_review": sum(1 for item in items if item["status"] == "needs_review"),
+        "monitoring": sum(1 for item in items if item["status"] == "monitoring"),
+    }
+    category_counts = {
+        item_category: sum(1 for item in items if item["category"] == item_category)
+        for item_category in sorted({str(item["category"]) for item in items})
+    }
+    risk_badges = {
+        risk_badge: sum(1 for item in items if item["risk_badge"] == risk_badge)
+        for risk_badge in sorted({str(item["risk_badge"]) for item in items})
+    }
+    return {
+        "items": items,
+        "count": len(items),
+        "status_counts": status_counts,
+        "category_counts": category_counts,
+        "risk_badges": risk_badges,
+    }
+
+
+def build_security_review_gate(limit: int, severity: str | None, category: str | None) -> dict[str, object]:
+    queue = build_security_review_queue(limit=limit, status=None, severity=severity, category=category)
+    blockers = [item for item in queue["items"] if item["status"] == "needs_review"]
+    gate_status = "blocked_by_open_security_reviews" if blockers else "clear_for_security_review_queue_only"
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_security_review_gate_summary",
+        "endpoint": "GET /api/v1/security/review-queue/gate",
+        "queue_endpoint": "GET /api/v1/security/review-queue",
+        "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "evidence_ref": SECURITY_REVIEW_GATE_EVIDENCE_REF,
+        "queue_evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+        "snapshot_evidence_ref": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "limit": limit,
+            "severity": severity,
+            "category": category,
+        },
+        "gate_status": gate_status,
+        "blocker_count": len(blockers),
+        "monitoring_count": int(queue["status_counts"].get("monitoring", 0)),
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "release_authority": "outside_security_review_queue",
+        "risk_badges": queue["risk_badges"],
+        "blockers": [
+            {
+                "queue_item_id": item["queue_item_id"],
+                "source_event_id": item["source_event_id"],
+                "event_type": item["event_type"],
+                "category": item["category"],
+                "severity": item["severity"],
+                "status": item["status"],
+                "risk_badge": item["risk_badge"],
+                "request_id": item["request_id"],
+                "trace_id": item["trace_id"],
+                "evidence_ref": item["evidence_ref"],
+                "redaction_evidence_ref": item["redaction_evidence_ref"],
+            }
+            for item in blockers[:10]
+        ],
+        "policy_checks": [
+            "This gate summary is read-only and derived from security review queue items.",
+            "Open needs_review items block this advisory security-review gate.",
+            "This endpoint never approves production promotion or release rollout.",
+            "Blockers expose IDs and evidence refs only; raw audit detail payloads stay hidden.",
+        ],
+        "non_claims": [
+            "No production rollout is claimed or authorized.",
+            "No production release approval is granted by this endpoint.",
+            "No live provider calls, live MCP writes, file edits, or cloud mutations are enabled.",
+            "No secret values, raw prompt bodies, cookies, authorization headers, or raw files are returned.",
+        ],
+    }
+
+
+def security_review_queue_export_contract_payload() -> dict[str, object]:
+    contract = security_review_queue_contract_payload()
+    return {
+        "contract_version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
+        "parent_contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_security_review_queue_csv_export",
+        "endpoint": "GET /api/v1/security/review-queue/export?format=csv&limit=80",
+        "contract_endpoint": "GET /api/v1/security/review-queue/export/contract",
+        "queue_endpoint": "GET /api/v1/security/review-queue",
+        "snapshot_endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "gate_endpoint": "GET /api/v1/security/review-queue/gate",
+        "source_table": "audit_log",
+        "source_surface": "GET /api/v1/security/events",
+        "source_event_types": list(SECURITY_AUDIT_EVENT_CATEGORIES.keys()),
+        "supported_formats": ["csv"],
+        "default_format": "csv",
+        "default_limit": 80,
+        "max_limit": 200,
+        "filename_pattern": "superbrain-security-review-queue.csv",
+        "columns": contract["export_columns"],
+        "evidence_ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+        "export_audit_evidence_ref": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
+        "queue_evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+        "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+        "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+        "mutation_block_evidence_ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+        "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+        "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+        "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        "read_only": True,
+        "audit_persisted": True,
+        "live_provider_calls_claimed": False,
+        "live_mcp_writes_claimed": False,
+        "production_rollout_claimed": False,
+        "promotion_allowed": False,
+        "prompt_bodies_returned": False,
+        "provider_credentials_returned": False,
+        "cookies_returned": False,
+        "authorization_headers_returned": False,
+        "raw_details_returned": False,
+        "policy_checks": [
+            "Export reads audit_log through the same safe security review queue projection.",
+            "Export emits CSV columns from the allowlisted security review fields only.",
+            "Export never executes tools, calls providers, writes external state, deploys code, or promotes production.",
+            "Export audit logging stores only redacted metadata: contract version, row count, trace id, request id, format, and evidence refs.",
+            "Raw audit details, prompt bodies, cookies, authorization headers, screenshots, and raw files are omitted.",
+        ],
+        "non_claims": contract["non_claims"],
+    }
+
+
+def build_security_review_export_csv(items: list[dict[str, object]]) -> str:
+    output = io.StringIO()
+    fieldnames = security_review_queue_export_contract_payload()["columns"]
+    writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
+    writer.writeheader()
+    ordered_items = sorted(items, key=lambda item: str(item.get("created_at") or ""))
+    for index, item in enumerate(ordered_items, start=1):
+        detail_keys = item.get("detail_keys") if isinstance(item.get("detail_keys"), list) else []
+        export_detail_keys = []
+        for key in detail_keys:
+            safe_key = redact_text(str(key))
+            compact_key = "".join(char for char in safe_key.lower() if char.isalnum())
+            if any(marker in compact_key for marker in ("prompt", "token", "secret", "password", "cookie", "authorization", "rawfile")):
+                export_detail_keys.append("sensitive_key_redacted")
+            else:
+                export_detail_keys.append(safe_key)
+        csv_row = {
+            "sequence_index": index,
+            "queue_item_id": item.get("queue_item_id"),
+            "source_event_id": item.get("source_event_id"),
+            "created_at": item.get("created_at"),
+            "event_type": item.get("event_type"),
+            "category": item.get("category"),
+            "severity": item.get("severity"),
+            "status": item.get("status"),
+            "risk_badge": item.get("risk_badge"),
+            "request_id": public_request_id(item.get("request_id")),
+            "trace_id": public_trace_id(item.get("trace_id")),
+            "summary": redact_text(str(item.get("summary") or "")),
+            "redaction_applied": item.get("redaction_applied") is True,
+            "detail_keys": "|".join(sorted(set(export_detail_keys))),
+            "evidence_ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+            "item_evidence_ref": item.get("item_evidence_ref") or SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+            "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+            "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+            "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+            "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+        }
+        writer.writerow({field: csv_safe_value(csv_row.get(field)) for field in fieldnames})
+    return output.getvalue()
+
+
+def persist_security_review_export_audit(format: str, row_count: int, trace_id: str, request_id: str) -> None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('security_review_queue_export_generated', 'security-review', %s::jsonb, 'info')
+                """,
+                (
+                    Json(
+                        redact_json(
+                            {
+                                "contract_version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
+                                "trace_id": trace_id,
+                                "request_id": request_id,
+                                "format": format,
+                                "row_count": row_count,
+                                "evidence_ref": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
+                                "export_evidence_ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+                                "queue_evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+                                "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+                                "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+                                "mutation_block_evidence_ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+                                "source_security_surface_evidence_ref": SECURITY_AUDIT_SURFACE_EVIDENCE_REF,
+                                "live_provider_calls_claimed": False,
+                                "live_mcp_writes_claimed": False,
+                                "production_rollout_claimed": False,
+                                "promotion_allowed": False,
+                            }
+                        )
+                    ),
+                ),
+            )
+    except Exception as exc:  # pragma: no cover - audit persistence must not break exports
+        print(f"security review export audit failed: {exc}")
+
+
+@app.get("/api/v1/security/review-queue/contract")
+def security_review_queue_contract() -> dict[str, object]:
+    return security_review_queue_contract_payload()
+
+
+@app.get("/api/v1/security/review-queue/export/contract")
+def security_review_queue_export_contract() -> dict[str, object]:
+    return security_review_queue_export_contract_payload()
+
+
+@app.get("/api/v1/security/review-queue")
+def security_review_queue(
+    limit: int = Query(default=20, ge=1, le=100),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+) -> dict[str, object]:
+    queue = build_security_review_queue(limit=limit, status=status, severity=severity, category=category)
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_redacted_security_review_queue",
+        "evidence_ref": SECURITY_REVIEW_QUEUE_EVIDENCE_REF,
+        "item_evidence_ref": SECURITY_REVIEW_ITEM_EVIDENCE_REF,
+        "redaction_evidence_ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+        "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+        "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+        "evidence_snapshot_ref": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "limit": limit,
+            "status": status,
+            "severity": severity,
+            "category": category,
+        },
+        "items": queue["items"],
+        "count": queue["count"],
+        "status_counts": queue["status_counts"],
+        "category_counts": queue["category_counts"],
+        "risk_badges": queue["risk_badges"],
+        "source_surface": "GET /api/v1/security/events",
+        "non_claims": security_review_queue_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/security/review-queue/snapshot")
+def security_review_queue_snapshot(
+    limit: int = Query(default=50, ge=1, le=100),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+) -> dict[str, object]:
+    queue = build_security_review_queue(limit=limit, status=status, severity=severity, category=category)
+    return {
+        "contract_version": SECURITY_REVIEW_QUEUE_CONTRACT_VERSION,
+        "mode": "read_only_security_review_evidence_snapshot",
+        "endpoint": "GET /api/v1/security/review-queue/snapshot",
+        "queue_endpoint": "GET /api/v1/security/review-queue",
+        "evidence_ref": SECURITY_REVIEW_SNAPSHOT_EVIDENCE_REF,
+        "filter_evidence_ref": SECURITY_REVIEW_FILTER_EVIDENCE_REF,
+        "decision_history_evidence_ref": SECURITY_REVIEW_DECISION_HISTORY_EVIDENCE_REF,
+        "read_only": True,
+        "filters": {
+            "limit": limit,
+            "status": status,
+            "severity": severity,
+            "category": category,
+        },
+        "counts": {
+            "items": queue["count"],
+            "status": queue["status_counts"],
+            "category": queue["category_counts"],
+            "risk_badges": queue["risk_badges"],
+        },
+        "latest_decisions": [
+            {
+                "queue_item_id": item["queue_item_id"],
+                "request_id": item["request_id"],
+                "trace_id": item["trace_id"],
+                "status": item["status"],
+                "risk_badge": item["risk_badge"],
+                "decision_history": item["decision_history"],
+                "evidence_snapshot": item["evidence_snapshot"],
+            }
+            for item in queue["items"][:10]
+        ],
+        "policy_checks": [
+            "Evidence snapshots are derived from read-only audit_log rows.",
+            "Filter state is explicit and visible through security_review_filter_state_visible.",
+            "Decision history is read-only and cannot approve or reject release boundaries.",
+        ],
+        "non_claims": security_review_queue_contract_payload()["non_claims"],
+    }
+
+
+@app.get("/api/v1/security/review-queue/gate")
+def security_review_queue_gate(
+    limit: int = Query(default=50, ge=1, le=100),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+) -> dict[str, object]:
+    return build_security_review_gate(limit=limit, severity=severity, category=category)
+
+
+@app.get("/api/v1/security/review-queue/export")
+def security_review_queue_export(
+    request: Request,
+    format: str = Query(default="csv", pattern="^csv$"),
+    limit: int = Query(default=80, ge=1, le=200),
+    status: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+    trace_id: str | None = Query(default=None, max_length=255),
+    request_id: str | None = Query(default=None, max_length=255),
+) -> Response:
+    if format != "csv":
+        raise HTTPException(status_code=400, detail={"error": "unsupported_format", "allowed": ["csv"]})
+    queue = build_security_review_queue(limit=limit, status=status, severity=severity, category=category)
+    items = queue["items"] if isinstance(queue.get("items"), list) else []
+    csv_payload = build_security_review_export_csv(items)
+    row_count = max(0, len(csv_payload.splitlines()) - 1)
+    resolved_trace_id = public_trace_id(trace_id) or f"security-review-export-{uuid4()}"
+    resolved_request_id = (
+        public_request_id(request_id)
+        or public_request_id(getattr(request.state, "request_id", None))
+        or public_request_id(request.headers.get("x-request-id"))
+        or f"req-{uuid4()}"
+    )
+    persist_security_review_export_audit(format, row_count, resolved_trace_id, resolved_request_id)
+    filename = "superbrain-security-review-queue.csv"
+    return Response(
+        csv_payload,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Contract-Version": SECURITY_REVIEW_EXPORT_CONTRACT_VERSION,
+            "X-Evidence-Ref": SECURITY_REVIEW_EXPORT_EVIDENCE_REF,
+            "X-Export-Audit-Evidence-Ref": SECURITY_REVIEW_EXPORT_AUDIT_EVIDENCE_REF,
+            "X-Redaction-Evidence-Ref": SECURITY_REVIEW_REDACTION_EVIDENCE_REF,
+            "X-Mutation-Block-Evidence-Ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+            "X-Trace-Id": resolved_trace_id,
+            "X-Request-Id": resolved_request_id,
+        },
+    )
+
+
+@app.api_route(
+    "/api/v1/security/review-queue",
+    methods=["POST", "PUT", "PATCH", "DELETE"],
+)
+def security_review_queue_mutation_blocked() -> None:
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "error": "security_review_queue_is_read_only",
+            "evidence_ref": SECURITY_REVIEW_MUTATION_BLOCK_EVIDENCE_REF,
+            "read_only": True,
+            "allowed_method": "GET",
+        },
+    )
 
 
 @app.get("/api/v1/memory/consolidation/recent")
@@ -5077,7 +8764,7 @@ def recent_memory_consolidation_events(limit: int = Query(default=20, ge=1, le=1
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "details": row[4] or {},
+                "details": public_audit_details(row[4] or {}),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
@@ -5115,14 +8802,14 @@ def recent_escalations(limit: int = Query(default=20, ge=1, le=100)) -> dict[str
                 "event_type": row[1],
                 "user_id": row[2],
                 "session_id": str(row[3]) if row[3] else None,
-                "request_id": (row[4] or {}).get("request_id"),
-                "trace_id": (row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None),
+                "request_id": public_request_id((row[4] or {}).get("request_id")),
+                "trace_id": public_trace_id((row[4] or {}).get("trace_id") or (str(row[3]) if row[3] else None)),
                 "correlation_evidence_ref": (row[4] or {}).get(
                     "correlation_evidence_ref",
                     "request_id_audit_correlation",
                 ),
                 "audit_feed_evidence_ref": "request_id_audit_feed_visible",
-                "details": row[4] or {},
+                "details": public_audit_details(row[4] or {}),
                 "created_at": row[5].isoformat() if row[5] else None,
                 "severity": row[6],
             }
@@ -5148,10 +8835,21 @@ def memory_search(
     limit: int = Query(default=5, ge=1, le=20),
     threshold: float = Query(default=0.0, ge=0.0, le=1.0),
 ) -> dict[str, object]:
-    results = [item.model_dump() for item in search_memory(project_id, q, limit)]
+    normalized_query = q.strip()
+    if not normalized_query:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "memory_search_empty_query",
+                "message": "memory search query must contain at least one non-whitespace character",
+                "evidence_ref": "memory_search_empty_query_blocked",
+            },
+        )
+    results = [item.model_dump() for item in search_memory(project_id, normalized_query, limit)]
     return {
         "results": [item for item in results if item["relevance_score"] >= threshold],
         "search_mode": "lexical_fallback",
+        "evidence_ref": MEMORY_SEARCH_EVIDENCE_REF,
     }
 
 
@@ -5207,16 +8905,59 @@ def delete_memory_entry(
 
 
 @app.post("/internal/memory", status_code=201)
-def create_memory(request: MemoryWriteRequest) -> dict[str, object]:
+def create_memory(request: MemoryWriteRequest, http_request: Request) -> dict[str, object]:
+    resolved_trace_id = request.trace_id or getattr(http_request.state, "trace_id", None)
+    resolved_request_id = request.request_id or getattr(http_request.state, "request_id", None)
+    enriched_request = request.model_copy(
+        update={
+            "trace_id": resolved_trace_id,
+            "request_id": resolved_request_id,
+            "metadata": {
+                **request.metadata,
+                "trace_id": resolved_trace_id,
+                "request_id": resolved_request_id,
+                "session_id": request.session_id,
+                "correlation_evidence_ref": "request_id_audit_correlation"
+                if (resolved_trace_id or resolved_request_id or request.session_id)
+                else None,
+                "audit_feed_evidence_ref": "request_id_audit_feed_visible"
+                if (resolved_trace_id or resolved_request_id or request.session_id)
+                else None,
+                "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
+            },
+        }
+    )
     try:
-        memory_id = store_memory(request)
+        memory_id = store_memory(enriched_request)
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            persist_memory_write_audit(
+                conn,
+                project_id=request.project_id,
+                session_id=request.session_id or "",
+                memory_id=memory_id,
+                trace_id=resolved_trace_id,
+                request_id=resolved_request_id,
+                source="internal-memory",
+            )
+    except Exception:
+        pass
     return {
         "memory_id": memory_id,
         "search_mode": EMBEDDING_SEARCH_MODE,
         "embedding_model_version": current_embedding_model_version(),
         "evidence_ref": "embedding_model_version_persisted",
+        "trace_id": resolved_trace_id,
+        "request_id": resolved_request_id,
+        "correlation_evidence_ref": "request_id_audit_correlation"
+        if (resolved_trace_id or resolved_request_id or request.session_id)
+        else None,
+        "audit_feed_evidence_ref": "request_id_audit_feed_visible"
+        if (resolved_trace_id or resolved_request_id or request.session_id)
+        else None,
+        "memory_success_evidence_ref": MEMORY_SUCCESS_CORRELATION_EVIDENCE_REF,
     }
 
 
@@ -5277,8 +9018,11 @@ def correlation_projection_from_details(
 ) -> dict[str, object]:
     if not isinstance(details, dict):
         details = {}
-    request_id = details.get("request_id")
-    trace_id = details.get("trace_id") or details.get("thread_id") or fallback_trace_id or session_id
+    details = public_audit_details(details)
+    if not isinstance(details, dict):
+        details = {}
+    request_id = public_request_id(details.get("request_id"))
+    trace_id = public_trace_id(details.get("trace_id") or details.get("thread_id") or fallback_trace_id or session_id)
     correlation_evidence_ref = details.get("correlation_evidence_ref")
     if not correlation_evidence_ref and (request_id or trace_id):
         correlation_evidence_ref = "request_id_audit_correlation"
@@ -5361,7 +9105,7 @@ def load_recent_correlation_projection(
 
 
 def agent_activity_row_to_event(row: tuple[object, ...]) -> dict[str, object]:
-    details = row[4] or {}
+    details = public_audit_details(row[4] or {})
     if not isinstance(details, dict):
         details = {}
     per_role_results = details.get("per_role_results")
@@ -5479,6 +9223,69 @@ def recent_agent_activity(
         },
         "evidence_ref": "agent_activity_filtered_feed_visible",
         "events": [agent_activity_row_to_event(row) for row in rows],
+    }
+
+
+@app.get("/api/v1/observability/langfuse/contract")
+def langfuse_trace_access_contract() -> dict[str, object]:
+    return langfuse_trace_access_contract_payload()
+
+
+@app.get("/api/v1/observability/langfuse/trace/{trace_id}")
+def langfuse_trace_access(
+    trace_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict[str, object]:
+    if not trace_id or len(trace_id) > 255:
+        raise HTTPException(status_code=422, detail="trace_id must be between 1 and 255 characters")
+    trace_pattern = f"%{trace_id}%"
+    with psycopg.connect(database_url(), autocommit=True) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, event_type, user_id, session_id, details, created_at, severity
+            FROM audit_log
+            WHERE details->>'trace_id' ILIKE %s
+               OR details->>'thread_id' ILIKE %s
+               OR CAST(session_id AS TEXT) ILIKE %s
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (trace_pattern, trace_pattern, trace_pattern, limit),
+        ).fetchall()
+    events = []
+    for row in rows:
+        details = public_audit_details(row[4] or {})
+        if not isinstance(details, dict):
+            details = {}
+        resolved_trace_id = public_trace_id(details.get("trace_id") or details.get("thread_id") or (str(row[3]) if row[3] else trace_id))
+        events.append(
+            {
+                "id": str(row[0]),
+                "event_type": row[1],
+                "user_id": row[2],
+                "session_id": str(row[3]) if row[3] else None,
+                "trace_id": resolved_trace_id,
+                "severity": row[6],
+                "created_at": row[5].isoformat() if row[5] else None,
+                "details": details,
+                "evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
+            }
+        )
+    contract = langfuse_trace_access_contract_payload()
+    return {
+        "contract_version": LANGFUSE_TRACE_ACCESS_CONTRACT_VERSION,
+        "mode": "audit_log_backed_trace_access",
+        "trace_id": public_trace_id(trace_id),
+        "evidence_ref": LANGFUSE_TRACE_ACCESS_EVIDENCE_REF,
+        "event_evidence_ref": LANGFUSE_TRACE_EVENT_EVIDENCE_REF,
+        "langfuse_trace_url": str(contract["deep_link_template"]).replace("{trace_id}", public_trace_id(trace_id) or "trace-redacted"),
+        "langfuse_public_url_configured": contract["langfuse_public_url_configured"],
+        "auth_proxy_required": contract["auth_proxy_required"],
+        "read_only": True,
+        "provider_trace_export": False,
+        "events": events,
+        "count": len(events),
+        "non_claims": contract["non_claims"],
     }
 
 
@@ -5734,6 +9541,12 @@ def security_headers_contract_payload() -> dict[str, object]:
         "enforced_by": "security_headers_middleware",
         "applies_to": "all Agent API HTTP responses including error envelopes",
         "headers": SECURITY_HEADERS,
+        "csp_report_contract": {
+            "contract_version": CSP_REPORT_CONTRACT_VERSION,
+            "endpoint": "POST /api/v1/security/csp/report",
+            "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+            "audit_event_type": "security_csp_violation_reported",
+        },
         "cors_policy": {
             "mode": "same_origin_by_default",
             "reason": "Frontend reaches Agent API through the same Nginx origin in Phase 1.",
@@ -5745,12 +9558,14 @@ def security_headers_contract_payload() -> dict[str, object]:
             "Every response includes Referrer-Policy=no-referrer.",
             "Every response includes a restrictive Permissions-Policy.",
             "Every response includes a default self Content-Security-Policy.",
+            "CSP violation reports are accepted through a same-origin endpoint and persisted without raw secrets.",
         ],
         "evidence_refs": {
             "contract_visible": "security_headers_contract_visible",
             "headers_enforced": "security_headers_enforced",
             "same_origin_cors_policy": "security_headers_same_origin_policy",
             "ui_visible": "security_headers_ui_visible",
+            "csp_report_visible": CSP_REPORT_EVIDENCE_REF,
         },
     }
 
@@ -5758,6 +9573,87 @@ def security_headers_contract_payload() -> dict[str, object]:
 @app.get("/api/v1/security/headers/contract")
 def security_headers_contract() -> dict[str, object]:
     return security_headers_contract_payload()
+
+
+def csp_report_contract_payload() -> dict[str, object]:
+    return {
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "mode": "same_origin_csp_violation_audit_sink",
+        "endpoint": "POST /api/v1/security/csp/report",
+        "audit_event_type": "security_csp_violation_reported",
+        "audit_user_id": "security",
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": "csp_report_audit_persisted",
+        "accepted_shapes": ["report", "csp-report", "csp_report"],
+        "sanitized_fields": [
+            "document-uri",
+            "blocked-uri",
+            "violated-directive",
+            "effective-directive",
+            "source-file",
+            "line-number",
+            "column-number",
+            "status-code",
+        ],
+        "policy_checks": [
+            "Reports are same-origin only through the Agent API surface.",
+            "Report payloads are redacted before audit persistence.",
+            "The endpoint returns accepted, not completion or incident-resolution.",
+            "No external CSP reporting service is configured or claimed.",
+        ],
+        "non_claims": [
+            "No production security incident workflow is claimed.",
+            "No third-party report collector is used.",
+            "No browser session, cookies, or credentials are persisted by this endpoint.",
+        ],
+    }
+
+
+def persist_csp_report_audit(details: dict[str, object]) -> str | None:
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            row = conn.execute(
+                """
+                INSERT INTO audit_log(event_type, user_id, details, severity)
+                VALUES ('security_csp_violation_reported', 'security', %s::jsonb, 'warning')
+                RETURNING id
+                """,
+                (Json(redact_json(details)),),
+            ).fetchone()
+            return str(row[0]) if row else None
+    except Exception:
+        return None
+
+
+@app.get("/api/v1/security/csp/contract")
+def csp_report_contract() -> dict[str, object]:
+    return csp_report_contract_payload()
+
+
+@app.post("/api/v1/security/csp/report")
+def csp_report(request_body: CspViolationReportRequest, request: Request) -> dict[str, object]:
+    report = request_body.report or {}
+    details = {
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": "csp_report_audit_persisted",
+        "request_id": request_body.request_id or getattr(request.state, "request_id", None),
+        "trace_id": request_body.trace_id or getattr(request.state, "trace_id", None),
+        "report": report,
+        "user_agent": request_body.user_agent or request.headers.get("user-agent"),
+        "live_external_report_forwarding": False,
+    }
+    audit_event_id = persist_csp_report_audit(details)
+    return {
+        "status": "accepted",
+        "contract_version": CSP_REPORT_CONTRACT_VERSION,
+        "evidence_ref": CSP_REPORT_EVIDENCE_REF,
+        "audit_evidence_ref": "csp_report_audit_persisted",
+        "audit_event_id": audit_event_id,
+        "audit_persisted": audit_event_id is not None,
+        "live_external_report_forwarding": False,
+        "sanitized_summary": "CSP violation report accepted into local audit sink.",
+    }
 
 
 def trace_id_contract_payload() -> dict[str, object]:
@@ -5925,8 +9821,23 @@ def layer_interface_contract_payload() -> dict[str, object]:
             "transport": "HTTP JSON",
             "method": "POST",
             "path": "/api/v1/prompt",
-            "request_schema": ["project_id:string", "prompt:string 1..10000", "session_id?:uuid", "stream:boolean"],
-            "response_schema": ["session_id:uuid", "stream_url:string", "task_id?:uuid", "memory_id?:uuid", "budget.level:string"],
+            "request_schema": [
+                "project_id:string",
+                "prompt:string 1..10000",
+                "session_id?:uuid",
+                "trace_id?:string",
+                "request_id?:string",
+                "stream:boolean",
+            ],
+            "response_schema": [
+                "session_id:uuid",
+                "stream_url:string",
+                "task_id?:uuid",
+                "memory_id?:uuid",
+                "trace_id:string",
+                "request_id:string",
+                "budget.level:string",
+            ],
             "evidence_ref": "prompt_input_contract_visible",
             "status": "verified",
         },
@@ -5973,7 +9884,7 @@ def layer_interface_contract_payload() -> dict[str, object]:
             "transport": "HTTP JSON",
             "method": "POST",
             "path": "/mcp/api/v1/tools/execute",
-            "request_schema": ["tool_request_id:string", "run_id:uuid", "session_id:uuid", "trace_id:string", "toolset:string", "capability:string"],
+            "request_schema": ["tool_request_id:string", "run_id:uuid", "session_id:uuid", "trace_id:string", "request_id?:string", "toolset:string", "capability:string"],
             "response_schema": ["status:success|blocked|timeout|degraded", "evidence_ref:string", "audit_persisted:boolean", "result_ref:string"],
             "evidence_ref": "mcp_tool_session_bound_audit",
             "status": "verified",
@@ -6113,6 +10024,9 @@ def task_assignment_contract_payload() -> dict[str, object]:
                 "task_type": "string 1..120",
                 "task_description": "string 1..10000 redacted before persistence",
                 "trace_id": "optional string",
+                "dispatch_id": "optional autonomous dispatch id",
+                "logical_role": "optional supervisor|planner|explorer|coder|tester overlay role",
+                "provenance_evidence_ref": "optional evidence ref binding dispatch to queued task",
                 "priority": "integer 1..10 default 5",
                 "max_retries": "integer 1..5 bounded by agent profile",
                 "allowed_tools": "array constrained by agent profile",
@@ -6129,6 +10043,9 @@ def task_assignment_contract_payload() -> dict[str, object]:
             "retry_count": "integer",
             "result_envelope": "object or null",
             "done_validation": "implemented/tested/integrated/reported/logged booleans or null",
+            "dispatch_id": "autonomous dispatch id or null",
+            "logical_role": "logical overlay role or null",
+            "provenance_evidence_ref": "dispatch-to-task provenance evidence or null",
             "queue_depth": "integer from Redis llen",
             "queue_depth_by_priority": "object keyed by high/mid/low Redis queue depth",
         },
@@ -6148,12 +10065,14 @@ def task_assignment_contract_payload() -> dict[str, object]:
             "worker_stale_queued_finalized",
             "task_session_uuid_fail_closed_proof",
             "agent_activity_per_role_results_visible",
+            "autonomous_team_dispatch_task_provenance",
         ],
         "policy_checks": [
             "TaskAssignment validates session_id as UUID before Redis enqueue.",
             "Task policy rejects unknown tools, profile tool drift, missing blocked actions, missing write_scope, and unsafe deployment routing.",
             "Queue depth is visible through public status, recent task feed, and Prometheus metrics.",
             "Priority routing is visible through high/mid/low queue keys and worker consumption order.",
+            "Autonomous dispatch provenance is persisted onto each queued task and visible through task status and recent task feeds.",
             "Stale queued tasks are reconciled by the worker and do not produce false completed claims.",
         ],
         "non_claims": [
@@ -6246,6 +10165,162 @@ def agent_llm_streaming_contract_payload() -> dict[str, object]:
 @app.get("/api/v1/agents/llm-streaming-contract")
 def agent_llm_streaming_contract() -> dict[str, object]:
     return agent_llm_streaming_contract_payload()
+
+
+def agent_llm_runtime_guard_parity_payload() -> dict[str, object]:
+    gateway_snapshot: dict[str, object] | None = None
+    gateway_error: str | None = None
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(f"{llm_gateway_url()}/api/v1/runtime/guard-parity")
+            response.raise_for_status()
+            gateway_snapshot = response.json()
+    except Exception as exc:
+        gateway_error = type(exc).__name__
+
+    status = "verified" if gateway_snapshot and gateway_snapshot.get("status") == "verified" else "blocked"
+    evidence_refs = [
+        LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "agent_llm_streaming_contract_visible",
+        "llm_gateway_streaming_dry_run",
+        "llm_routing_policy_primary_allowed",
+    ]
+    if isinstance(gateway_snapshot, dict) and isinstance(gateway_snapshot.get("evidence_refs"), list):
+        evidence_refs = sorted(set(evidence_refs).union(str(item) for item in gateway_snapshot["evidence_refs"]))
+
+    return {
+        "contract_version": LLM_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "mode": "agent_api_to_llm_gateway_runtime_guard_parity",
+        "endpoint": "GET /api/v1/agents/llm-runtime-guard-parity",
+        "gateway_endpoint": "GET /llm/api/v1/runtime/guard-parity",
+        "evidence_ref": LLM_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "status": status,
+        "covered_boundary": "L3-L4 Agent API / Agent Pool to LLM Gateway",
+        "live_provider_calls": False,
+        "model_downloads": False,
+        "gateway_snapshot": gateway_snapshot,
+        "gateway_error": gateway_error,
+        "required_agent_executor_fields": [
+            "llm_gateway_calls[].routing_policy_checked",
+            "llm_gateway_calls[].routing_policy_decision",
+            "llm_gateway_calls[].stream_done_seen",
+            "llm_gateway_calls[].live_provider_calls_proven_false",
+        ],
+        "required_gateway_guards": [
+            "direct_provider_bypass",
+            "unknown_model_id",
+            "output_token_budget",
+            "streaming_terminal_done",
+            "routing_policy_preflight",
+        ],
+        "evidence_refs": evidence_refs,
+        "non_claims": [
+            "This Agent API surface mirrors the LLM Gateway guard parity contract; it does not enable live provider generation.",
+            "No direct provider URL, provider key, local model download, live MCP write, or production rollout is enabled here.",
+        ],
+    }
+
+
+@app.get("/api/v1/agents/llm-runtime-guard-parity")
+def agent_llm_runtime_guard_parity() -> dict[str, object]:
+    return agent_llm_runtime_guard_parity_payload()
+
+
+def agent_mcp_runtime_guard_parity_payload() -> dict[str, object]:
+    gateway_snapshot: dict[str, object] | None = None
+    gateway_error: str | None = None
+
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.get(f"{mcp_gateway_url()}/api/v1/runtime/guard-parity")
+            response.raise_for_status()
+            gateway_snapshot = redact_json(response.json())
+    except Exception as exc:
+        gateway_error = type(exc).__name__
+
+    required_gateway_evidence_refs = [
+        "mcp_version_pinning_contract_visible",
+        "mcp_capability_catalog_visible",
+        "mcp_secret_redaction_guard",
+        "mcp_unsupported_toolset_guard",
+        "mcp_unsupported_capability_guard",
+        "mcp_denied_tool_audit_correlation",
+    ]
+    evidence_refs = {MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF}
+    if isinstance(gateway_snapshot, dict):
+        if isinstance(gateway_snapshot.get("evidence_ref"), str):
+            evidence_refs.add(str(gateway_snapshot["evidence_ref"]))
+        if isinstance(gateway_snapshot.get("evidence_refs"), list):
+            evidence_refs.update(str(item) for item in gateway_snapshot["evidence_refs"])
+
+    guard_matrix = gateway_snapshot.get("guard_matrix") if isinstance(gateway_snapshot, dict) else None
+    guards_verified = isinstance(guard_matrix, list) and all(
+        isinstance(item, dict)
+        and item.get("status") == "enforced"
+        and item.get("fail_closed") is True
+        for item in guard_matrix
+    )
+    gateway_verified = (
+        isinstance(gateway_snapshot, dict)
+        and gateway_snapshot.get("contract_version") == MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION
+        and gateway_snapshot.get("status") == "verified"
+        and gateway_snapshot.get("live_mcp_writes") is False
+        and gateway_snapshot.get("live_mutations") is False
+        and gateway_snapshot.get("external_mcp_server_calls") is False
+        and gateway_snapshot.get("model_downloads") is False
+        and guards_verified
+    )
+    required_refs_present = all(item in evidence_refs for item in required_gateway_evidence_refs)
+    status = "verified" if gateway_verified and required_refs_present else "blocked"
+
+    return {
+        "contract_version": MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+        "mode": "agent_api_to_mcp_gateway_runtime_guard_parity",
+        "endpoint": "GET /api/v1/agents/mcp-runtime-guard-parity",
+        "gateway_endpoint": "GET /mcp/api/v1/runtime/guard-parity",
+        "evidence_ref": MCP_RUNTIME_GUARD_PARITY_EVIDENCE_REF,
+        "status": status,
+        "covered_boundary": "L3-L5 Agent API / Agent Pool to MCP Gateway",
+        "live_mcp_writes": False,
+        "live_mutations": False,
+        "external_mcp_server_calls": False,
+        "model_downloads": False,
+        "snapshots_redacted": True,
+        "snapshot_redaction_policy": "app.security.redact_json",
+        "gateway_snapshot": gateway_snapshot,
+        "gateway_error": gateway_error,
+        "required_agent_executor_fields": [
+            "mcp_gateway_calls[].tool_request_id",
+            "mcp_gateway_calls[].session_id",
+            "mcp_gateway_calls[].trace_id",
+            "mcp_gateway_calls[].request_id",
+            "mcp_gateway_calls[].guard_evidence_ref",
+            "mcp_gateway_calls[].live_mcp_writes_proven_false",
+        ],
+        "required_gateway_contracts": [
+            MCP_RUNTIME_GUARD_PARITY_CONTRACT_VERSION,
+            "mcp-version-pinning-v1",
+            "mcp-capability-catalog-v1",
+        ],
+        "required_gateway_guards": [
+            "unsupported_toolset",
+            "unsupported_capability",
+            "scope_guard",
+            "timeout_guard",
+            "secret_redaction",
+            "denied_audit_correlation",
+        ],
+        "evidence_refs": sorted(evidence_refs),
+        "non_claims": [
+            "This Agent API surface mirrors MCP Gateway version pinning and capability guards; it does not enable live MCP writes.",
+            "No external MCP server call, direct tool mutation, provider key, local model download, production rollout, or release promotion is enabled here.",
+        ],
+    }
+
+
+@app.get("/api/v1/agents/mcp-runtime-guard-parity")
+def agent_mcp_runtime_guard_parity() -> dict[str, object]:
+    return agent_mcp_runtime_guard_parity_payload()
 
 
 def memory_embedding_schema_columns() -> dict[str, str]:
@@ -6863,6 +10938,11 @@ def phase2_runtime_contract() -> dict[str, object]:
     return phase2_runtime_contract_payload()
 
 
+@app.get("/api/v1/agents/skill-mode/contract")
+def agent_skill_mode_contract() -> dict[str, object]:
+    return agent_skill_mode_contract_payload()
+
+
 @app.get("/api/v1/phase2/runtime/runs/contract")
 def phase2_runtime_runs_contract() -> dict[str, object]:
     return phase2_runtime_runs_surface_contract_payload()
@@ -7116,6 +11196,8 @@ def autonomous_team_contract_payload() -> dict[str, object]:
         ],
         "required_member_fields": [
             "logical_role",
+            "dispatch_id",
+            "provenance_evidence_ref",
             "execution_agent_type",
             "task_id",
             "latest_task_id",
@@ -7164,6 +11246,15 @@ def autonomous_task_dispatch_contract_payload() -> dict[str, object]:
         "status_endpoint": "GET /api/v1/team/status",
         "alias_endpoints": ["POST /task/dispatch", "GET /team/status"],
         "evidence_ref": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+        "ui_evidence_ref": AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF,
+        "status_evidence_ref": AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF,
+        "evidence_refs": {
+            "dispatch_visible": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+            "ui_visible": AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF,
+            "status_visible": AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF,
+            "provenance": "autonomous_team_dispatch_task_provenance",
+            "audit_persisted": "autonomous_team_dispatch_audit_persisted",
+        },
         "required_request_fields": [
             "project_id",
             "objective",
@@ -7194,7 +11285,9 @@ def autonomous_task_dispatch_contract_payload() -> dict[str, object]:
             "non_claims",
         ],
         "required_assignment_fields": [
+            "dispatch_id",
             "logical_role",
+            "provenance_evidence_ref",
             "execution_agent_type",
             "task_id",
             "task_type",
@@ -7229,7 +11322,8 @@ def autonomous_task_dispatch_contract_payload() -> dict[str, object]:
             "Dispatch compiles logical work into the existing four-role task queue.",
             "External runtime adapters are optional read-only projections and do not bypass the internal fail-closed queue policy.",
             "Dispatch does not bypass the fail-closed task policy.",
-            "Dispatch does not authorize production deployment or live provider execution.",
+            "Dispatch does not authorize production deployment, live provider execution, or live MCP writes.",
+            "Dispatch UI sends objectives into the internal queue only; it does not directly edit files or execute cloud mutations.",
         ],
     }
 
@@ -7267,6 +11361,8 @@ def autonomous_idle_team_payload() -> dict[str, object]:
         "members": [
             {
                 "logical_role": logical_role,
+                "dispatch_id": None,
+                "provenance_evidence_ref": None,
                 "execution_agent_type": autonomous_role_map()[logical_role],
                 "task_id": None,
                 "latest_task_id": None,
@@ -7304,6 +11400,8 @@ def external_autonomous_team_payload(external_runtime: dict[str, object]) -> dic
         members.append(
             {
                 "logical_role": logical_role,
+                "dispatch_id": None,
+                "provenance_evidence_ref": None,
                 "execution_agent_type": runtime_agent,
                 "task_id": None,
                 "latest_task_id": None,
@@ -7387,6 +11485,8 @@ def autonomous_team_status_payload(dispatch_id: str | None = None) -> dict[str, 
         members.append(
             {
                 "logical_role": assignment.logical_role,
+                "dispatch_id": assignment.dispatch_id,
+                "provenance_evidence_ref": assignment.provenance_evidence_ref,
                 "execution_agent_type": assignment.execution_agent_type,
                 "task_id": assignment.task_id,
                 "latest_task_id": assignment.task_id,
@@ -7560,6 +11660,15 @@ def live_agent_status() -> dict[str, object]:
     return live_agent_status_payload()
 
 
+@app.get("/api/v1/live-agents/history")
+def live_agent_history(
+    agent_id: str | None = Query(default=None, min_length=1, max_length=50),
+    project_id: str | None = Query(default=None, min_length=1, max_length=255),
+    limit: int = Query(default=10, ge=1, le=50),
+) -> dict[str, object]:
+    return live_agent_history_payload(agent_id=agent_id, project_id=project_id, limit=limit)
+
+
 @app.post("/api/v1/live-agents/steer")
 @app.post("/api/steer-agent")
 def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> dict[str, object]:
@@ -7573,7 +11682,13 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
     previous_response_id = str(session.get("previous_response_id")) if session and session.get("previous_response_id") else None
     sanitized_message = redact_text(request.message)
     sanitized_instructions = redact_text(request.instructions) if request.instructions else None
+    safe_metadata = sanitize_live_agent_metadata(request.metadata)
     trace_id = getattr(http_request.state, "trace_id", None) or f"live-agent-{uuid4()}"
+    request_id = (
+        getattr(http_request.state, "request_id", None)
+        or http_request.headers.get("x-request-id")
+        or f"req-live-agent-{uuid4()}"
+    )
     model = request.model or live_agent_default_model()
     payload = {
         "model": model,
@@ -7586,11 +11701,13 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         },
         "reasoning": {"effort": request.reasoning_effort},
         "metadata": {
+            **safe_metadata,
             "trace_id": trace_id,
             "agent_type": str(profile["execution_role"]),
             "logical_agent_id": agent_id,
             "project_id": request.project_id,
-            **request.metadata,
+            "live_provider_calls_allowed": False,
+            "runtime_policy": "live_agent_deterministic_gateway_required",
         },
     }
     if previous_response_id:
@@ -7608,6 +11725,20 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
         )
 
     text = extract_live_agent_text(response_payload)
+    audit_persisted = persist_live_agent_steer_audit(
+        agent_id=agent_id,
+        execution_role=str(profile["execution_role"]),
+        project_id=request.project_id,
+        response_id=response_id,
+        previous_response_id=previous_response_id,
+        model=str(response_payload.get("model") or model),
+        status=response_payload.get("status", "completed"),
+        text=text,
+        usage=response_payload.get("usage"),
+        trace_id=trace_id,
+        request_id=request_id,
+        safe_metadata_keys=sorted(safe_metadata.keys()),
+    )
     return {
         "contract_version": LIVE_AGENT_STEERING_CONTRACT_VERSION,
         "runtime_source": "openai_responses_via_llm_gateway",
@@ -7627,6 +11758,15 @@ def live_agent_steer(request: LiveAgentSteerRequest, http_request: Request) -> d
             "total_cost_cents": budget_state.total_cost_cents,
             "budget_limit_cents": budget_state.budget_limit_cents,
         },
+        "metadata_policy": {
+            "live_provider_calls_allowed": False,
+            "user_metadata_fields_forwarded": sorted(safe_metadata.keys()),
+            "evidence_ref": "live_agent_metadata_guard_enforced",
+        },
+        "audit_persisted": audit_persisted,
+        "audit_evidence_ref": "live_agent_steering_audit_persisted",
+        "trace_id": trace_id,
+        "request_id": request_id,
     }
 
 
@@ -7677,6 +11817,12 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
     prepared_acceptance_criteria = list(dict.fromkeys(request.acceptance_criteria))
     trace_id = request.trace_id or f"autonomous-dispatch-{uuid4()}"
     request_id = getattr(http_request.state, "request_id", None)
+    dispatch_id = str(uuid4())
+    blueprints = autonomous_assignment_blueprints(
+        sanitized_objective,
+        write_scope=prepared_write_scope,
+        acceptance_criteria=prepared_acceptance_criteria,
+    )
     session_id = prepare_orchestrator_session(
         request.project_id,
         request.session_id,
@@ -7699,6 +11845,10 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
             task_type=str(blueprint["task_type"]),
             task_description=str(blueprint["task_description"]),
             trace_id=trace_id,
+            request_id=request_id,
+            dispatch_id=dispatch_id,
+            logical_role=str(blueprint["logical_role"]),
+            provenance_evidence_ref="autonomous_team_dispatch_task_provenance",
             priority=int(blueprint["priority"]),
             allowed_tools=list(blueprint["allowed_tools"]),
             write_scope=list(blueprint["write_scope"]),
@@ -7706,11 +11856,7 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
             acceptance_criteria=list(blueprint["acceptance_criteria"]),
             human_review_required=bool(blueprint["human_review_required"]),
         )
-        for blueprint in autonomous_assignment_blueprints(
-            sanitized_objective,
-            write_scope=prepared_write_scope,
-            acceptance_criteria=prepared_acceptance_criteria,
-        )
+        for blueprint in blueprints
     ]
     try:
         for assignment in assignments_to_enqueue:
@@ -7727,21 +11873,14 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
         ) from exc
 
     queued_assignments = [enqueue_task(assignment) for assignment in assignments_to_enqueue]
-    dispatch_id = str(uuid4())
     assignment_payloads: list[AutonomousRoleAssignment] = []
-    for blueprint, task in zip(
-        autonomous_assignment_blueprints(
-            sanitized_objective,
-            write_scope=prepared_write_scope,
-            acceptance_criteria=prepared_acceptance_criteria,
-        ),
-        queued_assignments,
-        strict=True,
-    ):
+    for blueprint, task in zip(blueprints, queued_assignments, strict=True):
         priority = int(blueprint["priority"])
         assignment_payloads.append(
             AutonomousRoleAssignment(
+                dispatch_id=dispatch_id,
                 logical_role=str(blueprint["logical_role"]),
+                provenance_evidence_ref="autonomous_team_dispatch_task_provenance",
                 execution_agent_type=task.agent_type,
                 task_id=task.task_id,
                 task_type=task.task_type,
@@ -7795,6 +11934,7 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
                         "autonomous_team_mode": AUTONOMOUS_TEAM_MODE,
                         "autonomous_objective": sanitized_objective,
                         "latest_task_id": queued_assignments[-1].task_id if queued_assignments else None,
+                        "autonomous_task_ids": [task.task_id for task in queued_assignments],
                         "logical_roles": list(AUTONOMOUS_LOGICAL_ROLES),
                         "trace_id": trace_id,
                         "request_id": request_id,
@@ -7811,6 +11951,9 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
         "status_endpoint": f"/api/v1/team/status?dispatch_id={dispatch_id}",
         "contract_endpoint": "/api/v1/task/dispatch/contract",
         "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
+        "evidence_ref": AUTONOMOUS_TASK_DISPATCH_EVIDENCE_REF,
+        "ui_evidence_ref": AUTONOMOUS_TASK_DISPATCH_UI_EVIDENCE_REF,
+        "status_evidence_ref": AUTONOMOUS_TASK_DISPATCH_STATUS_EVIDENCE_REF,
         "request_id": request_id,
     }
 
@@ -8213,7 +12356,7 @@ def recent_rotation_events(limit: int = Query(default=20, ge=1, le=100)) -> dict
             {
                 "id": str(row[0]),
                 "session_id": str(row[1]) if row[1] else None,
-                "details": row[2] or {},
+                "details": public_audit_details(row[2] or {}),
                 "created_at": row[3].isoformat() if row[3] else None,
                 "severity": row[4],
             }
@@ -8282,13 +12425,35 @@ def create_mcp_tool_audit_event(request: McpToolAuditRequest) -> dict[str, objec
         session_id: str | None = str(UUID(str(request.session_id))) if request.session_id else None
     except (TypeError, ValueError):
         session_id = None
+    request_details = request.model_dump()
+    request_details.pop("input_ref", None)
     details = redact_json(
         {
-            **request.model_dump(),
+            **request_details,
+            "input_ref_stored": False,
             "session_bound": session_id is not None,
             "trace_id": request.trace_id or request.session_id or request.run_id,
+            "request_id": request.request_id or request.tool_request_id,
             "evidence_ref": request.evidence_ref,
             "audit_evidence_ref": "mcp_tool_session_bound_audit",
+            "redaction_evidence_ref": MCP_AUDIT_REDACTION_EVIDENCE_REF,
+            "correlation_evidence_ref": (
+                "request_id_audit_correlation"
+                if request.request_id or request.trace_id or request.session_id or request.tool_request_id
+                else None
+            ),
+            "audit_feed_evidence_ref": (
+                "request_id_audit_feed_visible"
+                if request.request_id or request.trace_id or request.session_id or request.tool_request_id
+                else None
+            ),
+            "denied_tool_correlation_evidence_ref": (
+                "mcp_denied_tool_audit_correlation" if request.status == "blocked" else None
+            ),
+            "mcp_guard_correlation_evidence_ref": (
+                request.mcp_guard_correlation_evidence_ref
+                or (MCP_GUARD_CORRELATION_EVIDENCE_REF if request.status == "blocked" else None)
+            ),
         }
     )
     with psycopg.connect(database_url(), autocommit=True) as conn:
@@ -8315,15 +12480,27 @@ def create_llm_gateway_audit_event(request: LlmGatewayAuditRequest) -> dict[str,
     severity = "info" if request.status == "dry_run" else "warning"
     if request.live_provider_calls:
         severity = "critical"
+    session_id = request.session_id
     details = redact_json(request.model_dump())
+    details.update(
+        {
+            "evidence_ref": LLM_AUDIT_FEED_EVIDENCE_REF,
+            "audit_feed_evidence_ref": "llm_audit_feed_event_visible",
+            "redaction_evidence_ref": LLM_AUDIT_REDACTION_EVIDENCE_REF,
+            "correlation_evidence_ref": "request_id_audit_correlation",
+            "contract_version": LLM_AUDIT_FEED_CONTRACT_VERSION,
+            "read_only_feed": True,
+            "prompt_body_stored": False,
+        }
+    )
     with psycopg.connect(database_url(), autocommit=True) as conn:
         row = conn.execute(
             """
-            INSERT INTO audit_log(event_type, user_id, details, severity)
-            VALUES ('llm_gateway_request', %s, %s::jsonb, %s)
+            INSERT INTO audit_log(event_type, user_id, session_id, details, severity)
+            VALUES ('llm_gateway_request', %s, %s, %s::jsonb, %s)
             RETURNING id, created_at
             """,
-            (request.agent_type, Json(details), severity),
+            (request.agent_type, session_id, Json(details), severity),
         ).fetchone()
     if not row:
         raise HTTPException(status_code=503, detail="llm gateway audit insert failed")
@@ -8343,6 +12520,7 @@ def create_task(assignment: TaskAssignment, request: Request) -> dict[str, objec
         update={
             "task_description": redact_text(assignment.task_description),
             "trace_id": trace_id,
+            "request_id": request_id,
         }
     )
     try:
@@ -8355,6 +12533,9 @@ def create_task(assignment: TaskAssignment, request: Request) -> dict[str, objec
                 metadata={
                     "latest_agent_type": assignment.agent_type,
                     "latest_task_type": assignment.task_type,
+                    "dispatch_id": assignment.dispatch_id,
+                    "logical_role": assignment.logical_role,
+                    "provenance_evidence_ref": assignment.provenance_evidence_ref,
                     "trace_id": trace_id,
                     "request_id": request_id,
                     "correlation_evidence_ref": "request_id_audit_correlation" if (request_id or trace_id) else None,
@@ -8375,6 +12556,9 @@ def create_task(assignment: TaskAssignment, request: Request) -> dict[str, objec
                             "latest_task_id": task.task_id,
                             "latest_agent_type": task.agent_type,
                             "latest_task_type": task.task_type,
+                            "dispatch_id": task.dispatch_id,
+                            "logical_role": task.logical_role,
+                            "provenance_evidence_ref": task.provenance_evidence_ref,
                             "trace_id": trace_id,
                             "request_id": request_id,
                             "correlation_evidence_ref": "request_id_audit_correlation" if (request_id or trace_id) else None,
