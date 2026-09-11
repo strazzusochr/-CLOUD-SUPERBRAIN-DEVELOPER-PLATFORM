@@ -26,6 +26,14 @@ SECRET_PATTERNS = [
     re.compile(r"\bglpat-[A-Za-z0-9_.-]{20,}\b"),
     re.compile(r"(?i)\b(?:cloud|provider)\s+token\s+[A-Za-z0-9_-]{32,}\b"),
     re.compile(r"(?i)\b(api[_-]?key|secret|token|password)\s*[:=]\s*[^\s,;]{8,}"),
+    # Credential shapes that carry no "key:" prefix or use a non-English keyword.
+    re.compile(r"(?i)\b(?:passwort|kennwort|passwd|pwd|access[_-]?key|client[_-]?secret|refresh[_-]?token)\s*[:=]\s*[^\s,;]{8,}"),
+    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{16,}"),
+    re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----"),
+    re.compile(r"(?i)\b[a-z][a-z0-9+.-]{1,20}://[^\s:/@]+:[^\s:/@]{3,}@[^\s/]+"),
+    re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
+    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{8,}"),
+    re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),
 ]
 
 SENSITIVE_FIELD_NAMES = {
@@ -39,6 +47,37 @@ SENSITIVE_FIELD_NAMES = {
     "secret",
     "secrettoken",
     "token",
+}
+
+# Field-name stems: a field whose normalized name contains one of these is treated as
+# sensitive (e.g. refresh_token, db_password, x-api-key, API_TOKEN, aws_secret_access_key).
+SENSITIVE_FIELD_STEMS = (
+    "apikey",
+    "authorization",
+    "credential",
+    "passwd",
+    "password",
+    "passwort",
+    "privatekey",
+    "secret",
+    "token",
+    "accesskey",
+    "connectionstring",
+)
+
+# Normalized names that contain a stem but describe usage counters, not credentials.
+BENIGN_FIELD_NAMES = {
+    "tokenizer",
+    "tokens",
+    "maxtokens",
+    "tokencount",
+    "tokenlimit",
+    "tokenusage",
+    "inputtokens",
+    "outputtokens",
+    "prompttokens",
+    "completiontokens",
+    "totaltokens",
 }
 
 
@@ -97,27 +136,60 @@ def write_heartbeat(redis_client: redis.Redis, status: str, stats: dict[str, int
     redis_client.set(heartbeat_key(), json.dumps(payload, sort_keys=True), ex=heartbeat_ttl_seconds())
 
 
-def contains_secret(value: object, field_name: str | None = None) -> bool:
-    if isinstance(value, str):
-        if field_name:
-            normalized_field = re.sub(r"[^a-z0-9]", "", field_name.lower())
-            if normalized_field in SENSITIVE_FIELD_NAMES and len(value.strip()) >= 8:
-                return True
-        return any(pattern.search(value) for pattern in SECRET_PATTERNS)
-    if isinstance(value, dict):
-        return any(
-            contains_secret(str(key)) or contains_secret(item, str(key))
-            for key, item in value.items()
+MAX_SECRET_SCAN_DEPTH = 64
+MAX_SECRET_SCAN_NODES = 20_000
+
+
+def _string_contains_secret(value: str, field_name: str | None) -> bool:
+    if field_name:
+        normalized_field = re.sub(r"[^a-z0-9]", "", field_name.lower())
+        sensitive_field = normalized_field in SENSITIVE_FIELD_NAMES or (
+            normalized_field not in BENIGN_FIELD_NAMES
+            and any(stem in normalized_field for stem in SENSITIVE_FIELD_STEMS)
         )
-    if isinstance(value, (list, tuple)):
-        return any(contains_secret(item, field_name) for item in value)
+        stripped = value.strip()
+        if sensitive_field and len(stripped) >= 8 and not stripped.isdigit():
+            return True
+    return any(pattern.search(value) for pattern in SECRET_PATTERNS)
+
+
+def contains_secret(value: object, field_name: str | None = None) -> bool:
+    """Return True when value (recursively) looks like it carries a credential.
+
+    Traversal is iterative so hostile nesting cannot raise RecursionError, and it fails
+    closed: a structure deeper than MAX_SECRET_SCAN_DEPTH or larger than
+    MAX_SECRET_SCAN_NODES is treated as secret-bearing and therefore never persisted.
+    """
+    stack: list[tuple[object, str | None, int]] = [(value, field_name, 0)]
+    visited = 0
+    while stack:
+        current, current_field, depth = stack.pop()
+        visited += 1
+        if depth > MAX_SECRET_SCAN_DEPTH or visited > MAX_SECRET_SCAN_NODES:
+            return True
+        if isinstance(current, str):
+            if _string_contains_secret(current, current_field):
+                return True
+        elif isinstance(current, dict):
+            for key, item in current.items():
+                key_text = str(key)
+                if _string_contains_secret(key_text, None):
+                    return True
+                stack.append((item, key_text, depth + 1))
+        elif isinstance(current, (list, tuple)):
+            for item in current:
+                stack.append((item, current_field, depth + 1))
     return False
 
 
 def parse_working_memory(redis_key: str, raw_value: bytes) -> WorkingMemory | None:
     try:
         payload = json.loads(raw_value.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError):
+        # RecursionError: hostile nesting must mark the entry invalid instead of aborting
+        # the whole consolidation pass (poison-pill key).
+        return None
+    if not isinstance(payload, dict):
         return None
 
     project_id = str(payload.get("project_id") or "").strip()
@@ -128,15 +200,18 @@ def parse_working_memory(redis_key: str, raw_value: bytes) -> WorkingMemory | No
     session_id_value = payload.get("session_id")
     session_id = str(session_id_value) if session_id_value else None
     metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
-    digest_source = json.dumps(
-        {
-            "project_id": project_id,
-            "session_id": session_id,
-            "content_text": content_text,
-            "metadata": metadata,
-        },
-        sort_keys=True,
-    )
+    try:
+        digest_source = json.dumps(
+            {
+                "project_id": project_id,
+                "session_id": session_id,
+                "content_text": content_text,
+                "metadata": metadata,
+            },
+            sort_keys=True,
+        )
+    except (RecursionError, TypeError, ValueError):
+        return None
     idempotency_key = str(payload.get("idempotency_key") or hashlib.sha256(digest_source.encode("utf-8")).hexdigest())
     return WorkingMemory(
         redis_key=redis_key,
