@@ -49,7 +49,7 @@ foreach($required in @("auth-session-integrity-v1","HMAC-SHA256","AUTH_SESSION_S
 
 Write-Host "[phase3-auth-session] deterministic token unit tests"
 Push-Location (Join-Path $repoRoot "apps\frontend")
-try { node --test tests/auth-session-integrity.test.mjs; if($LASTEXITCODE -ne 0){throw "auth-session unit tests failed"} } finally { Pop-Location }
+try { node --test tests/auth-session-integrity.test.mjs tests/auth-session-adversarial.test.mjs; if($LASTEXITCODE -ne 0){throw "auth-session unit tests failed"} } finally { Pop-Location }
 
 if($ReadOnly){Write-Host "[phase3-auth-session] status=verified_read_only";exit 0}
 

@@ -164,10 +164,22 @@ Embedding-verboten:
 
 - Redaction passiert vor Klassifikation, Persistenz und Embedding.
 - `memory_worker_metadata_secret_guard_verified`: Der Memory Worker prueft `content_text`
-  sowie Schluessel und Werte beliebig tief verschachtelter nested metadata rekursiv.
+  sowie Schluessel und Werte verschachtelter nested metadata (Objekte, Listen, gemischt).
   Ein Treffer persistiert keinen Memory-Eintrag, konsumiert den Working-Memory-Key und
   schreibt nur ein redigiertes `memory_consolidation_blocked`-Audit mit generischem
   Grund und sicherem Fundbereich.
+- Erkennung (Stand 2026-09-11): Token-Praefixe (`sk-`, `ghp_`, `github_pat_`, `hf_`,
+  `glpat-`, `cfat_`, `vck_`, `E2B_`, `xox?-`), `Bearer`-Werte, PEM-Private-Keys,
+  Connection-Strings mit Passwort, AWS-Access-Key-IDs, JWTs, `key: wert`-Muster inkl.
+  `passwort`/`kennwort`, sowie Feldnamen, die einen sensiblen Stamm enthalten
+  (`password`, `secret`, `token`, `apikey`, `authorization`, `privatekey`, `credential`,
+  `accesskey`, `connectionstring`, `passwd`, `passwort`); reine Zaehlerfelder wie
+  `max_tokens`/`tokenizer` und rein numerische Werte bleiben erlaubt.
+- Die Traversierung ist iterativ und fail-closed: Tiefe > 64 oder > 20.000 Knoten gilt als
+  Secret-Treffer (keine Persistenz). Nicht-Objekt-Payloads und JSON, das die
+  Rekursionsgrenze sprengt, werden als `invalid` gezaehlt statt den ganzen
+  Konsolidierungslauf abzubrechen (Poison-Pill-Schutz).
+- Regressionstest: `scripts/tests/test_memory_worker_secret_guard.py`.
 - Secrets duerfen weder in Memory noch in Logs gespeichert werden.
 - Memory-Purge braucht Owner-Bestaetigung.
 - Retention-Regeln duerfen nicht still geaendert werden.
