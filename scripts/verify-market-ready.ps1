@@ -1283,31 +1283,18 @@ $canonicalEvidenceDetail = if ($canonicalEvidencePortable) {
 Add-Result "canonical-evidence-portability" $canonicalEvidencePortable $canonicalEvidenceDetail
 
 # Lint-Warnungen (marktreif = 0). Advisory-Zaehler, geht in die Pflicht ein.
-# Ein fehlendes node_modules ist KEIN Lint-Verstoss: eslint bricht dann mit
-# ERR_MODULE_NOT_FOUND ab (exit 2, 0 Warnungen). Ohne Trennung meldet das Gate
-# faelschlich "Lint rot", obwohl nur die Abhaengigkeiten nicht installiert sind.
 $lintOk = $false; $lintDetail = "not run"
 try {
-  $frontendDir = Join-Path $repoRoot "apps\frontend"
-  $frontendModules = Join-Path $frontendDir "node_modules"
-  if (-not (Test-Path $frontendModules)) {
-    $lintDetail = "dependencies_missing: apps/frontend/node_modules fehlt - 'npm install --prefix apps/frontend' ausfuehren (kein Lint-Verstoss)"
-  } else {
-    Push-Location $frontendDir
-    $lintOut = (& npm run lint 2>&1 | Out-String)
-    $lintExit = $LASTEXITCODE
-    if ($null -eq $lintExit) { $lintExit = 127 }
-    Pop-Location
-    if ($lintOut -match "ERR_MODULE_NOT_FOUND" -or $lintOut -match "Cannot find package") {
-      $missingPkg = ([regex]::Match($lintOut, "Cannot find package '([^']+)'")).Groups[1].Value
-      if ([string]::IsNullOrWhiteSpace($missingPkg)) { $missingPkg = "unbekannt" }
-      $lintDetail = "dependencies_missing: eslint kann Paket '$missingPkg' nicht aufloesen - 'npm install --prefix apps/frontend' ausfuehren (kein Lint-Verstoss)"
-    } else {
-      $warnCount = ([regex]::Matches($lintOut, "(?im)\bwarning\b")).Count
-      $lintOk = ($lintExit -eq 0 -and $warnCount -eq 0)
-      $lintDetail = "exit=$lintExit warnings~=$warnCount (marktreif verlangt 0)"
-    }
-  }
+  Push-Location (Join-Path $repoRoot "apps\frontend")
+  $lintOut = (& npm run lint 2>&1 | Out-String)
+  $lintExit = $LASTEXITCODE
+  if ($null -eq $lintExit) { $lintExit = 127 }
+  Pop-Location
+  $warnCount = ([regex]::Matches($lintOut, "(?im)^\s*(?:warning|.+\s+warning\s+.+)$")).Count
+  $dependencyFailure = $lintOut -match "(?im)(Cannot find package|Cannot find module|ERR_MODULE_NOT_FOUND|npm error code E(?:NOENT|MODULE))"
+  $lintOk = ($lintExit -eq 0 -and $warnCount -eq 0)
+  $lintClass = if ($dependencyFailure) { "dependency_error" } elseif ($lintExit -ne 0) { "lint_error" } else { "lint_clean" }
+  $lintDetail = "class=$lintClass exit=$lintExit warnings~=$warnCount (marktreif verlangt 0)"
 } catch { $lintDetail = "error: $($_.Exception.Message)" }
 Add-Result "lint-zero-warnings" $lintOk $lintDetail
 

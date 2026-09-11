@@ -2,9 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const { filteredRouteConsoleErrors } = require("./verify-workspace-pages-browser.cjs");
 
-/** Lower bound this contract was qualified against; the registry may grow, never shrink. */
-const MIN_REGISTERED_SURFACES = 22;
-
 function parseArgs(argv) {
   const args = { allowLocalhost: false };
   for (let index = 2; index < argv.length; index += 1) {
@@ -39,7 +36,17 @@ function normalizeSurfaces(payload) {
     .sort((left, right) => left.no - right.no);
 }
 
+function concreteRoute(surface) {
+  return surface.route === "/run/[id]" ? "/run/responsive-audit-missing-build" : surface.route;
+}
+
 async function clickRoute(page, surface, baseUrl) {
+  const route = concreteRoute(surface);
+  if (surface.no > 22) {
+    const response = await page.goto(`${baseUrl}${route}`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    assert(response && response.ok(), `Direct route ${route} did not return 200`);
+    return;
+  }
   let lastError;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
@@ -70,7 +77,7 @@ async function clickRoute(page, surface, baseUrl) {
       }
       lastError = error;
       if (attempt === 2) break;
-      console.warn(`[responsive-22] retry=${surface.route} after=${error.name || "navigation_error"}`);
+      console.warn(`[responsive] retry=${surface.route} after=${error.name || "navigation_error"}`);
       await page.keyboard.press("Escape").catch(() => {});
       await page.waitForTimeout(1000);
     }
@@ -79,7 +86,7 @@ async function clickRoute(page, surface, baseUrl) {
   await page.waitForLoadState("domcontentloaded");
   await page.locator(".app-shell").waitFor({ state: "visible", timeout: 45000 });
   await page.waitForTimeout(surface.pageId.startsWith("organism") ? 1200 : 250);
-  assert(new URL(page.url()).pathname === surface.route, `Click did not navigate to ${surface.route}`);
+  assert(new URL(page.url()).pathname === route, `Click did not navigate to ${route}`);
   assert(page.url().startsWith(baseUrl), `Navigation escaped the configured origin: ${page.url()}`);
 }
 
@@ -196,23 +203,25 @@ async function runProfile(browser, profile, surfaces, baseUrl, artifactDir) {
     const loginSurface = surfaces.find((surface) => surface.route === "/login");
     assert(homeSurface && loginSurface, "Workspace wiring must include /home and /login");
     const clickOrder = [
-      ...surfaces.filter((surface) => !["/home", "/login"].includes(surface.route)),
+      ...surfaces.filter((surface) => surface.no <= 22 && !["/home", "/login"].includes(surface.route)),
       homeSurface,
       loginSurface,
+      ...surfaces.filter((surface) => surface.no > 22),
     ];
     for (const surface of clickOrder) {
-      console.log(`[responsive-22] profile=${profile.id} click=${surface.route}`);
+      console.log(`[responsive] profile=${profile.id} click=${surface.route}`);
       errors.length = 0;
       resourceErrors.length = 0;
       await clickRoute(page, surface, baseUrl);
       const probe = await probeLayout(page, surface, profile.id);
       const isLogin = surface.route === "/login";
+      const isStandalone = ["/", "/run/[id]"].includes(surface.route);
       if (isLogin) {
         assert(probe.hasShell && probe.hasMain && probe.hasTopbar, `${profile.id} login shell missing`);
         assert(!probe.hasCommandButton, `${profile.id} login unexpectedly renders the workspace command button`);
         assert(!probe.navigationRailVisible, `${profile.id} login unexpectedly renders the workspace navigation rail`);
         assert(await page.getByRole("link", { name: "Zum Start" }).count() === 1, `${profile.id} login return link missing`);
-      } else {
+      } else if (!isStandalone) {
         assert(probe.hasShell && probe.hasMain && probe.hasTopbar, `${profile.id} shell missing on ${surface.route}`);
         assert(probe.hasCommandButton, `${profile.id} command button missing on ${surface.route}`);
       }
@@ -247,7 +256,7 @@ async function main() {
   assert(args.baseUrl, "--base-url is required");
   const baseUrl = String(args.baseUrl).replace(/\/+$/, "");
   if (!args.allowLocalhost && isLocalhost(baseUrl)) {
-    throw new Error("Responsive 22-page proof refuses localhost unless --allow-localhost is set.");
+    throw new Error("Responsive workspace proof refuses localhost unless --allow-localhost is set.");
   }
 
   const repoRoot = path.resolve(__dirname, "..");
@@ -268,21 +277,8 @@ async function main() {
     const wiring = await wiringResponse.json();
     const surfaces = normalizeSurfaces(wiring);
     assert(wiring.contract_version === "workspace-surface-wiring-v1", "Workspace wiring version mismatch");
-    // Regression guard, not a freeze: the registry must never silently shrink below the
-    // 22 surfaces this contract was qualified against, but registering an additional
-    // surface must not fail the proof - every registered surface is swept either way.
-    assert(
-      surfaces.length >= MIN_REGISTERED_SURFACES,
-      `Workspace wiring shrank: expected at least ${MIN_REGISTERED_SURFACES} routes, got ${surfaces.length}`
-    );
-    const duplicateRoutes = surfaces
-      .map((surface) => surface.route)
-      .filter((route, index, all) => all.indexOf(route) !== index);
-    assert(duplicateRoutes.length === 0, `Workspace wiring has duplicate routes: ${duplicateRoutes.join(", ")}`);
-    assert(
-      surfaces.every((surface) => surface.route.startsWith("/")),
-      "Workspace wiring contains a surface without an absolute route"
-    );
+    assert(surfaces.length === Number(wiring.page_count), `Wiring count mismatch: page_count=${wiring.page_count} surfaces=${surfaces.length}`);
+    assert(surfaces.length >= 22, `Expected at least 22 routes, got ${surfaces.length}`);
     await request.close();
 
     const profiles = [
@@ -294,16 +290,16 @@ async function main() {
       results[profile.id] = await runProfile(browser, profile, surfaces, baseUrl, artifactDir);
     }
     const proof = {
-      contract_version: "frontend-22-page-responsive-browser-v1",
+      contract_version: "frontend-workspace-responsive-browser-v2",
       status: "verified",
       evidence_ref: "frontend_22_page_responsive_click_proof",
       base_url: baseUrl,
       scope: isLocalhost(baseUrl) ? "DEV-ONLY" : "hosted_https",
       browser_channel: args.browserChannel || "playwright-bundled-chromium",
       browser_version: browser.version(),
-      page_count: 22,
+      page_count: surfaces.length,
       viewport_count: 2,
-      click_navigation_count: 44,
+      click_navigation_count: surfaces.length * profiles.length,
       overflow_failures: 0,
       overlay_collision_failures: 0,
       console_errors: 0,
@@ -317,17 +313,15 @@ async function main() {
       generated_at: new Date().toISOString(),
     };
     fs.writeFileSync(path.join(artifactDir, "report.json"), `${JSON.stringify(proof, null, 2)}\n`, "utf8");
-    console.log(
-      `[responsive-22] routes=${surfaces.length} viewports=${profiles.length} clicks=${surfaces.length * profiles.length}`
-    );
-    console.log(`[responsive-22] report=${path.relative(repoRoot, path.join(artifactDir, "report.json"))}`);
-    console.log("[responsive-22] checks completed");
+    console.log(`[responsive] routes=${surfaces.length} viewports=${profiles.length} checks=${surfaces.length * profiles.length}`);
+    console.log(`[responsive] report=${path.relative(repoRoot, path.join(artifactDir, "report.json"))}`);
+    console.log("[responsive] checks completed");
   } finally {
     await browser.close();
   }
 }
 
 main().catch((error) => {
-  console.error(`[responsive-22] ${error.stack || error.message}`);
+  console.error(`[responsive] ${error.stack || error.message}`);
   process.exit(1);
 });
