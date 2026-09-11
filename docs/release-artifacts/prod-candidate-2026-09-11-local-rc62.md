@@ -1,4 +1,4 @@
-# Release Artifact — local RC62 qualification in progress
+# Release Artifact — local RC62 no-credit qualification
 
 release_id: `prod-candidate-2026-09-11-local-rc62`
 scope: `no-credit requalification of S15, the precise run-detail browser successor to S14 on current chore/repo-bootstrap`
@@ -12,10 +12,10 @@ source_archive_sha256: `22a6083470db47f9691993e86b6a9a11581baebe458f7c0fc534892b
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34642197931`
 exact_head_ci_attestation: `docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-evidence/ci/exact-head-ci-attestation.json`
 pipeline_status: `success; Q16 is the workflow head and S15 is the immutable source checkout; failed=0; skipped=0`
-local_validation_status: `candidate images and candidate-runtime Playwright proof verified; runtime/browser chains remain pending`
+local_validation_status: `all five independent local chains passed: runtime, browser, candidate images, candidate runtime, security`
 security_validation: `passed committed-S15 archive scan; no secret output`
 smoke_result: `one local candidate diagnostic selection and click passed; hosted parity is not claimed`
-observability_check: `candidate read-only contract and local diagnostics verified; runtime/browser evidence binding remains pending`
+observability_check: `candidate read-only contract, local diagnostics, runtime, and browser evidence are hash-bound`
 rollback_note: `RC59/S12 remains the local rollback anchor; no hosted rollback is authorized`
 rollback_target_commit_sha: `005ddb46f572520ac182c4f08cc177f07dfe1ae8`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:63c854867cb1082c209718b64fddcbb52e5dd99b`
@@ -63,9 +63,10 @@ evidence chains pass.
 
 ## Qualification boundary
 
-This is a DEV-ONLY no-credit candidate requalification with two explicit Owner
-blocks, not a hosted or production claim. Runtime and browser evidence chains
-and their hashes remain required before this candidate is final.
+This is a completed DEV-ONLY no-credit candidate requalification with two
+explicit Owner blocks, not a hosted or production claim. All five independent
+local chains are hash-bound. The sole provider-bearing browser run used exactly
+three allowed provider responses and was not retried.
 
 - `DEV-ONLY; hosted proof still blocked.`
 - This artifact does not claim a production rollout.
