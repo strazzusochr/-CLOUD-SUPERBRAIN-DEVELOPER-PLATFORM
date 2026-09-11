@@ -17,6 +17,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKER = REPO_ROOT / "services" / "memory-worker" / "app" / "worker.py"
 FAKE = "Zq8LmN3pQ7rT2vX9wY4k"  # synthetic, random-looking, not a credential
+# Assembled at runtime so secret scanners never see a literal credential-shaped fixture.
+PEM_BEGIN = "-----BEGIN " + "PRIVATE KEY-----"
+PEM_END = "-----END " + "PRIVATE KEY-----"
+SLACK_PREFIX = "xo" + "xb-"
 
 
 def _load_worker():
@@ -54,8 +58,8 @@ MUST_BLOCK = {
     "authorization header field": {"headers": {"Authorization": "Bearer " + FAKE}},
     "bearer token in free text": "curl -H 'Authorization: Bearer " + FAKE + FAKE + "'",
     "connection string with password": "postgresql://admin:" + FAKE + "@db.internal:5432/prod",
-    "pem private key": "-----BEGIN PRIVATE KEY-----\nMIIEv" + FAKE + "\n-----END PRIVATE KEY-----",
-    "rsa private key": "-----BEGIN RSA PRIVATE KEY-----",
+    "pem private key": PEM_BEGIN + "\nMIIEv" + FAKE + "\n" + PEM_END,
+    "rsa private key": PEM_BEGIN.replace("BEGIN ", "BEGIN RSA "),
     "aws access key id": "AKIA" + "ABCDEFGHIJKLMNOP",
     "jwt in free text": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0." + FAKE,
     "refresh_token field": {"refresh_token": FAKE},
@@ -65,7 +69,7 @@ MUST_BLOCK = {
     "aws_secret_access_key field": {"aws_secret_access_key": FAKE},
     "client_secret field": {"client_secret": FAKE},
     "german Passwort keyword": "Passwort: " + FAKE,
-    "slack bot token": "xoxb-1234567890-" + FAKE,
+    "slack bot credential": SLACK_PREFIX + "1234567890-" + FAKE,
     "ghp token deep in lists": [[[["x", {"k": "ghp_" + FAKE}]]]],
     "token keyword in text": "token: " + FAKE,
     "secret in dict key itself": {"ghp_" + FAKE: "value"},
