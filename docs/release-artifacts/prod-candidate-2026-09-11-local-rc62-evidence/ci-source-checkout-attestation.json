@@ -1,0 +1,27 @@
+{
+  "binding_mode": "source_checkout_attestation_v1",
+  "candidate_sha": "63c854867cb1082c209718b64fddcbb52e5dd99b",
+  "checked_out_sha": "63c854867cb1082c209718b64fddcbb52e5dd99b",
+  "contract_version": "pr-check-source-checkout-attestation-v1",
+  "control_delta": [
+    "docs/runtime-state/source-qualification-control.json"
+  ],
+  "control_sha": "f3faff1d96aeb56d89b122cb0b4069e4c1618e7f",
+  "event_name": "workflow_dispatch",
+  "github_actions_artifact_upload": true,
+  "non_claims": [
+    "This attestation proves only the exact source checkout boundary for this CI run.",
+    "This attestation does not convert DEV-ONLY evidence into hosted proof.",
+    "This attestation does not claim GHCR publication, production deployment, release promotion, or Owner approval."
+  ],
+  "production_deploy": false,
+  "ref": "refs/heads/codex/rc62-requalify-26-page-fix",
+  "registry_publish": false,
+  "release_promotion": false,
+  "run_attempt": 1,
+  "run_id": 34642197931,
+  "run_sha": "f3faff1d96aeb56d89b122cb0b4069e4c1618e7f",
+  "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34642197931",
+  "secret_output": false,
+  "source_prequalification": true
+}

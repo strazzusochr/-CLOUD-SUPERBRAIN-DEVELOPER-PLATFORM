@@ -1,0 +1,55 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 537B 0.0s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B 0.0s done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [1/7] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#5 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.0s done
+#5 DONE 0.1s
+
+#4 [internal] load build context
+#4 transferring context: 95.91kB 0.1s done
+#4 DONE 0.1s
+
+#6 [2/7] WORKDIR /app
+#6 CACHED
+
+#7 [6/7] COPY services/llm-gateway/app ./app
+#7 CACHED
+
+#8 [3/7] RUN apk upgrade --no-cache
+#8 CACHED
+
+#9 [4/7] COPY services/llm-gateway/requirements.txt .
+#9 CACHED
+
+#10 [5/7] RUN pip install --no-cache-dir -r requirements.txt
+#10 CACHED
+
+#11 [7/7] RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 0.0s done
+#12 exporting manifest sha256:d6902747a3ba6b06dfbb9cb5e27a06efc58c2122666a127648eb58970f83e1ff 0.1s done
+#12 exporting config sha256:1959ec97d824b9b8da1fe47038c522ed30bf00c14ab7672802b045551cdc2fad 0.0s done
+#12 exporting attestation manifest sha256:cad6cc1035c0d842aa3decbed52757837ca8a6a0e2640bfd041c1584f45276bd 0.1s done
+#12 exporting manifest list sha256:c89bed4e18109d977d89a3a91f7726fd83bd75633b07f8c8e5209d0e885ea32b
+#12 exporting manifest list sha256:c89bed4e18109d977d89a3a91f7726fd83bd75633b07f8c8e5209d0e885ea32b 0.1s done
+#12 naming to docker.io/cloud-superbrain-production-candidate/llm-gateway:63c854867cb1082c209718b64fddcbb52e5dd99b 0.0s done
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/llm-gateway:63c854867cb1082c209718b64fddcbb52e5dd99b 0.0s done
+#12 DONE 0.5s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/cgfov1qk6zoky3cglu5ssqxjr

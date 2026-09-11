@@ -1,0 +1,54 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 824B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B done
+#3 DONE 0.0s
+
+#4 [1/8] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#4 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.1s done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 93.19kB 0.1s done
+#5 DONE 0.1s
+
+#6 [2/8] WORKDIR /app
+#6 CACHED
+
+#7 [5/8] RUN pip install --no-cache-dir -r requirements.txt
+#7 CACHED
+
+#8 [6/8] COPY services/mcp-gateway/app ./app
+#8 CACHED
+
+#9 [3/8] RUN apk upgrade --no-cache
+#9 CACHED
+
+#10 [4/8] COPY services/mcp-gateway/requirements.txt .
+#10 CACHED
+
+#11 [7/8] COPY docs/project-progress.manifest.json /app/readonly/project-progress.manifest.json
+#11 CACHED
+
+#12 [8/8] RUN adduser -D -u 10001 appuser     && chown -R appuser:appuser /app /tmp     && chown -R root:root /app/readonly     && chmod 0555 /app/readonly     && chmod 0444 /app/readonly/project-progress.manifest.json
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers 0.0s done
+#13 exporting manifest sha256:40e20c6bb331e0d075ed04da78fce6c537e0ce7cc460c2fc1ba4e41f998db458 0.0s done
+#13 exporting config sha256:9b926217720983d1016df43c14038e714482a5cc4b96410a2c506adc7c865a82 0.0s done
+#13 exporting attestation manifest sha256:2bbb140203460420581a27c7415b4f77b657fb87a603bb8de3c8ba0f00f004d2 0.0s done
+#13 exporting manifest list sha256:a63ef191660c0e9c234df31daf51bd9ad76d7cebf6c8661c1c340fbf4c2c1912 0.0s done
+#13 naming to docker.io/cloud-superbrain-production-candidate/mcp-gateway:63c854867cb1082c209718b64fddcbb52e5dd99b
+#13 naming to docker.io/cloud-superbrain-production-candidate/mcp-gateway:63c854867cb1082c209718b64fddcbb52e5dd99b done
+#13 unpacking to docker.io/cloud-superbrain-production-candidate/mcp-gateway:63c854867cb1082c209718b64fddcbb52e5dd99b 0.0s done
+#13 DONE 0.4s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/au4i0qq3lpuw3rdluxlfzdb1e
