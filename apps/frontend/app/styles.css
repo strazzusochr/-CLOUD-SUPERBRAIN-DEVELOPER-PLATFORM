@@ -3041,11 +3041,14 @@ p {
 .ai-builder .ab-input:focus { outline: none; border-color: rgba(43,209,254,0.55); }
 .ai-builder .ab-go { white-space: nowrap; font-size: 15px; padding: 0 22px; min-width: 130px; }
 .ai-builder .ab-examples { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.ai-builder .ab-chip {
+.ai-builder .ab-chip,
+.workbench-studio .ab-chip {
   background: rgba(43,209,254,0.08); border: 1px solid rgba(43,209,254,0.2); color: var(--text-dim, #b9cbe0);
   border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; transition: all .15s;
 }
-.ai-builder .ab-chip:hover { background: rgba(43,209,254,0.16); color: var(--text, #e8f0fb); }
+.ai-builder .ab-chip:hover,
+.workbench-studio .ab-chip:hover { background: rgba(43,209,254,0.16); color: var(--text, #e8f0fb); }
+.workbench-studio .ab-chip:disabled { opacity: 0.5; cursor: not-allowed; }
 .ai-builder .ab-loading { display: flex; gap: 14px; align-items: center; padding: 24px; }
 .ai-builder .ab-spinner {
   width: 28px; height: 28px; border-radius: 50%; border: 3px solid rgba(43,209,254,0.2);
