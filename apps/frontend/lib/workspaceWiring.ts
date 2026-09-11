@@ -333,7 +333,7 @@ export const WORKSPACE_WIRING: WorkspaceSurfaceWiring[] = [
     brainRegion: "hippocampus",
     hub: "observe",
     primaryMode: "inspect",
-    dataSources: ["/api/v1/build/{id}", "/api/v1/audit/recent"],
+    dataSources: ["/api/v1/build/{build_id}", "/api/v1/audit/recent"],
     verifierRefs: [...commonVerifierRefs, "scripts/verify-product-acceptance.ps1"],
     eventKinds: ["executing", "verifying", "blocked"],
     live: false,

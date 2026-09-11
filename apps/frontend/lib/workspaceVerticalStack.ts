@@ -43,8 +43,8 @@ export function workspaceVerticalStackContract() {
       ui: {
         route: surface.route,
         componentPath: routeToComponentPath(surface.route),
-        shellRequired: true,
-        activeRailRequired: true,
+        shellRequired: surface.pageId !== "run-detail",
+        activeRailRequired: (surface.no <= 22 && surface.pageId !== "login") || surface.pageId === "organism-live",
       },
       api: {
         contracts: apiContracts,

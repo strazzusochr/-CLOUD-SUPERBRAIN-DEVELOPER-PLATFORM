@@ -119,7 +119,7 @@ Assert-NoSecretPattern "runtime readiness contract" $contract
 Assert-True "readiness contract version" ($readiness.contract_version -eq "go-live-readiness-v1")
 Assert-True "readiness status supported" (@("blocked_external_gates", "ready_for_owner_cloud_execution") -contains [string]$readiness.status)
 Assert-True "overall percent parity" ([int]$readiness.overall_percent -eq $expectedOverall)
-Assert-True "workspace page count" ([int]$readiness.workspace_page_count -eq 22)
+Assert-True "workspace page count" ([int]$readiness.workspace_page_count -eq 26)
 Assert-True "cloud layer count" ([int]$readiness.cloud_layer_total_count -eq 7)
 Assert-True "external audit required" ($readiness.external_audit_required -eq $true)
 Assert-True "owner activation plan-only" ($readiness.owner_activation.default_mode -eq "PlanOnly")

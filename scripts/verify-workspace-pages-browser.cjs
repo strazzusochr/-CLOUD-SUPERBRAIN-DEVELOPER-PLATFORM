@@ -23,7 +23,8 @@ function isLocalhost(url) {
 }
 
 function routeUrl(baseUrl, route) {
-  return `${baseUrl}${route.startsWith("/") ? route : `/${route}`}`;
+  const concreteRoute = route === "/run/[id]" ? "/run/workspace-audit-missing-build" : route;
+  return `${baseUrl}${concreteRoute.startsWith("/") ? concreteRoute : `/${concreteRoute}`}`;
 }
 
 function screenshotName(page) {
@@ -188,20 +189,22 @@ async function main() {
   try {
     const workspaceWiring = await fetchJson(page, `${baseUrl}/api/v1/workspace/wiring`, "workspace wiring");
     assert(workspaceWiring.contract_version === "workspace-surface-wiring-v1", "Workspace wiring contract version mismatch.");
-    assert(workspaceWiring.page_count === 22, `Workspace wiring page_count mismatch: ${workspaceWiring.page_count}`);
+    assert(workspaceWiring.page_count === 26, `Workspace wiring page_count mismatch: ${workspaceWiring.page_count}`);
     const surfaces = normalizeSurfaces(workspaceWiring);
-    assert(surfaces.length === 22, `Expected 22 workspace surfaces, got ${surfaces.length}.`);
+    assert(surfaces.length === 26, `Expected 26 workspace surfaces, got ${surfaces.length}.`);
 
     const referenceContract = await fetchJson(page, `${baseUrl}/api/v1/design/reference-contract`, "reference design");
     assert(referenceContract.contract_version === "reference-design-conformance-v1", "Reference design contract version mismatch.");
     assert(referenceContract.page_count === 22, `Reference design page_count mismatch: ${referenceContract.page_count}`);
 
     const expectedNumbers = surfaces.map((surface) => surface.no).join(",");
-    assert(expectedNumbers === "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22", `Workspace page numbers are not contiguous: ${expectedNumbers}`);
+    assert(expectedNumbers === "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26", `Workspace page numbers are not contiguous: ${expectedNumbers}`);
+    const expectedPageIds = surfaces.map((surface) => surface.pageId).join(",");
+    assert(expectedPageIds === "home,login,workbench,organism,organism-replay,organism-map,agents,files,files-local,tools,marketplace,observe,games,apps,media,docs-output,evidence,diagnostics,design-system,stack,settings,open-source,landing,organism-live,responsive,run-detail", `Workspace page ids are not in the expected sequence: ${expectedPageIds}`);
     const routeSet = new Set(surfaces.map((surface) => surface.route));
-    assert(routeSet.size === 22, "Workspace routes are not unique.");
+    assert(routeSet.size === 26, "Workspace routes are not unique.");
     const pageIdSet = new Set(surfaces.map((surface) => surface.pageId));
-    assert(pageIdSet.size === 22, "Workspace page ids are not unique.");
+    assert(pageIdSet.size === 26, "Workspace page ids are not unique.");
 
     const pages = [];
     for (const surface of surfaces) {
@@ -268,12 +271,27 @@ async function main() {
         };
       }, surface);
 
-      assert(probe.hasShell, `Missing app shell on ${surface.route}`);
-      assert(probe.hasMain, `Missing main region on ${surface.route}`);
-      assert(probe.hasTopbar, `Missing topbar on ${surface.route}`);
-      if (surface.pageId !== "login") {
+      const isStandaloneBuild = surface.pageId === "run-detail";
+      const isMarketingShell = ["login", "landing"].includes(surface.pageId);
+      const activeRailRequired = (surface.no <= 22 && surface.pageId !== "login") || surface.pageId === "organism-live";
+      if (isStandaloneBuild) {
+        assert(!probe.hasShell, `Standalone build unexpectedly renders app shell on ${surface.route}`);
+        assert(!probe.hasTopbar, `Standalone build unexpectedly renders topbar on ${surface.route}`);
+      } else {
+        assert(probe.hasShell, `Missing app shell on ${surface.route}`);
+        assert(probe.hasMain, `Missing main region on ${surface.route}`);
+        assert(probe.hasTopbar, `Missing topbar on ${surface.route}`);
+      }
+      if (isMarketingShell) {
+        assert(!probe.hasRail, `Marketing route unexpectedly renders rail on ${surface.route}`);
+        assert(!probe.hasActiveRail, `Marketing route unexpectedly renders active rail item on ${surface.route}`);
+      } else if (!isStandaloneBuild) {
         assert(probe.hasRail, `Missing rail on ${surface.route}`);
-        assert(probe.hasActiveRail, `Missing active rail item on ${surface.route}`);
+        if (activeRailRequired) {
+          assert(probe.hasActiveRail, `Missing active rail item on ${surface.route}`);
+        } else {
+          assert(!probe.hasActiveRail, `Supplemental route unexpectedly activates a canonical rail item on ${surface.route}`);
+        }
       }
       assert(probe.visibleTextLength >= 80, `Route has too little visible text: ${surface.route}`);
       assert(probe.bgDeep.toLowerCase() === "#05070d", `Unexpected bg token on ${surface.route}: ${probe.bgDeep}`);
@@ -323,7 +341,9 @@ async function main() {
         screenshotBytes,
         maxLargePanelRadius: probe.maxLargePanelRadius,
         visibleTextLength: probe.visibleTextLength,
-        activeRail: probe.hasActiveRail || surface.pageId === "login",
+        shellRequired: !isStandaloneBuild,
+        activeRailRequired,
+        activeRail: probe.hasActiveRail,
       });
     }
 
@@ -352,7 +372,7 @@ async function main() {
         unpaidBudgetHidden: true,
       },
       non_claims: [
-        "All 22 canonical routes are browser-smoke-proven only; this is not hosted staging proof.",
+        "All 26 workspace routes are browser-smoke-proven only; this is not hosted staging proof.",
         "Localhost proof remains DEV-ONLY when base_url is localhost.",
         "No cloud mutation, deploy, live provider call, MCP write, or secret output.",
       ],

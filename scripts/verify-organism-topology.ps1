@@ -495,7 +495,7 @@ $expectedCounts = @{
   skill = 10
   cloud_provider = 8
   safety_gate = 8
-  workspace_page = 22
+  workspace_page = 26
 }
 foreach ($kind in $expectedCounts.Keys) {
   Assert-True "node kind count $kind" ([int]$counts[$kind] -eq [int]$expectedCounts[$kind])

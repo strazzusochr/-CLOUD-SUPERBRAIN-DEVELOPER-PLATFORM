@@ -415,7 +415,7 @@ $workspaceVerticalAgentApi = Get-Content -Path "services\agent-api\app\main.py" 
 foreach ($required in @(
   "workspace-vertical-stack-v1",
   "workspace_vertical_stack_visible",
-  "expected_page_count: 22",
+  "expected_page_count: 26",
   "layers_required: 7",
   "ui",
   "api",
@@ -439,7 +439,7 @@ foreach ($required in @("workspaceVerticalStackContract", "/api/v1/workspace/ver
 foreach ($required in @(
   "workspace-vertical-stack-v1",
   "workspace_vertical_stack_visible",
-  "page_count) 22",
+  "page_count) 26",
   "layers_required) 7",
   "directProviderCalls",
   "hostedProofRequiredForRelease",
@@ -786,7 +786,7 @@ foreach ($required in @(
   "workspace-pages-browser-proof-latest.json",
   "workspace-surface-wiring-v1",
   "reference-design-conformance-v1",
-  "page_count === 22",
+  "page_count === 26",
   "gotoWorkspaceRoute",
   "filteredRouteConsoleErrors",
   "isCorrelatedAnonymousAuthConsoleError",
@@ -839,7 +839,7 @@ $workspaceResponsiveRunner = Get-Content -Path "scripts\verify-workspace-respons
 foreach ($required in @(
   "frontend-workspace-responsive-browser-v2",
   "frontend_22_page_responsive_click_proof",
-  "Expected at least 22 routes",
+  "Expected exactly 26 routes",
   "filteredRouteConsoleErrors",
   "response.status() >= 400",
   "click_navigation_count: surfaces.length * profiles.length",
