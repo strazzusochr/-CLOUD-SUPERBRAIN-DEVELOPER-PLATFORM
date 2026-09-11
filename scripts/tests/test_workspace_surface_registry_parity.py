@@ -1,8 +1,14 @@
 """Workspace surface registry parity between backend and frontend.
 
 The surface list exists twice: ORGANISM_PAGES in the agent-api (which feeds
-GET /api/v1/workspace/wiring) and WORKSPACE_PAGES in the frontend (which feeds
-the navigation and the command palette). Nothing enforced that the two agree.
+GET /api/v1/workspace/wiring) and, in the frontend, WORKSPACE_PAGES (navigation
+and command palette) plus the supplemental direct-route pages declared in
+workspaceWiring.ts (landing, organism live, responsive, run detail). Nothing
+enforced that the two sides agree.
+
+Since PR #107 the registry carries 26 surfaces: 22 palette surfaces and 4
+supplemental surfaces that scripts/verify-workspace-responsive-browser.cjs opens
+by direct navigation (``surface.no > 22``). That threshold is also bound here.
 
 When they drift, the runtime breaks in a way that is hard to read: the wiring
 endpoint advertises a surface that the command palette cannot offer, and
@@ -23,6 +29,19 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AGENT_API = REPO_ROOT / "services" / "agent-api" / "app" / "main.py"
 FRONTEND_NAV = REPO_ROOT / "apps" / "frontend" / "lib" / "nav.tsx"
 FRONTEND_WIRING = REPO_ROOT / "apps" / "frontend" / "lib" / "workspaceWiring.ts"
+RESPONSIVE_VERIFIER = REPO_ROOT / "scripts" / "verify-workspace-responsive-browser.cjs"
+
+
+def _parse_nav_items(block: str) -> list[tuple[int, str, str]]:
+    rows: list[tuple[int, str, str]] = []
+    for entry in re.finditer(r"\{[^{}]*\}", block):
+        text = entry.group(0)
+        page_id = re.search(r'id:\s*"([^"]+)"', text)
+        no = re.search(r"no:\s*(\d+)", text)
+        route = re.search(r'route:\s*"([^"]+)"', text)
+        if page_id and no and route:
+            rows.append((int(no.group(1)), page_id.group(1), route.group(1)))
+    return rows
 
 
 def backend_pages() -> list[tuple[int, str, str]]:
@@ -35,23 +54,34 @@ def backend_pages() -> list[tuple[int, str, str]]:
     return [(int(row[0]), str(row[1]), str(row[2])) for row in parsed]
 
 
-def frontend_pages() -> list[tuple[int, str, str]]:
-    """Return (no, id, route) from the frontend WORKSPACE_PAGES literal."""
+def palette_pages() -> list[tuple[int, str, str]]:
+    """Return (no, id, route) from the frontend WORKSPACE_PAGES literal (nav + command palette)."""
     source = FRONTEND_NAV.read_text(encoding="utf-8")
     match = re.search(r"WORKSPACE_PAGES[^=]*=\s*\[(.*?)^\]", source, re.S | re.M)
     if not match:
         raise AssertionError("WORKSPACE_PAGES literal not found in nav.tsx")
-    rows: list[tuple[int, str, str]] = []
-    for entry in re.finditer(r"\{[^{}]*\}", match.group(1)):
-        text = entry.group(0)
-        page_id = re.search(r'id:\s*"([^"]+)"', text)
-        no = re.search(r"no:\s*(\d+)", text)
-        route = re.search(r'route:\s*"([^"]+)"', text)
-        if page_id and no and route:
-            rows.append((int(no.group(1)), page_id.group(1), route.group(1)))
+    rows = _parse_nav_items(match.group(1))
     if not rows:
         raise AssertionError("No WORKSPACE_PAGES entries parsed from nav.tsx")
     return rows
+
+
+def supplemental_pages() -> list[tuple[int, str, str]]:
+    """Return (no, id, route) of direct-route surfaces declared in workspaceWiring.ts."""
+    source = FRONTEND_WIRING.read_text(encoding="utf-8")
+    match = re.search(r"supplementalPages[^=]*=\s*\[(.*?)^\]", source, re.S | re.M)
+    return _parse_nav_items(match.group(1)) if match else []
+
+
+def frontend_pages() -> list[tuple[int, str, str]]:
+    """All surfaces the frontend can resolve: palette pages plus supplemental pages."""
+    return palette_pages() + supplemental_pages()
+
+
+def verifier_palette_threshold() -> int | None:
+    source = RESPONSIVE_VERIFIER.read_text(encoding="utf-8")
+    match = re.search(r"surface\.no\s*>\s*(\d+)", source)
+    return int(match.group(1)) if match else None
 
 
 def wiring_page_ids() -> list[str]:
@@ -125,6 +155,27 @@ class WorkspaceSurfaceRegistryParity(unittest.TestCase):
             if not (app_dir.joinpath(*segments, "page.tsx")).exists():
                 missing.append(route)
         self.assertEqual([], missing, "Registered surfaces without a page.tsx on disk")
+
+
+    def test_palette_pages_are_the_first_contiguous_block(self) -> None:
+        """Palette surfaces must be 1..N, supplemental surfaces must follow after N."""
+        palette = sorted(no for no, _, _ in palette_pages())
+        self.assertEqual(list(range(1, len(palette) + 1)), palette, "WORKSPACE_PAGES numbering must be 1..N")
+        late = [no for no, _, _ in supplemental_pages() if no <= len(palette)]
+        self.assertEqual([], late, "Supplemental surfaces must be numbered after the palette block")
+
+    def test_responsive_verifier_threshold_matches_palette_size(self) -> None:
+        """The browser verifier opens surfaces with no > N directly; N must equal the palette size.
+
+        If a page is added to WORKSPACE_PAGES without moving the threshold, the verifier would
+        silently skip the command-palette proof for it; if a supplemental page were numbered
+        inside the palette block, the verifier would look for it in the palette and fail with
+        "Command palette route is not unique or missing".
+        """
+        threshold = verifier_palette_threshold()
+        if threshold is None:
+            self.skipTest("responsive verifier has no direct-route threshold")
+        self.assertEqual(len(palette_pages()), threshold, "verify-workspace-responsive-browser.cjs palette threshold drifted")
 
 
 if __name__ == "__main__":
