@@ -79,6 +79,7 @@ const EXPECTED_ANONYMOUS_AUTH_PATHS = new Set([
   "/api/v1/auth/me",
   "/api/v1/auth/refresh",
 ]);
+const EXPECTED_RUN_DETAIL_NOT_FOUND_PATH = "/api/v1/build/workspace-audit-missing-build";
 
 function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors) {
   if (surface.pageId !== "login") return false;
@@ -107,9 +108,39 @@ function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resource
   });
 }
 
+function isCorrelatedExpectedRunDetailNotFound(surface, baseUrl, entry, resourceErrors) {
+  if (surface.pageId !== "run-detail") return false;
+  if (!/Failed to load resource: the server responded with a status of 404 \(Not Found\)/.test(entry)) return false;
+  const location = entry.match(/ @ (https?:\/\/\S+):\d+$/);
+  if (!location) return false;
+
+  let consoleUrl;
+  let baseOrigin;
+  try {
+    consoleUrl = new URL(location[1]);
+    baseOrigin = new URL(baseUrl).origin;
+  } catch {
+    return false;
+  }
+  if (consoleUrl.origin !== baseOrigin || consoleUrl.pathname !== EXPECTED_RUN_DETAIL_NOT_FOUND_PATH) return false;
+
+  return resourceErrors.some((resource) => {
+    if (resource.status !== 404 || resource.resourceType !== "fetch") return false;
+    try {
+      const resourceUrl = new URL(resource.url);
+      return resourceUrl.origin === baseOrigin && resourceUrl.pathname === EXPECTED_RUN_DETAIL_NOT_FOUND_PATH;
+    } catch {
+      return false;
+    }
+  });
+}
+
 function filteredRouteConsoleErrors(surface, baseUrl, errors, resourceErrors) {
   return filteredConsoleErrors(errors).filter(
-    (entry) => !isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors),
+    (entry) => (
+      !isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors)
+      && !isCorrelatedExpectedRunDetailNotFound(surface, baseUrl, entry, resourceErrors)
+    ),
   );
 }
 
