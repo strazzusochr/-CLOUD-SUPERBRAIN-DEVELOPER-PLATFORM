@@ -40,6 +40,20 @@ REVIEWS = (
         "Authorization header prefix in the forbidden-output assertion list",
     ),
 )
+# Reviewed synthetic test fixtures that a non-generic rule flags in an immutable commit.
+# Each entry: (commit, path, line, rule, context pattern, sha256 of the captured value, reason).
+FIXTURE_REVIEWS = (
+    (
+        "bdf3673bc7a93dbf981de0af1c9b56c8dea1b5ee",
+        "scripts/tests/test_memory_worker_secret_guard.py",
+        57,
+        "private-key",
+        r'"pem private key": "(-----BEGIN PRIVATE KEY-----)\\nMIIEv" \+ FAKE',
+        "3021d90eb9437b2d8f30e8363695c4418b5e5f1870801b5c317e9398ee0f572d",
+        "PEM header literal in a secret-guard regression fixture; body is a synthetic constant, "
+        "later commits assemble the header at runtime",
+    ),
+)
 
 
 def run(command: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -52,17 +66,21 @@ def require(condition: bool, message: str) -> None:
 
 
 def verify_reviews() -> None:
-    expected = {
-        f"{commit}:{path}:generic-api-key:{line}"
-        for commit, path, line, _pattern, _digest, _reason in REVIEWS
-    }
+    reviewed = [
+        (commit, path, line, "generic-api-key", pattern, digest)
+        for commit, path, line, pattern, digest, _reason in REVIEWS
+    ] + [
+        (commit, path, line, rule, pattern, digest)
+        for commit, path, line, rule, pattern, digest, _reason in FIXTURE_REVIEWS
+    ]
+    expected = {f"{commit}:{path}:{rule}:{line}" for commit, path, line, rule, _pattern, _digest in reviewed}
     entries = [
         line.strip()
         for line in (ROOT / ".gitleaksignore").read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     ]
-    require(len(entries) == 3 and set(entries) == expected, "historical exception set is not exact")
-    for commit, path, line, pattern, digest, _reason in REVIEWS:
+    require(len(entries) == len(reviewed) and set(entries) == expected, "historical exception set is not exact")
+    for commit, path, line, _rule, pattern, digest in reviewed:
         result = run(["git", "show", f"{commit}:{path}"], ROOT)
         require(result.returncode == 0, f"historical review source missing: {path}")
         lines = result.stdout.splitlines()
@@ -92,7 +110,7 @@ def verify_fresh_credentials_are_rejected() -> None:
             require(run(command, repo).returncode == 0, "fixture git setup failed")
         # Synthetic, non-provider-issued detector positive control; never call a provider.
         probe = "ghp_" + "wA9mK2pLxN4vRtQzY6bC8dEfGhJlM0oPq1rS"
-        paths = [review[1] for review in REVIEWS]
+        paths = sorted({review[1] for review in REVIEWS} | {review[1] for review in FIXTURE_REVIEWS})
         for path in paths:
             target = repo / path
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -108,7 +126,7 @@ def verify_fresh_credentials_are_rejected() -> None:
         require(result.returncode == 1, "fresh credential probes were not rejected")
         require(report.is_file(), "negative-probe report missing")
         findings = json.loads(report.read_text(encoding="utf-8"))
-        require(len(findings) == 3, "fresh credential probe count mismatch")
+        require(len(findings) == len(paths), "fresh credential probe count mismatch")
         require({item["File"] for item in findings} == set(paths), "same-path probes were not all detected")
         require(all(item["RuleID"] == "github-pat" for item in findings), "provider credential rule is not active")
         require(all(item["Secret"] == "REDACTED" for item in findings), "probe output was not redacted")
@@ -121,7 +139,13 @@ def main() -> int:
     except (ValueError, OSError, KeyError, json.JSONDecodeError) as exc:
         print(f"[gitleaks-history-exceptions] FAIL: {exc}")
         return 1
-    print("[gitleaks-history-exceptions] PASS exact_historical_prose_exceptions=3 same_path_PAT_rejections=3 secret_output=false")
+    print(
+        "[gitleaks-history-exceptions] PASS "
+        f"exact_historical_prose_exceptions={len(REVIEWS)} "
+        f"reviewed_fixture_exceptions={len(FIXTURE_REVIEWS)} "
+        f"same_path_PAT_rejections={len({review[1] for review in REVIEWS} | {review[1] for review in FIXTURE_REVIEWS})} "
+        "secret_output=false"
+    )
     return 0
 
 
