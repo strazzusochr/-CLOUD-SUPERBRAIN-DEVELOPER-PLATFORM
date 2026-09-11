@@ -2,22 +2,23 @@
 
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-11 — RC62/S15 NO-CREDIT-NEUQUALIFIKATION
 
-### Session 2026-09-11 — S15/Q16 RC62-Quelle qualifiziert, lokale Ketten laufen
+### Session 2026-09-11 — S15/Q16 RC62 no-credit qualifiziert
 
 - **Aktiver Kandidat:** `prod-candidate-2026-09-11-local-rc62`, Source
   `63c854867cb1082c209718b64fddcbb52e5dd99b`, direkter Q16-Kindcommit
   `f3faff1d96aeb56d89b122cb0b4069e4c1618e7f`. Source-CI-Run `34642197931`
   bindet Q16 als Run-Head sowie S15 als unveraenderliche Source.
-- **Lokale Qualifikation:** Sechs lokale Kandidatenimages und Security sind
-  S15-gebunden erzeugt; Runtime, Browser und Candidate-Runtime werden
-  release-scoped neu gebunden. Jede Evidenz bleibt `DEV-ONLY`; Hosted-Paritaet,
-  OAuth-Consent und Production-Rollout werden nicht behauptet.
+- **Lokale Qualifikation:** Die fuenf unabhaengigen S15-Ketten Runtime, Browser,
+  Kandidatenimages, Candidate-Runtime und Security sind release-scoped bestanden
+  und hash-gebunden. Der einzige providertragende Browserlauf blieb bei exakt
+  `3` erlaubten Antworten und wurde nicht wiederholt. Jede Evidenz bleibt
+  `DEV-ONLY`; Hosted-Paritaet, OAuth-Consent und Production-Rollout werden nicht
+  behauptet.
 - **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
   `700/700`, insgesamt `1333/1400` belegt und `67` offen. I1 und I5 bleiben
   blockiert; `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
-- **Naechster Pfad:** Die S15-gebundenen lokalen Ketten und Finalverifier
-  abschliessen; erst danach einen PR gegen `chore/repo-bootstrap` oeffnen.
-  Keine Production-Promotion oder Secret-Ausgabe.
+- **Naechster Pfad:** Finalverifier und PR gegen `chore/repo-bootstrap`;
+  anschliessend nur Review. Keine Production-Promotion oder Secret-Ausgabe.
 
 ## HISTORISCHER CONTROL-CHECKPOINT 2026-09-09 — RC100 RC57/S10 FREEZE-KANDIDAT
 
