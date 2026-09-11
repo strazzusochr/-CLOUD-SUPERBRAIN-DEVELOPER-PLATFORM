@@ -1114,10 +1114,26 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
                 },
             }
         }
+        # The overlay hashes bind the immutable reviewed security patch.  The
+        # repository may legitimately acquire later dependencies, so reading
+        # the mutable working tree here makes this historical guard fail for
+        # unrelated follow-up changes.  Reconstruct the reviewed bytes from
+        # the commit that introduced the overlay and prove the constants still
+        # match those exact bytes.
         overlay_text = {
-            path: (REPO_ROOT / path).read_text(encoding="utf-8")
+            path: verifier.load_git_text(
+                verifier.POST_QUALIFICATION_SECURITY_OVERLAY_REVIEW_COMMIT,
+                path,
+            )
             for path in verifier.POST_QUALIFICATION_SECURITY_OVERLAY_SHA256
         }
+        self.assertEqual(
+            {
+                path: verifier.canonical_text_sha256(text)
+                for path, text in overlay_text.items()
+            },
+            verifier.POST_QUALIFICATION_SECURITY_OVERLAY_SHA256,
+        )
 
         def load_index_json(path: str) -> dict[str, object]:
             return copy.deepcopy(index_package if path.endswith("package.json") else index_lock)
@@ -1143,6 +1159,18 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             self.assert_rejected(
                 lambda: verifier.require_post_qualification_security_overlay("a" * 40),
                 "package.json changed outside the exact Next.js and sharp patch",
+            )
+
+        tampered_text = dict(overlay_text)
+        tampered_text["apps/frontend/package-lock.json"] += "\n"
+        with (
+            patch.object(verifier, "load_git_json", return_value=source_package),
+            patch.object(verifier, "load_index_json", side_effect=load_index_json),
+            patch.object(verifier, "load_index_text", side_effect=lambda path: tampered_text[path]),
+        ):
+            self.assert_rejected(
+                lambda: verifier.require_post_qualification_security_overlay("a" * 40),
+                "security-overlay bytes differ from the reviewed patch",
             )
 
     def test_candidate_runtime_accepts_only_exact_no_credit_requalification_truth(self) -> None:
