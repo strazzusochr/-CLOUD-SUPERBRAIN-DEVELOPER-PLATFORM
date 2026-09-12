@@ -278,7 +278,9 @@ foreach ($requiredNoCreditGuard in @(
   'NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS',
   'def require_no_credit_requalification(',
   'phase5_credit_projection(index_itemization) == phase5_credit_projection(source_itemization)',
-  'external_gate_truth_projection(index_external) == external_gate_truth_projection(source_external)',
+  'require_external_gate_truth_contract(source_payload, "source")',
+  'require_external_gate_truth_contract(index_payload, "index")',
+  'external_gate_truth_projection(index_payload) == external_gate_truth_projection(source_payload)',
   'snapshot.get("/api/v1/project/progress") == index_manifest',
   'runtime_source_parity_mode=no_credit_requalification',
   'progress_credit_changed=false'
