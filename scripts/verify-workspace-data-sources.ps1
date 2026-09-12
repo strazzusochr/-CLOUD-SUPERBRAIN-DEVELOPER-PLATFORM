@@ -86,9 +86,10 @@ $modelRuntime = Invoke-Json "$BaseUrl/api/v1/models/capabilities"
 $modelContract = Invoke-Json "$BaseUrl/api/v1/models/capabilities/contract"
 
 Assert-Equal "wiring contract" $wiring.contract_version "workspace-surface-wiring-v1"
-Assert-Equal "wiring page count" ([int]$wiring.page_count) 22
+Assert-Equal "wiring page count" ([int]$wiring.page_count) 26
 Assert-Equal "vertical contract" $vertical.contract_version "workspace-vertical-stack-v1"
-Assert-Equal "vertical page count" ([int]$vertical.page_count) 22
+Assert-Equal "vertical page count" ([int]$vertical.page_count) 26
+Assert-Equal "vertical expected page count" ([int]$vertical.expected_page_count) 26
 Assert-Equal "topology contract" $topology.contract_version "organism-topology-v1"
 Assert-Equal "local files contract" $filesLocal.contract_version "local-files-readonly-contract-v1"
 Assert-Equal "local files endpoint" $filesLocal.endpoint "GET /api/v1/files/local/contract"
@@ -117,8 +118,19 @@ Assert-Contains "topology runtime local files contract" $topologyJson "/api/v1/f
 
 $surfaces = @($wiring.surfaces)
 $stacks = @($vertical.stacks)
-Assert-Equal "surface count" $surfaces.Count 22
-Assert-Equal "stack count" $stacks.Count 22
+$expectedPageIds = @(
+  "home", "login", "workbench", "organism", "organism-replay", "organism-map", "agents",
+  "files", "files-local", "tools", "marketplace", "observe", "games", "apps", "media",
+  "docs-output", "evidence", "diagnostics", "design-system", "stack", "settings", "open-source",
+  "landing", "organism-live", "responsive", "run-detail"
+)
+$expectedPageNumbers = 1..26
+Assert-Equal "surface count" $surfaces.Count 26
+Assert-Equal "stack count" $stacks.Count 26
+Assert-Equal "surface page id sequence" (($surfaces | ForEach-Object { [string]$_.pageId }) -join ",") ($expectedPageIds -join ",")
+Assert-Equal "stack page id sequence" (($stacks | ForEach-Object { [string]$_.pageId }) -join ",") ($expectedPageIds -join ",")
+Assert-Equal "surface page number sequence" (($surfaces | ForEach-Object { [int]$_.no }) -join ",") ($expectedPageNumbers -join ",")
+Assert-Equal "stack page number sequence" (($stacks | ForEach-Object { [int]$_.no }) -join ",") ($expectedPageNumbers -join ",")
 
 $stackByPage = @{}
 foreach ($stack in $stacks) {

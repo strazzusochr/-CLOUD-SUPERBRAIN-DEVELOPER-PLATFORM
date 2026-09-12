@@ -462,7 +462,7 @@ Assert-Contains "go-live readiness external verifier" $goLiveReadinessContract "
 $goLiveReadinessRuntime = Invoke-Text "$BaseUrl/api/v1/clouds/go-live-readiness"
 Assert-Contains "go-live readiness runtime version" $goLiveReadinessRuntime '"contract_version":"go-live-readiness-v1"'
 Assert-Contains "go-live readiness evidence" $goLiveReadinessRuntime '"evidence_ref":"go_live_readiness_contract_visible"'
-Assert-Contains "go-live readiness workspace count" $goLiveReadinessRuntime '"workspace_page_count":22'
+Assert-Contains "go-live readiness workspace count" $goLiveReadinessRuntime '"workspace_page_count":26'
 Assert-Contains "go-live readiness cloud layers" $goLiveReadinessRuntime '"cloud_layer_total_count":7'
 if ($AllowLocalhost) {
   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-go-live-readiness.ps1 -BaseUrl $BaseUrl -AllowLocalhost
@@ -772,7 +772,7 @@ Assert-Contains "organism contract version" $organismContract '"contract_version
 Assert-Contains "organism contract topology related" $organismContract '"/api/v1/organism/topology"'
 Assert-Contains "organism contract safety related" $organismContract '"/api/v1/organism/safety"'
 Assert-Contains "organism contract workspace wiring related" $organismContract '"/api/v1/workspace/wiring"'
-Assert-Contains "organism contract workspace page count" $organismContract '"workspace_page_count":22'
+Assert-Contains "organism contract workspace page count" $organismContract '"workspace_page_count":26'
 $phase6CameraLightingContract = Invoke-Text "$BaseUrl/api/v1/phase6/3d-camera-lighting/contract"
 Assert-Contains "phase6 camera lighting contract version" $phase6CameraLightingContract '"contract_version":"phase6-3d-camera-lighting-runtime-v1"'
 Assert-Contains "phase6 camera lighting evidence" $phase6CameraLightingContract '"evidence_ref":"phase6_3d_camera_lighting_runtime_visible"'
@@ -884,7 +884,7 @@ if ($LASTEXITCODE -ne 0) {
 $workspaceWiring = Invoke-Text "$BaseUrl/api/v1/workspace/wiring"
 Assert-Contains "workspace wiring version" $workspaceWiring '"contract_version":"workspace-surface-wiring-v1"'
 Assert-Contains "workspace wiring evidence" $workspaceWiring '"evidence_ref":"workspace_surface_wiring_visible"'
-Assert-Contains "workspace wiring page count" $workspaceWiring '"page_count":22'
+Assert-Contains "workspace wiring page count" $workspaceWiring '"page_count":26'
 Assert-Contains "workspace wiring home surface" $workspaceWiring '"pageId":"home"'
 Assert-Contains "workspace wiring workbench surface" $workspaceWiring '"pageId":"workbench"'
 Assert-Contains "workspace wiring organism surface" $workspaceWiring '"pageId":"organism"'

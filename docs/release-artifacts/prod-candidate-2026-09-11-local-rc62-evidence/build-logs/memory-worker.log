@@ -1,0 +1,51 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 544B 0.0s done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B 0.0s done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#4 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 14.17kB 0.1s done
+#5 DONE 0.1s
+
+#6 [4/7] COPY services/memory-worker/requirements.txt .
+#6 CACHED
+
+#7 [5/7] RUN pip install --no-cache-dir -r requirements.txt
+#7 CACHED
+
+#8 [6/7] COPY services/memory-worker/app ./app
+#8 CACHED
+
+#9 [2/7] WORKDIR /app
+#9 CACHED
+
+#10 [3/7] RUN apk upgrade --no-cache
+#10 CACHED
+
+#11 [7/7] RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers 0.0s done
+#12 exporting manifest sha256:cd9f864334825ac9af10898d97014962ed5d5ff20b8e015bce8a4dc4e6e01328 0.0s done
+#12 exporting config sha256:2d29ab4aa424260fdd85999907cc51e38c4f47ba73772a9bc3f179061dbf490e 0.0s done
+#12 exporting attestation manifest sha256:e35392d84ca1036e7a38400905cbf86eb0a9d31d977b4eb3bd619c1c8af145d7 0.0s done
+#12 exporting manifest list sha256:593f44077da31772489cad2346f353605ee779307686aba856148993d18bb6ff
+#12 exporting manifest list sha256:593f44077da31772489cad2346f353605ee779307686aba856148993d18bb6ff 0.1s done
+#12 naming to docker.io/cloud-superbrain-production-candidate/memory-worker:63c854867cb1082c209718b64fddcbb52e5dd99b done
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/memory-worker:63c854867cb1082c209718b64fddcbb52e5dd99b 0.0s done
+#12 DONE 0.4s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/tzma8y88oed5ucm6bg7pttgmk

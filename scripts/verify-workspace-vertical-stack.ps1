@@ -123,8 +123,10 @@ foreach ($stack in $stackItems) {
   Assert-True "unique route $($stack.route)" $seenRoutes.Add([string]$stack.route)
 
   Assert-Equal "$pageId ui route" ([string]$stack.ui.route) ([string]$stack.route)
-  Assert-True "$pageId shell required" ($stack.ui.shellRequired -eq $true)
-  Assert-True "$pageId active rail required" ($stack.ui.activeRailRequired -eq $true)
+  $expectedShellRequired = $pageId -ne "run-detail"
+  $expectedActiveRailRequired = (([int]$stack.no -le 22) -and ($pageId -ne "login")) -or ($pageId -eq "organism-live")
+  Assert-Equal "$pageId shell requirement" ([bool]$stack.ui.shellRequired) $expectedShellRequired
+  Assert-Equal "$pageId active rail requirement" ([bool]$stack.ui.activeRailRequired) $expectedActiveRailRequired
   Assert-True "$pageId component path" ([string]$stack.ui.componentPath).StartsWith("apps/frontend/app/")
   Assert-True "$pageId component page file" ([string]$stack.ui.componentPath).EndsWith("/page.tsx")
   $componentPath = Join-Path $repoRoot (([string]$stack.ui.componentPath) -replace "/", "\")

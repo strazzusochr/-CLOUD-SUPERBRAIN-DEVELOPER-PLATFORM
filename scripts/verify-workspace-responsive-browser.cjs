@@ -278,7 +278,7 @@ async function main() {
     const surfaces = normalizeSurfaces(wiring);
     assert(wiring.contract_version === "workspace-surface-wiring-v1", "Workspace wiring version mismatch");
     assert(surfaces.length === Number(wiring.page_count), `Wiring count mismatch: page_count=${wiring.page_count} surfaces=${surfaces.length}`);
-    assert(surfaces.length >= 22, `Expected at least 22 routes, got ${surfaces.length}`);
+    assert(surfaces.length === 26, `Expected exactly 26 routes, got ${surfaces.length}`);
     await request.close();
 
     const profiles = [

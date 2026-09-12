@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-09-10-local-rc59",
-  "source_commit_sha": "005ddb46f572520ac182c4f08cc177f07dfe1ae8",
-  "updated_at": "2026-09-10T03:48:39Z",
-  "updated_by": "rc59-no-credit-requalification-locally-qualified",
-  "reason": "RC59 selects frozen source S12 005ddb46f572520ac182c4f08cc177f07dfe1ae8 after direct-child Q12 4e3029fc99b7370e78a26f2a5dfd6f14c917f647 bound the exact archive and GitHub Actions run 34429494180 checked Q12 as run head and S12 as the immutable source checkout with failed and skipped steps both zero. Security, runtime, browser, six local images, and candidate-runtime evidence passed. The authorized RC59 browser chain used exactly three gateway/provider calls and no automatic retry. I1, I5, release promotion, and production rollout remain blocked; no percentage credit is awarded.",
+  "active_release_id": "prod-candidate-2026-09-11-local-rc62",
+  "source_commit_sha": "63c854867cb1082c209718b64fddcbb52e5dd99b",
+  "updated_at": "2026-09-11T20:10:00Z",
+  "updated_by": "rc62-no-credit-requalification-complete",
+  "reason": "RC62 selects source S15 63c854867cb1082c209718b64fddcbb52e5dd99b after direct-child Q16 f3faff1d96aeb56d89b122cb0b4069e4c1618e7f bound the exact archive and GitHub Actions run 34642197931 checked Q16 as run head and S15 as the immutable source checkout. All five release-scoped local evidence chains passed and are hash-bound. I1, I5, release promotion, and production rollout remain blocked; no percentage credit is awarded.",
   "production_rollout_claimed": false
 }

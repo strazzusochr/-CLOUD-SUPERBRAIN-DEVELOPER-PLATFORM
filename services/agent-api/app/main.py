@@ -7927,7 +7927,7 @@ ORGANISM_PAGE_WIRING = {
     "landing": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "navigate", "data_sources": ["WORKSPACE_PAGES", "/api/v1/project/progress"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["planning", "blocked"]},
     "organism-live": {"brain_region": "callosum", "hub": "workbench", "primary_mode": "inspect", "data_sources": ["/api/v1/organism/contract", "/api/v1/organism/live-state"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "apps/frontend/e2e/organism.spec.ts"], "event_kinds": ["executing", "llm_call", "tool_call", "verifying", "blocked"]},
     "responsive": {"brain_region": "sensory", "hub": "workbench", "primary_mode": "verify", "data_sources": ["apps/frontend/app/styles.css", "WORKSPACE_PAGES"], "verifier_refs": WORKSPACE_COMMON_VERIFIERS, "event_kinds": ["verifying", "blocked"]},
-    "run-detail": {"brain_region": "hippocampus", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/build/{id}", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-product-acceptance.ps1"], "event_kinds": ["executing", "verifying", "blocked"]},
+    "run-detail": {"brain_region": "hippocampus", "hub": "observe", "primary_mode": "inspect", "data_sources": ["/api/v1/build/{build_id}", "/api/v1/audit/recent"], "verifier_refs": [*WORKSPACE_COMMON_VERIFIERS, "scripts/verify-product-acceptance.ps1"], "event_kinds": ["executing", "verifying", "blocked"]},
 }
 
 ORGANISM_TOOLS = [
@@ -8090,8 +8090,11 @@ def workspace_vertical_stack_payload() -> dict[str, object]:
             "ui": {
                 "route": route,
                 "componentPath": _workspace_component_path(route),
-                "shellRequired": True,
-                "activeRailRequired": True,
+                "shellRequired": surface["pageId"] != "run-detail",
+                "activeRailRequired": (
+                    (int(surface["no"]) <= 22 and surface["pageId"] != "login")
+                    or surface["pageId"] == "organism-live"
+                ),
             },
             "api": {
                 "contracts": api_contracts,
