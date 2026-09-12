@@ -557,6 +557,14 @@ Provider-Deployment-IDs und Rollback-Ziel gelesen. Nicht erlaubte Differenzen st
 - Evidence: Verifier-Readback `2026-09-12T16:10:30.9196575Z`; Summary-SHA-256 `CCFA6AAC9B1E7699885C4CACE00F89197157CC2905A729EBCBA99F7483FE761C`; Audit-SHA-256 `F81F482F80EBBAD755FB21F2973EE56DAD07F26093749E90F95C862F89A51EBD`.
 - Status: `[ ] BLOCKIERT` bis Summary, Audit und Owner-Projektion in einem neuen qualifizierten Kandidaten source-bound sind; P05 bleibt `[ ] BLOCKIERT`.
 
+### E04-05 – Source-Prequalification für External-Gate-Wahrheitswechsel ergänzen
+
+- Grund: GitHub-Run `34704623284` band Q17 und S16 korrekt, stoppte aber im Progress-Guard, weil der Workflow nur den älteren erwarteten Runtime-Source-Drift kannte.
+- Evidence: Der Verifier lieferte exakt `no-credit requalification may not inflate external gate truth` und anschließend `Phase-5 credit itemization is invalid`; alle 28 vorgelagerten Progress-Regressionstests waren grün.
+- Zusätzliche Handlung: Der Source-Prequalification-Zweig akzeptiert zusätzlich genau diese zweizeilige, fail-closed External-Truth-Drift-Ausgabe. Jede andere Ausgabe und jeder andere Exitcode bleiben Fehler.
+- Zusätzliche Prüfung: Fokussierter Workflow-Vertragstest, vollständige lokale Kontrollsuite sowie neuer GitHub-Run mit neuem S16/Q17.
+- Status: `[ ] AKTIV`; der fehlgeschlagene Run bleibt historisch, P05 bleibt `[ ] BLOCKIERT`.
+
 ## Vorlage für weitere Ergänzungen
 
 > **Ergänzung `E<HAUPTPUNKT>-<NUMMER>`**

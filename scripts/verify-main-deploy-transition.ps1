@@ -198,10 +198,13 @@ Assert-Contains "project-progress prequalification rejects unexpected exits" `
   'source prequalification received unexpected project-progress exit'
 Assert-Contains "project-progress prequalification requires exact drift output" `
   $projectProgressStep `
-  'if [[ "$progress_output" != "$expected_progress_drift" ]]; then'
+  'if [[ "$progress_output" != "$expected_runtime_source_drift" && "$progress_output" != "$expected_external_truth_drift" ]]; then'
 Assert-Contains "project-progress prequalification pins runtime-source drift" `
   $projectProgressStep `
   '[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Contains "project-progress prequalification pins external-gate truth drift" `
+  $projectProgressStep `
+  '[phase5-credit] no-credit requalification may not inflate external gate truth\n[project-progress] Phase-5 credit itemization is invalid'
 Assert-Regex "project-progress reusable candidate validates control truth" `
   $projectProgressStep `
   '(?ms)^\s{12}false:true\)\s*\r?\n.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?python scripts/verify_project_progress_manifest\.py.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'

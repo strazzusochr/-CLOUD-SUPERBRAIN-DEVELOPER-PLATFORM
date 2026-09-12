@@ -1266,9 +1266,13 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         step_start = source.index("      - name: Project progress delta-ledger replay regression")
         step_end = source.index("      - name: Phase 3 and Phase 6 draft credit rubric integrity", step_start)
         step = source[step_start:step_end]
-        expected_drift = (
+        expected_runtime_drift = (
             "[phase5-credit] active candidate has committed or staged runtime-source drift "
             "outside the exact post-qualification or no-credit requalification truth transition\\n"
+            "[project-progress] Phase-5 credit itemization is invalid"
+        )
+        expected_external_drift = (
+            "[phase5-credit] no-credit requalification may not inflate external gate truth\\n"
             "[project-progress] Phase-5 credit itemization is invalid"
         )
 
@@ -1285,12 +1289,18 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             step,
         )
         self.assertIn("set -euo pipefail", step)
-        self.assertIn(f"expected_progress_drift=$'{expected_drift}'", step)
+        self.assertIn(f"expected_runtime_source_drift=$'{expected_runtime_drift}'", step)
+        self.assertIn(f"expected_external_truth_drift=$'{expected_external_drift}'", step)
         self.assertIn('progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"', step)
         self.assertIn("progress_exit=$?", step)
         self.assertIn('case "$progress_exit" in', step)
         self.assertIn("source_truth_clean=true", step)
-        self.assertIn('if [[ "$progress_output" != "$expected_progress_drift" ]]; then', step)
+        self.assertIn(
+            'if [[ "$progress_output" != "$expected_runtime_source_drift" && "$progress_output" != "$expected_external_truth_drift" ]]; then',
+            step,
+        )
+        self.assertIn("expected_external_gate_truth_drift=true", step)
+        self.assertIn("expected_runtime_source_drift=true", step)
         self.assertIn("unexpected project-progress exit", step)
         self.assertIn('case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in', step)
         self.assertIn("            false:true)", step)
@@ -1314,6 +1324,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "project-progress source prequalification env is bound",
             "project-progress prequalification accepts verifier-clean truth",
             "project-progress prequalification requires exact drift output",
+            "project-progress prequalification pins external-gate truth drift",
             "project-progress reusable candidate validates control truth",
             "project-progress normal validation is retained",
             "project-progress manifest has no blanket bypass",
