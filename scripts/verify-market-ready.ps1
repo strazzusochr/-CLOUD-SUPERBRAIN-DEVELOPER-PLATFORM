@@ -24,6 +24,21 @@ $artifactDir = if ([IO.Path]::IsPathRooted($OutDir)) { $OutDir } else { Join-Pat
 New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
 $results = New-Object System.Collections.Generic.List[object]
 
+$pythonCommand = $null
+$pythonPrefix = @()
+foreach ($pythonCandidate in @(
+  @{ Name = "py"; Prefix = @("-3") },
+  @{ Name = "python3"; Prefix = @() },
+  @{ Name = "python"; Prefix = @() }
+)) {
+  $resolvedPython = Get-Command $pythonCandidate.Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($null -ne $resolvedPython) {
+    $pythonCommand = $resolvedPython.Source
+    $pythonPrefix = @($pythonCandidate.Prefix)
+    break
+  }
+}
+
 function Add-Result(
   [string]$name,
   [bool]$ok,
@@ -293,13 +308,18 @@ function Get-ReadyGateEvidenceValidation(
           -not (Test-TrackedCleanRepoFile $registryVerifierRelative)) {
         $failures.Add("ghcr_dedicated_non_mutating_verifier_unavailable")
       } else {
-        $registryOutput = @(& py -3 $registryVerifierPath `
-          --evidence $relativeEvidence `
-          --expected-release-id $ExpectedReleaseId `
-          --expected-source-sha $ExpectedCandidateSha `
-          --expected-control-sha $registryControlSha `
-          --validate-only 2>&1)
-        $registryExit = $LASTEXITCODE
+        if ([string]::IsNullOrWhiteSpace([string]$pythonCommand)) {
+          $registryOutput = @("Python runtime is unavailable")
+          $registryExit = 127
+        } else {
+          $registryOutput = @(& $pythonCommand @pythonPrefix $registryVerifierPath `
+            --evidence $relativeEvidence `
+            --expected-release-id $ExpectedReleaseId `
+            --expected-source-sha $ExpectedCandidateSha `
+            --expected-control-sha $registryControlSha `
+            --validate-only 2>&1)
+          $registryExit = $LASTEXITCODE
+        }
         if ($null -eq $registryExit) { $registryExit = 127 }
         if ($registryExit -ne 0 -or ($registryOutput -join "`n") -notmatch '\[layer5-registry-release-evidence\] PASS') {
           $failures.Add("ghcr_dedicated_non_mutating_verifier_failed")
@@ -662,7 +682,12 @@ Write-Host "=== MARKET-READY AGGREGATE GATE ==="
 
 # --- 1) Statische Wahrheit (immer) ---
 Write-Host "[market-ready] running: manifest integrity"
-& py -3 (Join-Path $repoRoot "scripts\verify_project_progress_manifest.py") 2>&1 | ForEach-Object { Write-Host "    $_" }
+if ([string]::IsNullOrWhiteSpace([string]$pythonCommand)) {
+  Write-Host "    Python runtime is unavailable"
+  $LASTEXITCODE = 127
+} else {
+  & $pythonCommand @pythonPrefix (Join-Path $repoRoot "scripts\verify_project_progress_manifest.py") 2>&1 | ForEach-Object { Write-Host "    $_" }
+}
 $manifestOk = ($LASTEXITCODE -eq 0)
 Add-Result "manifest-integrity" $manifestOk "verify_project_progress_manifest.py"
 
@@ -760,12 +785,17 @@ if ($allHundred -and $overallHundred) {
       $binding = Get-Content -LiteralPath $bindingPath -Raw | ConvertFrom-Json
       $projectionSha = [string]$binding.truth_projection_sha
       $bindingRuntimeSha = [string]$binding.runtime_candidate_sha
-      $bindingOutput = @(& py -3 (Join-Path $repoRoot "scripts\verify_source_truth_projection_binding.py") `
-        --runtime-sha $bindingRuntimeSha `
-        --projection-sha $projectionSha `
-        --receipt-sha HEAD `
-        --require-ready 2>&1)
-      $bindingExit = $LASTEXITCODE
+      if ([string]::IsNullOrWhiteSpace([string]$pythonCommand)) {
+        $bindingOutput = @("Python runtime is unavailable")
+        $bindingExit = 127
+      } else {
+        $bindingOutput = @(& $pythonCommand @pythonPrefix (Join-Path $repoRoot "scripts\verify_source_truth_projection_binding.py") `
+          --runtime-sha $bindingRuntimeSha `
+          --projection-sha $projectionSha `
+          --receipt-sha HEAD `
+          --require-ready 2>&1)
+        $bindingExit = $LASTEXITCODE
+      }
       if ($null -eq $bindingExit) { $bindingExit = 127 }
       $dualBindingOk = (
         $bindingExit -eq 0 -and

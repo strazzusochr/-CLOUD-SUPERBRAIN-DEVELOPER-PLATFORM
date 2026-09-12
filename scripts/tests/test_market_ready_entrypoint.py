@@ -48,6 +48,14 @@ class MarketReadyEntrypointTests(unittest.TestCase):
         source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(encoding="utf-8")
         self.assertIn("$readyTruthFilesClean = $false\n$readyTrackedWorktreeClean = $false", source)
 
+    def test_market_ready_python_launcher_is_cross_platform_and_fail_closed(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(encoding="utf-8")
+        self.assertLess(source.index('@{ Name = "py"'), source.index('@{ Name = "python3"'))
+        self.assertLess(source.index('@{ Name = "python3"'), source.index('@{ Name = "python"'))
+        self.assertIn('$registryExit = 127', source)
+        self.assertIn('$bindingExit = 127', source)
+        self.assertNotIn('& py -3', source)
+
     def _invoke_current_owner_blocked_helper(self, helper: str, payload: dict) -> dict:
         script_source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(
             encoding="utf-8"
