@@ -12,10 +12,10 @@ source_archive_sha256: `0796e69e958c1abd1e466d74f79b7f82eac6207ef3706df3334ca3a1
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34711567878`
 exact_head_ci_attestation: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/ci/exact-head-ci-attestation.json`
 pipeline_status: `success; Q17 is the workflow head and S16 is the immutable source checkout; failed=0; skipped=0; secret_scan=true; provider_writes=false`
-local_validation_status: `candidate images and candidate-runtime Playwright proof verified; runtime, browser, and security chains remain pending`
-security_validation: `CI source scan passed; release-scoped committed-S16 archive scan remains pending`
+local_validation_status: `runtime, candidate images, candidate-runtime Playwright, and security verified; full browser chain remains pending`
+security_validation: `passed committed-S16 archive npm-audit and canonical gitleaks scan; no secret output`
 smoke_result: `one DEV-ONLY local candidate diagnostic selection and click passed; hosted parity is not claimed`
-observability_check: `pending fresh RC63 evidence binding`
+observability_check: `runtime health, metrics, audit, and local O4 fail-closed paths verified; full browser chain remains pending`
 rollback_note: `RC62/S15 is the latest qualified local rollback predecessor; no hosted rollback is authorized`
 rollback_target_commit_sha: `63c854867cb1082c209718b64fddcbb52e5dd99b`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:0e9c680c191927dc352c96d119fc909c7d842296`

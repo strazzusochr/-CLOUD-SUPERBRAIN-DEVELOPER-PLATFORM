@@ -66,7 +66,7 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
-          "claim": "RC63 currently records candidate-image and candidate-runtime as passed; runtime, browser, and release-scoped security remain pending before final qualification.",
+          "claim": "RC63 records runtime, candidate-image, candidate-runtime, and security as passed; the full browser chain remains pending before final qualification.",
           "anchor": "\"local_verification\": {"
         }
       ]
@@ -123,7 +123,7 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
-          "claim": "The exact-source CI secret scan passed; the release-scoped committed-S16 archive scan remains pending before final qualification.",
+          "claim": "RC63 records a passed exact-source CI secret scan plus release-scoped committed-S16 npm-audit and canonical gitleaks hashes.",
           "anchor": "\"security\": {"
         }
       ]
