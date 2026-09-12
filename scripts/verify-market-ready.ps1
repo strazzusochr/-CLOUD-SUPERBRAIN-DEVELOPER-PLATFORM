@@ -150,11 +150,31 @@ function Test-TrackedCleanRepoFile([string]$RelativePath) {
   return ($LASTEXITCODE -eq 0)
 }
 
+function Test-TrackedSha256Companion([string]$RelativePath) {
+  $resolved = Resolve-RepoScopedFile $RelativePath
+  $companionRelative = "$RelativePath.sha256"
+  $companionPath = Resolve-RepoScopedFile $companionRelative
+  if (-not $resolved -or -not $companionPath -or
+      -not (Test-TrackedCleanRepoFile $RelativePath) -or
+      -not (Test-TrackedCleanRepoFile $companionRelative)) {
+    return $false
+  }
+  $raw = Get-Content -LiteralPath $companionPath -Raw
+  if ($raw -notmatch '^([A-Fa-f0-9]{64})  ([^\\/\r\n]+)\r?\n?$') { return $false }
+  $declaredHash = $matches[1]
+  $declaredName = $matches[2]
+  return (
+    $declaredName -ceq [IO.Path]::GetFileName($resolved) -and
+    $declaredHash.Equals((Get-FileSha256 $resolved), [StringComparison]::OrdinalIgnoreCase)
+  )
+}
+
 function Get-ReadyGateEvidenceValidation(
   [object]$Gate,
   [string]$GateId,
   [string]$ExpectedCandidateSha,
-  [string]$ExpectedReleaseId
+  [string]$ExpectedReleaseId,
+  [switch]$HistoricalOfflinePhase6
 ) {
   $failures = New-Object System.Collections.Generic.List[string]
   if ($null -eq $Gate) {
@@ -287,6 +307,9 @@ function Get-ReadyGateEvidenceValidation(
       }
     }
     "phase6_scale_runtime" {
+      if ($HistoricalOfflinePhase6 -and $GateId -ne "phase6_scale_runtime") {
+        $failures.Add("historical_offline_scope")
+      }
       if ([string]$evidence.contract_version -ne "phase6-scale-evidence-v2") { $failures.Add("phase6_contract") }
       if ([string]$evidence.source_binding.source_commit_sha -ne $ExpectedCandidateSha) { $failures.Add("phase6_candidate") }
       if ([string]$evidence.source_binding.release_candidate.active_release_id -ne $ExpectedReleaseId -or
@@ -326,7 +349,7 @@ function Get-ReadyGateEvidenceValidation(
           -not $phase6VerifierPath -or
           -not (Test-TrackedCleanRepoFile $phase6VerifierRelative)) {
         $failures.Add("phase6_verifier_identity")
-      } else {
+      } elseif (-not $HistoricalOfflinePhase6) {
         $phase6Output = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $phase6VerifierPath `
           -EvidencePath $relativeEvidence `
           -ValidateOnly 2>&1)
@@ -343,6 +366,295 @@ function Get-ReadyGateEvidenceValidation(
     ok = ($failures.Count -eq 0)
     detail = if ($failures.Count -eq 0) { "tracked_clean_source_bound_evidence" } else { $failures -join "," }
     evidence_path = $relativeEvidence
+  }
+}
+
+function Get-HistoricalGateEvidenceValidation(
+  [object]$Gate,
+  [ValidateSet("docker_registry_publish", "phase6_scale_runtime")][string]$GateId
+) {
+  if ($null -eq $Gate) {
+    return [pscustomobject]@{ ok = $false; detail = "missing_gate"; evidence_path = "" }
+  }
+  $relativeEvidence = [string]$Gate.evidence_artifact
+  $evidencePath = Resolve-RepoScopedFile $relativeEvidence
+  if (-not $evidencePath) {
+    return [pscustomobject]@{ ok = $false; detail = "evidence_artifact"; evidence_path = $relativeEvidence }
+  }
+  try {
+    $evidence = Get-Content -LiteralPath $evidencePath -Raw | ConvertFrom-Json
+  } catch {
+    return [pscustomobject]@{ ok = $false; detail = "evidence_json"; evidence_path = $relativeEvidence }
+  }
+
+  if ($GateId -eq "docker_registry_publish") {
+    $boundReleaseId = [string]$evidence.release_id
+    $boundSourceSha = [string]$evidence.source_commit_sha
+  } else {
+    $boundReleaseId = [string]$evidence.source_binding.release_candidate.active_release_id
+    $boundSourceSha = [string]$evidence.source_binding.source_commit_sha
+    $readbackRelative = "$relativeEvidence.execution-readback.json"
+    $readbackPath = Resolve-RepoScopedFile $readbackRelative
+    $readback = if ($readbackPath) {
+      Get-Content -LiteralPath $readbackPath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
+    $execution = $evidence.source_binding.execution_attestation
+    $readbackCollectedAt = [DateTimeOffset]::MinValue
+    $runUpdatedAt = [DateTimeOffset]::MinValue
+    $phase6OfflineReadbackOk = (
+      (Test-TrackedSha256Companion $relativeEvidence) -and
+      (Test-TrackedSha256Companion $readbackRelative) -and
+      $null -ne $readback -and
+      [string]$readback.contract_version -eq "github-actions-phase6-scale-execution-readback-v1" -and
+      [bool]$readback.secret_output -eq $false -and
+      [string]$readback.run.status -eq "completed" -and
+      [string]$readback.run.conclusion -eq "success" -and
+      [string]$readback.run.event -eq "workflow_dispatch" -and
+      [long]$readback.run.id -eq [long]$execution.run_id -and
+      [int]$readback.run.run_attempt -eq 1 -and
+      [int]$readback.run.run_attempt -eq [int]$execution.run_attempt -and
+      [string]$readback.run.head_sha -eq [string]$execution.head_sha -and
+      [long]$readback.artifact.workflow_run.id -eq [long]$execution.run_id -and
+      [string]$readback.artifact.workflow_run.head_sha -eq [string]$execution.head_sha -and
+      [string]$readback.artifact.name -eq [string]$execution.artifact_name -and
+      [bool]$readback.artifact.expired -eq $false -and
+      [string]$readback.artifact.digest -eq "sha256:$([string]$readback.downloaded_archive_sha256)" -and
+      [string]$readback.downloaded_evidence_sha256 -eq (Get-FileSha256 $evidencePath).ToLowerInvariant() -and
+      [string]$readback.sidecar_declared_evidence_sha256 -eq [string]$readback.downloaded_evidence_sha256 -and
+      [DateTimeOffset]::TryParse([string]$readback.collected_at_utc, [ref]$readbackCollectedAt) -and
+      [DateTimeOffset]::TryParse([string]$readback.run.updated_at, [ref]$runUpdatedAt) -and
+      $readbackCollectedAt -ge $runUpdatedAt -and
+      $readbackCollectedAt -le $runUpdatedAt.AddHours(24)
+    )
+    if (-not $phase6OfflineReadbackOk) {
+      return [pscustomobject]@{ ok = $false; detail = "historical_execution_readback"; evidence_path = $relativeEvidence }
+    }
+  }
+  if ($boundReleaseId -notmatch '^[a-z0-9][a-z0-9._-]{0,127}$' -or
+      $boundSourceSha -notmatch '^[0-9a-f]{40}$') {
+    return [pscustomobject]@{ ok = $false; detail = "historical_source_binding"; evidence_path = $relativeEvidence }
+  }
+
+  # Replay the dedicated verifier against the release/source identity recorded in
+  # the immutable historical artifact.  READY later calls the same validator with
+  # the active candidate instead, so this compatibility check cannot claim that
+  # an older proof belongs to the current release.
+  $validation = if ($GateId -eq "phase6_scale_runtime") {
+    Get-ReadyGateEvidenceValidation $Gate $GateId $boundSourceSha $boundReleaseId -HistoricalOfflinePhase6
+  } else {
+    Get-ReadyGateEvidenceValidation $Gate $GateId $boundSourceSha $boundReleaseId
+  }
+  return [pscustomobject]@{
+    ok = [bool]$validation.ok
+    detail = if ([bool]$validation.ok) {
+      "historical_tracked_clean_evidence release=$boundReleaseId source=$boundSourceSha"
+    } else {
+      "historical_evidence_invalid:$([string]$validation.detail)"
+    }
+    evidence_path = $relativeEvidence
+  }
+}
+
+function Get-OwnerBlockedFinalGateValidation([object]$CapabilityState) {
+  $failures = New-Object System.Collections.Generic.List[string]
+  if ($null -eq $CapabilityState -or $null -eq $CapabilityState.gates) {
+    return [pscustomobject]@{ ok = $false; detail = "missing_capability_state" }
+  }
+
+  $authGate = $CapabilityState.gates.production_auth_identity
+  if ($null -eq $authGate -or
+      -not (Test-JsonBool $authGate.owner_granted $true) -or
+      -not (Test-JsonBool $authGate.live_verified $false) -or
+      -not (Test-JsonBool $authGate.paid_provider $false) -or
+      [string]::IsNullOrWhiteSpace([string]$authGate.owner_grant_ref)) {
+    $failures.Add("production_auth_identity_must_remain_pending")
+  }
+
+  $registryValidation = Get-HistoricalGateEvidenceValidation `
+    $CapabilityState.gates.docker_registry_publish "docker_registry_publish"
+  if (-not [bool]$registryValidation.ok) {
+    $failures.Add("docker_registry_publish_$([string]$registryValidation.detail)")
+  }
+
+  $phase6Validation = Get-HistoricalGateEvidenceValidation `
+    $CapabilityState.gates.phase6_scale_runtime "phase6_scale_runtime"
+  if (-not [bool]$phase6Validation.ok) {
+    $failures.Add("phase6_scale_runtime_$([string]$phase6Validation.detail)")
+  }
+
+  return [pscustomobject]@{
+    ok = ($failures.Count -eq 0)
+    detail = if ($failures.Count -eq 0) {
+      "auth_pending; registry_historical_verified; phase6_historical_verified"
+    } else {
+      $failures -join ";"
+    }
+  }
+}
+
+function Get-OwnerBlockedActionMapValidation([object[]]$Actions, [bool]$O4IsResolved) {
+  $expectedStatus = @{
+    O1 = "owner_required"
+    O2 = "resolved_verified"
+    O3 = "owner_required"
+    O4 = if ($O4IsResolved) { "resolved_verified" } else { "owner_required" }
+    O5 = "resolved_verified"
+    O6 = "resolved_verified"
+  }
+  $expectedCells = @{
+    O1 = @("phase_3")
+    O2 = @("phase_5", "phase_6")
+    O3 = @("layer_5", "phase_5")
+    O4 = @("layer_3", "layer_5", "phase_6")
+    O5 = @("layer_6")
+    O6 = @("layer_4")
+  }
+  $failures = New-Object System.Collections.Generic.List[string]
+  if (@($Actions).Count -ne 6) { $failures.Add("action_count") }
+  foreach ($actionId in @($expectedStatus.Keys | Sort-Object)) {
+    $matches = @($Actions | Where-Object { [string]$_.id -eq $actionId })
+    if ($matches.Count -ne 1) {
+      $failures.Add("${actionId}_cardinality")
+      continue
+    }
+    $action = $matches[0]
+    if ([string]$action.status -ne [string]$expectedStatus[$actionId]) {
+      $failures.Add("${actionId}_status")
+    }
+    $actualAffected = @($action.affected_cells | ForEach-Object { [string]$_ } | Sort-Object)
+    $expectedAffected = @($expectedCells[$actionId] | Sort-Object)
+    if (($actualAffected -join ",") -ne ($expectedAffected -join ",")) {
+      $failures.Add("${actionId}_affected_cells")
+    }
+  }
+  return [pscustomobject]@{
+    ok = ($failures.Count -eq 0)
+    detail = if ($failures.Count -eq 0) { "owner=O1,O3 resolved=O2,O4,O5,O6" } else { $failures -join "," }
+  }
+}
+
+function Get-ExternalGateTruthValidation(
+  [object]$Summary,
+  [object]$Audit,
+  [object]$OwnerTruth
+) {
+  $failures = New-Object System.Collections.Generic.List[string]
+  if ($null -eq $Summary -or $null -eq $Audit -or $null -eq $OwnerTruth) {
+    return [pscustomobject]@{ ok = $false; detail = "missing_external_truth" }
+  }
+
+  $gateClaims = [ordered]@{
+    hosted_agent_api_contracts = "hosted_staging_claim_allowed"
+    github_branch_protection_current_verify = "branch_protection_claim_allowed"
+    ghcr_image_digest_verify = "ghcr_image_digest_claim_allowed"
+    vercel_backend_origin_health = "vercel_backend_origins_claim_allowed"
+    canonical_gitleaks_scan = "canonical_gitleaks_claim_allowed"
+    cloudflare_native_zero_card_hosted_runtime = "cloudflare_native_zero_card_hosted_runtime_claim_allowed"
+  }
+  $expectedGateIds = @($gateClaims.Keys)
+  $actualGateIds = @($Summary.gate_ids | ForEach-Object { [string]$_ })
+  if (($actualGateIds -join ",") -ne ($expectedGateIds -join ",")) {
+    $failures.Add("gate_ids_order")
+  }
+
+  $expectedMissing = New-Object System.Collections.Generic.List[string]
+  foreach ($gateId in $expectedGateIds) {
+    $claimName = [string]$gateClaims[$gateId]
+    $summaryProperty = $Summary.PSObject.Properties[$claimName]
+    if ($null -eq $summaryProperty -or $summaryProperty.Value -isnot [bool]) {
+      $failures.Add("summary_${claimName}_boolean")
+      continue
+    }
+    if (-not [bool]$summaryProperty.Value) { $expectedMissing.Add($gateId) }
+
+    $auditProperty = $Audit.PSObject.Properties[$claimName]
+    if ($null -eq $auditProperty -or $auditProperty.Value -isnot [bool] -or
+        [bool]$auditProperty.Value -ne [bool]$summaryProperty.Value) {
+      $failures.Add("audit_${claimName}_mirror")
+    }
+  }
+
+  $expectedMissingIds = @($expectedMissing)
+  $expectedTarget = if ($expectedMissingIds.Count -gt 0) { [string]$expectedMissingIds[0] } else { "" }
+  $expectedStatus = if ($expectedMissingIds.Count -gt 0) { "blocked" } else { "verified" }
+  $expectedProductionClaim = ($expectedMissingIds.Count -eq 0)
+  $summaryMissing = @($Summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+  $auditMissing = @($Audit.missing_or_failed_gates | ForEach-Object { [string]$_ })
+  $ownerMissing = @($OwnerTruth.missing_or_failed_gates | ForEach-Object { [string]$_ })
+
+  if (($summaryMissing -join ",") -ne ($expectedMissingIds -join ",")) { $failures.Add("summary_missing_order") }
+  if (($auditMissing -join ",") -ne ($expectedMissingIds -join ",")) { $failures.Add("audit_missing_mirror") }
+  if (($ownerMissing -join ",") -ne ($expectedMissingIds -join ",")) { $failures.Add("owner_missing_mirror") }
+  if ([string]$Summary.active_target_gate -ne $expectedTarget) { $failures.Add("summary_active_target") }
+  if ([string]$Audit.active_target_gate -ne $expectedTarget) { $failures.Add("audit_active_target_mirror") }
+  if ([string]$OwnerTruth.active_target_gate -ne $expectedTarget) { $failures.Add("owner_active_target_mirror") }
+  if ([string]$Summary.status -ne $expectedStatus) { $failures.Add("summary_status") }
+  if ([string]$Audit.status -ne $expectedStatus) { $failures.Add("audit_status_mirror") }
+  if ([string]$OwnerTruth.status -ne $expectedStatus) { $failures.Add("owner_status_mirror") }
+  if (-not (Test-JsonBool $Summary.production_deploy_claim_allowed $expectedProductionClaim)) {
+    $failures.Add("summary_production_claim")
+  }
+  if (-not (Test-JsonBool $Audit.production_deploy_claim_allowed $expectedProductionClaim)) {
+    $failures.Add("audit_production_claim_mirror")
+  }
+  if (-not (Test-JsonBool $OwnerTruth.production_deploy_claim_allowed $expectedProductionClaim)) {
+    $failures.Add("owner_production_claim_mirror")
+  }
+
+  foreach ($claimName in @(
+    "frontend_preview_claim_allowed",
+    "hosted_staging_claim_allowed",
+    "branch_protection_claim_allowed",
+    "ghcr_image_digest_claim_allowed",
+    "vercel_backend_origins_claim_allowed",
+    "canonical_gitleaks_claim_allowed",
+    "cloudflare_native_zero_card_hosted_runtime_claim_allowed"
+  )) {
+    $summaryProperty = $Summary.PSObject.Properties[$claimName]
+    $auditProperty = $Audit.PSObject.Properties[$claimName]
+    if ($null -eq $summaryProperty -or $summaryProperty.Value -isnot [bool] -or
+        $null -eq $auditProperty -or $auditProperty.Value -isnot [bool] -or
+        [bool]$summaryProperty.Value -ne [bool]$auditProperty.Value) {
+      $failures.Add("summary_audit_${claimName}")
+    }
+  }
+
+  foreach ($fieldName in @(
+    "generated_at_utc",
+    "requested_release_candidate_selector",
+    "active_release_candidate_sha",
+    "ghcr_published_manifest_ref"
+  )) {
+    if ([string]$Summary.$fieldName -ne [string]$Audit.$fieldName) {
+      $failures.Add("summary_audit_${fieldName}")
+    }
+  }
+  if ((@($Summary.failed_hosted_required_probe_ids) -join ",") -ne (@($Audit.failed_hosted_required_probe_ids) -join ",")) {
+    $failures.Add("summary_audit_hosted_probe_ids")
+  }
+  if ((@($Summary.failed_vercel_origin_probe_ids) -join ",") -ne (@($Audit.failed_vercel_origin_probe_ids) -join ",")) {
+    $failures.Add("summary_audit_vercel_probe_ids")
+  }
+
+  foreach ($requiredGreenClaim in @(
+    "branch_protection_claim_allowed",
+    "canonical_gitleaks_claim_allowed",
+    "cloudflare_native_zero_card_hosted_runtime_claim_allowed"
+  )) {
+    if (-not (Test-JsonBool $Summary.$requiredGreenClaim $true)) {
+      $failures.Add("green_gate_regression_${requiredGreenClaim}")
+    }
+  }
+
+  return [pscustomobject]@{
+    ok = ($failures.Count -eq 0)
+    detail = if ($failures.Count -eq 0) {
+      "status=$expectedStatus target=$expectedTarget missing=$($expectedMissingIds -join ',')"
+    } else {
+      $failures -join ","
+    }
   }
 }
 
@@ -488,6 +800,7 @@ $o2ZeroCardOk = $false
 $o4StateOk = $false
 $o5ResolvedOk = $false
 $o6ResolvedOk = $false
+$ownerBlockedFinalGateDetail = "not evaluated"
 $truthMode = "invalid"
 $readyGateChecks = @()
 $readyTruthFilesClean = $false
@@ -541,42 +854,8 @@ try {
     $ownerBlockedCellIds = @($belowCellIds | Where-Object { $_ -in $ownerCoveredIds })
     $resolvedCellIds = @($belowCellIds | Where-Object { $_ -in $resolvedCoveredIds })
     $ownerUncoveredCellIds = @($belowCellIds | Where-Object { $_ -notin $coveredIds })
-    $expectedOwnerActionCells = @{
-      O1 = @("phase_3")
-      O2 = @("phase_5", "phase_6")
-      O3 = @("layer_5", "phase_5")
-    }
-    $expectedResolvedActionCells = @{
-      O5 = @("layer_6")
-      O6 = @("layer_4")
-    }
-    if ($o4IsResolved) {
-      $expectedResolvedActionCells.O4 = @("layer_3", "layer_5", "phase_6")
-    } else {
-      $expectedOwnerActionCells.O4 = @("layer_3", "layer_5", "phase_6")
-    }
-    $ownerActionIds = @($ownerActions | ForEach-Object { [string]$_.id } | Sort-Object)
-    $resolvedActionIds = @($resolvedActions | ForEach-Object { [string]$_.id } | Sort-Object)
-    $actionMapOk = (
-      ($ownerActionIds -join ",") -eq (($expectedOwnerActionCells.Keys | Sort-Object) -join ",") -and
-      ($resolvedActionIds -join ",") -eq (($expectedResolvedActionCells.Keys | Sort-Object) -join ",")
-    )
-    foreach ($action in $ownerActions) {
-      $actionId = [string]$action.id
-      $actualAffected = @($action.affected_cells | ForEach-Object { [string]$_ } | Sort-Object)
-      $expectedAffected = @($expectedOwnerActionCells[$actionId] | Sort-Object)
-      if (($actualAffected -join ",") -ne ($expectedAffected -join ",")) {
-        $actionMapOk = $false
-      }
-    }
-    foreach ($action in $resolvedActions) {
-      $actionId = [string]$action.id
-      $actualAffected = @($action.affected_cells | ForEach-Object { [string]$_ } | Sort-Object)
-      $expectedAffected = @($expectedResolvedActionCells[$actionId] | Sort-Object)
-      if (($actualAffected -join ",") -ne ($expectedAffected -join ",")) {
-        $actionMapOk = $false
-      }
-    }
+    $actionMapValidation = Get-OwnerBlockedActionMapValidation $actions $o4IsResolved
+    $actionMapOk = [bool]$actionMapValidation.ok
 
     $capabilityState = Get-Content (Join-Path $repoRoot "docs\runtime-state\capability-gates.json") -Raw | ConvertFrom-Json
     $externalState = Get-Content (Join-Path $repoRoot "docs\runtime-state\external-gate-summary.json") -Raw | ConvertFrom-Json
@@ -590,21 +869,9 @@ try {
         Sort-Object -Unique
     )
     $unknownGateIds = @($referencedGateIds | Where-Object { $_ -notin $knownGateIds })
-    $closedGateStateOk = $true
-    $expectedClosedGateIds = @(
-      "production_auth_identity",
-      "docker_registry_publish",
-      "phase6_scale_runtime"
-    )
-    if (-not $o4IsResolved) {
-      $expectedClosedGateIds += @("live_mcp_writes", "live_agent_tool_writes")
-    }
-    foreach ($gateId in $expectedClosedGateIds) {
-      $gateProperty = $capabilityState.gates.PSObject.Properties[$gateId]
-      if ($null -eq $gateProperty -or [bool]$gateProperty.Value.live_verified) {
-        $closedGateStateOk = $false
-      }
-    }
+    $ownerBlockedFinalGateValidation = Get-OwnerBlockedFinalGateValidation $capabilityState
+    $closedGateStateOk = [bool]$ownerBlockedFinalGateValidation.ok
+    $ownerBlockedFinalGateDetail = [string]$ownerBlockedFinalGateValidation.detail
     $cloudflareTargetGate = $capabilityState.gates.cloudflare_native_zero_card_hosted_runtime
     $cloudflareTargetGateOk = (
       $null -ne $cloudflareTargetGate -and
@@ -647,15 +914,10 @@ try {
       [bool]$cloudflareScopeReadiness.assertions.resource_inventory_verified -eq $false -and
       [bool]$cloudflareScopeReadiness.assertions.o2_prime_scope_ready -eq $false
     )
+    $externalTruthValidation = Get-ExternalGateTruthValidation `
+      $externalState $externalAudit $ownerInput.external_gate_truth
     $externalAuditOk = (
-      $null -ne $externalAudit -and
-      [string]$externalAudit.contract_version -eq "external-gate-audit-v2" -and
-      [string]$externalAudit.status -eq [string]$externalState.status -and
-      [string]$externalAudit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
-      [string]$externalAudit.generated_at_utc -eq [string]$externalState.generated_at_utc -and
-      [bool]$externalAudit.production_deploy_claim_allowed -eq [bool]$externalState.production_deploy_claim_allowed -and
-      [bool]$externalAudit.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $true -and
-      (@($externalAudit.missing_or_failed_gates) -join ",") -eq (@($externalState.missing_or_failed_gates) -join ",") -and
+      [bool]$externalTruthValidation.ok -and
       @($externalAudit.source_evidence_refs) -contains ".codex/runs/CURRENT/p5/cloudflare-scope-readiness/report.json" -and
       [string]$externalAudit.legacy_provenance.status -eq "historical_only" -and
       [string]$externalAudit.legacy_provenance.retired_gate_id -eq "fly_live_budget_check" -and
@@ -664,22 +926,10 @@ try {
     $externalGateStateOk = (
       [string]$externalState.contract_version -eq "external-gate-summary-v2" -and
       [string]$externalState.source_contract_version -eq "external-gate-audit-v2" -and
-      [string]$externalState.status -eq "blocked" -and
-      [bool]$externalState.production_deploy_claim_allowed -eq $false -and
-      [string]$externalState.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
-      @($externalState.missing_or_failed_gates).Count -eq 1 -and
-      @($externalState.missing_or_failed_gates) -notcontains "github_branch_protection_current_verify" -and
-      [bool]$externalState.branch_protection_claim_allowed -eq $true -and
-      @($externalState.missing_or_failed_gates) -contains "ghcr_image_digest_verify" -and
-      [bool]$externalState.cloudflare_native_zero_card_hosted_runtime_claim_allowed -eq $true -and
+      [bool]$externalTruthValidation.ok -and
       [string]$externalState.legacy_provenance.status -eq "historical_only" -and
       [string]$externalState.legacy_provenance.retired_gate_id -eq "fly_live_budget_check" -and
-      [string]$ownerInput.external_gate_truth.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime" -and
-      @($ownerInput.external_gate_truth.missing_or_failed_gates).Count -eq 1 -and
-      @($ownerInput.external_gate_truth.missing_or_failed_gates) -notcontains "github_branch_protection_current_verify" -and
-      @($ownerInput.external_gate_truth.missing_or_failed_gates) -contains "ghcr_image_digest_verify" -and
       [string]$ownerInput.external_gate_truth.legacy_fly_path_status -eq "superseded_historical" -and
-      [bool]$ownerInput.external_gate_truth.production_deploy_claim_allowed -eq $false -and
       $externalAuditOk -and
       $cloudflareTargetGateOk
     )
@@ -687,12 +937,18 @@ try {
     $o2ZeroCardOk = (
       $null -ne $o2 -and
       [string]$o2.display_id -eq "O2'" -and
+      [string]$o2.status -eq "resolved_verified" -and
+      [int]$o2.percentage_credit -eq 0 -and
       [bool]$o2.payment_required -eq $false -and
       [bool]$o2.zero_card_required -eq $true -and
       [bool]$o2.paid_fallback_allowed -eq $false -and
       @($o2.gate_ids) -contains "cloudflare_native_zero_card_hosted_runtime" -and
       @($o2.gate_ids) -contains "phase6_scale_runtime" -and
-      @($o2.gate_ids) -notcontains "fly_live_budget_check"
+      @($o2.gate_ids) -notcontains "fly_live_budget_check" -and
+      @($o2.evidence_refs) -contains "docs/runtime-state/capability-gates.json#cloudflare_native_zero_card_hosted_runtime" -and
+      @($o2.evidence_refs) -contains "docs/runtime-state/capability-gates.json#phase6_scale_runtime" -and
+      @($o2.evidence_refs) -contains [string]$capabilityState.gates.cloudflare_native_zero_card_hosted_runtime.evidence_artifact -and
+      @($o2.evidence_refs) -contains [string]$capabilityState.gates.phase6_scale_runtime.evidence_artifact
     )
 
     $hostedTruth = $ownerInput.hosted_acceptance_truth
@@ -966,18 +1222,37 @@ try {
 
     $o6 = @($resolvedActions | Where-Object { [string]$_.id -eq "O6" }) | Select-Object -First 1
     $llmGate = $capabilityState.gates.live_llm_provider_calls
+    $llmEvidenceRelativePath = [string]$llmGate.evidence_artifact
+    $llmEvidencePath = Resolve-RepoScopedFile $llmEvidenceRelativePath
+    $llmEvidence = if ($llmEvidencePath) {
+      Get-Content -LiteralPath $llmEvidencePath -Raw | ConvertFrom-Json
+    } else {
+      $null
+    }
     $o6ResolvedOk = (
       $null -ne $o6 -and
       [string]$o6.status -eq "resolved_verified" -and
       [int]$o6.percentage_credit -eq 0 -and
-      @($o6.evidence_refs) -contains $hostedStateRelativePath -and
-      @($o6.evidence_refs) -contains $productAcceptanceRelativePath -and
+      @($o6.evidence_refs) -contains "docs/runtime-state/capability-gates.json#live_llm_provider_calls" -and
+      @($o6.evidence_refs) -contains $llmEvidenceRelativePath -and
       $null -ne $llmGate -and
       [bool]$llmGate.owner_granted -eq $true -and
       [bool]$llmGate.live_verified -eq $true -and
       [string]$llmGate.provider -eq "cloudflare_workers_ai" -and
       [bool]$llmGate.paid_provider -eq $false -and
-      $hostedAcceptanceOk
+      [string]$llmGate.verifier -eq "scripts/verify-live-llm-free-provider.ps1" -and
+      (Test-TrackedCleanRepoFile $llmEvidenceRelativePath) -and
+      (Test-TrackedCleanRepoFile "scripts/verify-live-llm-free-provider.ps1") -and
+      $null -ne $llmEvidence -and
+      [string]$llmEvidence.contract_version -eq "live-llm-free-provider-proof-v1" -and
+      [string]$llmEvidence.status -eq "verified" -and
+      [string]$llmEvidence.evidence_ref -eq "live_llm_free_provider_verified" -and
+      [bool]$llmEvidence.hosted -eq $true -and
+      [string]$llmEvidence.scope -eq "hosted_https" -and
+      [string]$llmEvidence.provider -eq [string]$llmGate.provider -and
+      [bool]$llmEvidence.paid_provider -eq $false -and
+      [int]$llmEvidence.prompts_used -eq 1 -and
+      [string]$llmEvidence.verified_at_utc -eq [string]$llmGate.verified_at_utc
     )
     $sourceMatches = (
       [int]$ownerInput.canonical_overall_percent -eq [int]$m.overall_percent -and
@@ -995,7 +1270,6 @@ try {
       $closedGateStateOk -and
       $externalGateStateOk -and
       $o2ZeroCardOk -and
-      $hostedAcceptanceOk -and
       $o4StateOk -and
       $o5ResolvedOk -and
       $o6ResolvedOk -and
@@ -1004,7 +1278,7 @@ try {
     $ownerMatrixDetail = if ($ownerMatrixOk) {
       "owner-required below-100 cells: " + ($ownerBlockedCellIds -join ", ") + "; resolved-no-credit cells: " + ($resolvedCellIds -join ", ")
     } else {
-      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk unknown_gates=$($unknownGateIds -join ',') closed_gates=$closedGateStateOk external_gate=$externalGateStateOk external_audit=$externalAuditOk cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk hosted_acceptance=$hostedAcceptanceOk o4_state=$o4StateOk o5_resolved=$o5ResolvedOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
+      "invalid_actions=$($invalidActions.Count) autonomous_open=$($autonomousOpenItems.Count) unknown_cells=$($unknownIds -join ',') uncovered_cells=$($ownerUncoveredCellIds -join ',') action_map=$actionMapOk action_detail=$([string]$actionMapValidation.detail) unknown_gates=$($unknownGateIds -join ',') owner_blocked_final_gates=$closedGateStateOk owner_blocked_gate_detail=$ownerBlockedFinalGateDetail external_gate=$externalGateStateOk external_audit=$externalAuditOk external_detail=$([string]$externalTruthValidation.detail) cloudflare_scope=$cloudflareScopeReadinessOk cloudflare_target=$cloudflareTargetGateOk o2_zero_card=$o2ZeroCardOk hosted_acceptance_ready_only=$hostedAcceptanceOk o4_state=$o4StateOk o5_resolved=$o5ResolvedOk o6_resolved=$o6ResolvedOk source_matches=$sourceMatches"
     }
   }
 } catch {

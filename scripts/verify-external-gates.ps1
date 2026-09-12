@@ -55,6 +55,16 @@ function Resolve-BranchName([string]$value) {
   return "main"
 }
 
+function Resolve-ActiveTargetGate([object[]]$MissingOrFailedGates) {
+  foreach ($gateId in @($MissingOrFailedGates)) {
+    $normalizedGateId = [string]$gateId
+    if (-not [string]::IsNullOrWhiteSpace($normalizedGateId)) {
+      return $normalizedGateId
+    }
+  }
+  return ""
+}
+
 function Assert-HostedBaseUrlSafe([string]$value) {
   if ([string]::IsNullOrWhiteSpace($value)) {
     return
@@ -828,7 +838,7 @@ if ($hostedBase -and (Test-RetiredHostedBaseUrl $hostedBase)) {
 
 $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 $repoLocalGitleaks = Join-Path ".tools\gitleaks" "gitleaks.exe"
-$gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } elseif (Test-Path $repoLocalGitleaks) { $repoLocalGitleaks } else { $null }
+$gitleaksExecutable = if ($gitleaksCommand) { [string]$gitleaksCommand.Source } elseif (Test-Path $repoLocalGitleaks) { (Resolve-Path -LiteralPath $repoLocalGitleaks).Path } else { $null }
 if ($gitleaksExecutable) {
   $gitleaksScanRoot = $null
   try {
@@ -862,7 +872,12 @@ if ($gitleaksExecutable) {
     if ($scanFileCount -lt 100) {
       throw "external gitleaks scan mirror unexpectedly small: $scanFileCount files"
     }
-    $gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", $gitleaksScanRoot, "--config", ".gitleaks.toml", "--redact", "--timeout", "600") $true (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 900)
+    Push-Location -LiteralPath $gitleaksScanRoot
+    try {
+      $gitleaksProbe = Invoke-NativeProcessProbe "canonical_gitleaks_scan" "canonical_gitleaks_scan_clean" $gitleaksExecutable @("detect", "--no-git", "--source", ".", "--config", ".gitleaks.toml", "--redact", "--timeout", "600") $true (Get-TimeoutSeconds "EXTERNAL_GATE_GITLEAKS_TIMEOUT_SECONDS" 900)
+    } finally {
+      Pop-Location
+    }
     $gitleaksProbe["scan_file_count"] = $scanFileCount
   } catch {
     $gitleaksProbe = New-Probe "canonical_gitleaks_scan" "failed" $true $false "canonical_gitleaks_scan_clean" "" 0 "canonical gitleaks scan preparation failed" $_.Exception.Message
@@ -991,11 +1006,12 @@ if (-not $ghcrClaimAllowed) { $missing += "ghcr_image_digest_verify" }
 if (-not $vercelOriginsClaimAllowed) { $missing += "vercel_backend_origin_health" }
 if (-not $gitleaksClaimAllowed) { $missing += "canonical_gitleaks_scan" }
 if (-not $cloudflareNativeClaimAllowed) { $missing += "cloudflare_native_zero_card_hosted_runtime" }
+$activeTargetGate = Resolve-ActiveTargetGate $missing
 
 $summary = [ordered]@{
   contract_version = "external-gate-audit-v2"
   status = if ($missing.Count -eq 0) { "verified" } else { "blocked" }
-  active_target_gate = "cloudflare_native_zero_card_hosted_runtime"
+  active_target_gate = $activeTargetGate
   evidence_ref = "external_gate_audit_proof"
   generated_at_utc = (Get-Date).ToUniversalTime().ToString("o")
   local_base_url = $localBase

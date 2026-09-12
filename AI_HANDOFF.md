@@ -1,6 +1,44 @@
 # AI Handoff - Cloud Superbrain Developer Platform
 
-## Current continuation — RC100 RC57/S10 freeze candidate, 2026-09-09
+## Current continuation — RC62/S15 after PR #110 merge, 2026-09-12
+
+- Work in `D:\_sb_tmp\rc62-post-merge-qualification`, branch
+  `codex/rc62-prepublication-controls`. The protected default branch
+  `chore/repo-bootstrap` is at merge commit
+  `cbb3d1e9ffa3663d756be70216fcd59139c7b685`; PR #110 was merged with a real
+  two-parent merge commit. PR head `d321fcdffbc2ebad43981232895e71290ecb050a`,
+  direct-child Q16 `f3faff1d96aeb56d89b122cb0b4069e4c1618e7f`, and frozen S15
+  `63c854867cb1082c209718b64fddcbb52e5dd99b` are all ancestors.
+- Active release remains `prod-candidate-2026-09-11-local-rc62`. The S15 archive
+  SHA-256 remains
+  `22a6083470db47f9691993e86b6a9a11581baebe458f7c0fc534892b404840f0`.
+  Merge and post-merge qualification awarded no credit and performed no
+  production rollout, registry publication, provider activation, or secret write.
+- Post-merge exact-head CI run `34696298574`, job `103560257339`, passed every
+  step at `cbb3d1e9ffa3663d756be70216fcd59139c7b685`. Local requalification also
+  passed the source/archive verifier, Phase-5 verifier, manifest verifier,
+  gitleaks, syntax checks, and 34 I1/OAuth contract tests. The static aggregate
+  remains fail-closed exactly as before the merge.
+- Overall remains `90%`; horizontal P0-P6 is
+  `100/100/100/44/100/89/100` = `633/700`; all seven vertical layers remain
+  `100` = `700/700`; total `1333/1400`, `67` open. I1 and I5 are blocked and
+  `MARKET_READY:false`.
+- Current task is the control-only addendum recorded in
+  `docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-master-protocol.md`.
+  E04-01 corrects governance and evidence wording. E04-02 repairs the stale static
+  OWNER_BLOCKED aggregation without changing gate booleans or percentages. Because
+  verifier logic is affected, the protocol requires a fully qualified successor
+  candidate before P05. RC62/S15 remains the frozen historical qualification until
+  that successor is proven. Never relabel older evidence, manually change
+  percentages, or print or store secret values.
+- E04-03 fixed the canonical Gitleaks temp-mirror path contract without weakening
+  any rule; its focused tests and live readback are green. E04-04 regenerated the
+  current read-only external truth: branch protection, Gitleaks and Cloudflare are
+  green; hosted Agent API contracts, GHCR digests and Vercel backend origins are
+  open. The aggregate now validates that ordered truth, but Phase-5 remains
+  fail-closed until the successor candidate is source-bound.
+
+## Historical continuation — RC100 RC57/S10 freeze candidate, 2026-09-09
 
 - Work in `D:\_sb_tmp\rc100-cloud-hardening`, branch
   `codex/rc100-cloud-hardening`. Read the current checkpoint in `PROJECT_STATE.md`.

@@ -4,6 +4,13 @@
 
 ### Session 2026-09-11 — S15/Q16 RC62 no-credit qualifiziert
 
+- **PR #110 und Post-Merge-Kontrolle:** PR #110 wurde am 2026-09-12 als echter
+  Merge-Commit `cbb3d1e9ffa3663d756be70216fcd59139c7b685` in den geschuetzten
+  Standardzweig `chore/repo-bootstrap` uebernommen. Exact-Head-CI-Run
+  `34696298574`, Job `103560257339`, bestand alle Schritte. PR-Head, Q16 und S15
+  sind nachweislich Vorfahren; der Merge-Baum ist identisch mit dem geprueften
+  PR-Baum. Keine Gate-, Ledger- oder Prozent-Promotion erfolgte.
+
 - **Aktiver Kandidat:** `prod-candidate-2026-09-11-local-rc62`, Source
   `63c854867cb1082c209718b64fddcbb52e5dd99b`, direkter Q16-Kindcommit
   `f3faff1d96aeb56d89b122cb0b4069e4c1618e7f`. Source-CI-Run `34642197931`
@@ -17,8 +24,18 @@
 - **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
   `700/700`, insgesamt `1333/1400` belegt und `67` offen. I1 und I5 bleiben
   blockiert; `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
-- **Naechster Pfad:** Finalverifier und PR gegen `chore/repo-bootstrap`;
-  anschliessend nur Review. Keine Production-Promotion oder Secret-Ausgabe.
+- **Naechster Pfad:** Kontrollzweig `codex/rc62-prepublication-controls` bindet
+  das nummerierte RC62-Masterprotokoll, korrigiert veraltete Governance-/Evidence-
+  Wahrheiten und repariert die statische OWNER_BLOCKED-Aggregation. Da dies
+  Verifierlogik beruehrt, verlangt die Protokollregel vor P05 einen vollstaendig
+  qualifizierten Nachfolgekandidaten. RC62/S15 bleibt bis dahin unveraendert und
+  P05 gesperrt. Keine Production-Promotion oder Secret-Ausgabe.
+- **Aktueller External-Gate-Readback:** Branch Protection, canonical Gitleaks und
+  Cloudflare-native bleiben gruen. Offen sind `hosted_agent_api_contracts`,
+  `ghcr_image_digest_verify` und `vercel_backend_origin_health`; aktives erstes
+  Ziel ist `hosted_agent_api_contracts`. Die neue Owner-Matrix und die breite
+  Market-Ready-Unit-Suite sind gruen. Der Gesamtverifier stoppt fail-closed am
+  unveraenderten S15-Kandidaten, bis der Nachfolger source-bound qualifiziert ist.
 
 ## HISTORISCHER CONTROL-CHECKPOINT 2026-09-09 — RC100 RC57/S10 FREEZE-KANDIDAT
 

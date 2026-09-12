@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import textwrap
 import unittest
+import uuid
 from pathlib import Path
 
 
@@ -46,6 +47,255 @@ class MarketReadyEntrypointTests(unittest.TestCase):
 
         source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(encoding="utf-8")
         self.assertIn("$readyTruthFilesClean = $false\n$readyTrackedWorktreeClean = $false", source)
+
+    def _invoke_current_owner_blocked_helper(self, helper: str, payload: dict) -> dict:
+        script_source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(
+            encoding="utf-8"
+        )
+        preamble = script_source.split(
+            'Write-Host "=== MARKET-READY AGGREGATE GATE ==="', 1
+        )[0]
+        with tempfile.TemporaryDirectory(prefix="market-ready-owner-blocked-") as tmp:
+            payload_path = Path(tmp) / "payload.json"
+            self._write_json(payload_path, payload)
+            wrapper = REPO_ROOT / "scripts" / f"owner-blocked-helper-{uuid.uuid4().hex}.ps1"
+            try:
+                wrapper.write_text(
+                    preamble
+                    + textwrap.dedent(
+                        f"""
+                        $payload = Get-Content -LiteralPath $env:MARKET_READY_TEST_PAYLOAD -Raw | ConvertFrom-Json
+                        $result = {helper}
+                        $result | ConvertTo-Json -Depth 12 -Compress
+                        """
+                    ),
+                    encoding="utf-8",
+                )
+                env = os.environ.copy()
+                env["MARKET_READY_TEST_PAYLOAD"] = str(payload_path)
+                completed = subprocess.run(
+                    [self.pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper)],
+                    cwd=REPO_ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                )
+            finally:
+                wrapper.unlink(missing_ok=True)
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        return json.loads(completed.stdout.strip().splitlines()[-1])
+
+    def test_current_owner_blocked_historical_gates_are_valid_without_rc62_rebinding(self) -> None:
+        capability = json.loads(
+            (REPO_ROOT / "docs" / "runtime-state" / "capability-gates.json").read_text(
+                encoding="utf-8-sig"
+            )
+        )
+        result = self._invoke_current_owner_blocked_helper(
+            "Get-OwnerBlockedFinalGateValidation $payload", capability
+        )
+        self.assertIs(result["ok"], True, result["detail"])
+        self.assertIn("auth_pending", result["detail"])
+        self.assertIn("registry_historical_verified", result["detail"])
+        self.assertIn("phase6_historical_verified", result["detail"])
+
+        cases = (
+            (
+                "production auth incorrectly live",
+                lambda p: p["gates"]["production_auth_identity"].update(live_verified=True),
+                "production_auth_identity_must_remain_pending",
+            ),
+            (
+                "registry evidence hash",
+                lambda p: p["gates"]["docker_registry_publish"].update(evidence_sha256="0" * 64),
+                "docker_registry_publish",
+            ),
+            (
+                "phase6 evidence hash",
+                lambda p: p["gates"]["phase6_scale_runtime"].update(evidence_sha256="0" * 64),
+                "phase6_scale_runtime",
+            ),
+            (
+                "phase6 capability no longer verified",
+                lambda p: p["gates"]["phase6_scale_runtime"].update(live_verified=False),
+                "phase6_scale_runtime",
+            ),
+        )
+        for name, mutate, expected_detail in cases:
+            with self.subTest(name=name):
+                forged = json.loads(json.dumps(capability))
+                mutate(forged)
+                result = self._invoke_current_owner_blocked_helper(
+                    "Get-OwnerBlockedFinalGateValidation $payload", forged
+                )
+                self.assertIs(result["ok"], False, name)
+                self.assertIn(expected_detail, result["detail"])
+
+    def test_owner_blocked_action_map_requires_o2_resolved(self) -> None:
+        owner = json.loads(
+            (REPO_ROOT / "docs" / "runtime-state" / "owner-input-manifest.json").read_text(
+                encoding="utf-8-sig"
+            )
+        )
+        payload = {"actions": owner["actions"]}
+        helper = "Get-OwnerBlockedActionMapValidation @($payload.actions) $true"
+        result = self._invoke_current_owner_blocked_helper(helper, payload)
+        self.assertIs(result["ok"], True, result["detail"])
+
+        stale = json.loads(json.dumps(payload))
+        next(action for action in stale["actions"] if action["id"] == "O2")["status"] = "owner_required"
+        result = self._invoke_current_owner_blocked_helper(helper, stale)
+        self.assertIs(result["ok"], False)
+        self.assertIn("O2_status", result["detail"])
+
+        wrong_cells = json.loads(json.dumps(payload))
+        next(action for action in wrong_cells["actions"] if action["id"] == "O2")["affected_cells"] = ["phase_5"]
+        result = self._invoke_current_owner_blocked_helper(helper, wrong_cells)
+        self.assertIs(result["ok"], False)
+        self.assertIn("O2_affected_cells", result["detail"])
+
+    def _external_truth_fixture(self, **claim_overrides: bool) -> dict:
+        gate_claims = (
+            ("hosted_agent_api_contracts", "hosted_staging_claim_allowed"),
+            ("github_branch_protection_current_verify", "branch_protection_claim_allowed"),
+            ("ghcr_image_digest_verify", "ghcr_image_digest_claim_allowed"),
+            ("vercel_backend_origin_health", "vercel_backend_origins_claim_allowed"),
+            ("canonical_gitleaks_scan", "canonical_gitleaks_claim_allowed"),
+            (
+                "cloudflare_native_zero_card_hosted_runtime",
+                "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
+            ),
+        )
+        claims = {
+            "frontend_preview_claim_allowed": True,
+            "hosted_staging_claim_allowed": True,
+            "branch_protection_claim_allowed": True,
+            "ghcr_image_digest_claim_allowed": True,
+            "vercel_backend_origins_claim_allowed": True,
+            "canonical_gitleaks_claim_allowed": True,
+            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": True,
+        }
+        claims.update(claim_overrides)
+        missing = [gate_id for gate_id, claim in gate_claims if not claims[claim]]
+        target = missing[0] if missing else ""
+        status = "blocked" if missing else "verified"
+        production = not missing
+        shared = {
+            **claims,
+            "generated_at_utc": "2026-09-12T12:00:00Z",
+            "requested_release_candidate_selector": "a" * 40,
+            "active_release_candidate_sha": "",
+            "ghcr_published_manifest_ref": "",
+            "status": status,
+            "active_target_gate": target,
+            "missing_or_failed_gates": missing,
+            "production_deploy_claim_allowed": production,
+            "failed_hosted_required_probe_ids": [],
+            "failed_vercel_origin_probe_ids": [],
+        }
+        summary = {
+            "contract_version": "external-gate-summary-v2",
+            "source_contract_version": "external-gate-audit-v2",
+            "gate_ids": [gate_id for gate_id, _ in gate_claims],
+            **shared,
+        }
+        audit = {"contract_version": "external-gate-audit-v2", **shared}
+        owner = {
+            "status": status,
+            "active_target_gate": target,
+            "missing_or_failed_gates": list(missing),
+            "production_deploy_claim_allowed": production,
+        }
+        return {"summary": summary, "audit": audit, "owner": owner}
+
+    def _assert_external_truth(self, payload: dict, expected_ok: bool, detail: str = "") -> None:
+        helper = "Get-ExternalGateTruthValidation $payload.summary $payload.audit $payload.owner"
+        result = self._invoke_current_owner_blocked_helper(helper, payload)
+        self.assertIs(result["ok"], expected_ok, result["detail"])
+        if detail:
+            self.assertIn(detail, result["detail"])
+
+    def test_external_truth_accepts_three_missing_gates_and_later_partial_progress(self) -> None:
+        three_missing = self._external_truth_fixture(
+            hosted_staging_claim_allowed=False,
+            ghcr_image_digest_claim_allowed=False,
+            vercel_backend_origins_claim_allowed=False,
+        )
+        self._assert_external_truth(three_missing, True)
+        result = self._invoke_current_owner_blocked_helper(
+            "Get-ExternalGateTruthValidation $payload.summary $payload.audit $payload.owner",
+            three_missing,
+        )
+        self.assertIn(
+            "missing=hosted_agent_api_contracts,ghcr_image_digest_verify,vercel_backend_origin_health",
+            result["detail"],
+        )
+
+        later_partial = self._external_truth_fixture(ghcr_image_digest_claim_allowed=False)
+        self._assert_external_truth(later_partial, True)
+        result = self._invoke_current_owner_blocked_helper(
+            "Get-ExternalGateTruthValidation $payload.summary $payload.audit $payload.owner",
+            later_partial,
+        )
+        self.assertIn("target=ghcr_image_digest_verify", result["detail"])
+
+    def test_external_truth_rejects_order_target_claim_and_green_gate_regressions(self) -> None:
+        base = self._external_truth_fixture(
+            hosted_staging_claim_allowed=False,
+            ghcr_image_digest_claim_allowed=False,
+            vercel_backend_origins_claim_allowed=False,
+        )
+        cases = []
+
+        wrong_order = json.loads(json.dumps(base))
+        wrong_order["summary"]["missing_or_failed_gates"] = [
+            "ghcr_image_digest_verify",
+            "hosted_agent_api_contracts",
+            "vercel_backend_origin_health",
+        ]
+        cases.append(("missing order", wrong_order, "summary_missing_order"))
+
+        wrong_target = json.loads(json.dumps(base))
+        wrong_target["summary"]["active_target_gate"] = "ghcr_image_digest_verify"
+        cases.append(("active target", wrong_target, "summary_active_target"))
+
+        claim_contradiction = json.loads(json.dumps(base))
+        claim_contradiction["summary"]["ghcr_image_digest_claim_allowed"] = True
+        claim_contradiction["audit"]["ghcr_image_digest_claim_allowed"] = True
+        cases.append(("claim contradiction", claim_contradiction, "summary_missing_order"))
+
+        green_regression = self._external_truth_fixture(
+            branch_protection_claim_allowed=False,
+            ghcr_image_digest_claim_allowed=False,
+        )
+        cases.append(
+            (
+                "green branch protection regression",
+                green_regression,
+                "green_gate_regression_branch_protection_claim_allowed",
+            )
+        )
+
+        for name, payload, expected_detail in cases:
+            with self.subTest(name=name):
+                self._assert_external_truth(payload, False, expected_detail)
+
+    def test_ready_mode_keeps_current_candidate_and_hosted_acceptance_guards(self) -> None:
+        source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(
+            encoding="utf-8"
+        )
+        ready = source.split('$truthMode = "ready"', 1)[1]
+        self.assertIn(
+            'Get-ReadyGateEvidenceValidation $capabilityState.gates.docker_registry_publish "docker_registry_publish" $candidateSha $activeReleaseId',
+            ready,
+        )
+        self.assertIn(
+            'Get-ReadyGateEvidenceValidation $capabilityState.gates.phase6_scale_runtime "phase6_scale_runtime" $candidateSha $activeReleaseId',
+            ready,
+        )
+        self.assertIn("$hostedAcceptanceOk -and", ready)
+        self.assertNotIn("-HistoricalOfflinePhase6", ready)
 
     def test_production_auth_gate_has_a_real_verifier_availability_transition(self) -> None:
         source = (REPO_ROOT / "scripts" / "verify-market-ready.ps1").read_text(

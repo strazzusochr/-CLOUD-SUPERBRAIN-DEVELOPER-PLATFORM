@@ -1,7 +1,7 @@
 {
     "contract_version":  "owner-input-manifest-v2",
     "status":  "owner_blocked_autonomous_complete",
-    "generated_at_utc":  "2026-07-31T00:47:12.8748218Z",
+    "generated_at_utc":  "2026-09-12T16:10:30.9196575Z",
     "canonical_progress_source":  "docs/project-progress.manifest.json",
     "canonical_overall_percent":  90,
     "market_ready":  false,
@@ -9,21 +9,30 @@
 
                               ],
     "hosted_acceptance_truth":  {
-                                    "status":  "verified",
+                                    "status":  "historical_split_only",
                                     "state_artifact":  "docs/runtime-state/cloudflare-native-hosted-current.json",
-                                    "product_acceptance_hosted_proof":  true,
+                                    "current_candidate_combined_proof":  false,
+                                    "product_acceptance_hosted_proof":  false,
                                     "product_acceptance_report":  ".codex/runs/CURRENT/master-goal/t5/product-acceptance-hosted-v5/report.json",
                                     "product_acceptance_report_sha256":  "24C1A1C6FEEE18777EB9F534B66444A9E082B207ADFBF7005DBCD83424851F9F",
-                                    "workspace_22_page_hosted_proof":  true,
+                                    "workspace_22_page_hosted_proof":  false,
                                     "workspace_22_page_report":  ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json",
-                                    "workspace_22_page_report_sha256":  "7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E"
+                                    "workspace_22_page_report_sha256":  "7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E",
+                                    "non_claims":  [
+                                                         "The two referenced acceptance reports are valid historical hosted evidence for their own recorded sources and deployments.",
+                                                         "cloudflare-native-hosted-current.json explicitly does not aggregate those reports into a current combined candidate proof.",
+                                                         "This section does not prove hosted parity for RC62/S15."
+                                                     ]
                                 },
     "actions":  [
                     {
                         "id":  "O1",
                         "title":  "Production OAuth identity",
                         "status":  "owner_required",
-                        "required_owner_action":  "Create or select the production OAuth application, approve the hosted callback URL, and provide the required credential configuration through the approved secret channel.",
+                        "authorization_status":  "owner_granted_recorded",
+                        "owner_grant_ref":  "OWNER_GRANTS_2026-09-02.json::O1:production_auth_identity",
+                        "live_proof_status":  "pending_verifier",
+                        "required_owner_action":  "Authorization is already recorded. Select or configure the production OAuth application, confirm the hosted callback URL, place credentials only through the approved secret channel, and run the source-bound hosted verifier.",
                         "required_scope_or_payment":  [
                                                           "OAuth application administration",
                                                           "Hosted callback approval",
@@ -46,8 +55,8 @@
                         "id":  "O2",
                         "display_id":  "O2\u0027",
                         "title":  "Cloudflare-native hosted runtime, zero-card activation and scale proof",
-                        "status":  "owner_required",
-                        "required_owner_action":  "O2Core scopes, zero-card resources, hosted source parity and stateful write/read/delete are verifier-complete. Only the separate Phase-6 scale/capacity proof remains Owner-gated. R2 remains disabled and historical-only.",
+                        "status":  "resolved_verified",
+                        "required_owner_action":  "None. O2Core zero-card hosted source parity, stateful write/read/delete, and the separate Phase-6 scale/capacity proof are verifier-complete. R2 remains disabled and historical-only.",
                         "required_scope_or_payment":  [
                                                           "Cloudflare Workers, D1, Durable Objects and Queues least-privilege scopes",
                                                           "Hosted source-parity, stateful-roundtrip and scale/capacity proof",
@@ -69,7 +78,7 @@
                                                "npm run verify:external-gates",
                                                "scripts/verify-browser-contract.ps1 -BaseUrl \u003cSTAGING_BASE_URL\u003e"
                                            ],
-                        "codex_boundary":  "No card, checkout, payment, subscription activation, paid fallback, resource creation, hosted write, or production deployment without the exact Owner gate. A free quota is not a zero-card proof.",
+                        "codex_boundary":  "Resolved O2 is limited to its verifier-backed zero-card Cloudflare runtime and scale scopes. It does not authorize R2, payment, GHCR publication, production deployment, promotion, or release.",
                         "owner_scope_decision":  {
                                                      "decided_at_utc":  "2026-07-30T00:00:00Z",
                                                      "decision":  "approved_o2core_hosted_write_read_delete",
@@ -90,15 +99,27 @@
                                                      "non_claims":  [
                                                                         "This decision does not authorize R2, payment, GHCR publication, main writes, production promotion, or release.",
                                                                         "This decision alone does not open the capability gate.",
-                                                                        "The separate phase6_scale_runtime gate remains closed until its own capacity proof passes."
+                                                                        "The separate phase6_scale_runtime gate was opened only after its own zero-card capacity proof passed."
                                                                     ]
-                                                 }
+                                                 },
+                        "resolved_at_utc":  "2026-09-08T20:29:57.5087349Z",
+                        "evidence_refs":  [
+                                              "docs/runtime-state/capability-gates.json#cloudflare_native_zero_card_hosted_runtime",
+                                              "docs/runtime-state/capability-gates.json#phase6_scale_runtime",
+                                              ".codex/runs/CURRENT/master-goal/t5/cloudflare-hosted-session-rc14/report.json",
+                                              ".phase1-artifacts/phase6-scale/scale-evidence-20260908T202957508Z-4f932c7ec0034c37be6faa90d1f71d19.json"
+                                          ],
+                        "percentage_credit":  0
                     },
                     {
                         "id":  "O3",
                         "title":  "GHCR publication and release promotion",
                         "status":  "owner_required",
-                        "required_owner_action":  "Approve publication of the six images from the active immutable release candidate, provide the scoped registry/repository authorization, and approve the release-candidate review gate before any promotion.",
+                        "authorization_status":  "owner_granted_recorded",
+                        "owner_grant_ref":  "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
+                        "historical_live_verification_scope":  "RC44 only",
+                        "current_candidate_publication_verified":  false,
+                        "required_owner_action":  "Authorization and historical RC44 registry verification are already recorded. Approve the protected publication environment for the six immutable RC62/S15 images, verify their digest readback, and keep release promotion blocked until the final Market-Ready gate.",
                         "required_scope_or_payment":  [
                                                           "GHCR package write",
                                                           "Protected-branch/release workflow authorization",
@@ -116,7 +137,7 @@
                                                "npm run verify:release-candidate",
                                                "npm run verify:current-release-candidate"
                                            ],
-                        "codex_boundary":  "No registry push, main write, release promotion, or production rollout before MARKET_READY:true and the explicit Owner gate."
+                        "codex_boundary":  "No RC62/S15 registry push without the exact protected environment review. No main write, release promotion, or production rollout before MARKET_READY:true and the separate final release decision."
                     },
                     {
                         "id":  "O4",
@@ -143,7 +164,7 @@
                                                "npm run verify:runtime",
                                                "npm run verify:browser"
                                            ],
-                        "codex_boundary":  "Resolved O4 credits Agent Pool 69 -\u003e 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and paid scale are separate unresolved gates; no double credit.",
+                        "codex_boundary":  "Resolved O4 credits only its bounded Agent Pool slice. MCP Gateway and Phase 6 are independently verifier-backed at 100; GHCR publication remains a separate candidate-specific gate and no credit is reused.",
                         "owner_scope_decision":  {
                                                      "decided_at_utc":  "2026-07-30T00:00:00Z",
                                                      "decision":  "approved_as_proposed",
@@ -174,9 +195,9 @@
                                                      "gate_state_unchanged":  true,
                                                      "non_claims":  [
                                                                         "This records the owner scope decision only.",
-                                                                        "It does not open live_agent_tool_writes or live_mcp_writes.",
-                                                                        "Both gates stay closed until the real verifiers prove bounded live writes.",
-                                                                        "live_verified must never be hand-set."
+                                                                        "This decision alone did not open live_agent_tool_writes or live_mcp_writes.",
+                                                                        "Both gates were subsequently opened only by the bounded live-write verifiers and persisted evidence.",
+                                                                        "live_verified was not hand-set."
                                                                     ]
                                                  },
                         "resolved_at_utc":  "2026-09-11T21:22:28.4645531Z",
@@ -225,7 +246,7 @@
                         "id":  "O6",
                         "title":  "Bounded LLM Gateway live-runtime path",
                         "status":  "resolved_verified",
-                        "required_owner_action":  "None. The previously granted bounded Workers AI path is verifier-backed by the current source-bound hosted product acceptance and hosted 22-page action matrix.",
+                        "required_owner_action":  "None. The bounded Workers AI path remains verified by its dedicated evidence. The referenced product and 22-page hosted reports are historical source-bound evidence and are not a combined RC62/S15 hosted-parity claim.",
                         "required_scope_or_payment":  [
 
                                                       ],
@@ -259,9 +280,11 @@
                                 "source":  "docs/runtime-state/external-gate-summary.json",
                                 "source_contract_version":  "external-gate-summary-v2",
                                 "status":  "blocked",
-                                "active_target_gate":  "cloudflare_native_zero_card_hosted_runtime",
+                                "active_target_gate":  "hosted_agent_api_contracts",
                                 "missing_or_failed_gates":  [
-                                                                "ghcr_image_digest_verify"
+                                                                "hosted_agent_api_contracts",
+                                                                "ghcr_image_digest_verify",
+                                                                "vercel_backend_origin_health"
                                                             ],
                                 "branch_protection_resolution":  {
                                                                      "resolved_at_utc":  "2026-07-31T00:00:00Z",
@@ -273,7 +296,7 @@
                                                                      "write_performed":  false,
                                                                      "non_claims":  [
                                                                                         "No GitHub write, branch protection apply, or settings change was performed.",
-                                                                                        "This closes only the branch protection external gate; GHCR digest publication remains missing.",
+                                                                                        "This closes only the branch protection external gate; hosted Agent API contracts, GHCR digest publication, and Vercel backend origin health remain missing.",
                                                                                         "production_deploy_claim_allowed stays false."
                                                                                     ]
                                                                  },
@@ -287,9 +310,9 @@
     "non_claims":  [
                        "This manifest does not itself open a capability gate; O5 resolution and its final 10 percentage points are bound to verifier-opened capability evidence and the canonical progress manifest.",
                        "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
-                       "The source-bound hosted O2Core D1 bounded-text artifact + Durable Object + Queue proof, hosted product acceptance, hosted 22-page matrix, and hosted Vectorize semantic roundtrip are verifier-complete; R2 is historical-only. This does not prove Phase-6 scale, GHCR publication, or production release.",
-                       "O1, O2\u0027 scale, and O3 remain Owner-required; O4, O5, and O6 are resolved only within their bounded verifier-backed scopes.",
-                       "Owner-granted alone is insufficient for every still-open action; each requires its named verifier and evidence artifact.",
+                       "O2Core, Phase-6 zero-card scale, historical product acceptance, historical 22-page acceptance, and hosted Vectorize are separately verifier-backed; none of those proofs establishes RC62/S15 GHCR parity or production release.",
+                       "O1 and O3 remain Owner-required for their current hosted identity and RC62/S15 publication steps; O2, O4, O5, and O6 are resolved only within their bounded verifier-backed scopes.",
+                       "Owner-granted alone is insufficient for each still-open action; O1 and O3 require their named current-candidate verifiers and evidence artifacts.",
                        "No secret value, password, token, callback credential, or payment data is contained here.",
                        "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."
                    ]
