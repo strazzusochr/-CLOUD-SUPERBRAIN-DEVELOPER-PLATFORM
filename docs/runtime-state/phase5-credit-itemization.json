@@ -3,12 +3,12 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-09-11T20:10:00Z",
+  "updated_at_utc": "2026-09-12T18:40:43Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
-  "active_release_id": "prod-candidate-2026-09-11-local-rc62",
-  "active_source_commit_sha": "63c854867cb1082c209718b64fddcbb52e5dd99b",
+  "active_release_id": "prod-candidate-2026-09-12-local-rc63",
+  "active_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
   "legacy_gap_reconstruction": {
     "recorded_percent": 68,
     "total_item_count": 19,
@@ -51,8 +51,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "GitHub Actions run 34642197931 binds Q16 as the successful workflow head and S15 as the exact source checkout.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "GitHub Actions run 34711567878 binds Q17 as the successful workflow head and S16 as the exact source checkout.",
           "anchor": "\"ci_workflow\": {"
         }
       ]
@@ -65,8 +65,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "RC62 records runtime, browser, candidate-image, candidate-runtime, and security as five independently passed local chains.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "RC63 currently records candidate-image and candidate-runtime as passed; runtime, browser, and release-scoped security remain pending before final qualification.",
           "anchor": "\"local_verification\": {"
         }
       ]
@@ -80,8 +80,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The current candidate pointer selects the source-bound RC62 no-credit requalification while preserving the production non-claim.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-11-local-rc62\""
+          "claim": "The current candidate pointer selects the source-bound RC63 no-credit requalification while preserving the production non-claim.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-12-local-rc63\""
         },
         {
           "path": "scripts/verify-source-qualification-control.ps1",
@@ -89,9 +89,9 @@
           "anchor": "Assert-True \"archive matches source commit\""
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-evidence/ci/exact-head-ci-attestation.json",
-          "claim": "The immutable RC62 CI attestation binds Q16 as the run head and S15 as the exact source checkout with zero failed or skipped jobs and steps.",
-          "anchor": "\"source_commit_sha\": \"63c854867cb1082c209718b64fddcbb52e5dd99b\""
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/ci/exact-head-ci-attestation.json",
+          "claim": "The immutable RC63 CI attestation binds Q17 as the run head and S16 as the exact source checkout with zero failed or skipped jobs and steps.",
+          "anchor": "\"source_commit_sha\": \"0e9c680c191927dc352c96d119fc909c7d842296\""
         }
       ]
     },
@@ -104,8 +104,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The active pointer selects the exact source-bound RC62 candidate.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-11-local-rc62\""
+          "claim": "The active pointer selects the exact source-bound RC63 candidate.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-12-local-rc63\""
         },
         {
           "path": "scripts/verify-current-release-candidate.ps1",
@@ -122,8 +122,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "RC62 records candidate-scoped npm-audit and canonical committed-source secret-scan results with verification hashes.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "The exact-source CI secret scan passed; the release-scoped committed-S16 archive scan remains pending before final qualification.",
           "anchor": "\"security\": {"
         }
       ]
@@ -139,12 +139,12 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-          "claim": "The current frontend deployment is historical operational evidence only and does not prove six-service immutable-image parity for RC62/S15.",
+          "claim": "The current frontend deployment is historical operational evidence only and does not prove six-service immutable-image parity for RC63/S16.",
           "anchor": "\"deployment_id\": \"dpl_3K7iLgty3UEmsiW2k9cfxGDnTZoh\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
-          "claim": "The hosted backend is a read-only contract origin and does not prove six-service RC62/S15 parity.",
+          "claim": "The hosted backend is a read-only contract origin and does not prove six-service RC63/S16 parity.",
           "anchor": "\"read_only_contract_origin\": true"
         }
       ]
@@ -158,13 +158,13 @@
       "policy_basis": "E3_release_candidate_ready_ghcr_post_market",
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62.md",
-          "claim": "Six clean-archive S15 images, OCI revision intent, embedded source binding, and planned immutable tags are candidate-bound locally.",
-          "anchor": "immutable_image_commit_sha: `63c854867cb1082c209718b64fddcbb52e5dd99b`"
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
+          "claim": "Six clean-archive S16 images, OCI revision intent, embedded source binding, and planned immutable tags are candidate-bound locally.",
+          "anchor": "immutable_image_commit_sha: `0e9c680c191927dc352c96d119fc909c7d842296`"
         },
         {
           "path": "docs/runtime-state/capability-gates.json",
-          "claim": "docker_registry_publish is owner_granted=true and historically live_verified=true; this does not prove publication of the current RC62/S15 images.",
+          "claim": "docker_registry_publish is owner_granted=true and historically live_verified=true; this does not prove publication of the current RC63/S16 images.",
           "anchor": "\"docker_registry_publish\":"
         }
       ]
@@ -177,8 +177,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62.md",
-          "claim": "RC62 names RC59/S12 as the immutable local rollback anchor without claiming a hosted rollback.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
+          "claim": "RC63 names RC59/S12 as the immutable local rollback anchor without claiming a hosted rollback.",
           "anchor": "rollback_target_commit_sha: `005ddb46f572520ac182c4f08cc177f07dfe1ae8`"
         },
         {
@@ -196,8 +196,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "RC62 introduces no provider, paid tier, card action, recurring infrastructure, or budget-ceiling change.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "RC63 introduces no provider, paid tier, card action, recurring infrastructure, or budget-ceiling change.",
           "anchor": "\"new_recurring_infrastructure\": false"
         }
       ]
@@ -231,8 +231,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "RC62 records the exact health, metrics, audit, and contract endpoints.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "RC63 records the exact health, metrics, audit, and contract endpoints.",
           "anchor": "\"observability_paths\": {"
         }
       ]
@@ -245,8 +245,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "RC62 records candidate-bound error, rate, session, request, trace, and gateway contract paths.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "RC63 records candidate-bound error, rate, session, request, trace, and gateway contract paths.",
           "anchor": "\"/api/v1/errors/contract\""
         }
       ]
@@ -259,9 +259,9 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62.md",
-          "claim": "RC62 links Q16, the exact-head CI attestation, all five local verification chains, and the rollback source.",
-          "anchor": "exact_head_ci_attestation: `docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-evidence/ci/exact-head-ci-attestation.json`"
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
+          "claim": "RC63 links Q17, the exact-head CI attestation, all five local verification chains, and the rollback source.",
+          "anchor": "exact_head_ci_attestation: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/ci/exact-head-ci-attestation.json`"
         }
       ]
     },
@@ -278,8 +278,8 @@
           "anchor": "# Incident Response Runbook"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "RC62 binds the incident escalation runbook and preserves the release stop conditions.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "RC63 binds the incident escalation runbook and preserves the release stop conditions.",
           "anchor": "\"escalation_runbook\": \"docs/runbooks/incident-response.md\""
         }
       ]
@@ -297,8 +297,8 @@
           "anchor": "# Rollback Deploy Runbook"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62.md",
-          "claim": "RC62 names RC59/S12 as the exact immutable local rollback source.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
+          "claim": "RC63 names RC59/S12 as the exact immutable local rollback source.",
           "anchor": "rollback_target_commit_sha: `005ddb46f572520ac182c4f08cc177f07dfe1ae8`"
         }
       ]
@@ -340,8 +340,8 @@
           "anchor": "GHCR publication"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62.md",
-          "claim": "RC62 preserves review_gate=pending and owner_decision=no-release.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
+          "claim": "RC63 preserves review_gate=pending and owner_decision=no-release.",
           "anchor": "review_gate: `pending`"
         }
       ]
@@ -354,8 +354,8 @@
       "credit_awarded": true,
       "evidence": [
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62-readiness.json",
-          "claim": "RC62 records I1 and I5 as the only accepted no-release blockers and no unknown questions.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
+          "claim": "RC63 records I1 and I5 as the only accepted no-release blockers and no unknown questions.",
           "anchor": "\"unknown_questions\": []"
         }
       ]
@@ -373,8 +373,8 @@
           "anchor": "\"production_rollout_claimed\": false"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-11-local-rc62.md",
-          "claim": "RC62 denies registry publication, production deployment, promotion, rollout, and production status.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
+          "claim": "RC63 denies registry publication, production deployment, promotion, rollout, and production status.",
           "anchor": "This artifact does not claim a production rollout."
         }
       ]
@@ -414,9 +414,9 @@
   ],
   "non_claims": [
     "The score is release-candidate readiness, not production readiness.",
-    "I2 does not publish the current RC62/S15 images to GHCR, prove their registry digests, or authorize promotion; historical docker_registry_publish evidence is candidate-scoped to RC44.",
+    "I2 does not publish the current RC63/S16 images to GHCR, prove their registry digests, or authorize promotion; historical docker_registry_publish evidence is candidate-scoped to RC44.",
     "I1 and I5 remain zero-credit Owner blocks.",
-    "The retired RC1 markers are preserved as history and are never rebound to RC62 or any later candidate.",
+    "The retired RC1 markers are preserved as history and are never rebound to RC63 or any later candidate.",
     "This itemization alone cannot make MARKET_READY true."
   ]
 }

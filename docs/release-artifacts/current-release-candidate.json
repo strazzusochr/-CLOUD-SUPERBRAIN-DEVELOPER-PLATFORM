@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-09-11-local-rc62",
-  "source_commit_sha": "63c854867cb1082c209718b64fddcbb52e5dd99b",
-  "updated_at": "2026-09-11T20:10:00Z",
-  "updated_by": "rc62-no-credit-requalification-complete",
-  "reason": "RC62 selects source S15 63c854867cb1082c209718b64fddcbb52e5dd99b after direct-child Q16 f3faff1d96aeb56d89b122cb0b4069e4c1618e7f bound the exact archive and GitHub Actions run 34642197931 checked Q16 as run head and S15 as the immutable source checkout. All five release-scoped local evidence chains passed and are hash-bound. I1, I5, release promotion, and production rollout remain blocked; no percentage credit is awarded.",
+  "active_release_id": "prod-candidate-2026-09-12-local-rc63",
+  "source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "updated_at": "2026-09-12T18:40:43Z",
+  "updated_by": "rc63-no-credit-requalification-in-progress",
+  "reason": "RC63 selects source S16 0e9c680c191927dc352c96d119fc909c7d842296 after direct-child Q17 59fdd3fb15091fba160f830f5993c1254b2c52be bound the exact archive and GitHub Actions run 34711567878 checked Q17 as run head and S16 as the immutable source checkout. Fresh release-scoped local evidence chains are being generated before final no-credit qualification. I1, I5, release promotion, and production rollout remain blocked; no percentage credit is awarded.",
   "production_rollout_claimed": false
 }
