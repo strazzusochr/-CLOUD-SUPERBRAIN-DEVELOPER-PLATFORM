@@ -399,7 +399,9 @@ Assert-Contains "cloud deployment preflight runtime evidence" $cloudDeploymentPr
 $canonicalExternalGateSummary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 Assert-True "canonical summary contract v2" ([string]$canonicalExternalGateSummary.contract_version -eq "external-gate-summary-v2")
 Assert-True "canonical summary source contract v2" ([string]$canonicalExternalGateSummary.source_contract_version -eq "external-gate-audit-v2")
-Assert-True "canonical summary active Cloudflare target" ([string]$canonicalExternalGateSummary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+$canonicalMissingGates = @($canonicalExternalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+$expectedActiveTarget = if ($canonicalMissingGates.Count -gt 0) { $canonicalMissingGates[0] } else { "" }
+Assert-True "canonical summary active target follows first missing gate" ([string]$canonicalExternalGateSummary.active_target_gate -ceq $expectedActiveTarget)
 $canonicalExternalGateAuditPath = ([string]$canonicalExternalGateSummary.source_artifact).Replace("\", "/")
 Assert-True "canonical summary durable audit source" ($canonicalExternalGateAuditPath -eq "docs/runtime-state/external-gate-audit-v2.json")
 Assert-True "canonical durable audit exists" (Test-Path -LiteralPath $canonicalExternalGateAuditPath)
@@ -407,7 +409,9 @@ $canonicalTrackedAudit = git ls-files --error-unmatch -- $canonicalExternalGateA
 Assert-True "canonical durable audit tracked" ($LASTEXITCODE -eq 0 -and @($canonicalTrackedAudit).Count -eq 1)
 $canonicalExternalGateAudit = Get-Content -LiteralPath $canonicalExternalGateAuditPath -Raw | ConvertFrom-Json
 Assert-True "canonical durable audit contract v2" ([string]$canonicalExternalGateAudit.contract_version -eq "external-gate-audit-v2")
-Assert-True "canonical durable audit active Cloudflare target" ([string]$canonicalExternalGateAudit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+$canonicalAuditMissingGates = @($canonicalExternalGateAudit.missing_or_failed_gates | ForEach-Object { [string]$_ })
+Assert-True "canonical durable audit active target parity" ([string]$canonicalExternalGateAudit.active_target_gate -ceq $expectedActiveTarget)
+Assert-True "canonical summary/audit missing gate parity" (($canonicalAuditMissingGates -join "|") -ceq ($canonicalMissingGates -join "|"))
 Assert-True "canonical summary/audit status parity" ([string]$canonicalExternalGateSummary.status -eq [string]$canonicalExternalGateAudit.status)
 Assert-True "canonical summary/audit timestamp parity" ([string]$canonicalExternalGateSummary.generated_at_utc -eq [string]$canonicalExternalGateAudit.generated_at_utc)
 $expectedExternalGateClaims = [ordered]@{

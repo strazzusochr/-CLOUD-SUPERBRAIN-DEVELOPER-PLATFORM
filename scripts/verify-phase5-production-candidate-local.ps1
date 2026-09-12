@@ -72,6 +72,34 @@ function Get-Sha256Hex([string]$Path) {
   }
 }
 
+function Assert-ExternalGateTruthContract($Payload, [string]$Label) {
+  $claimMap = [ordered]@{
+    hosted_staging_claim_allowed = "hosted_agent_api_contracts"
+    branch_protection_claim_allowed = "github_branch_protection_current_verify"
+    ghcr_image_digest_claim_allowed = "ghcr_image_digest_verify"
+    vercel_backend_origins_claim_allowed = "vercel_backend_origin_health"
+    canonical_gitleaks_claim_allowed = "canonical_gitleaks_scan"
+    cloudflare_native_zero_card_hosted_runtime_claim_allowed = "cloudflare_native_zero_card_hosted_runtime"
+  }
+  $expectedGateIds = @($claimMap.Values | ForEach-Object { [string]$_ })
+  Assert-Equal "$Label gate IDs" (@($Payload.gate_ids | ForEach-Object { [string]$_ }) | ConvertTo-Json -Compress) ($expectedGateIds | ConvertTo-Json -Compress)
+  $expectedMissing = @()
+  foreach ($claimName in $claimMap.Keys) {
+    $property = $Payload.PSObject.Properties[$claimName]
+    Assert-True "$Label claim $claimName is strict boolean" ($null -ne $property -and $property.Value -is [bool])
+    if (-not [bool]$property.Value) { $expectedMissing += [string]$claimMap[$claimName] }
+  }
+  $actualMissing = @($Payload.missing_or_failed_gates | ForEach-Object { [string]$_ })
+  Assert-Equal "$Label missing gate sequence" ($actualMissing | ConvertTo-Json -Compress) ($expectedMissing | ConvertTo-Json -Compress)
+  $expectedTarget = if ($expectedMissing.Count -gt 0) { $expectedMissing[0] } else { "" }
+  Assert-Equal "$Label active target" ([string]$Payload.active_target_gate) $expectedTarget
+  $expectedStatus = if ($expectedMissing.Count -gt 0) { "blocked" } else { "verified" }
+  Assert-Equal "$Label status" ([string]$Payload.status) $expectedStatus
+  $productionProperty = $Payload.PSObject.Properties["production_deploy_claim_allowed"]
+  Assert-True "$Label production claim is strict boolean" ($null -ne $productionProperty -and $productionProperty.Value -is [bool])
+  Assert-Equal "$Label production claim" ([bool]$productionProperty.Value) ($expectedMissing.Count -eq 0)
+}
+
 function Get-GitBlobText([string]$ObjectSpec) {
   $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
   $startInfo.FileName = "git"
@@ -307,7 +335,7 @@ try {
       $sourceExternalText = (& git show "${candidateSourceSha}:docs/runtime-state/external-gate-summary.json" 2>$null | Out-String)
       Assert-True "no-credit source external truth readable" ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($sourceExternalText))
       $sourceExternal = $sourceExternalText | ConvertFrom-Json
-      foreach ($field in @(
+      $externalTruthFields = @(
         "contract_version", "source_contract_version", "status", "active_target_gate",
         "active_release_candidate_sha", "ghcr_published_manifest_ref",
         "ghcr_candidate_readback_source_artifact", "gate_ids",
@@ -319,7 +347,10 @@ try {
         "grafana_cloud_claim_allowed", "production_deploy_claim_allowed",
         "missing_or_failed_gates", "failed_hosted_required_probe_ids",
         "failed_vercel_origin_probe_ids", "legacy_provenance"
-      )) {
+      )
+      Assert-ExternalGateTruthContract $sourceExternal "no-credit source external truth"
+      Assert-ExternalGateTruthContract $external "no-credit current external truth"
+      foreach ($field in $externalTruthFields) {
         Assert-Equal "no-credit external truth $field" ($external.$field | ConvertTo-Json -Compress -Depth 20) ($sourceExternal.$field | ConvertTo-Json -Compress -Depth 20)
       }
       Assert-Equal "no-credit external selector" ([string]$external.requested_release_candidate_selector) $candidateSourceSha

@@ -221,6 +221,21 @@ class VerifyPhase1ExternalGateClaimMapTests(unittest.TestCase):
             )
         )
 
+    def test_correct_members_in_wrong_order_fail(self) -> None:
+        summary = self.summary(
+            [
+                "hosted_agent_api_contracts",
+                "ghcr_image_digest_verify",
+                "vercel_backend_origin_health",
+            ]
+        )
+        summary["missing_or_failed_gates"] = [
+            "ghcr_image_digest_verify",
+            "hosted_agent_api_contracts",
+            "vercel_backend_origin_health",
+        ]
+        self.assert_fails(summary)
+
     def test_case_variant_missing_id_fails(self) -> None:
         self.assert_fails(self.summary(["GHCR_IMAGE_DIGEST_VERIFY"]))
 
@@ -238,6 +253,7 @@ class VerifyPhase1ExternalGateClaimMapTests(unittest.TestCase):
 
     def test_source_does_not_mask_duplicates_or_require_ghcr_missing(self) -> None:
         self.assertNotIn("Sort-Object -Unique", self.claim_map_block)
+        self.assertNotIn("Sort-Object", self.claim_map_block)
         self.assertNotIn("must still list the unpublished GHCR digest", self.claim_map_block)
 
 

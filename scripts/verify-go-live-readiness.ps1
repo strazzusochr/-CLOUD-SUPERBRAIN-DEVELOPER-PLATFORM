@@ -70,7 +70,6 @@ $expectedOverall = [int]$progressManifest.overall_percent
 $summary = Get-Content -Path "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
 Assert-True "summary contract v2" ([string]$summary.contract_version -eq "external-gate-summary-v2")
 Assert-True "summary source contract v2" ([string]$summary.source_contract_version -eq "external-gate-audit-v2")
-Assert-True "summary active Cloudflare target" ([string]$summary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
 $canonicalExternalAuditClaimGates = [ordered]@{
   hosted_staging_claim_allowed = "hosted_agent_api_contracts"
   branch_protection_claim_allowed = "github_branch_protection_current_verify"
@@ -92,6 +91,8 @@ $expectedExternalAuditMissingGates = @(
 )
 $canonicalMissingGates = @($summary.missing_or_failed_gates | ForEach-Object { [string]$_ })
 Assert-True "summary missing gates exact derived order, case, membership, and cardinality" (($canonicalMissingGates -join "|") -ceq ($expectedExternalAuditMissingGates -join "|"))
+$expectedActiveTarget = if ($expectedExternalAuditMissingGates.Count -gt 0) { $expectedExternalAuditMissingGates[0] } else { "" }
+Assert-True "summary active target follows first missing gate" ([string]$summary.active_target_gate -ceq $expectedActiveTarget)
 $expectedExternalAuditStatus = if ($expectedExternalAuditMissingGates.Count -eq 0) { "verified" } else { "blocked" }
 Assert-True "summary status follows independently derived claims" ([string]$summary.status -ceq $expectedExternalAuditStatus)
 $summaryProductionClaim = Read-StrictBooleanProperty "summary" $summary "production_deploy_claim_allowed"
@@ -157,7 +158,7 @@ Assert-True "runtime external blocker parity" ((@($readiness.runtime_external_bl
 Assert-True "external audit summary configured" ($readiness.external_audit_summary.configured -eq $true)
 Assert-True "external audit summary contract" ($readiness.external_audit_summary.contract_version -eq "external-gate-summary-v2")
 Assert-True "external audit source contract" ($readiness.external_audit_summary.source_contract_version -eq "external-gate-audit-v2")
-Assert-True "runtime active Cloudflare target" ($readiness.external_audit_summary.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+Assert-True "runtime active target parity" ([string]$readiness.external_audit_summary.active_target_gate -ceq $expectedActiveTarget)
 Assert-True "external audit summary status supported" (@("blocked", "verified") -contains [string]$readiness.external_audit_summary_status)
 foreach ($claimField in $canonicalExternalAuditClaimGates.Keys) {
   $runtimeClaim = Read-StrictBooleanProperty "runtime external audit claims" $readiness.external_audit_claims $claimField
@@ -220,7 +221,8 @@ $canonicalAudit = Get-Item -LiteralPath $canonicalAuditPath
 $audit = Get-Content -LiteralPath $canonicalAudit.FullName -Raw | ConvertFrom-Json
 Assert-NoSecretPattern "external gate audit" $audit
 Assert-True "external audit contract" ($audit.contract_version -eq "external-gate-audit-v2")
-Assert-True "external audit active Cloudflare target" ($audit.active_target_gate -eq "cloudflare_native_zero_card_hosted_runtime")
+Assert-True "external audit active target parity" ([string]$audit.active_target_gate -ceq $expectedActiveTarget)
+Assert-True "external audit missing-set exact parity" ((@($audit.missing_or_failed_gates | ForEach-Object { [string]$_ }) -join "|") -ceq ($canonicalMissingGates -join "|"))
 Assert-True "external audit status supported" (@("blocked", "verified") -contains [string]$audit.status)
 if ($audit.status -eq "verified") {
   Assert-True "verified external audit has no missing gates" (@($audit.missing_or_failed_gates).Count -eq 0)

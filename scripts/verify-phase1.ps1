@@ -128,7 +128,7 @@ py -3 -m py_compile `
 Assert-LastExitCode "python syntax"
 
 Write-Host "[verify] external gate claim-map regression tests"
-py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map
+py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map scripts.tests.test_external_gate_target_consumers
 Assert-LastExitCode "external gate claim-map regression tests"
 
 Write-Host "[verify] project progress delta-ledger replay regression tests"
@@ -1401,16 +1401,14 @@ $externalGateClaimMap = @(
 $expectedMissingExternalGates = @(
   $externalGateClaimMap |
     Where-Object { -not $_.allowed } |
-    ForEach-Object { [string]$_.id } |
-    Sort-Object
+    ForEach-Object { [string]$_.id }
 )
-$actualMissingExternalGatesSorted = @($actualMissingExternalGates | Sort-Object)
-if ($actualMissingExternalGatesSorted.Count -ne $expectedMissingExternalGates.Count) {
-  throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+if ($actualMissingExternalGates.Count -ne $expectedMissingExternalGates.Count) {
+  throw "Canonical external gate missing sequence does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGates -join ',')"
 }
 for ($externalGateIndex = 0; $externalGateIndex -lt $expectedMissingExternalGates.Count; $externalGateIndex++) {
-  if ($actualMissingExternalGatesSorted[$externalGateIndex] -cne $expectedMissingExternalGates[$externalGateIndex]) {
-    throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+  if ($actualMissingExternalGates[$externalGateIndex] -cne $expectedMissingExternalGates[$externalGateIndex]) {
+    throw "Canonical external gate missing sequence does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGates -join ',')"
   }
 }
 if (

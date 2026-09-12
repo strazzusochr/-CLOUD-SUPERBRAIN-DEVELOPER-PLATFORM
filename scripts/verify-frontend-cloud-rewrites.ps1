@@ -415,8 +415,8 @@ const authMePages = (snapshotTopology.edges || [])
   .sort();
 if (
   !authMeNode ||
-  Number((snapshotTopology.nodes || []).length) !== 246 ||
-  Number((snapshotTopology.edges || []).length) !== 500 ||
+  Number((snapshotTopology.nodes || []).length) !== 252 ||
+  Number((snapshotTopology.edges || []).length) !== 530 ||
   JSON.stringify(authMePages) !== JSON.stringify(["page:login", "page:settings"])
 ) {
   throw new Error("endpoint snapshot topology is stale for the auth/me page wiring");

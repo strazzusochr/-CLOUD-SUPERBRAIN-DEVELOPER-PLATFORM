@@ -388,8 +388,38 @@ Assert-Equal "hosted integrity status" $integrity.status "verified"
 $completion = Get-Json "$BaseUrl/api/v1/project/progress/completion" | ConvertFrom-Json
 
 $canonicalSummary = Get-Content "docs\runtime-state\external-gate-summary.json" -Raw | ConvertFrom-Json
-$canonicalMissing = @($canonicalSummary.missing_or_failed_gates)
-$canonicalVerified = ([string]$canonicalSummary.status -eq "verified" -and $canonicalMissing.Count -eq 0)
+$canonicalClaimGates = [ordered]@{
+  hosted_staging_claim_allowed = "hosted_agent_api_contracts"
+  branch_protection_claim_allowed = "github_branch_protection_current_verify"
+  ghcr_image_digest_claim_allowed = "ghcr_image_digest_verify"
+  vercel_backend_origins_claim_allowed = "vercel_backend_origin_health"
+  canonical_gitleaks_claim_allowed = "canonical_gitleaks_scan"
+  cloudflare_native_zero_card_hosted_runtime_claim_allowed = "cloudflare_native_zero_card_hosted_runtime"
+}
+$canonicalGateIds = @($canonicalClaimGates.Values | ForEach-Object { [string]$_ })
+Assert-Equal "canonical external gate IDs" ((@($canonicalSummary.gate_ids | ForEach-Object { [string]$_ }) -join "|")) ($canonicalGateIds -join "|")
+foreach ($claimName in $canonicalClaimGates.Keys) {
+  $claimProperty = $canonicalSummary.PSObject.Properties[$claimName]
+  Assert-True "canonical external claim $claimName is strict boolean" ($null -ne $claimProperty -and $claimProperty.Value -is [bool])
+}
+$expectedCanonicalMissing = @(
+  $canonicalClaimGates.GetEnumerator() |
+    Where-Object {
+      $property = $canonicalSummary.PSObject.Properties[$_.Key]
+      $null -eq $property -or $property.Value -isnot [bool] -or -not $property.Value
+    } |
+    ForEach-Object { [string]$_.Value }
+)
+$canonicalMissing = @($canonicalSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+Assert-Equal "canonical external missing gate sequence" ($canonicalMissing -join "|") ($expectedCanonicalMissing -join "|")
+$expectedActiveTarget = if ($expectedCanonicalMissing.Count -gt 0) { $expectedCanonicalMissing[0] } else { "" }
+Assert-Equal "canonical external active target" ([string]$canonicalSummary.active_target_gate) $expectedActiveTarget
+$expectedCanonicalStatus = if ($expectedCanonicalMissing.Count -eq 0) { "verified" } else { "blocked" }
+Assert-Equal "canonical external status" ([string]$canonicalSummary.status) $expectedCanonicalStatus
+$productionClaimProperty = $canonicalSummary.PSObject.Properties["production_deploy_claim_allowed"]
+Assert-True "canonical production claim is strict boolean" ($null -ne $productionClaimProperty -and $productionClaimProperty.Value -is [bool])
+Assert-Equal "canonical production claim" ([bool]$productionClaimProperty.Value) ($expectedCanonicalMissing.Count -eq 0)
+$canonicalVerified = ($expectedCanonicalMissing.Count -eq 0)
 $expectedExternalStatus = if ($canonicalVerified) { "verified" } else { "action_required" }
 $completionReady = ($canonicalVerified -and [int]$manifest.overall_percent -eq 100)
 if ($completionReady) {
