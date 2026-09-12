@@ -1338,10 +1338,15 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         step_start = source.index("      - name: Five-axis delta-ledger integration")
         step_end = source.index("      - name: Backend auth security unit contract", step_start)
         step = source[step_start:step_end]
-        expected_drift = (
+        expected_runtime_drift = (
             "[five-axis-audit] project progress verifier failed via python3: "
             "[phase5-credit] active candidate has committed or staged runtime-source drift "
             "outside the exact post-qualification or no-credit requalification truth transition\\n"
+            "[project-progress] Phase-5 credit itemization is invalid"
+        )
+        expected_external_drift = (
+            "[five-axis-audit] project progress verifier failed via python3: "
+            "[phase5-credit] no-credit requalification may not inflate external gate truth\\n"
             "[project-progress] Phase-5 credit itemization is invalid"
         )
         negative_pattern = (
@@ -1365,12 +1370,18 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn("set -euo pipefail", step)
         self.assertIn('case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in', step)
         self.assertIn(f"--test-name-pattern='{negative_pattern}'", step)
-        self.assertIn(f"expected_five_axis_drift=$'{expected_drift}'", step)
+        self.assertIn(f"expected_five_axis_runtime_drift=$'{expected_runtime_drift}'", step)
+        self.assertIn(f"expected_five_axis_external_drift=$'{expected_external_drift}'", step)
         self.assertIn("await import(\"./scripts/verify-five-axis-substance-audit.mjs\")", step)
         self.assertIn("five_axis_exit=$?", step)
         self.assertIn('case "$five_axis_exit" in', step)
         self.assertIn("source_truth_clean=true", step)
-        self.assertIn('if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then', step)
+        self.assertIn(
+            'if [[ "$five_axis_output" != "$expected_five_axis_runtime_drift" && "$five_axis_output" != "$expected_five_axis_external_drift" ]]; then',
+            step,
+        )
+        self.assertIn("expected_external_gate_truth_drift=true", step)
+        self.assertIn("expected_runtime_source_drift=true", step)
         self.assertIn("unexpected five-axis exit", step)
         self.assertIn("            false:true)", step)
         self.assertIn('git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"', step)
@@ -1394,6 +1405,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "five-axis source prequalification env is bound",
             "five-axis prequalification accepts verifier-clean truth",
             "five-axis prequalification requires exact drift output",
+            "five-axis prequalification pins external-gate truth drift",
             "five-axis reusable candidate validates control truth",
             "five-axis normal validation is retained",
             "five-axis rejects unexpected binding mode values",

@@ -250,10 +250,13 @@ Assert-Contains "five-axis prequalification rejects unexpected exits" `
   'source prequalification received unexpected five-axis exit'
 Assert-Contains "five-axis prequalification requires exact drift output" `
   $fiveAxisStep `
-  'if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then'
+  'if [[ "$five_axis_output" != "$expected_five_axis_runtime_drift" && "$five_axis_output" != "$expected_five_axis_external_drift" ]]; then'
 Assert-Contains "five-axis prequalification pins runtime-source drift" `
   $fiveAxisStep `
   '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Contains "five-axis prequalification pins external-gate truth drift" `
+  $fiveAxisStep `
+  '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] no-credit requalification may not inflate external gate truth\n[project-progress] Phase-5 credit itemization is invalid'
 Assert-Regex "five-axis reusable candidate validates control truth" `
   $fiveAxisStep `
   '(?ms)^\s{12}false:true\)\s*\r?\n.*?node --test --test-name-pattern=.*?scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?node scripts/verify-five-axis-substance-audit\.mjs.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'

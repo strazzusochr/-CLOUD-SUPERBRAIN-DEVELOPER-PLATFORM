@@ -561,6 +561,7 @@ Provider-Deployment-IDs und Rollback-Ziel gelesen. Nicht erlaubte Differenzen st
 
 - Grund: GitHub-Run `34704623284` band Q17 und S16 korrekt, stoppte aber im Progress-Guard, weil der Workflow nur den älteren erwarteten Runtime-Source-Drift kannte.
 - Evidence: Der Verifier lieferte exakt `no-credit requalification may not inflate external gate truth` und anschließend `Phase-5 credit itemization is invalid`; alle 28 vorgelagerten Progress-Regressionstests waren grün.
+- Zweiter Readback: Run `34704869336` bestand den reparierten Progress-Guard und stoppte anschließend im unabhängigen Five-Axis-Wrapper an derselben, dort noch nicht allowlisteten exakten External-Truth-Drift-Ausgabe.
 - Zusätzliche Handlung: Der Source-Prequalification-Zweig akzeptiert zusätzlich genau diese zweizeilige, fail-closed External-Truth-Drift-Ausgabe. Jede andere Ausgabe und jeder andere Exitcode bleiben Fehler.
 - Zusätzliche Prüfung: Fokussierter Workflow-Vertragstest, vollständige lokale Kontrollsuite sowie neuer GitHub-Run mit neuem S16/Q17.
 - Status: `[ ] AKTIV`; der fehlgeschlagene Run bleibt historisch, P05 bleibt `[ ] BLOCKIERT`.
