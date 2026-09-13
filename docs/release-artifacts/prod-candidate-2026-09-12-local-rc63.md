@@ -19,8 +19,11 @@ observability_check: `candidate read-only contract, local diagnostics, runtime, 
 rollback_note: `RC62/S15 is the latest qualified local rollback predecessor; no hosted rollback is authorized`
 rollback_target_commit_sha: `63c854867cb1082c209718b64fddcbb52e5dd99b`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:0e9c680c191927dc352c96d119fc909c7d842296`
-immutable_tag_publish_status: `unpublished`
+immutable_tag_publish_status: `verified_candidate`
 rollback_drill_proof: `docs/runbooks/rollback-deploy.md`
+registry_publication_review: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/registry-publication-review.json`
+registry_digest_contract: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/candidate-registry-digests.json`
+registry_receipt_recovery: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/receipt-recovery-provenance.json`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 review_gate: `pending`
 owner_decision: `no-release`
@@ -46,7 +49,7 @@ award progress credit and cannot close I1 `hosted_candidate_parity` or I5
 | C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed. |
 | C5 | JA | The committed S16 archive passed canonical npm-audit and gitleaks checks. |
 | I1 | NEIN | No non-local HTTPS six-service hosted stack is bound exactly to RC63/S16. |
-| I2 | JA | Six content-addressed S16 candidate images are verified locally; no S16 registry publication is claimed. |
+| I2 | JA | Six private GHCR S16 candidate images are verified with twelve platform digests, zero high/critical/secret findings, and a protected publication receipt; no new percentage credit is claimed. |
 | I3 | JA | RC62/S15 is the immutable local rollback predecessor. |
 | I4 | JA | No provider, paid tier, card requirement, recurring amount, or budget-ceiling change is introduced. |
 | I5 | NEIN | Production auth identity remains closed without its hosted OAuth evidence. |
@@ -78,3 +81,7 @@ not retried.
   expansion, secret mutation, secret output, or percentage credit is claimed.
 - The Vercel variable names reported as `Needs Attention` remain a later P09
   configuration blocker; no value was read or copied into this artifact.
+
+## P08 external registry evidence
+
+P05 Run 34766569184 published six private GHCR images for S16 under the protected `registry-publication` environment. Recovery Run 34768138336 reconstructed the immutable receipt read-only. The tracked files under `prod-candidate-2026-09-12-local-rc63-evidence/registry/` bind release RC63, source S16, control b5b5429, the artifact digests, twelve platform digests, and Trivy results of `critical=0`, `high=0`, `secret=0` for every tuple. This evidence is external-control evidence only: Phase 5 remains `17/19`, `89%`, and `MARKET_READY:false`; I1 and I5 remain open.
