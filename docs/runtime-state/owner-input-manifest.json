@@ -21,7 +21,7 @@
                                     "non_claims":  [
                                                          "The two referenced acceptance reports are valid historical hosted evidence for their own recorded sources and deployments.",
                                                          "cloudflare-native-hosted-current.json explicitly does not aggregate those reports into a current combined candidate proof.",
-                                                         "This section does not prove hosted parity for RC62/S15."
+                                                         "This section does not prove hosted parity for RC63/S16."
                                                      ]
                                 },
     "actions":  [
@@ -119,7 +119,7 @@
                         "owner_grant_ref":  "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
                         "historical_live_verification_scope":  "RC44 only",
                         "current_candidate_publication_verified":  false,
-                        "required_owner_action":  "Authorization and historical RC44 registry verification are already recorded. Approve the protected publication environment for the six immutable RC62/S15 images, verify their digest readback, and keep release promotion blocked until the final Market-Ready gate.",
+                        "required_owner_action":  "Authorization and historical RC44 registry verification are already recorded. Approve the protected publication environment for the six immutable RC63/S16 images, verify their digest readback, and keep release promotion blocked until the final Market-Ready gate.",
                         "required_scope_or_payment":  [
                                                           "GHCR package write",
                                                           "Protected-branch/release workflow authorization",
@@ -137,7 +137,7 @@
                                                "npm run verify:release-candidate",
                                                "npm run verify:current-release-candidate"
                                            ],
-                        "codex_boundary":  "No RC62/S15 registry push without the exact protected environment review. No main write, release promotion, or production rollout before MARKET_READY:true and the separate final release decision."
+                        "codex_boundary":  "No RC63/S16 registry push without the exact protected environment review. No main write, release promotion, or production rollout before MARKET_READY:true and the separate final release decision."
                     },
                     {
                         "id":  "O4",
@@ -200,7 +200,7 @@
                                                                         "live_verified was not hand-set."
                                                                     ]
                                                  },
-                        "resolved_at_utc":  "2026-09-11T21:22:28.4645531Z",
+                        "resolved_at_utc":  "2026-09-13T09:46:45.9952488Z",
                         "evidence_refs":  [
                                               "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
                                               "docs/runtime-state/capability-gates.json#live_mcp_writes",
@@ -246,7 +246,7 @@
                         "id":  "O6",
                         "title":  "Bounded LLM Gateway live-runtime path",
                         "status":  "resolved_verified",
-                        "required_owner_action":  "None. The bounded Workers AI path remains verified by its dedicated evidence. The referenced product and 22-page hosted reports are historical source-bound evidence and are not a combined RC62/S15 hosted-parity claim.",
+                        "required_owner_action":  "None. The bounded Workers AI path remains verified by its dedicated evidence. The referenced product and 22-page hosted reports are historical source-bound evidence and are not a combined RC63/S16 hosted-parity claim.",
                         "required_scope_or_payment":  [
 
                                                       ],
@@ -310,8 +310,8 @@
     "non_claims":  [
                        "This manifest does not itself open a capability gate; O5 resolution and its final 10 percentage points are bound to verifier-opened capability evidence and the canonical progress manifest.",
                        "external-gate-summary-v2 is the active gate truth; RC10 v1 and Fly semantics are historical provenance only.",
-                       "O2Core, Phase-6 zero-card scale, historical product acceptance, historical 22-page acceptance, and hosted Vectorize are separately verifier-backed; none of those proofs establishes RC62/S15 GHCR parity or production release.",
-                       "O1 and O3 remain Owner-required for their current hosted identity and RC62/S15 publication steps; O2, O4, O5, and O6 are resolved only within their bounded verifier-backed scopes.",
+                       "O2Core, Phase-6 zero-card scale, historical product acceptance, historical 22-page acceptance, and hosted Vectorize are separately verifier-backed; none of those proofs establishes RC63/S16 GHCR parity or production release.",
+                       "O1 and O3 remain Owner-required for their current hosted identity and RC63/S16 publication steps; O2, O4, O5, and O6 are resolved only within their bounded verifier-backed scopes.",
                        "Owner-granted alone is insufficient for each still-open action; O1 and O3 require their named current-candidate verifiers and evidence artifacts.",
                        "No secret value, password, token, callback credential, or payment data is contained here.",
                        "MARKET_READY remains false until every matrix cell is evidence-backed at 100 and the aggregate verifier prints MARKET_READY:true."

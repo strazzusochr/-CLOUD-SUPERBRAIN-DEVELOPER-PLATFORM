@@ -1,8 +1,8 @@
 {
   "contract_version": "product-acceptance-3d-game-v1",
   "status": "verified",
-  "started_at": "2026-09-11T21:08:58.980Z",
-  "completed_at": "2026-09-11T21:09:44.762Z",
+  "started_at": "2026-09-13T09:35:38.140Z",
+  "completed_at": "2026-09-13T09:36:45.968Z",
   "base_url": "http://localhost:8081",
   "dev_only": true,
   "hosted_proof": false,
@@ -27,12 +27,12 @@
     "credential_segments": 2,
     "credential_format": "hmac_signed_payload",
     "external_provider_write": false,
-    "session_id_sha256": "11a84906a149e0497f5cf8594c479b09c67211e7ca8ba5fd92394e4662e2b163"
+    "session_id_sha256": "c9405a71b5fd8ba3057c64e7a1b22238267a9a02869ee13cc1822e18523ab983"
   },
   "build": {
     "response_status": 200,
     "response_source": "llm-gateway-boundary",
-    "build_id": "79bdaf2d-c6bb-40d8-8496-3e6f7caa9b02",
+    "build_id": "927358cb-72a6-40bc-9fb1-820e096acf62",
     "contract_version": "postgres-build-registry-v1",
     "model": "@cf/qwen/qwen2.5-coder-32b-instruct",
     "gateway_mode": "cloudflare_workers_ai_live",
@@ -40,14 +40,14 @@
     "live_provider_calls": true,
     "audit_persisted": true,
     "persisted": true,
-    "share_path": "/run/79bdaf2d-c6bb-40d8-8496-3e6f7caa9b02",
+    "share_path": "/run/927358cb-72a6-40bc-9fb1-820e096acf62",
     "direct_provider_calls": false,
     "live_mcp_writes": false,
     "secret_output": false
   },
   "html": {
-    "sha256": "64db06353b294f533d7806edb35e533b42dfd7fdbf163184b14c909126983a5d",
-    "bytes": 4275,
+    "sha256": "facc7967ed089cb5649c40c86872c78ee97b9d5c452708152cf951339a53b32b",
+    "bytes": 4685,
     "markers": {
       "complete_document": true,
       "canvas": true,
@@ -57,25 +57,25 @@
     }
   },
   "run": {
-    "route": "/run/79bdaf2d-c6bb-40d8-8496-3e6f7caa9b02",
+    "route": "/run/927358cb-72a6-40bc-9fb1-820e096acf62",
     "http_status": 200,
     "webgl_canvas_visible": true,
     "nonblank_canvas": true,
     "initial_pixel_probe": {
-      "pngSha256": "c06ac4e94b2c3dabfebb6a6b5bb4352fe3d295cc430b7ac396e6c32721261ce2",
-      "pngBytes": 12972,
+      "pngSha256": "22122e92a1459c4d00934ee5c30302d7a241daffa6a62518c3a51fd519e57775",
+      "pngBytes": 11939,
       "width": 1280,
       "height": 676,
       "nonZeroSamples": 4096,
-      "uniqueColorBuckets": 24
+      "uniqueColorBuckets": 23
     },
     "reloaded_pixel_probe": {
-      "pngSha256": "962d098f58fa698d423c6501ac37182e7f81a1dc9cbc41cfeb0464335d4575f6",
-      "pngBytes": 12135,
+      "pngSha256": "3287971603a4217452ee8fe6cad0914a816861ff4c8ab29ac989fa3449d1f6b3",
+      "pngBytes": 11785,
       "width": 1280,
       "height": 676,
       "nonZeroSamples": 4096,
-      "uniqueColorBuckets": 24
+      "uniqueColorBuckets": 26
     }
   },
   "interaction": {
@@ -89,40 +89,40 @@
     "keyboard_pixel_changed": true,
     "visible_dom_state_changed": false,
     "before": {
-      "pngSha256": "c06ac4e94b2c3dabfebb6a6b5bb4352fe3d295cc430b7ac396e6c32721261ce2",
-      "pngBytes": 12972,
+      "pngSha256": "22122e92a1459c4d00934ee5c30302d7a241daffa6a62518c3a51fd519e57775",
+      "pngBytes": 11939,
+      "width": 1280,
+      "height": 676,
+      "nonZeroSamples": 4096,
+      "uniqueColorBuckets": 23
+    },
+    "after_click": {
+      "pngSha256": "5e8d48d3e8c5b02c568518f432dfe271feaa51d9f2723e7d92c6d98dcb2fb035",
+      "pngBytes": 12562,
       "width": 1280,
       "height": 676,
       "nonZeroSamples": 4096,
       "uniqueColorBuckets": 24
     },
-    "after_click": {
-      "pngSha256": "41bd7438522a07e6e99ecc1590767854f278ef36ef2917e3f6b7ccf0e48ffdc0",
-      "pngBytes": 14462,
-      "width": 1280,
-      "height": 676,
-      "nonZeroSamples": 4096,
-      "uniqueColorBuckets": 37
-    },
     "after_keyboard": {
-      "pngSha256": "a454adabd20d4b06fc05e5e5f4b22995841cfee414a173073db077eb2a01290b",
-      "pngBytes": 11670,
+      "pngSha256": "18cffb4040cc3db900e4b11c4c0b9196541054bdcbc9889753e2b16183b66137",
+      "pngBytes": 11578,
       "width": 1280,
       "height": 676,
       "nonZeroSamples": 4096,
-      "uniqueColorBuckets": 23
+      "uniqueColorBuckets": 21
     }
   },
   "persistence": {
-    "build_id": "79bdaf2d-c6bb-40d8-8496-3e6f7caa9b02",
+    "build_id": "927358cb-72a6-40bc-9fb1-820e096acf62",
     "initial_read_http": 200,
     "reload_read_http": 200,
     "persisted": true,
     "audit_persisted_on_create": true,
     "live_provider_calls": true,
     "gateway_provider": "cloudflare-workers-ai",
-    "initial_html_sha256": "64db06353b294f533d7806edb35e533b42dfd7fdbf163184b14c909126983a5d",
-    "reloaded_html_sha256": "64db06353b294f533d7806edb35e533b42dfd7fdbf163184b14c909126983a5d",
+    "initial_html_sha256": "facc7967ed089cb5649c40c86872c78ee97b9d5c452708152cf951339a53b32b",
+    "reloaded_html_sha256": "facc7967ed089cb5649c40c86872c78ee97b9d5c452708152cf951339a53b32b",
     "same_artifact_after_reload": true
   },
   "browser": {
@@ -143,6 +143,8 @@
   "expected_anonymous_auth_console_error_count": 2,
   "page_errors": [],
   "page_error_count": 0,
-  "failed_requests": [],
-  "failed_request_count": 0
+  "failed_requests": [
+    "GET /three@0.160.0/build/three.min.js: net::ERR_ABORTED"
+  ],
+  "failed_request_count": 1
 }

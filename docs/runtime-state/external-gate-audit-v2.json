@@ -1,4 +1,4 @@
-﻿{
+{
     "contract_version":  "external-gate-audit-v2",
     "audit_mode":  "sanitized_verifier_output",
     "status":  "blocked",

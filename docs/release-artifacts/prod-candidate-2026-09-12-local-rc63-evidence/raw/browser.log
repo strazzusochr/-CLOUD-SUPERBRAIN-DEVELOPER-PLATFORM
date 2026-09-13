@@ -1,0 +1,20 @@
+PHASE5_EVIDENCE_RAW_V2
+[phase5-evidence] chain=browser
+[phase5-evidence] release_id=prod-candidate-2026-09-12-local-rc63
+[phase5-evidence] source_commit_sha=0e9c680c191927dc352c96d119fc909c7d842296
+[phase5-evidence] evidence_run_id=a17e1c52-0d2c-43b5-8e76-fe4d815bd64d
+[phase5-evidence] command=npm run verify:browser
+RESUMED_COMPOSITE=true
+INITIAL_CANONICAL_EXIT=1
+INITIAL_FAILURE=O4_RUNTIME_REPORT_BRANCH_STALE
+PROVIDER_CALLS_BEFORE_RESUME=3
+PROVIDER_CALL_RETRY=false
+PRODUCT_REPORT_SHA256=85053A4BE2913008C99CCC1FBEEF533E130ED143266082DE720AA7429EB1F151
+ACTIONS_REPORT_SHA256=C858DA0D9F9B2FAA33F72408D2526F98485B909C48375AB38F37BDC2C0DA1FD4
+O4_COMBINED_REPORT_SHA256=7BF550BEBD9641747AAE62D522A17429C987F1A5BBE920235C406B55299F9E7D
+[browser-contract] checks completed
+[product-acceptance] PASS DEV-ONLY; hosted proof still blocked
+[22-page-actions] PASS DEV-ONLY; hosted proof still blocked
+[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes
+BROWSER_EXIT=0
+[phase5-evidence] exit_code=0

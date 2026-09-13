@@ -12,10 +12,10 @@ source_archive_sha256: `0796e69e958c1abd1e466d74f79b7f82eac6207ef3706df3334ca3a1
 workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34711567878`
 exact_head_ci_attestation: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/ci/exact-head-ci-attestation.json`
 pipeline_status: `success; Q17 is the workflow head and S16 is the immutable source checkout; failed=0; skipped=0; secret_scan=true; provider_writes=false`
-local_validation_status: `runtime, candidate images, candidate-runtime Playwright, and security verified; full browser chain remains pending`
+local_validation_status: `all five independent local chains passed: runtime, browser, candidate images, candidate runtime, security`
 security_validation: `passed committed-S16 archive npm-audit and canonical gitleaks scan; no secret output`
 smoke_result: `one DEV-ONLY local candidate diagnostic selection and click passed; hosted parity is not claimed`
-observability_check: `runtime health, metrics, audit, and local O4 fail-closed paths verified; full browser chain remains pending`
+observability_check: `candidate read-only contract, local diagnostics, runtime, browser, and O4 evidence are hash-bound`
 rollback_note: `RC62/S15 is the latest qualified local rollback predecessor; no hosted rollback is authorized`
 rollback_target_commit_sha: `63c854867cb1082c209718b64fddcbb52e5dd99b`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:0e9c680c191927dc352c96d119fc909c7d842296`
@@ -30,13 +30,42 @@ checklist_verified_count: `17`
 checklist_blocked_count: `2`
 phase5_computed_percent: `89`
 
-## Phase-5 readiness boundary
+## Phase-5 Readiness Checklist
 
 RC63 freezes S16 and binds it through direct-child Q17. GitHub Actions run
 34711567878 verified Q17 while checking out S16, with no failed or skipped
-steps. The fresh local chains are generated only from this identity. They do
-not award progress credit and cannot close I1 `hosted_candidate_parity` or I5
+steps. All five fresh local chains are bound to this identity. They do not
+award progress credit and cannot close I1 `hosted_candidate_parity` or I5
 `production_auth_identity`.
+
+| ID | JA/NEIN | Beleg |
+| --- | --- | --- |
+| C1 | JA | GitHub Actions run 34711567878 binds Q17 as run head and S16 as exact source checkout. |
+| C2 | JA | All five RC63 local verification chains passed and remain DEV-ONLY. |
+| C3 | JA | Pointer, Q17 control, candidate artifact, and staged truth select RC63/S16 exactly. |
+| C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed. |
+| C5 | JA | The committed S16 archive passed canonical npm-audit and gitleaks checks. |
+| I1 | NEIN | No non-local HTTPS six-service hosted stack is bound exactly to RC63/S16. |
+| I2 | JA | Six content-addressed S16 candidate images are verified locally; no S16 registry publication is claimed. |
+| I3 | JA | RC62/S15 is the immutable local rollback predecessor. |
+| I4 | JA | No provider, paid tier, card requirement, recurring amount, or budget-ceiling change is introduced. |
+| I5 | NEIN | Production auth identity remains closed without its hosted OAuth evidence. |
+| V1 | JA | Health, metrics, and audit paths remain candidate-bound contracts. |
+| V2 | JA | Error, rate, session, request, trace, and gateway fail-closed contracts remain unchanged. |
+| V3 | JA | Q17, exact-head CI attestation, five local chains, and rollback source are linked. |
+| V4 | JA | Incident escalation and stop gates remain bound. |
+| O1 | JA | The immutable rollback runbook applies to RC62/S15 as target. |
+| O2 | JA | Incident-response and secret-rotation runbooks remain present. |
+| O3 | JA | Review remains pending and no-release stays explicit. |
+| O4 | JA | I1 and I5 remain the two explicitly accepted no-release blockers. |
+| O5 | JA | Production deployment, release promotion, and rollout remain false. |
+
+## Qualification boundary
+
+This is a completed DEV-ONLY no-credit candidate requalification with two
+explicit Owner blocks. The provider-bearing browser run used exactly three
+allowed provider responses; after a provider-free O4 metadata refresh it was
+not retried.
 
 - Current overall progress remains `90%` and `1333/1400`.
 - Phase 5 remains `17/19` and `89%`.

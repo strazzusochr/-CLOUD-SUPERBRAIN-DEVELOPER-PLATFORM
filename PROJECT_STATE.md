@@ -2,7 +2,7 @@
 
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-12 — RC63/S16 NO-CREDIT-NEUQUALIFIKATION
 
-### Session 2026-09-12 — S16/Q17 source-bound, lokale Abschlussketten aktiv
+### Session 2026-09-13 — S16/Q17 source-bound, lokale Abschlussketten abgeschlossen
 
 - **Identitaet:** Release `prod-candidate-2026-09-12-local-rc63`, Source S16
   `0e9c680c191927dc352c96d119fc909c7d842296`, direkter Q17-Kindcommit
@@ -11,15 +11,16 @@
 - **Unabhaengige CI:** GitHub Actions Run `34711567878` pruefte Q17 als Run-Head
   und S16 als exakte Source: alle 31 Schritte gruen, fehlgeschlagen `0`,
   uebersprungen `0`, Secret-Scan gruen, Provider-Writes `false`.
-- **Aktiver Schritt:** Frische RC63-Ketten fuer Runtime, Browser,
-  Kandidaten-Images, Kandidaten-Runtime und Security werden erzeugt. Aeltere
-  provisorische RC63-Laeufe werden nicht als aktueller Beweis verwendet.
+- **P04-Lokalqualifikation:** Alle fuenf frischen RC63-Ketten sind gruen und
+  hashgebunden: Runtime, Browser, Kandidaten-Images, Kandidaten-Runtime und
+  Security. Der Browserlauf verwendete exakt drei freigegebene Provideraufrufe
+  und drei lokale persistierte Builds; es gab keinen Provider-Retry.
 - **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
   `700/700`, insgesamt `1333/1400`, `67` offen. I1 und I5 bleiben blockiert;
   `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
-- **Naechster gesperrter Schritt:** P05 bleibt bis zur vollstaendig gruenen,
-  hashgebundenen RC63-Lokalqualifikation gesperrt. Keine Registry-, Provider-,
-  Secret-, Production- oder Merge-Aktion in diesem Kontrollpunkt.
+- **Naechster Schritt:** P05 darf erst nach dem abschliessenden RC63-Readback
+  und einer separaten geschuetzten Registry-Freigabe beginnen. Keine Registry-,
+  Secret-, Production- oder Merge-Aktion wurde in diesem Kontrollpunkt ausgefuehrt.
 
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-11 — RC62/S15 NO-CREDIT-NEUQUALIFIKATION
 
@@ -941,7 +942,7 @@ Letzte Aktualisierung: 2026-09-03
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 89%
+## AKTUELLER FORTSCHRITT: 90%
 
 ### Horizontal (nach Priorität)
 
@@ -953,7 +954,7 @@ Letzte Aktualisierung: 2026-09-03
 | P3   | 44%    |
 | P4   | 100%   |
 | P5   | 89%    |
-| P6   | 90%    |
+| P6   | 100%   |
 
 ### Vertikal (nach Modul)
 
@@ -962,8 +963,8 @@ Letzte Aktualisierung: 2026-09-03
 | Frontend      | 100%   |
 | Orchestrator  | 100%   |
 | Agent Pool    | 100%   |
-| LLM Gateway   | 55%    |
-| MCP Gateway   | 56%    |
+| LLM Gateway   | 100%   |
+| MCP Gateway   | 100%   |
 | Memory        | 100%   |
 | Observability | 100%   |
 

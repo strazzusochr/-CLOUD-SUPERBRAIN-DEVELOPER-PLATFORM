@@ -1,4 +1,4 @@
-﻿{
+{
     "contract_version":  "external-gate-summary-v2",
     "source_contract_version":  "external-gate-audit-v2",
     "source_artifact":  "docs\\runtime-state\\external-gate-audit-v2.json",

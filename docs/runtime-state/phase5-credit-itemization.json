@@ -3,7 +3,7 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-09-12T18:40:43Z",
+  "updated_at_utc": "2026-09-13T09:52:23Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
@@ -66,7 +66,7 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-readiness.json",
-          "claim": "RC63 records runtime, candidate-image, candidate-runtime, and security as passed; the full browser chain remains pending before final qualification.",
+          "claim": "RC63 records all five independent local verification chains as passed: runtime, browser, candidate images, candidate runtime, and security.",
           "anchor": "\"local_verification\": {"
         }
       ]
@@ -178,8 +178,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
-          "claim": "RC63 names RC59/S12 as the immutable local rollback anchor without claiming a hosted rollback.",
-          "anchor": "rollback_target_commit_sha: `005ddb46f572520ac182c4f08cc177f07dfe1ae8`"
+          "claim": "RC63 names RC62/S15 as the immutable local rollback predecessor without claiming a hosted rollback.",
+          "anchor": "rollback_target_commit_sha: `63c854867cb1082c209718b64fddcbb52e5dd99b`"
         },
         {
           "path": "docs/runbooks/rollback-deploy.md",
@@ -298,8 +298,8 @@
         },
         {
           "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63.md",
-          "claim": "RC63 names RC59/S12 as the exact immutable local rollback source.",
-          "anchor": "rollback_target_commit_sha: `005ddb46f572520ac182c4f08cc177f07dfe1ae8`"
+          "claim": "RC63 names RC62/S15 as the exact immutable local rollback source.",
+          "anchor": "rollback_target_commit_sha: `63c854867cb1082c209718b64fddcbb52e5dd99b`"
         }
       ]
     },

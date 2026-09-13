@@ -1402,11 +1402,11 @@ Follow `docs/CLOUD_SUPERBRAIN_ULTIMATUM_FINALE_PATCHED.md` over older planning f
 
 Anchor ID: `project-anchor-2026-04-30T00-49-26+02-00`
 
-Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as historical resume context. Their `70%` snapshot is provenance only; the canonical manifest and the Current Verified Progress section below now record `89%`, including the evidence-derived RC11 Phase-5 qualification. Continue evidence-based work without treating any historical candidate as current release parity.
+Use `PROJECT_ANCHOR.md` plus `docs/project-checkpoint-2026-04-30.json` as historical resume context. Their `70%` snapshot is provenance only; the canonical manifest and the Current Verified Progress section below now record `90%`, including the evidence-derived RC11 Phase-5 qualification. Continue evidence-based work without treating any historical candidate as current release parity.
 
 ## Current Verified Progress
 
-Overall: `89%`
+Overall: `90%`
 
 Horizontal:
 
@@ -1416,15 +1416,15 @@ Horizontal:
 - P3: `44%`
 - P4: `100%`
 - P5: `89%`
-- P6: `90%`
+- P6: `100%`
 
 Vertical:
 
 - Frontend / Next.js: `100%`
 - Orchestrator / LangGraph: `100%`
 - Agent Pool: `100%`
-- LLM Gateway: `55%`
-- MCP Gateway: `56%`
+- LLM Gateway: `100%`
+- MCP Gateway: `100%`
 - Memory: `100%`
 - Observability: `100%`
 

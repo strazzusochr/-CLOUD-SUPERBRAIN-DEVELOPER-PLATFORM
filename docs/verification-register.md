@@ -175,12 +175,12 @@ Overall **89**, `MARKET_READY:false`.
 
 
 
-Stand: 2026-09-03
+Stand: 2026-09-13
 Status: Active
 
 ## Current Progress Authority
 
-Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `90%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `86%`, Memory `100%`, and Observability `100%`. The v2 delta ledger contains one evidence-scored L5 entry.
+Current progress claims are authoritative only when they match `docs/project-progress.manifest.json`, `GET /api/v1/project/progress`, and `GET /api/v1/project/progress/integrity`. Historical milestone notes below may mention older then-current percentages, but they are not current progress claims. Current verified progress is total `90%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, Phase 6 `100%`, Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `100%`, MCP Gateway `100%`, Memory `100%`, and Observability `100%`. The v2 delta ledger contains one evidence-scored L5 entry.
 
 ## 2026-09-03 Product-Freeze WIP Verification
 
@@ -2161,8 +2161,8 @@ The current-candidate hosted-boundary verifier is deterministic under stale loca
 
 ## Current Next Verification
 
-Current verified progress is total `89%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, and Phase 6 `90%`.
-Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `55%`, MCP Gateway `56%`, Memory `100%`, and Observability `100%`.
+Current verified progress is total `90%`, Phase 0 `100%`, Phase 1 `100%`, Phase 2 `100%`, Phase 3 `44%`, Phase 4 `100%`, Phase 5 `89%`, and Phase 6 `100%`.
+Current vertical layer snapshot is Frontend `100%`, Orchestrator `100%`, Agent Pool `100%`, LLM Gateway `100%`, MCP Gateway `100%`, Memory `100%`, and Observability `100%`.
 
 The active qualified candidate is immutable RC22 at source
 `28727b198b057a6bdef6b5f34e9aa946fb2757a0`. A6 is post-RC22 runtime-source work: focused
