@@ -49,8 +49,10 @@ if ([string]$canonicalExternalGateSummary.contract_version -ne "external-gate-su
 if ([string]$canonicalExternalGateSummary.source_contract_version -ne "external-gate-audit-v2") {
   throw "Hosted staging verification failed: canonical summary source contract must be external-gate-audit-v2"
 }
-if ([string]$canonicalExternalGateSummary.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
-  throw "Hosted staging verification failed: canonical summary active target must be Cloudflare-native"
+$canonicalMissingGates = @($canonicalExternalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+$expectedActiveTarget = if ($canonicalMissingGates.Count -gt 0) { $canonicalMissingGates[0] } else { "" }
+if ([string]$canonicalExternalGateSummary.active_target_gate -cne $expectedActiveTarget) {
+  throw "Hosted staging verification failed: canonical summary active target must equal the first missing gate"
 }
 $canonicalExternalGateAuditPath = ([string]$canonicalExternalGateSummary.source_artifact).Replace("\", "/")
 if ($canonicalExternalGateAuditPath -ne "docs/runtime-state/external-gate-audit-v2.json") {
@@ -65,13 +67,15 @@ if ($LASTEXITCODE -ne 0 -or @($canonicalTrackedAudit).Count -ne 1) {
   throw "Hosted staging verification failed: canonical durable v2 audit must be tracked"
 }
 $canonicalExternalGateAudit = Get-Content -LiteralPath $canonicalExternalGateAuditFullPath -Raw | ConvertFrom-Json
+$canonicalAuditMissingGates = @($canonicalExternalGateAudit.missing_or_failed_gates | ForEach-Object { [string]$_ })
 if (
   [string]$canonicalExternalGateAudit.contract_version -ne "external-gate-audit-v2" -or
-  [string]$canonicalExternalGateAudit.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime" -or
+  [string]$canonicalExternalGateAudit.active_target_gate -cne $expectedActiveTarget -or
+  ($canonicalAuditMissingGates -join "|") -cne ($canonicalMissingGates -join "|") -or
   [string]$canonicalExternalGateSummary.status -ne [string]$canonicalExternalGateAudit.status -or
   [string]$canonicalExternalGateSummary.generated_at_utc -ne [string]$canonicalExternalGateAudit.generated_at_utc
 ) {
-  throw "Hosted staging verification failed: canonical summary/durable audit v2 parity"
+  throw "Hosted staging verification failed: canonical summary/durable audit missing gate and metadata parity"
 }
 $expectedExternalGateClaims = [ordered]@{
   ghcr_images = [bool]$canonicalExternalGateSummary.ghcr_image_digest_claim_allowed

@@ -8,7 +8,7 @@
 # Version: 2026-08-01 (RC11 local qualification)
 # Führt CODEX_MASTER_GOAL.md zu Ende. Dieses Dokument ist der aktuelle Einstieg.
 
-Current canonical marker: `overall=89`; `P5=89`; `MARKET_READY:false`.
+Current canonical marker: `overall=90`; `P5=89`; `MARKET_READY:false`.
 
 ## DAS ZIEL IN EINEM SATZ
 Cloud Superbrain vollständig fertigstellen und **fehlerfrei beweisen**: alle 22 Seiten

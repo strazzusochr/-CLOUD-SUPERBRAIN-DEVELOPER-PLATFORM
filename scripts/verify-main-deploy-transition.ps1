@@ -198,10 +198,13 @@ Assert-Contains "project-progress prequalification rejects unexpected exits" `
   'source prequalification received unexpected project-progress exit'
 Assert-Contains "project-progress prequalification requires exact drift output" `
   $projectProgressStep `
-  'if [[ "$progress_output" != "$expected_progress_drift" ]]; then'
+  'if [[ "$progress_output" != "$expected_runtime_source_drift" && "$progress_output" != "$expected_external_truth_drift" ]]; then'
 Assert-Contains "project-progress prequalification pins runtime-source drift" `
   $projectProgressStep `
   '[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Contains "project-progress prequalification pins external-gate truth drift" `
+  $projectProgressStep `
+  '[phase5-credit] no-credit requalification may not inflate external gate truth\n[project-progress] Phase-5 credit itemization is invalid'
 Assert-Regex "project-progress reusable candidate validates control truth" `
   $projectProgressStep `
   '(?ms)^\s{12}false:true\)\s*\r?\n.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?python scripts/verify_project_progress_manifest\.py.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'
@@ -247,10 +250,13 @@ Assert-Contains "five-axis prequalification rejects unexpected exits" `
   'source prequalification received unexpected five-axis exit'
 Assert-Contains "five-axis prequalification requires exact drift output" `
   $fiveAxisStep `
-  'if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then'
+  'if [[ "$five_axis_output" != "$expected_five_axis_runtime_drift" && "$five_axis_output" != "$expected_five_axis_external_drift" ]]; then'
 Assert-Contains "five-axis prequalification pins runtime-source drift" `
   $fiveAxisStep `
   '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+Assert-Contains "five-axis prequalification pins external-gate truth drift" `
+  $fiveAxisStep `
+  '[five-axis-audit] project progress verifier failed via python3: [phase5-credit] no-credit requalification may not inflate external gate truth\n[project-progress] Phase-5 credit itemization is invalid'
 Assert-Regex "five-axis reusable candidate validates control truth" `
   $fiveAxisStep `
   '(?ms)^\s{12}false:true\)\s*\r?\n.*?node --test --test-name-pattern=.*?scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?git worktree add --detach "\$CONTROL_TRUTH_DIR" "\$\{GITHUB_SHA\}".*?cd "\$CONTROL_TRUTH_DIR".*?node --test scripts/tests/five-axis-delta-ledger-regression\.test\.mjs.*?node scripts/verify-five-axis-substance-audit\.mjs.*?reusable_candidate=true control_truth_verified=true.*?^\s{14};;'
@@ -272,7 +278,9 @@ foreach ($requiredNoCreditGuard in @(
   'NO_CREDIT_REQUALIFICATION_RUNTIME_PATHS',
   'def require_no_credit_requalification(',
   'phase5_credit_projection(index_itemization) == phase5_credit_projection(source_itemization)',
-  'external_gate_truth_projection(index_external) == external_gate_truth_projection(source_external)',
+  'require_external_gate_truth_contract(source_payload, "source")',
+  'require_external_gate_truth_contract(index_payload, "index")',
+  'external_gate_truth_projection(index_payload) == external_gate_truth_projection(source_payload)',
   'snapshot.get("/api/v1/project/progress") == index_manifest',
   'runtime_source_parity_mode=no_credit_requalification',
   'progress_credit_changed=false'

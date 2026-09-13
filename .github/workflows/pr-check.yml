@@ -344,7 +344,8 @@ jobs:
           python -m unittest scripts.tests.test_verify_project_progress_manifest -v
           case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in
             true:true)
-              expected_progress_drift=$'[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+              expected_runtime_source_drift=$'[phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+              expected_external_truth_drift=$'[phase5-credit] no-credit requalification may not inflate external gate truth\n[project-progress] Phase-5 credit itemization is invalid'
               set +e
               progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"
               progress_exit=$?
@@ -355,12 +356,16 @@ jobs:
                   echo '[project-progress] source_prequalification=true source_truth_clean=true'
                   ;;
                 1)
-                  if [[ "$progress_output" != "$expected_progress_drift" ]]; then
+                  if [[ "$progress_output" != "$expected_runtime_source_drift" && "$progress_output" != "$expected_external_truth_drift" ]]; then
                     printf 'source prequalification received unexpected project-progress output:\n%s\n' "$progress_output" >&2
                     exit 1
                   fi
                   printf '%s\n' "$progress_output"
-                  echo '[project-progress] source_prequalification=true expected_post_rc22_runtime_source_drift=true'
+                  if [[ "$progress_output" == "$expected_external_truth_drift" ]]; then
+                    echo '[project-progress] source_prequalification=true expected_external_gate_truth_drift=true'
+                  else
+                    echo '[project-progress] source_prequalification=true expected_runtime_source_drift=true'
+                  fi
                   ;;
                 *)
                   printf 'source prequalification received unexpected project-progress exit: %s\n' "$progress_exit" >&2
@@ -405,7 +410,8 @@ jobs:
           trap cleanup EXIT
           case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in
             true:true)
-              expected_five_axis_drift=$'[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+              expected_five_axis_runtime_drift=$'[five-axis-audit] project progress verifier failed via python3: [phase5-credit] active candidate has committed or staged runtime-source drift outside the exact post-qualification or no-credit requalification truth transition\n[project-progress] Phase-5 credit itemization is invalid'
+              expected_five_axis_external_drift=$'[five-axis-audit] project progress verifier failed via python3: [phase5-credit] no-credit requalification may not inflate external gate truth\n[project-progress] Phase-5 credit itemization is invalid'
               set +e
               five_axis_output="$(node --input-type=module --eval 'try { await import("./scripts/verify-five-axis-substance-audit.mjs"); } catch (error) { console.error(error.message); process.exitCode = 1; }' 2>&1)"
               five_axis_exit=$?
@@ -417,13 +423,17 @@ jobs:
                   echo '[five-axis-audit] source_prequalification=true source_truth_clean=true'
                   ;;
                 1)
-                  if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then
+                  if [[ "$five_axis_output" != "$expected_five_axis_runtime_drift" && "$five_axis_output" != "$expected_five_axis_external_drift" ]]; then
                     printf 'source prequalification received unexpected five-axis output:\n%s\n' "$five_axis_output" >&2
                     exit 1
                   fi
                   printf '%s\n' "$five_axis_output"
                   node --test --test-name-pattern='^(rejects the retired v1 permanent-empty ledger contract without browser evidence|rejects a structurally typed but unauthenticated v2 ledger entry|keeps future evidence-backed vertical deltas reachable)$' scripts/tests/five-axis-delta-ledger-regression.test.mjs
-                  echo '[five-axis-audit] source_prequalification=true expected_post_rc22_runtime_source_drift=true'
+                  if [[ "$five_axis_output" == "$expected_five_axis_external_drift" ]]; then
+                    echo '[five-axis-audit] source_prequalification=true expected_external_gate_truth_drift=true'
+                  else
+                    echo '[five-axis-audit] source_prequalification=true expected_runtime_source_drift=true'
+                  fi
                   ;;
                 *)
                   printf 'source prequalification received unexpected five-axis exit: %s\n' "$five_axis_exit" >&2
@@ -514,6 +524,7 @@ jobs:
             scripts.tests.test_verify_source_truth_projection_binding \
             scripts.tests.test_market_ready_owner_request \
             scripts.tests.test_browser_hosted_progress_completion_contract \
+            scripts.tests.test_external_gate_target_consumers \
             scripts.tests.test_cloudflare_oauth_deploy_config \
             scripts.tests.test_cloudflare_oauth_hosted_current \
             -v

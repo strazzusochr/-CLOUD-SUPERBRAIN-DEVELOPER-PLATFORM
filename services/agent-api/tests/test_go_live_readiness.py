@@ -29,10 +29,10 @@ class GoLiveReadinessTests(unittest.TestCase):
             "contract_version": "external-gate-summary-v2",
             "source_contract_version": "external-gate-audit-v2",
             "source_artifact": "docs/runtime-state/external-gate-audit-v2.json",
-            "local_run_artifact": ".phase1-artifacts/external-gate-audit-v2-20260829-120000.json",
+            "local_run_artifact": ".codex/runs/CURRENT/external-gates/external-gate-audit-v2-20260829-120000.json",
             "generated_at_utc": "2026-08-29T12:00:00Z",
             "status": "verified",
-            "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+            "active_target_gate": "",
             "requested_release_candidate_selector": candidate_sha,
             "active_release_candidate_sha": candidate_sha,
             "ghcr_published_manifest_ref": "docs/release-artifacts/ghcr-published-manifest.json",
@@ -73,6 +73,7 @@ class GoLiveReadinessTests(unittest.TestCase):
                 "cloudflare_native_zero_card_hosted_runtime" not in missing_gates
             ),
             "production_deploy_claim_allowed": not missing_gates,
+            "active_target_gate": missing_gates[0] if missing_gates else "",
         }
         summary.update(summary_overrides or {})
         with (
@@ -152,6 +153,17 @@ class GoLiveReadinessTests(unittest.TestCase):
         )
         self.assertIn(
             "missing_gate_sequence_mismatch",
+            readiness["external_audit_summary_consistency_errors"],
+        )
+
+    def test_active_target_must_equal_the_first_derived_missing_gate(self) -> None:
+        readiness = self.readiness(
+            ["hosted_agent_api_contracts", "ghcr_image_digest_verify"],
+            summary_overrides={"active_target_gate": "ghcr_image_digest_verify"},
+        )
+
+        self.assertIn(
+            "active_target_gate_mismatch",
             readiness["external_audit_summary_consistency_errors"],
         )
 
@@ -254,6 +266,12 @@ class GoLiveReadinessTests(unittest.TestCase):
                 "active_release_candidate_sha",
                 "b" * 40,
                 "active_release_candidate_sha_selector_mismatch",
+            ),
+            ("active_target_gate", "hosted_agent_api_contracts", "active_target_gate_invalid"),
+            (
+                "local_run_artifact",
+                ".phase1-artifacts/external-gate-audit-v2-20260829-120000.json",
+                "local_run_artifact_invalid",
             ),
         )
         for field, forged_value, expected_error in mutations:

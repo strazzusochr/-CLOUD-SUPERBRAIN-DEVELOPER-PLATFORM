@@ -20,6 +20,33 @@ function Assert-RegexContains($label, $value, $pattern) {
   }
 }
 
+function Assert-ExternalGateActiveTargetConsistency([object]$Record, [string]$RecordName) {
+  $propertyNames = @($Record.PSObject.Properties.Name)
+  if ($propertyNames -notcontains "missing_or_failed_gates") {
+    throw "$RecordName must contain missing_or_failed_gates"
+  }
+  if ($propertyNames -notcontains "active_target_gate") {
+    throw "$RecordName must contain active_target_gate"
+  }
+
+  $orderedMissingGates = @($Record.missing_or_failed_gates | ForEach-Object { [string]$_ })
+  foreach ($missingGate in $orderedMissingGates) {
+    if ([string]::IsNullOrWhiteSpace($missingGate)) {
+      throw "$RecordName missing_or_failed_gates must not contain blank gate ids"
+    }
+  }
+
+  $expectedActiveTarget = if ($orderedMissingGates.Count -gt 0) {
+    [string]$orderedMissingGates[0]
+  } else {
+    ""
+  }
+  $actualActiveTarget = [string]$Record.active_target_gate
+  if ($actualActiveTarget -cne $expectedActiveTarget) {
+    throw "$RecordName active_target_gate must equal the first ordered missing gate, or be empty when no gate is missing. expected=$expectedActiveTarget actual=$actualActiveTarget"
+  }
+}
+
 Write-Host "[verify] supply-chain pins"
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-supply-chain-pins.ps1
 Assert-LastExitCode "supply-chain pins"
@@ -101,7 +128,7 @@ py -3 -m py_compile `
 Assert-LastExitCode "python syntax"
 
 Write-Host "[verify] external gate claim-map regression tests"
-py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map
+py -3 -m unittest scripts.tests.test_verify_phase1_external_gate_claim_map scripts.tests.test_external_gate_target_consumers
 Assert-LastExitCode "external gate claim-map regression tests"
 
 Write-Host "[verify] project progress delta-ledger replay regression tests"
@@ -1294,9 +1321,7 @@ if ([string]$externalGateSummary.contract_version -ne "external-gate-summary-v2"
 if ([string]$externalGateSummary.source_contract_version -ne "external-gate-audit-v2") {
   throw "Canonical external gate summary must source external-gate-audit-v2"
 }
-if ([string]$externalGateSummary.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
-  throw "Canonical external gate summary must target cloudflare_native_zero_card_hosted_runtime"
-}
+Assert-ExternalGateActiveTargetConsistency $externalGateSummary "Canonical external gate summary"
 $currentAuditPath = ([string]$externalGateSummary.source_artifact).Replace("\", "/")
 if ($currentAuditPath -ne "docs/runtime-state/external-gate-audit-v2.json") {
   throw "Canonical external gate summary must dynamically reference the durable v2 audit"
@@ -1312,15 +1337,24 @@ $currentAudit = Get-Content -LiteralPath $currentAuditPath -Raw | ConvertFrom-Js
 if ([string]$currentAudit.contract_version -ne "external-gate-audit-v2") {
   throw "Canonical external gate audit contract must be external-gate-audit-v2"
 }
-if ([string]$currentAudit.active_target_gate -ne "cloudflare_native_zero_card_hosted_runtime") {
-  throw "Canonical external gate audit must target cloudflare_native_zero_card_hosted_runtime"
-}
+Assert-ExternalGateActiveTargetConsistency $currentAudit "Canonical external gate audit"
 if (
   [string]$externalGateSummary.status -ne [string]$currentAudit.status -or
   [string]$externalGateSummary.generated_at_utc -ne [string]$currentAudit.generated_at_utc -or
+  [string]$externalGateSummary.active_target_gate -cne [string]$currentAudit.active_target_gate -or
   [bool]$externalGateSummary.production_deploy_claim_allowed -ne [bool]$currentAudit.production_deploy_claim_allowed
 ) {
   throw "Canonical external gate summary and durable v2 audit are out of parity"
+}
+$summaryMissingExternalGates = @($externalGateSummary.missing_or_failed_gates | ForEach-Object { [string]$_ })
+$auditMissingExternalGates = @($currentAudit.missing_or_failed_gates | ForEach-Object { [string]$_ })
+if ($summaryMissingExternalGates.Count -ne $auditMissingExternalGates.Count) {
+  throw "Canonical external gate summary and durable v2 audit missing lists are out of parity"
+}
+for ($missingGateIndex = 0; $missingGateIndex -lt $summaryMissingExternalGates.Count; $missingGateIndex++) {
+  if ($summaryMissingExternalGates[$missingGateIndex] -cne $auditMissingExternalGates[$missingGateIndex]) {
+    throw "Canonical external gate summary and durable v2 audit ordered missing lists are out of parity"
+  }
 }
 $currentAuditName = [System.IO.Path]::GetFileName($currentAuditPath)
 $currentTruthMirrors = @(
@@ -1367,16 +1401,14 @@ $externalGateClaimMap = @(
 $expectedMissingExternalGates = @(
   $externalGateClaimMap |
     Where-Object { -not $_.allowed } |
-    ForEach-Object { [string]$_.id } |
-    Sort-Object
+    ForEach-Object { [string]$_.id }
 )
-$actualMissingExternalGatesSorted = @($actualMissingExternalGates | Sort-Object)
-if ($actualMissingExternalGatesSorted.Count -ne $expectedMissingExternalGates.Count) {
-  throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+if ($actualMissingExternalGates.Count -ne $expectedMissingExternalGates.Count) {
+  throw "Canonical external gate missing sequence does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGates -join ',')"
 }
 for ($externalGateIndex = 0; $externalGateIndex -lt $expectedMissingExternalGates.Count; $externalGateIndex++) {
-  if ($actualMissingExternalGatesSorted[$externalGateIndex] -cne $expectedMissingExternalGates[$externalGateIndex]) {
-    throw "Canonical external gate missing set does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGatesSorted -join ',')"
+  if ($actualMissingExternalGates[$externalGateIndex] -cne $expectedMissingExternalGates[$externalGateIndex]) {
+    throw "Canonical external gate missing sequence does not match the claim flags. expected=$($expectedMissingExternalGates -join ',') actual=$($actualMissingExternalGates -join ',')"
   }
 }
 if (
@@ -3918,7 +3950,7 @@ $repoLocalGitleaks = Join-Path ".tools\gitleaks" "gitleaks.exe"
 $gitleaksCommand = Get-Command gitleaks -ErrorAction SilentlyContinue
 if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
   Write-Host "[verify] gitleaks scan"
-  $gitleaksExecutable = if ($gitleaksCommand) { "gitleaks" } else { $repoLocalGitleaks }
+  $gitleaksExecutable = if ($gitleaksCommand) { [string]$gitleaksCommand.Source } else { (Resolve-Path -LiteralPath $repoLocalGitleaks).Path }
   $repoRoot = (Resolve-Path ".").Path
   $tempRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
   $gitleaksScanRoot = Join-Path $tempRoot ("superbrain-gitleaks-scan-" + [guid]::NewGuid().ToString("N"))
@@ -3949,9 +3981,15 @@ if ($gitleaksCommand -or (Test-Path $repoLocalGitleaks)) {
       throw "Verification failed: gitleaks scan mirror unexpectedly small: $scanFileCount files"
     }
     Write-Host "[verify] gitleaks scan files=$scanFileCount"
-    $prevEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-    & $gitleaksExecutable detect --no-git --source $gitleaksScanRoot --config .gitleaks.toml --redact --timeout 600
-    $gitleaksExit = $LASTEXITCODE; $ErrorActionPreference = $prevEap
+    Push-Location -LiteralPath $gitleaksScanRoot
+    try {
+      $prevEap = $ErrorActionPreference; $ErrorActionPreference = "Continue"
+      & $gitleaksExecutable detect --no-git --source . --config .gitleaks.toml --redact --timeout 600
+      $gitleaksExit = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $prevEap
+      Pop-Location
+    }
     if ($gitleaksExit -ne 0) { throw "Verification failed: gitleaks scan exited $gitleaksExit" }
   } finally {
     if (Test-Path -LiteralPath $gitleaksScanRoot) {

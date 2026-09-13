@@ -7316,7 +7316,13 @@ def _external_audit_provenance_errors(payload: dict[str, object]) -> list[str]:
         != "docs/runtime-state/external-gate-audit-v2.json"
     ):
         errors.append("source_artifact_invalid")
-    if payload.get("active_target_gate") != "cloudflare_native_zero_card_hosted_runtime":
+    provenance_expected_missing = [
+        gate_id
+        for claim_field, gate_id in EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE
+        if payload.get(claim_field) is not True
+    ]
+    provenance_expected_target = provenance_expected_missing[0] if provenance_expected_missing else ""
+    if payload.get("active_target_gate") != provenance_expected_target:
         errors.append("active_target_gate_invalid")
 
     generated_at = payload.get("generated_at_utc")
@@ -7348,7 +7354,7 @@ def _external_audit_provenance_errors(payload: dict[str, object]) -> list[str]:
         isinstance(local_run_artifact, str)
         and local_run_artifact
         and re.fullmatch(
-            r"\.phase1-artifacts/external-gate-audit-v2-\d{8}-\d{6}\.json",
+            r"\.codex/runs/CURRENT/external-gates/external-gate-audit-v2-\d{8}-\d{6}\.json",
             local_run_artifact.replace("\\", "/"),
         )
         is None
@@ -7400,6 +7406,9 @@ def _external_audit_consistency(
     )
     if not missing_sequence_valid:
         errors.append("missing_gate_sequence_mismatch")
+    expected_active_target = expected_missing[0] if expected_missing else ""
+    if summary.get("active_target_gate") != expected_active_target:
+        errors.append("active_target_gate_mismatch")
     if summary.get("status") != expected_status:
         errors.append("summary_status_mismatch")
 
@@ -7432,10 +7441,10 @@ def external_gate_summary_state() -> dict[str, object]:
             "source_artifact": "",
             "status": "missing_summary",
             "configured": False,
-            "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
-            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": False,
+            "active_target_gate": EXTERNAL_AUDIT_CANONICAL_GATE_IDS[0],
+            **{claim_field: False for claim_field, _ in EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE},
             "production_deploy_claim_allowed": False,
-            "missing_or_failed_gates": ["cloudflare_native_zero_card_hosted_runtime"],
+            "missing_or_failed_gates": list(EXTERNAL_AUDIT_CANONICAL_GATE_IDS),
             "failed_hosted_required_probe_ids": [],
             "failed_vercel_origin_probe_ids": [],
             "non_claims": [
@@ -7452,10 +7461,10 @@ def external_gate_summary_state() -> dict[str, object]:
             "source_artifact": str(path),
             "status": "invalid_summary",
             "configured": True,
-            "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
-            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": False,
+            "active_target_gate": EXTERNAL_AUDIT_CANONICAL_GATE_IDS[0],
+            **{claim_field: False for claim_field, _ in EXTERNAL_AUDIT_CLAIM_GATE_SEQUENCE},
             "production_deploy_claim_allowed": False,
-            "missing_or_failed_gates": ["external_gate_summary_invalid"],
+            "missing_or_failed_gates": list(EXTERNAL_AUDIT_CANONICAL_GATE_IDS),
             "failed_hosted_required_probe_ids": [],
             "failed_vercel_origin_probe_ids": [],
             "error": type(exc).__name__,

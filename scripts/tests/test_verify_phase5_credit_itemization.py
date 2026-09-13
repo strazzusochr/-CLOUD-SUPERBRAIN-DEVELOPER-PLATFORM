@@ -1266,9 +1266,13 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         step_start = source.index("      - name: Project progress delta-ledger replay regression")
         step_end = source.index("      - name: Phase 3 and Phase 6 draft credit rubric integrity", step_start)
         step = source[step_start:step_end]
-        expected_drift = (
+        expected_runtime_drift = (
             "[phase5-credit] active candidate has committed or staged runtime-source drift "
             "outside the exact post-qualification or no-credit requalification truth transition\\n"
+            "[project-progress] Phase-5 credit itemization is invalid"
+        )
+        expected_external_drift = (
+            "[phase5-credit] no-credit requalification may not inflate external gate truth\\n"
             "[project-progress] Phase-5 credit itemization is invalid"
         )
 
@@ -1285,12 +1289,18 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             step,
         )
         self.assertIn("set -euo pipefail", step)
-        self.assertIn(f"expected_progress_drift=$'{expected_drift}'", step)
+        self.assertIn(f"expected_runtime_source_drift=$'{expected_runtime_drift}'", step)
+        self.assertIn(f"expected_external_truth_drift=$'{expected_external_drift}'", step)
         self.assertIn('progress_output="$(python scripts/verify_project_progress_manifest.py 2>&1)"', step)
         self.assertIn("progress_exit=$?", step)
         self.assertIn('case "$progress_exit" in', step)
         self.assertIn("source_truth_clean=true", step)
-        self.assertIn('if [[ "$progress_output" != "$expected_progress_drift" ]]; then', step)
+        self.assertIn(
+            'if [[ "$progress_output" != "$expected_runtime_source_drift" && "$progress_output" != "$expected_external_truth_drift" ]]; then',
+            step,
+        )
+        self.assertIn("expected_external_gate_truth_drift=true", step)
+        self.assertIn("expected_runtime_source_drift=true", step)
         self.assertIn("unexpected project-progress exit", step)
         self.assertIn('case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in', step)
         self.assertIn("            false:true)", step)
@@ -1314,6 +1324,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "project-progress source prequalification env is bound",
             "project-progress prequalification accepts verifier-clean truth",
             "project-progress prequalification requires exact drift output",
+            "project-progress prequalification pins external-gate truth drift",
             "project-progress reusable candidate validates control truth",
             "project-progress normal validation is retained",
             "project-progress manifest has no blanket bypass",
@@ -1327,10 +1338,15 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         step_start = source.index("      - name: Five-axis delta-ledger integration")
         step_end = source.index("      - name: Backend auth security unit contract", step_start)
         step = source[step_start:step_end]
-        expected_drift = (
+        expected_runtime_drift = (
             "[five-axis-audit] project progress verifier failed via python3: "
             "[phase5-credit] active candidate has committed or staged runtime-source drift "
             "outside the exact post-qualification or no-credit requalification truth transition\\n"
+            "[project-progress] Phase-5 credit itemization is invalid"
+        )
+        expected_external_drift = (
+            "[five-axis-audit] project progress verifier failed via python3: "
+            "[phase5-credit] no-credit requalification may not inflate external gate truth\\n"
             "[project-progress] Phase-5 credit itemization is invalid"
         )
         negative_pattern = (
@@ -1354,12 +1370,18 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
         self.assertIn("set -euo pipefail", step)
         self.assertIn('case "${SOURCE_PREQUALIFICATION}:${CANDIDATE_DIFFERS}" in', step)
         self.assertIn(f"--test-name-pattern='{negative_pattern}'", step)
-        self.assertIn(f"expected_five_axis_drift=$'{expected_drift}'", step)
+        self.assertIn(f"expected_five_axis_runtime_drift=$'{expected_runtime_drift}'", step)
+        self.assertIn(f"expected_five_axis_external_drift=$'{expected_external_drift}'", step)
         self.assertIn("await import(\"./scripts/verify-five-axis-substance-audit.mjs\")", step)
         self.assertIn("five_axis_exit=$?", step)
         self.assertIn('case "$five_axis_exit" in', step)
         self.assertIn("source_truth_clean=true", step)
-        self.assertIn('if [[ "$five_axis_output" != "$expected_five_axis_drift" ]]; then', step)
+        self.assertIn(
+            'if [[ "$five_axis_output" != "$expected_five_axis_runtime_drift" && "$five_axis_output" != "$expected_five_axis_external_drift" ]]; then',
+            step,
+        )
+        self.assertIn("expected_external_gate_truth_drift=true", step)
+        self.assertIn("expected_runtime_source_drift=true", step)
         self.assertIn("unexpected five-axis exit", step)
         self.assertIn("            false:true)", step)
         self.assertIn('git worktree add --detach "$CONTROL_TRUTH_DIR" "${GITHUB_SHA}"', step)
@@ -1383,6 +1405,7 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
             "five-axis source prequalification env is bound",
             "five-axis prequalification accepts verifier-clean truth",
             "five-axis prequalification requires exact drift output",
+            "five-axis prequalification pins external-gate truth drift",
             "five-axis reusable candidate validates control truth",
             "five-axis normal validation is retained",
             "five-axis rejects unexpected binding mode values",
@@ -1703,6 +1726,45 @@ ConvertTo-Json -InputObject @($results) -Compress
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), [case["pass"] for case in cases])
 
+    def test_external_gate_truth_contract_rejects_wrong_order_or_target(self) -> None:
+        gate_ids = [gate_id for _, gate_id in verifier.EXTERNAL_GATE_CLAIM_SEQUENCE]
+        payload = {
+            "gate_ids": gate_ids,
+            "hosted_staging_claim_allowed": False,
+            "branch_protection_claim_allowed": True,
+            "ghcr_image_digest_claim_allowed": False,
+            "vercel_backend_origins_claim_allowed": False,
+            "canonical_gitleaks_claim_allowed": True,
+            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": True,
+            "missing_or_failed_gates": [
+                "hosted_agent_api_contracts",
+                "ghcr_image_digest_verify",
+                "vercel_backend_origin_health",
+            ],
+            "active_target_gate": "hosted_agent_api_contracts",
+            "status": "blocked",
+            "production_deploy_claim_allowed": False,
+        }
+        verifier.require_external_gate_truth_contract(payload, "fixture")
+
+        wrong_order = copy.deepcopy(payload)
+        wrong_order["missing_or_failed_gates"] = [
+            "ghcr_image_digest_verify",
+            "hosted_agent_api_contracts",
+            "vercel_backend_origin_health",
+        ]
+        self.assert_rejected(
+            lambda: verifier.require_external_gate_truth_contract(wrong_order, "fixture"),
+            "external missing gate sequence mismatch",
+        )
+
+        wrong_target = copy.deepcopy(payload)
+        wrong_target["active_target_gate"] = "ghcr_image_digest_verify"
+        self.assert_rejected(
+            lambda: verifier.require_external_gate_truth_contract(wrong_target, "fixture"),
+            "external active target mismatch",
+        )
+
     def test_no_credit_requalification_is_exact_source_bound_and_hash_bound(self) -> None:
         source_sha = "c" * 40
         previous_sha = "d" * 40
@@ -1800,12 +1862,22 @@ ConvertTo-Json -InputObject @($results) -Compress
                 "contract_version": "external-gate-summary-v2",
                 "source_contract_version": "external-gate-audit-v2",
                 "status": "blocked",
-                "active_target_gate": "cloudflare_native_zero_card_hosted_runtime",
+                "active_target_gate": "hosted_agent_api_contracts",
                 "requested_release_candidate_selector": previous_sha,
                 "active_release_candidate_sha": "",
                 "production_deploy_claim_allowed": False,
-                "gate_ids": ["a", "b"],
-                "missing_or_failed_gates": ["a", "b"],
+                "gate_ids": [gate_id for _, gate_id in verifier.EXTERNAL_GATE_CLAIM_SEQUENCE],
+                "hosted_staging_claim_allowed": False,
+                "branch_protection_claim_allowed": True,
+                "ghcr_image_digest_claim_allowed": False,
+                "vercel_backend_origins_claim_allowed": False,
+                "canonical_gitleaks_claim_allowed": True,
+                "cloudflare_native_zero_card_hosted_runtime_claim_allowed": True,
+                "missing_or_failed_gates": [
+                    "hosted_agent_api_contracts",
+                    "ghcr_image_digest_verify",
+                    "vercel_backend_origin_health",
+                ],
             }
             index_external = copy.deepcopy(source_external)
             index_external["requested_release_candidate_selector"] = source_sha
@@ -2050,6 +2122,19 @@ ConvertTo-Json -InputObject @($results) -Compress
             "requested_release_candidate_selector": source_sha,
             "active_release_candidate_sha": "",
             "production_deploy_claim_allowed": False,
+            "gate_ids": [gate_id for _, gate_id in verifier.EXTERNAL_GATE_CLAIM_SEQUENCE],
+            "hosted_staging_claim_allowed": False,
+            "branch_protection_claim_allowed": True,
+            "ghcr_image_digest_claim_allowed": False,
+            "vercel_backend_origins_claim_allowed": False,
+            "canonical_gitleaks_claim_allowed": True,
+            "cloudflare_native_zero_card_hosted_runtime_claim_allowed": True,
+            "missing_or_failed_gates": [
+                "hosted_agent_api_contracts",
+                "ghcr_image_digest_verify",
+                "vercel_backend_origin_health",
+            ],
+            "active_target_gate": "hosted_agent_api_contracts",
         }
         index_payloads = {
             verifier.PROJECT_PROGRESS_MANIFEST_REPO_PATH: index_manifest,

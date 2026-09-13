@@ -1,0 +1,36 @@
+{
+  "contract_version": "phase5-local-verification-summary-v2",
+  "chain": "browser",
+  "release_id": "prod-candidate-2026-09-12-local-rc63",
+  "source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "generated_at_utc": "2026-09-13T09:49:53Z",
+  "command": "npm run verify:browser",
+  "status": "passed",
+  "exit_code": 0,
+  "dev_only": true,
+  "hosted_proof": false,
+  "secret_output": false,
+  "evidence_run_id": "a17e1c52-0d2c-43b5-8e76-fe4d815bd64d",
+  "raw_log_path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/raw/browser.log",
+  "raw_log_sha256": "DE618C0476AEAB398F61E53A74E883A7CC171FA1482A4572C54925F76DDF24EA",
+  "observed_success_anchors": [
+    "[browser-contract] checks completed",
+    "[product-acceptance] PASS DEV-ONLY; hosted proof still blocked",
+    "[22-page-actions] PASS DEV-ONLY; hosted proof still blocked",
+    "[o4-write] status=verified gates=live_agent_tool_writes,live_mcp_writes"
+  ],
+  "provider_call_budget": {
+    "maximum": 3,
+    "observed": 3,
+    "retry_after_provider_calls": false
+  },
+  "component_receipts": {
+    "product_acceptance_sha256": "85053A4BE2913008C99CCC1FBEEF533E130ED143266082DE720AA7429EB1F151",
+    "page_actions_sha256": "C858DA0D9F9B2FAA33F72408D2526F98485B909C48375AB38F37BDC2C0DA1FD4",
+    "o4_combined_sha256": "7BF550BEBD9641747AAE62D522A17429C987F1A5BBE920235C406B55299F9E7D"
+  },
+  "non_claims": [
+    "DEV-ONLY; hosted proof still blocked.",
+    "This evidence does not publish images, deploy production, or authorize release promotion."
+  ]
+}

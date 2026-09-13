@@ -1,8 +1,37 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-12 — RC63/S16 NO-CREDIT-NEUQUALIFIKATION
+
+### Session 2026-09-13 — S16/Q17 source-bound, lokale Abschlussketten abgeschlossen
+
+- **Identitaet:** Release `prod-candidate-2026-09-12-local-rc63`, Source S16
+  `0e9c680c191927dc352c96d119fc909c7d842296`, direkter Q17-Kindcommit
+  `59fdd3fb15091fba160f830f5993c1254b2c52be`, Archiv-SHA-256
+  `0796e69e958c1abd1e466d74f79b7f82eac6207ef3706df3334ca3a178f01077`.
+- **Unabhaengige CI:** GitHub Actions Run `34711567878` pruefte Q17 als Run-Head
+  und S16 als exakte Source: alle 31 Schritte gruen, fehlgeschlagen `0`,
+  uebersprungen `0`, Secret-Scan gruen, Provider-Writes `false`.
+- **P04-Lokalqualifikation:** Alle fuenf frischen RC63-Ketten sind gruen und
+  hashgebunden: Runtime, Browser, Kandidaten-Images, Kandidaten-Runtime und
+  Security. Der Browserlauf verwendete exakt drei freigegebene Provideraufrufe
+  und drei lokale persistierte Builds; es gab keinen Provider-Retry.
+- **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
+  `700/700`, insgesamt `1333/1400`, `67` offen. I1 und I5 bleiben blockiert;
+  `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
+- **Naechster Schritt:** P05 darf erst nach dem abschliessenden RC63-Readback
+  und einer separaten geschuetzten Registry-Freigabe beginnen. Keine Registry-,
+  Secret-, Production- oder Merge-Aktion wurde in diesem Kontrollpunkt ausgefuehrt.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-11 — RC62/S15 NO-CREDIT-NEUQUALIFIKATION
 
 ### Session 2026-09-11 — S15/Q16 RC62 no-credit qualifiziert
+
+- **PR #110 und Post-Merge-Kontrolle:** PR #110 wurde am 2026-09-12 als echter
+  Merge-Commit `cbb3d1e9ffa3663d756be70216fcd59139c7b685` in den geschuetzten
+  Standardzweig `chore/repo-bootstrap` uebernommen. Exact-Head-CI-Run
+  `34696298574`, Job `103560257339`, bestand alle Schritte. PR-Head, Q16 und S15
+  sind nachweislich Vorfahren; der Merge-Baum ist identisch mit dem geprueften
+  PR-Baum. Keine Gate-, Ledger- oder Prozent-Promotion erfolgte.
 
 - **Aktiver Kandidat:** `prod-candidate-2026-09-11-local-rc62`, Source
   `63c854867cb1082c209718b64fddcbb52e5dd99b`, direkter Q16-Kindcommit
@@ -17,8 +46,18 @@
 - **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
   `700/700`, insgesamt `1333/1400` belegt und `67` offen. I1 und I5 bleiben
   blockiert; `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
-- **Naechster Pfad:** Finalverifier und PR gegen `chore/repo-bootstrap`;
-  anschliessend nur Review. Keine Production-Promotion oder Secret-Ausgabe.
+- **Naechster Pfad:** Kontrollzweig `codex/rc62-prepublication-controls` bindet
+  das nummerierte RC62-Masterprotokoll, korrigiert veraltete Governance-/Evidence-
+  Wahrheiten und repariert die statische OWNER_BLOCKED-Aggregation. Da dies
+  Verifierlogik beruehrt, verlangt die Protokollregel vor P05 einen vollstaendig
+  qualifizierten Nachfolgekandidaten. RC62/S15 bleibt bis dahin unveraendert und
+  P05 gesperrt. Keine Production-Promotion oder Secret-Ausgabe.
+- **Aktueller External-Gate-Readback:** Branch Protection, canonical Gitleaks und
+  Cloudflare-native bleiben gruen. Offen sind `hosted_agent_api_contracts`,
+  `ghcr_image_digest_verify` und `vercel_backend_origin_health`; aktives erstes
+  Ziel ist `hosted_agent_api_contracts`. Die neue Owner-Matrix und die breite
+  Market-Ready-Unit-Suite sind gruen. Der Gesamtverifier stoppt fail-closed am
+  unveraenderten S15-Kandidaten, bis der Nachfolger source-bound qualifiziert ist.
 
 ## HISTORISCHER CONTROL-CHECKPOINT 2026-09-09 — RC100 RC57/S10 FREEZE-KANDIDAT
 
@@ -903,7 +942,7 @@ Letzte Aktualisierung: 2026-09-03
 6. **Kein E2B-Sandbox:** Docker Desktop für lokale Tests
 7. **7-Schichten-Architektur** laut Ultimatum Finale
 
-## AKTUELLER FORTSCHRITT: 89%
+## AKTUELLER FORTSCHRITT: 90%
 
 ### Horizontal (nach Priorität)
 
@@ -915,7 +954,7 @@ Letzte Aktualisierung: 2026-09-03
 | P3   | 44%    |
 | P4   | 100%   |
 | P5   | 89%    |
-| P6   | 90%    |
+| P6   | 100%   |
 
 ### Vertikal (nach Modul)
 
@@ -924,8 +963,8 @@ Letzte Aktualisierung: 2026-09-03
 | Frontend      | 100%   |
 | Orchestrator  | 100%   |
 | Agent Pool    | 100%   |
-| LLM Gateway   | 55%    |
-| MCP Gateway   | 56%    |
+| LLM Gateway   | 100%   |
+| MCP Gateway   | 100%   |
 | Memory        | 100%   |
 | Observability | 100%   |
 

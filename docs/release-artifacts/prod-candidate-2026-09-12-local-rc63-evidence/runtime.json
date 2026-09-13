@@ -1,0 +1,24 @@
+{
+    "contract_version":  "phase5-local-verification-summary-v2",
+    "chain":  "runtime",
+    "release_id":  "prod-candidate-2026-09-12-local-rc63",
+    "source_commit_sha":  "0e9c680c191927dc352c96d119fc909c7d842296",
+    "generated_at_utc":  "2026-09-12T19:08:56Z",
+    "command":  "npm run verify:runtime",
+    "status":  "passed",
+    "exit_code":  0,
+    "dev_only":  true,
+    "hosted_proof":  false,
+    "secret_output":  false,
+    "evidence_run_id":  "21569d95-f152-49e8-adf2-c53e72fdca5e",
+    "raw_log_path":  "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/raw/runtime.log",
+    "raw_log_sha256":  "07BE7ED6BA472463D6A0C795473221B4696E3B58EAC388BADC6A572989AE2FD4",
+    "observed_success_anchors":  [
+                                     "[runtime] compose status",
+                                     "[runtime] phase1 runtime checks completed"
+                                 ],
+    "non_claims":  [
+                       "DEV-ONLY; hosted proof still blocked.",
+                       "This evidence does not publish images, deploy production, or authorize release promotion."
+                   ]
+}

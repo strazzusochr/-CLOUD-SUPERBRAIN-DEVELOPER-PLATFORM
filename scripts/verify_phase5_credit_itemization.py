@@ -118,6 +118,17 @@ PROJECT_PROGRESS_MANIFEST_REPO_PATH = "docs/project-progress.manifest.json"
 ENDPOINT_SNAPSHOT_REPO_PATH = "apps/frontend/lib/endpoint-snapshot.json"
 PLATFORM_MANIFEST_REPO_PATH = "apps/frontend/lib/platform.ts"
 EXTERNAL_GATE_SUMMARY_REPO_PATH = "docs/runtime-state/external-gate-summary.json"
+EXTERNAL_GATE_CLAIM_SEQUENCE = (
+    ("hosted_staging_claim_allowed", "hosted_agent_api_contracts"),
+    ("branch_protection_claim_allowed", "github_branch_protection_current_verify"),
+    ("ghcr_image_digest_claim_allowed", "ghcr_image_digest_verify"),
+    ("vercel_backend_origins_claim_allowed", "vercel_backend_origin_health"),
+    ("canonical_gitleaks_claim_allowed", "canonical_gitleaks_scan"),
+    (
+        "cloudflare_native_zero_card_hosted_runtime_claim_allowed",
+        "cloudflare_native_zero_card_hosted_runtime",
+    ),
+)
 PROJECT_PROGRESS_DELTA_LEDGER_REPO_PATH = "docs/runtime-state/project-progress-delta-ledger.json"
 PROJECT_PROGRESS_DELTA_SCHEMA_REPO_PATH = "docs/runtime-contracts/project-progress-delta-ledger.schema.json"
 EVIDENCE_CREDIT_STAGED_PATHS = (
@@ -1764,6 +1775,52 @@ def external_gate_truth_projection(payload: dict[str, Any]) -> dict[str, Any]:
     return {key: payload.get(key) for key in keys}
 
 
+def require_external_gate_truth_contract(
+    payload: dict[str, Any],
+    label: str,
+) -> None:
+    expected_gate_ids = [gate_id for _, gate_id in EXTERNAL_GATE_CLAIM_SEQUENCE]
+    require(payload.get("gate_ids") == expected_gate_ids, f"{label} external gate IDs mismatch")
+    expected_missing: list[str] = []
+    for claim_name, gate_id in EXTERNAL_GATE_CLAIM_SEQUENCE:
+        claim_value = payload.get(claim_name)
+        require(type(claim_value) is bool, f"{label} external claim {claim_name} is not boolean")
+        if claim_value is False:
+            expected_missing.append(gate_id)
+    require(
+        payload.get("missing_or_failed_gates") == expected_missing,
+        f"{label} external missing gate sequence mismatch",
+    )
+    expected_target = expected_missing[0] if expected_missing else ""
+    require(
+        payload.get("active_target_gate") == expected_target,
+        f"{label} external active target mismatch",
+    )
+    expected_status = "blocked" if expected_missing else "verified"
+    require(payload.get("status") == expected_status, f"{label} external status mismatch")
+    production_claim = payload.get("production_deploy_claim_allowed")
+    require(type(production_claim) is bool, f"{label} production claim is not boolean")
+    require(
+        production_claim is (not expected_missing),
+        f"{label} production claim does not match the missing gates",
+    )
+
+
+def require_external_gate_truth_transition(
+    index_payload: dict[str, Any],
+    source_payload: dict[str, Any],
+    source_sha: str,
+    release_id: str,
+    label: str,
+) -> None:
+    require_external_gate_truth_contract(source_payload, "source")
+    require_external_gate_truth_contract(index_payload, "index")
+    require(
+        external_gate_truth_projection(index_payload) == external_gate_truth_projection(source_payload),
+        f"{label} may not change external gate truth",
+    )
+
+
 def partition_delta_ledger_at_candidate(
     entries: Any,
     candidate_source_sha: str,
@@ -1961,9 +2018,12 @@ def require_no_credit_requalification(
 
     source_external = load_git_json(source_sha, EXTERNAL_GATE_SUMMARY_REPO_PATH)
     index_external = load_index_json(EXTERNAL_GATE_SUMMARY_REPO_PATH)
-    require(
-        external_gate_truth_projection(index_external) == external_gate_truth_projection(source_external),
-        "no-credit requalification may not inflate external gate truth",
+    require_external_gate_truth_transition(
+        index_external,
+        source_external,
+        source_sha,
+        str(index_pointer.get("active_release_id", "")),
+        "no-credit requalification",
     )
     require(
         index_external.get("requested_release_candidate_selector") == source_sha,
@@ -2163,9 +2223,12 @@ def require_evidence_credited_progress_transition(
 
     source_external = load_git_json(source_sha, EXTERNAL_GATE_SUMMARY_REPO_PATH)
     index_external = load_index_json(EXTERNAL_GATE_SUMMARY_REPO_PATH)
-    require(
-        external_gate_truth_projection(index_external) == external_gate_truth_projection(source_external),
-        "evidence-credit transition may not inflate external gate truth",
+    require_external_gate_truth_transition(
+        index_external,
+        source_external,
+        source_sha,
+        str(release_id),
+        "evidence-credit transition",
     )
     require(
         index_external.get("requested_release_candidate_selector") == source_sha
