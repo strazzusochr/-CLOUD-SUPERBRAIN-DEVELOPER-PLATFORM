@@ -5,7 +5,7 @@
   "selected_architecture": "cloudflare_native",
   "target": "production",
   "callback_origin": "https://frontend-seven-psi-78.vercel.app",
-  "source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+  "source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
   "auth_runtime_evidence_ref": "docs/runtime-state/cloudflare-oauth-hosted-current.json",
   "auth_runtime_verifier_ref": "scripts/verify-cloudflare-oauth-hosted-current.ps1",
   "secret_output": false

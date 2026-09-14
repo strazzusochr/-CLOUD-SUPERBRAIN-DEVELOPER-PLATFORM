@@ -1,0 +1,80 @@
+{
+  "candidate_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "cell_id": "phase_3",
+  "contract_version": "phase3-oauth-credit-evidence-v1",
+  "credit_eligible": true,
+  "criteria": [
+    {
+      "id": "P3-01",
+      "points": 8,
+      "status": "verified"
+    },
+    {
+      "id": "P3-02",
+      "points": 12,
+      "status": "verified"
+    },
+    {
+      "id": "P3-03",
+      "points": 8,
+      "status": "verified"
+    },
+    {
+      "id": "P3-04",
+      "points": 6,
+      "status": "verified"
+    },
+    {
+      "id": "P3-05",
+      "points": 8,
+      "status": "verified"
+    },
+    {
+      "id": "P3-06",
+      "points": 6,
+      "status": "verified"
+    },
+    {
+      "id": "P3-07",
+      "points": 4,
+      "status": "verified"
+    },
+    {
+      "id": "P3-08",
+      "points": 4,
+      "status": "verified"
+    }
+  ],
+  "evidence": {
+    "capability_gates": {
+      "contract_version": "capability-gate-state-v1",
+      "path": "docs/runtime-state/capability-gates.json",
+      "sha256": "5d8cabd686930a0ad00530a19e5e9f6f8533c7f111ccf887f72a90693f7da7f5"
+    },
+    "flow": {
+      "contract_version": "cloudflare-oauth-hosted-current-flow-v2",
+      "path": "docs/runtime-state/cloudflare-oauth-hosted-current-flow.json",
+      "sha256": "8c45f8e4bbd895d44c696478e3999066eaa42e9bd4d0ea48d16cc602af286385"
+    },
+    "production_auth_identity": {
+      "contract_version": "production-auth-identity-proof-v2",
+      "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/production-auth-identity.json",
+      "sha256": "9171f9bdea660af989203c944e925434df007c099925315586ebdb9fa647e95a"
+    },
+    "raw_verifier": {
+      "path": "scripts/verify-cloudflare-oauth-p3-raw-evidence.ps1",
+      "sha256": "2c03ab13f6195c31de3ea662cd4f8cdc9e3451fce6fec5cddef848ab0c286274"
+    }
+  },
+  "live_github_oauth_calls": 2,
+  "new_percent": 100,
+  "old_percent": 44,
+  "points_awarded": 56,
+  "production_deploy": false,
+  "provider_writes": false,
+  "release_id": "prod-candidate-2026-09-12-local-rc63",
+  "release_promotion": false,
+  "scope": "horizontal",
+  "secret_output": false,
+  "status": "verified"
+}
