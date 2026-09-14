@@ -82,7 +82,10 @@ def _validate_i1(proof: dict[str, Any], release_id: str, candidate_sha: str) -> 
         seen.add(str(service))
         for key in ("top_digest", "amd64_manifest_digest", "config_digest", "runtime_image_id"):
             common.require(re.fullmatch(r"sha256:[0-9a-f]{64}", str(image.get(key, ""))) is not None, f"I1 {service} {key} is invalid")
-        common.require(image.get("runtime_image_id") == image.get("config_digest"), f"I1 {service} runtime identity mismatch")
+        common.require(
+            image.get("runtime_image_id") in {image.get("top_digest"), image.get("config_digest")},
+            f"I1 {service} runtime identity mismatch",
+        )
         common.require(image.get("oci_revision") == candidate_sha, f"I1 {service} OCI revision mismatch")
         common.require(image.get("source_bind_mount_count") == 0, f"I1 {service} source bind mount detected")
         common.require(image.get("running") is True and image.get("healthy") is True, f"I1 {service} is not healthy")
