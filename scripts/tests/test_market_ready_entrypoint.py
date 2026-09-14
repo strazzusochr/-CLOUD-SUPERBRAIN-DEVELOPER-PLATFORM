@@ -104,15 +104,15 @@ class MarketReadyEntrypointTests(unittest.TestCase):
             "Get-OwnerBlockedFinalGateValidation $payload", capability
         )
         self.assertIs(result["ok"], True, result["detail"])
-        self.assertIn("auth_pending", result["detail"])
+        self.assertIn("auth_verified_or_pending", result["detail"])
         self.assertIn("registry_historical_verified", result["detail"])
         self.assertIn("phase6_historical_verified", result["detail"])
 
         cases = (
             (
-                "production auth incorrectly live",
-                lambda p: p["gates"]["production_auth_identity"].update(live_verified=True),
-                "production_auth_identity_must_remain_pending",
+                "production auth owner grant removed",
+                lambda p: p["gates"]["production_auth_identity"].update(owner_granted=False),
+                "production_auth_identity_invalid",
             ),
             (
                 "registry evidence hash",
