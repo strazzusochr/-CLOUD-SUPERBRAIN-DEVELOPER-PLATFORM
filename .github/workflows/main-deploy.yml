@@ -131,12 +131,85 @@ jobs:
           }
           if set(active_candidate) != expected_candidate_keys:
               raise SystemExit("active release candidate fields are not exact")
-          if active_candidate.get("active_release_id") != truth.get("release_id"):
-              raise SystemExit("active release candidate does not equal qualified release_id")
-          if active_candidate.get("source_commit_sha") != candidate_sha:
-              raise SystemExit("active release candidate does not equal dispatch candidate_sha")
+          active_release_id = active_candidate.get("active_release_id")
+          active_candidate_source_sha = active_candidate.get("source_commit_sha")
           if active_candidate.get("production_rollout_claimed") is not False:
               raise SystemExit("active release candidate may not claim rollout")
+
+          # A source-qualified successor may be published before it becomes the
+          # active release pointer. This is the deliberate RC66 prepublication
+          # boundary: the old pointer remains the rollback/release truth, while
+          # the successor is admitted only as an append-only, no-release image
+          # candidate. Any other pointer drift remains fail-closed.
+          pointer_matches_truth = (
+              active_release_id == truth.get("release_id")
+              and active_candidate_source_sha == candidate_sha
+          )
+          if not pointer_matches_truth:
+              if re.fullmatch(
+                  r"prod-candidate-[0-9]{4}-[0-9]{2}-[0-9]{2}-local-rc[0-9]+",
+                  str(active_release_id),
+              ) is None:
+                  raise SystemExit("successor publication predecessor release ID is invalid")
+              if re.fullmatch(r"[0-9a-f]{40}", str(active_candidate_source_sha)) is None:
+                  raise SystemExit("successor publication predecessor source SHA is invalid")
+              if active_candidate_source_sha == candidate_sha:
+                  raise SystemExit("successor publication predecessor must differ from candidate")
+              subprocess.run(
+                  ["git", "cat-file", "-e", f"{active_candidate_source_sha}^{{commit}}"],
+                  check=True,
+              )
+              predecessor_ancestry = subprocess.run(
+                  ["git", "merge-base", "--is-ancestor", active_candidate_source_sha, candidate_sha],
+                  check=False,
+              )
+              if predecessor_ancestry.returncode != 0:
+                  raise SystemExit("successor candidate is not descended from the active release source")
+
+              successor_artifact_path = pathlib.Path("docs/release-artifacts") / f"{truth['release_id']}.md"
+              subprocess.run(
+                  ["git", "ls-files", "--error-unmatch", successor_artifact_path.as_posix()],
+                  check=True,
+                  stdout=subprocess.DEVNULL,
+              )
+              successor_artifact = successor_artifact_path.read_text(encoding="utf-8")
+              required_successor_metadata = {
+                  "release_id": f"release_id: `{truth['release_id']}`",
+                  "scope": "scope: `source-qualified no-release candidate`",
+                  "source_commit_sha": f"source_commit_sha: `{candidate_sha}`",
+                  "immutable_image_commit_sha": f"immutable_image_commit_sha: `{candidate_sha}`",
+                  "immutable_tag_publish_status": "immutable_tag_publish_status: `unpublished`",
+                  "owner_decision": "owner_decision: `no-release`",
+                  "hosted_staging_parity": "hosted_staging_parity: `false`",
+                  "production_rollout_claimed": "production_rollout_claimed: `false`",
+              }
+              for metadata_name, metadata_marker in required_successor_metadata.items():
+                  if metadata_marker not in successor_artifact:
+                      raise SystemExit(
+                          f"successor release artifact is missing {metadata_name} no-release metadata"
+                      )
+              rollback_match = re.search(
+                  r"(?m)^rollback_target_commit_sha:\s*`([0-9a-f]{40})`\s*$",
+                  successor_artifact,
+              )
+              if rollback_match is None:
+                  raise SystemExit("successor release artifact rollback target is missing")
+              rollback_target_sha = rollback_match.group(1)
+              subprocess.run(
+                  ["git", "cat-file", "-e", f"{rollback_target_sha}^{{commit}}"],
+                  check=True,
+              )
+              rollback_ancestry = subprocess.run(
+                  ["git", "merge-base", "--is-ancestor", rollback_target_sha, active_candidate_source_sha],
+                  check=False,
+              )
+              if rollback_ancestry.returncode != 0:
+                  raise SystemExit("successor rollback target is not an ancestor of the active release source")
+          else:
+              if active_release_id != truth.get("release_id"):
+                  raise SystemExit("active release candidate does not equal qualified release_id")
+              if active_candidate_source_sha != candidate_sha:
+                  raise SystemExit("active release candidate does not equal dispatch candidate_sha")
           qualified_archive_sha256 = truth.get("source_archive_sha256")
           if re.fullmatch(r"[0-9a-f]{64}", str(qualified_archive_sha256)) is None:
               raise SystemExit("source qualification archive SHA-256 is invalid")
@@ -171,6 +244,39 @@ jobs:
               raise SystemExit("docker_registry_publish Owner grant reference is missing")
           if registry_gate.get("paid_provider") is not False:
               raise SystemExit("docker_registry_publish violates the zero-card policy")
+
+          if not pointer_matches_truth:
+              if registry_gate.get("live_verified") is not True:
+                  raise SystemExit("successor publication predecessor registry evidence is not live-verified")
+              predecessor_evidence_rel = registry_gate.get("evidence_artifact")
+              if not isinstance(predecessor_evidence_rel, str) or not predecessor_evidence_rel.strip():
+                  raise SystemExit("successor publication predecessor registry evidence is missing")
+              predecessor_evidence_path = pathlib.Path(predecessor_evidence_rel)
+              subprocess.run(
+                  ["git", "ls-files", "--error-unmatch", predecessor_evidence_path.as_posix()],
+                  check=True,
+                  stdout=subprocess.DEVNULL,
+              )
+              predecessor_evidence = json.loads(predecessor_evidence_path.read_text(encoding="utf-8"))
+              predecessor_evidence_requirements = {
+                  "release_id": active_release_id,
+                  "source_commit_sha": active_candidate_source_sha,
+                  "status": "verified",
+                  "registry_publish_performed": True,
+                  "production_deploy": False,
+                  "release_promotion": False,
+                  "secret_output": False,
+              }
+              for evidence_name, evidence_value in predecessor_evidence_requirements.items():
+                  if predecessor_evidence.get(evidence_name) != evidence_value:
+                      raise SystemExit(
+                          f"successor publication predecessor registry evidence {evidence_name} mismatch"
+                      )
+              predecessor_evidence_sha = hashlib.sha256(
+                  predecessor_evidence_path.read_bytes()
+              ).hexdigest()
+              if registry_gate.get("evidence_sha256") != predecessor_evidence_sha:
+                  raise SystemExit("successor publication predecessor registry evidence hash mismatch")
 
           checked_out_sha = subprocess.run(
               ["git", "rev-parse", "HEAD"],
