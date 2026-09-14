@@ -139,13 +139,21 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-      "claim": "The current frontend deployment is source-bound RC63 operational evidence only and does not prove six-service immutable-image parity or I1 credit.",
-      "anchor": "\"deployment_id\": \"dpl_AZKFkveny2PZjteiCa8yqxrUkQUF\""
+          "claim": "The current frontend deployment is source-bound RC63 operational evidence only and does not prove six-service immutable-image parity or I1 credit.",
+          "anchor": "\"deployment_id\": \"dpl_AZKFkveny2PZjteiCa8yqxrUkQUF\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
           "claim": "The hosted backend is a read-only contract origin and does not prove six-service RC63/S16 parity.",
           "anchor": "\"read_only_contract_origin\": true"
+        },
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/i1/i1-hosted-candidate-parity.json",
+          "claim": "Fresh RC63 Codespaces workflow 34884107604 proves six digest-only services over non-local HTTPS with health, SSE, no builds, and no source mounts.",
+          "anchor": "\"contract_version\": \"i1-hosted-candidate-parity-v1\"",
+          "contract_version": "i1-hosted-candidate-parity-v1",
+          "verifier": "scripts/verify_i1_codespaces_candidate.py",
+          "sha256": "7afaf5817dc273c6801bb26e0c7c00625376ec360a13658d69287193d44910b4"
         }
       ]
     },
