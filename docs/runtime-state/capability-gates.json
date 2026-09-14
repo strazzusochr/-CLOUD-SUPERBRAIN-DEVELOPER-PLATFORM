@@ -17,14 +17,13 @@
     "production_auth_identity": {
       "owner_granted": true,
       "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O1:production_auth_identity",
-      "live_verified": true,
-      "evidence_artifact": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/production-auth-identity.json",
-      "verified_at_utc": "2026-09-14T15:02:53.687Z",
-      "provider": "github-oauth-cloudflare-native",
+      "live_verified": false,
+      "evidence_artifact": "",
+      "verified_at_utc": "",
+      "provider": "",
       "paid_provider": false,
-      "verifier": "scripts/verify-production-auth-identity-evidence.ps1",
-      "note": "Verified from production-auth-identity-proof-v2; evidence_sha256=9171f9bdea660af989203c944e925434df007c099925315586ebdb9fa647e95a",
-      "evidence_sha256": "9171f9bdea660af989203c944e925434df007c099925315586ebdb9fa647e95a"
+      "verifier": "",
+      "note": "Needs a successfully completed owner-configured OAuth flow plus hosted callback proof. The latest observed flow did not issue credentials, so the production identity gate remains closed."
     },
     "docker_registry_publish": {
       "owner_granted": true,
