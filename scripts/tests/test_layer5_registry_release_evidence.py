@@ -236,6 +236,13 @@ def make_jobs(*, skip_service: str | None = None, preflight_conclusion: str = "s
                 "completed_at": "2026-09-02T10:05:00Z",
                 "steps": [
                     {
+                        "name": "Refuse to overwrite an existing candidate tag",
+                        "status": "completed",
+                        "conclusion": "success",
+                        "started_at": "2026-09-02T10:01:30Z",
+                        "completed_at": "2026-09-02T10:01:40Z",
+                    },
+                    {
                         "name": "Build and push absent candidate tag once",
                         "status": "completed",
                         "conclusion": "skipped" if service == skip_service else "success",
@@ -454,6 +461,16 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
             self.assertEqual(registry["platform_digest_count"], 12)
             self.assertTrue(registry["registry_publish_verified"])
 
+    def test_publication_collector_accepts_reused_immutable_candidate_tag(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            inputs = self._publication_inputs(root)
+            inputs["jobs_path"] = write_json(root / "reused-jobs.json", make_jobs(skip_service="frontend"))
+            review, _ = build_publication_evidence(**inputs)
+            reused = next(job for job in review["publish_jobs"] if job["service"] == "frontend")
+            self.assertEqual(reused["push_step"]["conclusion"], "skipped")
+            self.assertEqual(reused["push_step"]["mode"], "reused_existing_immutable_tag")
+
     def test_publication_collector_accepts_canonically_verified_existing_registry_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -511,7 +528,6 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
                 make_environment(reviewer="different-release-owner"),
                 "configured required reviewer",
             ),
-            ("jobs_path", make_jobs(skip_service="frontend"), "push step"),
             ("jobs_path", make_jobs(preflight_conclusion="failure"), "candidate preflight"),
         ]
         for key, value, expected in cases:

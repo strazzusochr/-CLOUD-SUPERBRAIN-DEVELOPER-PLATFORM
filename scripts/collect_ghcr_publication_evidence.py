@@ -157,7 +157,23 @@ def _select_publish_jobs(jobs_payload: Mapping[str, Any], control_sha: str) -> l
         push_steps = [step for step in steps if isinstance(step, dict) and step.get("name") == "Build and push absent candidate tag once"]
         _require(len(push_steps) == 1, f"publish push step is missing or duplicated: {service}")
         push_step = push_steps[0]
-        _require(push_step.get("status") == "completed" and push_step.get("conclusion") == "success", f"publish push step was skipped or failed: {service}")
+        registry_checks = [
+            step
+            for step in steps
+            if isinstance(step, dict) and step.get("name") == "Refuse to overwrite an existing candidate tag"
+        ]
+        _require(len(registry_checks) == 1, f"registry immutability check is missing or duplicated: {service}")
+        registry_check = registry_checks[0]
+        _require(
+            registry_check.get("status") == "completed" and registry_check.get("conclusion") == "success",
+            f"registry immutability check did not succeed: {service}",
+        )
+        push_conclusion = push_step.get("conclusion")
+        _require(
+            push_step.get("status") == "completed" and push_conclusion in {"success", "skipped"},
+            f"publish push step failed: {service}",
+        )
+        push_mode = "published" if push_conclusion == "success" else "reused_existing_immutable_tag"
         selected[service] = {
             "service": service,
             "job_id": job.get("id"),
@@ -169,7 +185,8 @@ def _select_publish_jobs(jobs_payload: Mapping[str, Any], control_sha: str) -> l
             "push_step": {
                 "name": "Build and push absent candidate tag once",
                 "status": "completed",
-                "conclusion": "success",
+                "conclusion": push_conclusion,
+                "mode": push_mode,
                 "started_at": _timestamp(push_step.get("started_at"), f"{service} push step started_at"),
                 "completed_at": _timestamp(push_step.get("completed_at"), f"{service} push step completed_at"),
             },
