@@ -54,7 +54,7 @@ jobs:
           archive="${SYFT_DIR}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
           curl --fail --silent --show-error --location --output "${archive}" \
             "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
-          expected="75adfff66c266adac51fe8addeca97702f82b4d822d02bf70b79f556c84d3a46"
+          expected="5a8b71e94f4607973145f02e27e01d50b9f7c7bc41e38d40b39606ad138b43b5"
           tar -xzf "${archive}" -C "${SYFT_DIR}" syft
           test "$(sha256sum "${SYFT_DIR}/syft" | cut -d ' ' -f 1)" = "${expected}"
           test "$("${SYFT_DIR}/syft" version -o json | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "${SYFT_VERSION}"
