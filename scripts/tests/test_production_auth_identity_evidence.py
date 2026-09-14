@@ -160,6 +160,7 @@ def valid_frontend_origin_evidence() -> dict[str, object]:
         "source_archive_sha256": None,
         "deployment_id": "frontend-deployment-1",
         "immutable_deployment_url": "https://frontend-immutable.vercel.app",
+        "immutable_access_url": "https://frontend.example.test",
         "production_alias": FRONTEND_ORIGIN,
         "vercel_target": "production",
         "vercel_scope": "strazzusochrs-projects",
