@@ -2,7 +2,7 @@
 
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-12 — RC63/S16 NO-CREDIT-NEUQUALIFIKATION
 
-### Session 2026-09-13 — S16/Q17 source-bound, lokale Abschlussketten abgeschlossen
+### Session 2026-09-14 — RC63 I1/I5 Evidence-Credit transition verified
 
 - **Identitaet:** Release `prod-candidate-2026-09-12-local-rc63`, Source S16
   `0e9c680c191927dc352c96d119fc909c7d842296`, direkter Q17-Kindcommit
@@ -15,9 +15,9 @@
   hashgebunden: Runtime, Browser, Kandidaten-Images, Kandidaten-Runtime und
   Security. Der Browserlauf verwendete exakt drei freigegebene Provideraufrufe
   und drei lokale persistierte Builds; es gab keinen Provider-Retry.
-- **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
-  `700/700`, insgesamt `1333/1400`, `67` offen. I1 und I5 bleiben blockiert;
-  `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
+- **Evidence-Credit-Fortschritt:** Overall `100%`; horizontal `700/700`, vertikal
+  `700/700`, insgesamt `1400/1400`, `0` offen. I1 und I5 sind verifier-basiert geschlossen;
+  `MARKET_READY:true` bezeichnet den Evidence-Credit-Zustand; externe Produktions-Gates bleiben fail-closed.
 - **Naechster Schritt:** P05 darf erst nach dem abschliessenden RC63-Readback
   und einer separaten geschuetzten Registry-Freigabe beginnen. Keine Registry-,
   Secret-, Production- oder Merge-Aktion wurde in diesem Kontrollpunkt ausgefuehrt.

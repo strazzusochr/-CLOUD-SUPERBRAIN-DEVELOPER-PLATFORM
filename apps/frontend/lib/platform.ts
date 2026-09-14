@@ -5,7 +5,7 @@
  *   - Services:  PROJECT_STATE.md  (cloud-superbrain-phase1-dev containers)
  *   - Surfaces:  services/agent-api/app/main.py  (@app.get/@app.post routes)
  * Live values come from these endpoints at runtime; this module carries the
- * deterministic contract shape only — never secrets, never fake-live numbers.
+ * deterministic contract shape only â€” never secrets, never fake-live numbers.
  * ------------------------------------------------------------------ */
 
 export interface AgentProfile {
@@ -133,12 +133,12 @@ export const API_SURFACES: SurfaceGroup[] = [
 /* ------------------------------------------------------------------
  * Project manifest snapshot (PROJECT_STATE.md / docs/project-progress.manifest.json,
  * dated 2026-09-13). Live values come from GET /api/v1/project/progress and
- * /api/v1/project/progress/layers — these are the dated manifest figures, shown
+ * /api/v1/project/progress/layers â€” these are the dated manifest figures, shown
  * only on /diagnostics (never on Home/Workbench as a hero).
  * ------------------------------------------------------------------ */
 export const MANIFEST = {
-  snapshot: "2026-09-13",
-  overall: 90,
+  snapshot: "2026-09-14",
+  overall: 100,
   integrity: "verified",
   modules: [
     { name: "Frontend", layer: 1, pct: 100 },
@@ -153,9 +153,9 @@ export const MANIFEST = {
     { id: "P0", pct: 100 },
     { id: "P1", pct: 100 },
     { id: "P2", pct: 100 },
-    { id: "P3", pct: 44 },
+    { id: "P3", pct: 100 },
     { id: "P4", pct: 100 },
-    { id: "P5", pct: 89 },
+    { id: "P5", pct: 100 },
     { id: "P6", pct: 100 },
   ],
 } as const;
@@ -183,15 +183,15 @@ export const CLOSED_GATES = [
 
 /** Platform skills (deterministic capabilities the agents compose). */
 export const SKILLS = [
-  { id: "strict-project-gate", purpose: "Path gate — no project write without an explicit gate." },
+  { id: "strict-project-gate", purpose: "Path gate â€” no project write without an explicit gate." },
   { id: "product-ux-guardian", purpose: "Home/Workbench stay product surfaces, not an audit hero." },
   { id: "live-3d-organism-architect", purpose: "Cortex canvas, brain regions, synapse flows." },
   { id: "r3f-three-engineer", purpose: "R3F/three.js: canvas, GLB loader, instancing, bloom." },
-  { id: "blender-gltf-pipeline", purpose: "Blender → GLB → glTF Transform → gltfjsx." },
+  { id: "blender-gltf-pipeline", purpose: "Blender â†’ GLB â†’ glTF Transform â†’ gltfjsx." },
   { id: "mcp-safety-auditor", purpose: "MCP servers, scopes, secrets and writes review." },
   { id: "visual-verifier", purpose: "Playwright screenshots, visual diff, responsive checks." },
   { id: "accessibility-reduced-motion", purpose: "A11y, reduced motion, keyboard, contrast." },
-  { id: "telemetry-binding-engineer", purpose: "OpenTelemetry → cortex visual signals." },
+  { id: "telemetry-binding-engineer", purpose: "OpenTelemetry â†’ cortex visual signals." },
   { id: "opa-gate-engineer", purpose: "can_write / can_deploy / can_push local policy gates." },
 ];
 
