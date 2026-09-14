@@ -246,6 +246,14 @@ try {
   Assert-True ([string]$config.immutable_deployment_url -match '^https://[^/]+\.vercel\.app$') "Invalid immutable deployment URL"
   Assert-True ([string]$config.immutable_deployment_url -notmatch 'localhost|127\.0\.0\.1') "Hosted proof cannot use localhost"
   $null = ConvertTo-ExactHost ([string]$config.immutable_deployment_url) "configured immutable deployment URL"
+  $immutableAccessUrl = [string]$config.immutable_access_url
+  if (-not [string]::IsNullOrWhiteSpace($immutableAccessUrl)) {
+    Assert-True ($immutableAccessUrl -match '^https://[^/]+\.vercel\.app$') "Invalid immutable access URL"
+    Assert-True ($immutableAccessUrl -notmatch 'localhost|127\.0\.0\.1') "Hosted proof cannot use localhost"
+    $null = ConvertTo-ExactHost $immutableAccessUrl "configured immutable access URL"
+  } else {
+    $immutableAccessUrl = [string]$config.immutable_deployment_url
+  }
   $vercelTarget = [string]$config.vercel_target
   if ([string]::IsNullOrWhiteSpace($vercelTarget)) { $vercelTarget = "production" }
   Assert-True (@("preview", "production") -contains $vercelTarget) "Invalid Vercel target"
@@ -275,9 +283,9 @@ try {
   }
   Assert-Equal $aliasParityRequired ($vercelTarget -eq "production") "target/alias parity contract"
   Assert-Equal ([string]$config.browser_channel) "chrome" "browser channel"
-  Assert-Equal ([int]$config.page_count) 22 "configured page count"
+  Assert-Equal ([int]$config.page_count) 26 "configured page count"
   Assert-Equal ([int]$config.viewport_count) 2 "configured viewport count"
-  Assert-Equal ([int]$config.click_navigation_count) 44 "configured click count"
+  Assert-Equal ([int]$config.click_navigation_count) 52 "configured click count"
   Assert-Equal ([int]$config.frontend_progress_before) 99 "frontend progress before"
   Assert-Equal ([int]$config.frontend_progress_after) 100 "frontend progress after"
   if ($vercelTarget -eq "production") {
@@ -341,10 +349,11 @@ try {
     "/workbench", "/organism", "/organism/replay", "/organism/map", "/agents",
     "/files", "/files/local", "/tools", "/marketplace", "/observe", "/games",
     "/apps", "/media", "/docs-output", "/evidence", "/diagnostics",
-    "/design-system", "/technology", "/settings", "/open-source", "/home", "/login"
+    "/design-system", "/technology", "/settings", "/open-source", "/home", "/login",
+    "/", "/organism/live", "/responsive", "/run/[id]"
   )
-  Assert-Equal $desktop.Count 22 "desktop route count"
-  Assert-Equal $mobile.Count 22 "mobile route count"
+  Assert-Equal $desktop.Count 26 "desktop route count"
+  Assert-Equal $mobile.Count 26 "mobile route count"
   foreach ($entry in @($desktop + $mobile)) {
     Assert-True ([bool]$entry.clickNavigation) "Route was not reached by a real command-palette click: $($entry.route)"
     Assert-True ([int]$entry.horizontalDocumentOverflow -le 2) "Route overflow exceeded 2px: $($entry.route)"
@@ -356,8 +365,8 @@ try {
   $desktopRouteKey = (($desktop.route | Sort-Object) -join ',')
   $mobileRouteKey = (($mobile.route | Sort-Object) -join ',')
   $expectedRouteKey = (($expectedRoutes | Sort-Object) -join ',')
-  Assert-Equal @($desktop.route | Sort-Object -Unique).Count 22 "unique desktop route count"
-  Assert-Equal @($mobile.route | Sort-Object -Unique).Count 22 "unique mobile route count"
+  Assert-Equal @($desktop.route | Sort-Object -Unique).Count 26 "unique desktop route count"
+  Assert-Equal @($mobile.route | Sort-Object -Unique).Count 26 "unique mobile route count"
   Assert-Equal $desktopRouteKey $expectedRouteKey "canonical desktop route inventory"
   Assert-Equal $mobileRouteKey $expectedRouteKey "canonical mobile route inventory"
   Assert-Equal $desktopRouteKey $mobileRouteKey "desktop/mobile route parity"
@@ -373,8 +382,8 @@ try {
     Assert-True ((Get-Item -LiteralPath $screenshotPath).Length -gt 20000) "Hosted screenshot too small: $screenshot"
   }
 
-  $deploymentRoot = Get-HttpText "$($config.immutable_deployment_url)/"
-  $deploymentWiring = Get-HttpText "$($config.immutable_deployment_url)/api/v1/workspace/wiring"
+  $deploymentRoot = Get-HttpText "$immutableAccessUrl/"
+  $deploymentWiring = Get-HttpText "$immutableAccessUrl/api/v1/workspace/wiring"
   foreach ($response in @($deploymentRoot, $deploymentWiring)) {
     Assert-Equal ([int]$response.StatusCode) 200 "hosted response status"
   }
@@ -395,7 +404,7 @@ try {
   }
   $wiring = $deploymentWiring.Content | ConvertFrom-Json
   Assert-Equal ([string]$wiring.contract_version) "workspace-surface-wiring-v1" "hosted wiring contract"
-  Assert-Equal @($wiring.surfaces).Count 22 "hosted wiring page count"
+  Assert-Equal @($wiring.surfaces).Count 26 "hosted wiring page count"
 
   $former500Paths = @(
     "/api/v1/agent-activity/recent",
@@ -496,9 +505,9 @@ try {
     vercel_target = $vercelTarget
     browser_channel = [string]$proof.browser_channel
     browser_version = [string]$proof.browser_version
-    page_count = 22
+    page_count = 26
     viewport_count = 2
-    click_navigation_count = 44
+    click_navigation_count = 52
     overflow_failures = 0
     overlay_collision_failures = 0
     console_errors = 0
@@ -520,9 +529,9 @@ try {
     $verification | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $verificationPath -Encoding utf8
   }
   if ($ValidateOnly) {
-    Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=22 viewports=2 clicks=44 browser=$($proof.browser_version) full_validation=true validation_mode=true browser_skipped=true verification_written=false"
+    Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=26 viewports=2 clicks=52 browser=$($proof.browser_version) full_validation=true validation_mode=true browser_skipped=true verification_written=false"
   } else {
-    Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=22 viewports=2 clicks=44 browser=$($proof.browser_version)"
+    Write-Host "[frontend-hosted-current] status=verified target=$vercelTarget pages=26 viewports=2 clicks=52 browser=$($proof.browser_version)"
   }
 } finally {
   Pop-Location
