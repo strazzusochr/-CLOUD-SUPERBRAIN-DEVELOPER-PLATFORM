@@ -1,0 +1,15 @@
+{
+  "candidate_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "computed_fact_sha256": "f889adc817b3f25054d79e862ce994e628c6c01674d357b41af831e897d607fc",
+  "contract_version": "cloudflare-oauth-sanitized-scorer-output-v1",
+  "failed_record_count": 0,
+  "input_artifact_ref": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/oauth-browser-sanitized.json",
+  "input_artifact_sha256": "3e42fbfbb612ef61890504aa2f2940d813fa595da51ffe94118a9bfdb80170c5",
+  "record_count": 16,
+  "scored_at": "2026-09-14T14:45:30Z",
+  "scorer_implementation_ref": "scripts/verify-cloudflare-oauth-hosted-current.ps1",
+  "scorer_implementation_sha256": "af5a382b762be71b60f02118d21a8f42b5ca7804bd894293be37be107fdbb3c3",
+  "scorer_kind": "browser",
+  "secret_value_count": 0,
+  "status": "computed"
+}

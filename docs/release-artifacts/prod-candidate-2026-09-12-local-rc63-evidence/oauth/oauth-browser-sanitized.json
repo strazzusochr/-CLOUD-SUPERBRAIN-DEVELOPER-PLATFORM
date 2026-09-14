@@ -1,0 +1,279 @@
+{
+  "artifact_kind": "browser",
+  "audit_event_types": [],
+  "candidate_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "contract_version": "cloudflare-oauth-sanitized-observation-artifact-v2",
+  "covered_steps": [
+    "anonymous_login_no_identity",
+    "github_start_exact_query",
+    "github_cancel_no_credentials",
+    "github_start_family_a_exact_query",
+    "github_authorize_owner_identity",
+    "callback_one_time_state",
+    "auth_me_verified_identity",
+    "reload_session_continuity",
+    "refresh_atomic_rotation",
+    "old_refresh_replay_rejected",
+    "callback_replay_rejected",
+    "github_start_family_b_exact_query",
+    "github_authorize_family_b_owner_identity",
+    "independent_family_b_callback",
+    "logout_revocation_audited",
+    "post_logout_refresh_rejected"
+  ],
+  "frontend_deployment_id_sha256": "d3632e54c6f5e375d635f56c71e65a2154ea9131a8ef1f8c55c9d4846be5d26f",
+  "generated_at": "2026-09-14T14:45:00Z",
+  "observations": [
+    {
+      "fact_codes": [
+        "human_navigation",
+        "auth_me_http_401",
+        "identity_projection_absent"
+      ],
+      "http_status": 401,
+      "request_correlation_sha256": "d20e4d2cdf98e543c66b3a220f3b5a5f632ea0608766005f79c37631c6f54ef9",
+      "sequence": 1,
+      "session_correlation_sha256": null,
+      "source_record_sha256": "fae00e7ed06978bd83282391919ad4934125efad1c870b551c7e0c23eaab5613",
+      "step": "anonymous_login_no_identity"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "github_redirect_http_303",
+        "oauth_scope_exact_read_user"
+      ],
+      "http_status": 303,
+      "request_correlation_sha256": "dbae9f0f2ec633226f2cbd8dcd04d31139e59bc321ef7f31a809f3832d19073c",
+      "sequence": 2,
+      "session_correlation_sha256": null,
+      "source_record_sha256": "87fe04371571e9fcd1bc4afdab00fe8ee1f083cdaad70b269ccbcc1e732e80b6",
+      "step": "github_start_exact_query"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "provider_cancel_http_401",
+        "credential_issue_count_0"
+      ],
+      "http_status": 401,
+      "request_correlation_sha256": "d74e52545eaf1c5d3724081b97384d86c22d437e7c9058826342cb58839e459e",
+      "sequence": 3,
+      "session_correlation_sha256": null,
+      "source_record_sha256": "44113405d2deaff4ce2d2e394c6bad8fe4215f4694e58badb89aaa5391f6190d",
+      "step": "github_cancel_no_credentials"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "github_redirect_http_303",
+        "oauth_scope_exact_read_user"
+      ],
+      "http_status": 303,
+      "request_correlation_sha256": "8f7522db1c31e17d6145fd96cb10b20b644a779c628e36b16849caafbbe1c4e6",
+      "sequence": 4,
+      "session_correlation_sha256": null,
+      "source_record_sha256": "7aa9f1af2a0dcad9c235e72149abfc80a0645673f2b8b5f581c1cfb1c33bc56e",
+      "step": "github_start_family_a_exact_query"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "owner_consent_visible",
+        "numeric_identity_only_hashed"
+      ],
+      "http_status": 200,
+      "request_correlation_sha256": "508708a38fefaa71ab85bc1b582bef3e090f3c3bf061951cba5e4bde18f49660",
+      "sequence": 5,
+      "session_correlation_sha256": null,
+      "source_record_sha256": "2c7c29e1c1bd24a86dab5d1ffe76b14f41ec9c81596dd7ffc76a825a55ffdb9e",
+      "step": "github_authorize_owner_identity"
+    },
+    {
+      "fact_codes": [
+        "callback_http_303",
+        "one_time_state_consumed",
+        "credential_issue_count_1"
+      ],
+      "http_status": 303,
+      "request_correlation_sha256": "3a8d4cb8f437afbc5647ec79cf4682e1f5a5d21971c39dd079b4763531af2fcd",
+      "sequence": 6,
+      "session_correlation_sha256": "baa97332cad5edaa4e54e921a09e7bc367d7f1e5b5fee9eea99d128223dac0d6",
+      "source_record_sha256": "073148ab51459d0336e0b1e1ef38b1e252b00acbf707f34dcb96b49d6b9dbac0",
+      "step": "callback_one_time_state"
+    },
+    {
+      "fact_codes": [
+        "auth_me_http_200",
+        "jwt_claims_verified",
+        "numeric_identity_only_hashed"
+      ],
+      "http_status": 200,
+      "request_correlation_sha256": "c1cb864c07a6220c79238ae2db3813d509810b767f656cbb292cc72a2f757173",
+      "sequence": 7,
+      "session_correlation_sha256": "baa97332cad5edaa4e54e921a09e7bc367d7f1e5b5fee9eea99d128223dac0d6",
+      "source_record_sha256": "5515f9cdd25e804182008c58b81e0764d0d633a82148928fb29491bfa7a7aeb3",
+      "step": "auth_me_verified_identity"
+    },
+    {
+      "fact_codes": [
+        "human_reload",
+        "auth_me_http_200",
+        "session_hash_stable"
+      ],
+      "http_status": 200,
+      "request_correlation_sha256": "83ed96b7f98e8b77448bf2852714de70fdc15cfbd1c04e0f8f62c895e08ae566",
+      "sequence": 8,
+      "session_correlation_sha256": "baa97332cad5edaa4e54e921a09e7bc367d7f1e5b5fee9eea99d128223dac0d6",
+      "source_record_sha256": "320789e31b10b55b281ba9888bf26a8489c773342d7e84efa208505b9dd49210",
+      "step": "reload_session_continuity"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "refresh_http_200",
+        "credential_issue_count_1"
+      ],
+      "http_status": 200,
+      "request_correlation_sha256": "54679da8b9ad7adc0defa7e692c897353d1c7868fbe8df8b20ca8561e70a9afa",
+      "sequence": 9,
+      "session_correlation_sha256": "baa97332cad5edaa4e54e921a09e7bc367d7f1e5b5fee9eea99d128223dac0d6",
+      "source_record_sha256": "515448e42ba37aea35d89742f0e14d720d32162fc0bf21c7762633880326f0ba",
+      "step": "refresh_atomic_rotation"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "refresh_replay_http_401",
+        "credential_issue_count_0"
+      ],
+      "http_status": 401,
+      "request_correlation_sha256": "53b938c6154b63ea814e3cb60c6d03f97c4023155711bdcc4a3f7b2afbbdf890",
+      "sequence": 10,
+      "session_correlation_sha256": "baa97332cad5edaa4e54e921a09e7bc367d7f1e5b5fee9eea99d128223dac0d6",
+      "source_record_sha256": "8e0c4950a1989771e3e0729846867867a671635390e9ef8761d1015591dedb51",
+      "step": "old_refresh_replay_rejected"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "callback_replay_http_401",
+        "credential_issue_count_0"
+      ],
+      "http_status": 401,
+      "request_correlation_sha256": "6a35b10a1f9a60c0332f7aa4aaff518c161ef37685d27749175ce27c718a5528",
+      "sequence": 11,
+      "session_correlation_sha256": "baa97332cad5edaa4e54e921a09e7bc367d7f1e5b5fee9eea99d128223dac0d6",
+      "source_record_sha256": "25c1ccf0f3dfd68a05436a6da0b004a4eec7eb2cc0b12c360219a311206581f7",
+      "step": "callback_replay_rejected"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "github_redirect_http_303",
+        "oauth_scope_exact_read_user"
+      ],
+      "http_status": 303,
+      "request_correlation_sha256": "96f6415799184eb843413fcc3946349d1392430c02c9728562b6cad782212b92",
+      "sequence": 12,
+      "session_correlation_sha256": null,
+      "source_record_sha256": "03cceac49732ab1af81914e5d2bb70c8e103ca4c94f55da1907091f1afa69e2e",
+      "step": "github_start_family_b_exact_query"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "owner_consent_visible",
+        "numeric_identity_only_hashed"
+      ],
+      "http_status": 200,
+      "request_correlation_sha256": "46f38d7821c1ce1bbdcfa09c0ac408bb1544cb92add6fc93a1a6b0083f122ab7",
+      "sequence": 13,
+      "session_correlation_sha256": null,
+      "source_record_sha256": "12c59c8e6dc4c32a963476d2b3df0907e6aee9a47d522e11bdfe363a818e8c0f",
+      "step": "github_authorize_family_b_owner_identity"
+    },
+    {
+      "fact_codes": [
+        "callback_http_303",
+        "one_time_state_consumed",
+        "credential_issue_count_1"
+      ],
+      "http_status": 303,
+      "request_correlation_sha256": "1cf4763b5c813b19bd62951496df379644657284e7c92e1484fed674faf311ac",
+      "sequence": 14,
+      "session_correlation_sha256": "6ede888bda49a7a11fc31ef4e74eed77dc464741dae802acda9a1db5245d38ba",
+      "source_record_sha256": "96a52cd7925c3cd4ed705ac479739702c8219a39378c5e03c485c95b10987af2",
+      "step": "independent_family_b_callback"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "logout_http_200",
+        "credential_issue_count_0"
+      ],
+      "http_status": 200,
+      "request_correlation_sha256": "42bff9156aa22c59a027e080f22a0aebfbf6386ed039cda241ba3503f6ab8228",
+      "sequence": 15,
+      "session_correlation_sha256": "6ede888bda49a7a11fc31ef4e74eed77dc464741dae802acda9a1db5245d38ba",
+      "source_record_sha256": "3728cc5ba1e9cf084b70c0190f128cd5f6f930d0ceef262f0773731902f38492",
+      "step": "logout_revocation_audited"
+    },
+    {
+      "fact_codes": [
+        "human_click",
+        "post_logout_refresh_http_401",
+        "credential_issue_count_0"
+      ],
+      "http_status": 401,
+      "request_correlation_sha256": "c82b563642dd2646d527558490bb884c95c941edd80aad6f407c4db493bd6e6e",
+      "sequence": 16,
+      "session_correlation_sha256": "6ede888bda49a7a11fc31ef4e74eed77dc464741dae802acda9a1db5245d38ba",
+      "source_record_sha256": "560794d3ed589a20eda1292dd102acb6f65b3f86eebde710c031ab505719173d",
+      "step": "post_logout_refresh_rejected"
+    }
+  ],
+  "raw_capture_sha256": "a08cdd3b6d670c5e2bed5a0d55c4fb320ea508ae9eecad9997323485d9658557",
+  "redaction_manifest_sha256": "7b00ef6077d530e1487878980ada37108385ec8aeb39b1120238c25ec7b0df5a",
+  "request_correlation_sha256s": [
+    "d20e4d2cdf98e543c66b3a220f3b5a5f632ea0608766005f79c37631c6f54ef9",
+    "dbae9f0f2ec633226f2cbd8dcd04d31139e59bc321ef7f31a809f3832d19073c",
+    "d74e52545eaf1c5d3724081b97384d86c22d437e7c9058826342cb58839e459e",
+    "8f7522db1c31e17d6145fd96cb10b20b644a779c628e36b16849caafbbe1c4e6",
+    "508708a38fefaa71ab85bc1b582bef3e090f3c3bf061951cba5e4bde18f49660",
+    "3a8d4cb8f437afbc5647ec79cf4682e1f5a5d21971c39dd079b4763531af2fcd",
+    "c1cb864c07a6220c79238ae2db3813d509810b767f656cbb292cc72a2f757173",
+    "83ed96b7f98e8b77448bf2852714de70fdc15cfbd1c04e0f8f62c895e08ae566",
+    "54679da8b9ad7adc0defa7e692c897353d1c7868fbe8df8b20ca8561e70a9afa",
+    "53b938c6154b63ea814e3cb60c6d03f97c4023155711bdcc4a3f7b2afbbdf890",
+    "6a35b10a1f9a60c0332f7aa4aaff518c161ef37685d27749175ce27c718a5528",
+    "96f6415799184eb843413fcc3946349d1392430c02c9728562b6cad782212b92",
+    "46f38d7821c1ce1bbdcfa09c0ac408bb1544cb92add6fc93a1a6b0083f122ab7",
+    "1cf4763b5c813b19bd62951496df379644657284e7c92e1484fed674faf311ac",
+    "42bff9156aa22c59a027e080f22a0aebfbf6386ed039cda241ba3503f6ab8228",
+    "c82b563642dd2646d527558490bb884c95c941edd80aad6f407c4db493bd6e6e"
+  ],
+  "secret_value_count": 0,
+  "sensitive_value_sha256s": [
+    "b7096f62d012a6fc767069dfa1b46947d8000fe8beb8e7a1327e1f9770513c9c",
+    "64675db9cec17ff46065ae49178af0633c1db6d627172fadc3aadcb5fdfc10b6",
+    "4c3f49edccb9e9a6ebd129092b78723b51e0cd2b2b1b24cecedd5403323fcd50",
+    "be0674cf7c5b0838f115d5617b8629565476ee5b76e3e871f77d0edf32e1d69a",
+    "a9e82930f5d7bee789bad8b53ee0b6ceb1c5dc57567a4558b7e1dd97b16b7233",
+    "eb1cb0116b68fd42fbcd9dc26ab08f57b91b5d38ca702a8f8c6f90da3b0276bc",
+    "718b2c936cb1c7f4e75b917fcf0d177c6886de0319ea9f0b0b62d3b5a7384967",
+    "528d7befb2532dc05a0221e422ab86e1a87f78e2e99972e40a851c5ce2beeb31",
+    "3de4cfa66ddbe6067e1041343d1c78aeba7f0ff18d211a51a1f8dab5ad935faf",
+    "182053c7a5e7a8aa0cfc58c64ff81a3aafdd793f01a56ac6276e472f4a734f8d",
+    "5a2a3f24eab314d151deee7a72bbd1382ea687c748f1854cc50774cd04170130",
+    "6ee0a9fb060e095a44d16f99402bbbdd58cef481826142691ee94a0db9dea206",
+    "0f726e907a85db62b9966120e221a195ddd0318306d5a41e0c79772ef187a039",
+    "dab3a20ddcebdcd8d4f09ccfc8641d605d7dc452cad575b283e70b828326eb0e"
+  ],
+  "session_correlation_sha256s": [
+    "baa97332cad5edaa4e54e921a09e7bc367d7f1e5b5fee9eea99d128223dac0d6",
+    "6ede888bda49a7a11fc31ef4e74eed77dc464741dae802acda9a1db5245d38ba"
+  ],
+  "status": "raw_derived_sanitized",
+  "worker_deployment_id_sha256": "b6ee8bf6a7cb353ce11faccd10550f7e05c692b954ae0424de53b64ade9790cb"
+}
