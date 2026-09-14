@@ -4,10 +4,10 @@
     "approved_oauth_scope": "read:user",
     "approved_worker_origin": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
     "live_consent_approval_ref": "docs/runtime-state/cloudflare-oauth-hosted-candidate-consent-approval.json",
-    "live_consent_approval_sha256": "b94fa5f8f2f8f5be21198879c50c8673c4c78639b2984053e6a03200e72c2873",
+    "live_consent_approval_sha256": "839d1f9c990c91aeb1c8b07250080f5f361fc385dfbf6e93b87a9fa32de57ffe",
     "owner_approved_candidate_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
     "owner_architecture_decision_ref": "docs/runtime-state/cloudflare-oauth-hosted-candidate-architecture-approval.json",
-    "owner_architecture_decision_sha256": "af6a530372eaa2a337b005456088dd996229f0327069a8b16f3505cc88cbf9b2"
+    "owner_architecture_decision_sha256": "1a9c418ee64132a816b1259299b3afc5a8efd4ee5ec39c5bdad573a4cd4061e4"
   },
   "architecture": "cloudflare_native",
   "atomic_replay_evidence": {
