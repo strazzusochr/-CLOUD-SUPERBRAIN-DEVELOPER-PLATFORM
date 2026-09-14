@@ -49,7 +49,7 @@
     "capability_gates": {
       "contract_version": "capability-gate-state-v1",
       "path": "docs/runtime-state/capability-gates.json",
-      "sha256": "6e87ef79488e01e7d7af43df53b7a02c935a467bb1aeccac0856f9a96d07cb81"
+      "sha256": "d9ab913aa409962c1e9cbc11f80ff4767d8959d69b9b6a8c335a1020e581f5c2"
     },
     "flow": {
       "contract_version": "cloudflare-oauth-hosted-current-flow-v2",
