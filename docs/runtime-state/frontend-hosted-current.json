@@ -13,6 +13,7 @@
   "git_source_ref": "chore/repo-bootstrap",
   "git_source_repo_id": "1218719331",
   "git_source_type": "github",
+  "immutable_access_url": "https://frontend-seven-psi-78.vercel.app",
   "immutable_deployment_url": "https://frontend-14x42j31u-strazzusochrs-projects.vercel.app",
   "non_claims": [
     "Vercel Production redeploy is source-bound to RC63 merge commit 0e5e543b2c5811cf3f267f316cbe4df4a6c41d6d via GitHub metadata and original preview deployment dpl_BVcEVSZeb7Wjei8WoxFpB8thwXuE.",
