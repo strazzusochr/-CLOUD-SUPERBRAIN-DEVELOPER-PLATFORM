@@ -810,7 +810,10 @@ $localProbes = @(
   (Invoke-HttpProbe "local_project_progress_completion" "$localBase/api/v1/project/progress/completion" "project-progress-100-percent-contract-v1" "project_progress_100_percent_gate_contract"),
   (Invoke-HttpProbe "local_cloud_provider_inventory" "$localBase/api/v1/clouds" "cloud-provider-inventory-v1" "cloud_provider_inventory_visible"),
   (Invoke-HttpProbe "local_cloud_layer_readiness" "$localBase/api/v1/clouds/layers" "cloud-layer-readiness-v1" "cloud_layer_readiness_visible"),
-  (Invoke-HttpProbe "local_cloud_deployment_preflight" "$localBase/api/v1/clouds/deployment-preflight/contract" "cloud-deployment-preflight-v1" "cloud_deployment_preflight_visible"),
+  # The surface contract is versioned separately from the runtime payload.
+  # Probe the runtime endpoint here; the surface contract is covered by the
+  # dedicated hosted/browser contract verifiers.
+  (Invoke-HttpProbe "local_cloud_deployment_preflight" "$localBase/api/v1/clouds/deployment-preflight" "cloud-deployment-preflight-v1" "cloud_deployment_preflight_visible"),
   (Invoke-HttpProbe "local_external_gates" "$localBase/api/v1/external-gates" "external-gates-state-v1" "cloud_layer_readiness_visible")
 )
 
@@ -825,7 +828,7 @@ if ($hostedBase -and (Test-RetiredHostedBaseUrl $hostedBase)) {
     (Invoke-HttpProbe "hosted_agent_api_health" "$hostedBase/api/v1/health" "agent-api" "hosted_agent_api_health_required"),
     (Invoke-HttpProbe "hosted_cloud_provider_inventory" "$hostedBase/api/v1/clouds" "cloud-provider-inventory-v1" "hosted_cloud_provider_inventory_required"),
     (Invoke-HttpProbe "hosted_cloud_layer_readiness" "$hostedBase/api/v1/clouds/layers" "cloud-layer-readiness-v1" "hosted_cloud_layer_readiness_required"),
-    (Invoke-HttpProbe "hosted_cloud_deployment_preflight" "$hostedBase/api/v1/clouds/deployment-preflight/contract" "cloud-deployment-preflight-v1" "hosted_cloud_deployment_preflight_required"),
+    (Invoke-HttpProbe "hosted_cloud_deployment_preflight" "$hostedBase/api/v1/clouds/deployment-preflight" "cloud-deployment-preflight-v1" "hosted_cloud_deployment_preflight_required"),
     (Invoke-HttpProbe "hosted_project_progress_integrity" "$hostedBase/api/v1/project/progress/integrity" "project-progress-integrity-v1" "hosted_progress_integrity_contract_required"),
     (Invoke-HttpProbe "hosted_project_progress_completion" "$hostedBase/api/v1/project/progress/completion" "project-progress-100-percent-contract-v1" "hosted_progress_completion_contract_required"),
     (Invoke-HttpProbe "hosted_external_gates" "$hostedBase/api/v1/external-gates" "external-gates-state-v1" "hosted_external_gate_state_required")
