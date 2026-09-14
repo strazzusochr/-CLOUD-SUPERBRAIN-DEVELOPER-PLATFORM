@@ -763,6 +763,20 @@ class Phase5CreditEvidenceTests(unittest.TestCase):
 
     def test_phase5_89_to_100_requires_atomic_i1_and_i5_evidence_transition(self) -> None:
         source = json.loads(verifier.ITEMIZATION_PATH.read_text(encoding="utf-8"))
+        # The checked-in truth may already contain the later 19/19 state.  The
+        # transition contract must still exercise the immutable 17/19 source
+        # prestate explicitly instead of depending on repository chronology.
+        for item in source["items"]:
+            if item["id"] in {"I1", "I5"}:
+                item["status"] = "blocked_owner"
+                item["credit_awarded"] = False
+        source["current_score"] = {
+            "total_item_count": 19,
+            "verified_item_count": 17,
+            "blocked_item_count": 2,
+            "blocked_item_ids": ["I1", "I5"],
+            "computed_percent": 89,
+        }
         current = copy.deepcopy(source)
         for item in current["items"]:
             if item["id"] in {"I1", "I5"}:
