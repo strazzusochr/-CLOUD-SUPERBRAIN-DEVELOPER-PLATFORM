@@ -162,6 +162,7 @@ PLATFORM_MODULE_NAMES = (
 CURRENT_RELEASE_CANDIDATE_KEYS = {
     "active_release_id",
     "source_commit_sha",
+    "source_archive_sha256",
     "updated_at",
     "updated_by",
     "reason",
@@ -422,6 +423,11 @@ def validate_current_candidate_freshness(
         current_candidate["source_commit_sha"],
         40,
         "current release candidate source_commit_sha",
+    )
+    require_lower_hex(
+        current_candidate["source_archive_sha256"],
+        64,
+        "current release candidate source_archive_sha256",
     )
     require(
         isinstance(current_candidate["updated_by"], str)

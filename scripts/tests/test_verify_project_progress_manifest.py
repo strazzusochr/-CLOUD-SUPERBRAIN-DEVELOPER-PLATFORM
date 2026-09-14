@@ -99,6 +99,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
         current_candidate = {
             "active_release_id": "prod-candidate-2026-08-29-local-rc23",
             "source_commit_sha": "a" * 40,
+            "source_archive_sha256": "b" * 64,
             "updated_at": "2026-08-29T12:34:56Z",
             "updated_by": "synthetic-test",
             "reason": "Source-bound synthetic candidate for verifier protocol tests.",

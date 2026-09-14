@@ -1,15 +1,15 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
-## AKTUELLER CONTROL-CHECKPOINT 2026-09-12 — RC63/S16 NO-CREDIT-NEUQUALIFIKATION
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-14 — RC66 SOURCE-QUALIFIED NO-CREDIT-NEUQUALIFIKATION
 
-### Session 2026-09-14 — RC63 I1/I5 Evidence-Credit transition verified
+### Session 2026-09-14 — RC66 source qualification bound; no external credit
 
-- **Identitaet:** Release `prod-candidate-2026-09-12-local-rc63`, Source S16
-  `0e9c680c191927dc352c96d119fc909c7d842296`, direkter Q17-Kindcommit
-  `59fdd3fb15091fba160f830f5993c1254b2c52be`, Archiv-SHA-256
-  `0796e69e958c1abd1e466d74f79b7f82eac6207ef3706df3334ca3a178f01077`.
-- **Unabhaengige CI:** GitHub Actions Run `34711567878` pruefte Q17 als Run-Head
-  und S16 als exakte Source: alle 31 Schritte gruen, fehlgeschlagen `0`,
+- **Identitaet:** Release `prod-candidate-2026-09-14-local-rc66`, Source
+  `4e0767eb4c284acc1ddc5d96808dc670958768d8`, direct-child control commit
+  `51626aeadba3a33b8e5f0c61960dbd08a7a39387`, Archiv-SHA-256
+  `f3ef6a2b861186a26b9c14895c92ec5d9031355b7f2f4bf433dad49d24ec178e`.
+- **Unabhaengige CI:** GitHub Actions Run `34898119611` pruefte den RC66-Control-Commit
+  und die exakte Source: alle 30 Schritte gruen, fehlgeschlagen `0`,
   uebersprungen `0`, Secret-Scan gruen, Provider-Writes `false`.
 - **P04-Lokalqualifikation:** Alle fuenf frischen RC63-Ketten sind gruen und
   hashgebunden: Runtime, Browser, Kandidaten-Images, Kandidaten-Runtime und
@@ -18,7 +18,7 @@
 - **Evidence-Credit-Fortschritt:** Overall `100%`; horizontal `700/700`, vertikal
   `700/700`, insgesamt `1400/1400`, `0` offen. I1 und I5 sind verifier-basiert geschlossen;
   `MARKET_READY:true` bezeichnet den Evidence-Credit-Zustand; externe Produktions-Gates bleiben fail-closed.
-- **Naechster Schritt:** P05 darf erst nach dem abschliessenden RC63-Readback
+- **Naechster Schritt:** P05 darf erst nach dem abschliessenden RC66-Readback
   und einer separaten geschuetzten Registry-Freigabe beginnen. Keine Registry-,
   Secret-, Production- oder Merge-Aktion wurde in diesem Kontrollpunkt ausgefuehrt.
 
