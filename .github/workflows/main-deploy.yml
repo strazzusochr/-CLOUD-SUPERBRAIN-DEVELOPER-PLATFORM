@@ -311,6 +311,8 @@ jobs:
     uses: ./.github/workflows/pr-check.yml
     with:
       candidate_sha: ${{ needs.candidate-preflight.outputs.candidate_sha }}
+    secrets:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
   publish-candidate:
     name: Publish immutable ${{ matrix.name }} candidate

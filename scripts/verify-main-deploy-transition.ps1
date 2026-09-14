@@ -182,6 +182,7 @@ foreach ($forbiddenEquality in @(
 
 # Reusable CI verifies the candidate checkout, while preserving normal PR behavior.
 Assert-Regex "pr-check declares optional workflow_call candidate input" $prCheck '(?ms)^\s{2}workflow_call:\s+inputs:\s+candidate_sha:\s+description:.*?required: false\s+type: string\s*$'
+Assert-Regex "pr-check declares optional Vercel readback secret" $prCheck '(?ms)^\s{2}workflow_call:.*?^\s{4}secrets:\s+^\s{6}VERCEL_TOKEN:\s+description: Read-only Vercel token for authenticated hosted metadata validation\s+required: false\s*$'
 Assert-Contains "pr-check checks out supplied candidate or normal event SHA" $prCheck 'ref: ${{ inputs.candidate_sha || github.sha }}'
 Assert-Regex "pr-check manual dispatch declares explicit source prequalification" $prCheck '(?ms)^\s{2}workflow_dispatch:\s+inputs:\s+candidate_sha:.*?required: false\s+type: string\s+source_prequalification:.*?required: false\s+default: false\s+type: boolean\s*$'
 Assert-Contains "source prequalification is manual-dispatch only" $prCheck 'event_name != "workflow_dispatch"'
@@ -336,7 +337,7 @@ Assert-Contains "Cloudflare LLM gateway tests are CI-gated" $prCheck 'npm test -
 Assert-Contains "source prequalification validates control tests" $prCheck 'python -m unittest scripts.tests.test_verify_phase5_credit_itemization -v'
 Assert-Contains "source prequalification validates the publication transition" $prCheck 'pwsh -NoProfile -File scripts/verify-main-deploy-transition.ps1'
 Assert-Contains "source prequalification validates supply-chain pins" $prCheck 'pwsh -NoProfile -File scripts/verify-supply-chain-pins.ps1'
-Assert-Regex "main calls reusable candidate CI with exact SHA" $workflow '(?ms)^\s{2}verify-candidate:.*?uses: \./\.github/workflows/pr-check\.yml\s+with:\s+candidate_sha: \$\{\{ needs\.candidate-preflight\.outputs\.candidate_sha \}\}\s*$'
+Assert-Regex "main calls reusable candidate CI with exact SHA and Vercel secret" $workflow '(?ms)^\s{2}verify-candidate:.*?uses: \./\.github/workflows/pr-check\.yml\s+with:\s+candidate_sha: \$\{\{ needs\.candidate-preflight\.outputs\.candidate_sha \}\}\s+secrets:\s+VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}\s*$'
 
 # Exactly six image builds, one immutable SHA tag, and no overwrite path.
 $expectedServices = @('agent-api', 'mcp-gateway', 'frontend', 'llm-gateway', 'agent-worker', 'memory-worker')
