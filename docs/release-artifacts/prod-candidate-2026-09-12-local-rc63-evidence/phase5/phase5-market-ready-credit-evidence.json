@@ -1,0 +1,44 @@
+{
+  "candidate_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "cell_id": "phase_5",
+  "claims": {
+    "hosted_candidate_parity_verified": true,
+    "production_auth_identity_verified": true,
+    "verified_item_count": 2
+  },
+  "contract_version": "phase5-market-ready-credit-evidence-v1",
+  "credit_eligible": true,
+  "evidence": {
+    "capability_gates": {
+      "contract_version": "capability-gate-state-v1",
+      "path": "docs/runtime-state/capability-gates.json",
+      "sha256": "7a21bde88832a2a6bf5984e4b87621382f9b6061219ca51c09fa7b282e576964"
+    },
+    "hosted_candidate_parity": {
+      "contract_version": "i1-hosted-candidate-parity-v1",
+      "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/i1/i1-hosted-candidate-parity.json",
+      "sha256": "a493d0ffe7edc78b6b347430e8b5600b04018c155635309219b2c164f7823085"
+    },
+    "production_auth_identity": {
+      "contract_version": "production-auth-identity-proof-v2",
+      "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/production-auth-identity.json",
+      "sha256": "9171f9bdea660af989203c944e925434df007c099925315586ebdb9fa647e95a"
+    }
+  },
+  "live_provider_calls_verified": true,
+  "new_percent": 100,
+  "old_percent": 89,
+  "percent_delta": 11,
+  "production_deploy": false,
+  "provider_writes": false,
+  "registry_write_performed": false,
+  "release_id": "prod-candidate-2026-09-12-local-rc63",
+  "release_promotion": false,
+  "scope": "horizontal",
+  "secret_output": false,
+  "status": "verified",
+  "verified_item_ids": [
+    "I1",
+    "I5"
+  ]
+}
