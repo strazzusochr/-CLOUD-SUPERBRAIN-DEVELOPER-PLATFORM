@@ -6,7 +6,7 @@
     "generated_at_utc":  "2026-09-12T18:59:23.4593624Z",
     "status":  "blocked",
     "active_target_gate":  "hosted_agent_api_contracts",
-    "requested_release_candidate_selector":  "4e0767eb4c284acc1ddc5d96808dc670958768d8",
+    "requested_release_candidate_selector":  "0e9c680c191927dc352c96d119fc909c7d842296",
     "active_release_candidate_sha":  "",
     "ghcr_published_manifest_ref":  "",
     "ghcr_candidate_readback_source_artifact":  "",
