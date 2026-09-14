@@ -1,10 +1,10 @@
 {
   "candidate_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
-  "computed_fact_sha256": "6052b56bd9c204132307c0494ac9331e79d857c531c6e535dd8d9be1720e1a98",
+  "computed_fact_sha256": "acceadd31c17b39cc84dca6cfd99ba9965c534b265ae27ff57c35183314ffa89",
   "contract_version": "cloudflare-oauth-sanitized-scorer-output-v1",
   "failed_record_count": 0,
   "input_artifact_ref": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/oauth-d1-sanitized.json",
-  "input_artifact_sha256": "5387d7e46dbfdfd328552023bf18a8b1126886bc77d5cbc65bfb4cb8cb54595b",
+  "input_artifact_sha256": "b63c92360af0f775ca076b673995f659d208bb0ba86c8a0695cd7024ecc61f2f",
   "record_count": 11,
   "scored_at": "2026-09-14T14:45:30Z",
   "scorer_implementation_ref": "scripts/verify-cloudflare-oauth-hosted-current.ps1",
