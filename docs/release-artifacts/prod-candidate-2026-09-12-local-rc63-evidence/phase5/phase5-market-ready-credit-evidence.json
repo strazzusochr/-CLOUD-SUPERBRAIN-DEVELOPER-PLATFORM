@@ -12,7 +12,7 @@
     "capability_gates": {
       "contract_version": "capability-gate-state-v1",
       "path": "docs/runtime-state/capability-gates.json",
-      "sha256": "7a21bde88832a2a6bf5984e4b87621382f9b6061219ca51c09fa7b282e576964"
+      "sha256": "5d8cabd686930a0ad00530a19e5e9f6f8533c7f111ccf887f72a90693f7da7f5"
     },
     "hosted_candidate_parity": {
       "contract_version": "i1-hosted-candidate-parity-v1",
