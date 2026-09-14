@@ -19,7 +19,10 @@ observability_check: `candidate read-only contract, local diagnostics, runtime, 
 rollback_note: `RC62/S15 is the latest qualified local rollback predecessor; no hosted rollback is authorized`
 rollback_target_commit_sha: `63c854867cb1082c209718b64fddcbb52e5dd99b`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:0e9c680c191927dc352c96d119fc909c7d842296`
-immutable_tag_publish_status: `unpublished`
+immutable_tag_publish_status: `verified_candidate`
+registry_publication_review: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/registry-publication-review.json`
+registry_digest_contract: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/candidate-registry-digests.json`
+registry_receipt_recovery: `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/receipt-recovery-provenance.json`
 rollback_drill_proof: `docs/runbooks/rollback-deploy.md`
 truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 review_gate: `pending`
@@ -46,7 +49,7 @@ award progress credit and cannot close I1 `hosted_candidate_parity` or I5
 | C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed. |
 | C5 | JA | The committed S16 archive passed canonical npm-audit and gitleaks checks. |
 | I1 | NEIN | No non-local HTTPS six-service hosted stack is bound exactly to RC63/S16. |
-| I2 | JA | Six content-addressed S16 candidate images are verified locally; no S16 registry publication is claimed. |
+| I2 | JA | Six private content-addressed S16 candidate images, twelve platform digests, scans, and protected publication receipt are verified; no release promotion is claimed. |
 | I3 | JA | RC62/S15 is the immutable local rollback predecessor. |
 | I4 | JA | No provider, paid tier, card requirement, recurring amount, or budget-ceiling change is introduced. |
 | I5 | NEIN | Production auth identity remains closed without its hosted OAuth evidence. |
@@ -74,7 +77,8 @@ not retried.
 - `DEV-ONLY; hosted proof still blocked.`
 - This artifact does not claim a production rollout.
 - Production deployment still requires the release-candidate gate bundle and a separate rollout proof.
-- No registry push, production deploy, release promotion, provider-scope
-  expansion, secret mutation, secret output, or percentage credit is claimed.
+- No production deploy, release promotion, provider-scope expansion, secret
+  mutation, secret output, or percentage credit is claimed; the GHCR evidence
+  records only the protected immutable candidate publication.
 - The Vercel variable names reported as `Needs Attention` remain a later P09
   configuration blocker; no value was read or copied into this artifact.

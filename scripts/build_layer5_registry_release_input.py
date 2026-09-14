@@ -108,7 +108,18 @@ def _validate_review(review: Mapping[str, Any], release_id: str, candidate_sha: 
         _require(isinstance(job, dict), "registry publication job must be an object")
         _require(job.get("status") == "completed" and job.get("conclusion") == "success", "registry publication job did not succeed")
         push = job.get("push_step")
-        _require(isinstance(push, dict) and push.get("status") == "completed" and push.get("conclusion") == "success", "registry publication push step did not execute")
+        _require(isinstance(push, dict) and push.get("status") == "completed", "registry publication push step did not complete")
+        push_conclusion = push.get("conclusion")
+        if push_conclusion == "success":
+            _require(push.get("mode") in {None, "published"}, "registry publication push mode mismatch")
+        else:
+            # Candidate tags are immutable.  A previously published S16 tag is
+            # a valid protected publication when the workflow's explicit
+            # overwrite check succeeded; GitHub then skips the write step.
+            _require(
+                push_conclusion == "skipped" and push.get("mode") == "reused_existing_immutable_tag",
+                "registry publication push step did not execute or reuse an immutable tag",
+            )
     workflow = review.get("workflow")
     _require(isinstance(workflow, dict), "registry publication workflow binding is missing")
     actor = workflow.get("triggering_actor")

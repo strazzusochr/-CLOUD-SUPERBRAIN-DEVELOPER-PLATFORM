@@ -10,13 +10,13 @@
   },
   "candidate_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
   "contract_version": "ghcr-release-manifest-v1",
-  "control_sha": "b5b5429df5b9504e9d10f005ff7ab2e52c902843",
+  "control_sha": "ad876494d33cc0ba559486e9118661eb86db3120",
   "expected_oci_labels": {
     "org.opencontainers.image.revision": "0e9c680c191927dc352c96d119fc909c7d842296",
     "org.opencontainers.image.source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
     "org.opencontainers.image.version": "candidate-0e9c680c191927dc352c96d119fc909c7d842296"
   },
-  "generated_at_utc": "2026-09-13T16:11:54Z",
+  "generated_at_utc": "2026-09-14T17:00:59Z",
   "images": [
     {
       "digest": "sha256:2adc4cb5e3d93835f901cf7b392e945ee339b107d1f01479396bffa04e30a3a0",
@@ -225,12 +225,12 @@
   "workflow": {
     "candidate_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
     "event_name": "workflow_dispatch",
-    "head_sha": "b5b5429df5b9504e9d10f005ff7ab2e52c902843",
+    "head_sha": "ad876494d33cc0ba559486e9118661eb86db3120",
     "name": "main-deploy",
     "ref": "refs/heads/chore/repo-bootstrap",
     "repository": "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
     "run_attempt": 1,
-    "run_id": "34766569184",
-    "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34766569184"
+    "run_id": "34871158271",
+    "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34871158271"
   }
 }
