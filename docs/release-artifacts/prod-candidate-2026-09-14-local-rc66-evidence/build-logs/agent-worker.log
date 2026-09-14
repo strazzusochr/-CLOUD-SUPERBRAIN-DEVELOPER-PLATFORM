@@ -1,0 +1,105 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 542B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#4 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.0s done
+#4 DONE 0.0s
+
+#5 [2/7] WORKDIR /app
+#5 CACHED
+
+#6 [internal] load build context
+#6 transferring context: 25.33kB 0.0s done
+#6 DONE 0.0s
+
+#7 [3/7] RUN apk upgrade --no-cache
+#7 0.339 fetch https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/APKINDEX.tar.gz
+#7 0.680 fetch https://dl-cdn.alpinelinux.org/alpine/v3.22/community/x86_64/APKINDEX.tar.gz
+#7 1.249 Upgrading critical system libraries and apk-tools:
+#7 1.249 (1/2) Upgrading libapk2 (2.14.9-r3 -> 2.14.10-r0)
+#7 1.284 (2/2) Upgrading apk-tools (2.14.9-r3 -> 2.14.10-r0)
+#7 1.310 Executing busybox-1.37.0-r20.trigger
+#7 1.429 Continuing the upgrade transaction with new apk-tools:
+#7 1.440 fetch https://dl-cdn.alpinelinux.org/alpine/v3.22/main/x86_64/APKINDEX.tar.gz
+#7 1.647 fetch https://dl-cdn.alpinelinux.org/alpine/v3.22/community/x86_64/APKINDEX.tar.gz
+#7 2.150 (1/8) Upgrading libcrypto3 (3.5.6-r0 -> 3.5.8-r0)
+#7 2.441 (2/8) Upgrading xz-libs (5.8.3-r0 -> 5.8.4-r0)
+#7 2.505 (3/8) Upgrading libssl3 (3.5.6-r0 -> 3.5.8-r0)
+#7 2.585 (4/8) Upgrading libuuid (2.41-r9 -> 2.41.6-r1)
+#7 2.607 (5/8) Upgrading alpine-release (3.22.4-r0 -> 3.22.5-r0)
+#7 2.632 (6/8) Upgrading ca-certificates-bundle (20260413-r0 -> 20260611-r0)
+#7 2.683 (7/8) Upgrading ca-certificates (20260413-r0 -> 20260611-r0)
+#7 2.751 (8/8) Upgrading tzdata (2026b-r0 -> 2026c-r0)
+#7 2.871 Executing busybox-1.37.0-r20.trigger
+#7 2.880 Executing ca-certificates-20260611-r0.trigger
+#7 2.925 OK: 11 MiB in 30 packages
+#7 DONE 3.1s
+
+#8 [4/7] COPY services/agent-worker/requirements.txt .
+#8 DONE 0.1s
+
+#9 [5/7] RUN pip install --no-cache-dir -r requirements.txt
+#9 3.475 Collecting psycopg==3.3.4 (from psycopg[binary]==3.3.4->-r requirements.txt (line 1))
+#9 3.604   Downloading psycopg-3.3.4-py3-none-any.whl.metadata (4.3 kB)
+#9 3.678 Collecting redis==8.0.0 (from -r requirements.txt (line 2))
+#9 3.706   Downloading redis-8.0.0-py3-none-any.whl.metadata (13 kB)
+#9 3.912 Collecting pydantic==2.13.4 (from -r requirements.txt (line 3))
+#9 3.953   Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+#9 4.066 Collecting annotated-types>=0.6.0 (from pydantic==2.13.4->-r requirements.txt (line 3))
+#9 4.115   Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+#9 5.291 Collecting pydantic-core==2.46.4 (from pydantic==2.13.4->-r requirements.txt (line 3))
+#9 5.340   Downloading pydantic_core-2.46.4-cp314-cp314-musllinux_1_1_x86_64.whl.metadata (6.6 kB)
+#9 5.394 Collecting typing-extensions>=4.14.1 (from pydantic==2.13.4->-r requirements.txt (line 3))
+#9 5.434   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+#9 5.482 Collecting typing-inspection>=0.4.2 (from pydantic==2.13.4->-r requirements.txt (line 3))
+#9 5.520   Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+#9 5.802 Collecting psycopg-binary==3.3.4 (from psycopg[binary]==3.3.4->-r requirements.txt (line 1))
+#9 5.836   Downloading psycopg_binary-3.3.4-cp314-cp314-musllinux_1_2_x86_64.whl.metadata (2.7 kB)
+#9 5.879 Downloading psycopg-3.3.4-py3-none-any.whl (213 kB)
+#9 5.944 Downloading redis-8.0.0-py3-none-any.whl (499 kB)
+#9 6.022 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)
+#9 6.086 Downloading psycopg_binary-3.3.4-cp314-cp314-musllinux_1_2_x86_64.whl (4.3 MB)
+#9 6.351    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.3/4.3 MB 16.1 MB/s  0:00:00
+#9 6.387 Downloading pydantic_core-2.46.4-cp314-cp314-musllinux_1_1_x86_64.whl (2.4 MB)
+#9 6.527    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.4/2.4 MB 18.0 MB/s  0:00:00
+#9 6.562 Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+#9 6.592 Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+#9 6.625 Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+#9 6.709 Installing collected packages: typing-extensions, redis, psycopg-binary, psycopg, annotated-types, typing-inspection, pydantic-core, pydantic
+#9 9.253 
+#9 9.259 Successfully installed annotated-types-0.8.0 psycopg-3.3.4 psycopg-binary-3.3.4 pydantic-2.13.4 pydantic-core-2.46.4 redis-8.0.0 typing-extensions-4.16.0 typing-inspection-0.4.4
+#9 9.260 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#9 9.263 
+#9 9.263 [notice] A new release of pip is available: 26.1.1 -> 26.2.1
+#9 9.263 [notice] To update, run: pip install --upgrade pip
+#9 DONE 9.5s
+
+#10 [6/7] COPY services/agent-worker/app ./app
+#10 DONE 0.1s
+
+#11 [7/7] RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
+#11 DONE 0.3s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 1.5s done
+#12 exporting manifest sha256:97cb558299dabe2e0609284d7529cee7896a74451c6b2b3fa644c31004cf831c 0.0s done
+#12 exporting config sha256:3237d23a2d3cadf175faf7ddb8fe0aa8c8ee7d022307d280814ff266ab2e5d58 0.0s done
+#12 exporting attestation manifest sha256:beb26a9d866872cade7b92d61c94a19aa0224448cf71bfbe245644a4e45a0b0a 0.0s done
+#12 exporting manifest list sha256:3d1903f99fbb696261991f965cc6e7e2fd81969c682f28da4571cf61f7d8daf3 0.0s done
+#12 naming to docker.io/cloud-superbrain-production-candidate/agent-worker:4e0767eb4c284acc1ddc5d96808dc670958768d8 done
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/agent-worker:4e0767eb4c284acc1ddc5d96808dc670958768d8
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/agent-worker:4e0767eb4c284acc1ddc5d96808dc670958768d8 0.6s done
+#12 DONE 2.2s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/0wg64g1gk7ia2pjau3ok80crp

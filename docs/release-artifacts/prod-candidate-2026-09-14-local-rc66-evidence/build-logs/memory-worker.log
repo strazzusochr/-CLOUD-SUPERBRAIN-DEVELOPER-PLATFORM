@@ -1,0 +1,70 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 544B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#4 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 14.17kB 0.0s done
+#5 DONE 0.0s
+
+#6 [2/7] WORKDIR /app
+#6 CACHED
+
+#7 [3/7] RUN apk upgrade --no-cache
+#7 CACHED
+
+#8 [4/7] COPY services/memory-worker/requirements.txt .
+#8 DONE 0.0s
+
+#9 [5/7] RUN pip install --no-cache-dir -r requirements.txt
+#9 3.359 Collecting psycopg==3.3.4 (from psycopg[binary]==3.3.4->-r requirements.txt (line 1))
+#9 3.639   Downloading psycopg-3.3.4-py3-none-any.whl.metadata (4.3 kB)
+#9 3.802 Collecting redis==8.0.0 (from -r requirements.txt (line 2))
+#9 3.867   Downloading redis-8.0.0-py3-none-any.whl.metadata (13 kB)
+#9 4.291 Collecting psycopg-binary==3.3.4 (from psycopg[binary]==3.3.4->-r requirements.txt (line 1))
+#9 4.336   Downloading psycopg_binary-3.3.4-cp314-cp314-musllinux_1_2_x86_64.whl.metadata (2.7 kB)
+#9 4.399 Downloading psycopg-3.3.4-py3-none-any.whl (213 kB)
+#9 4.633 Downloading redis-8.0.0-py3-none-any.whl (499 kB)
+#9 4.824 Downloading psycopg_binary-3.3.4-cp314-cp314-musllinux_1_2_x86_64.whl (4.3 MB)
+#9 5.942    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.3/4.3 MB 3.8 MB/s  0:00:01
+#9 5.996 Installing collected packages: redis, psycopg-binary, psycopg
+#9 7.480 
+#9 7.483 Successfully installed psycopg-3.3.4 psycopg-binary-3.3.4 redis-8.0.0
+#9 7.483 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#9 7.485 
+#9 7.485 [notice] A new release of pip is available: 26.1.1 -> 26.2.1
+#9 7.485 [notice] To update, run: pip install --upgrade pip
+#9 DONE 7.9s
+
+#10 [6/7] COPY services/memory-worker/app ./app
+#10 DONE 0.1s
+
+#11 [7/7] RUN adduser -D -u 10001 appuser && chown -R appuser:appuser /app
+#11 DONE 0.4s
+
+#12 exporting to image
+#12 exporting layers
+#12 exporting layers 1.5s done
+#12 exporting manifest sha256:3b1c0d39a32f3a79856ee998629a4908a0149235a46ddbb2d74c4e2097e354c7 0.0s done
+#12 exporting config sha256:bcc46f192503e262807a5e702e705efbf3f04e2166947681527afed1a1c5214c 0.0s done
+#12 exporting attestation manifest sha256:692bf78e4d9eac715103ce3308cb12947ceb0bce4da64e702558688c606da7d8 0.0s done
+#12 exporting manifest list sha256:4a69ba44bd052dbccdd736d72f05429d52c236bd11d25e5265e5837183e50df7
+#12 exporting manifest list sha256:4a69ba44bd052dbccdd736d72f05429d52c236bd11d25e5265e5837183e50df7 0.0s done
+#12 naming to docker.io/cloud-superbrain-production-candidate/memory-worker:4e0767eb4c284acc1ddc5d96808dc670958768d8 done
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/memory-worker:4e0767eb4c284acc1ddc5d96808dc670958768d8
+#12 unpacking to docker.io/cloud-superbrain-production-candidate/memory-worker:4e0767eb4c284acc1ddc5d96808dc670958768d8 0.6s done
+#12 DONE 2.3s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/o9zi7cradh2jvq8jrm6jcwgia

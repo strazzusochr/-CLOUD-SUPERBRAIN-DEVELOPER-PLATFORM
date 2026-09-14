@@ -1,0 +1,128 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 824B 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#2 DONE 0.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 719B 0.0s done
+#3 DONE 0.1s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [1/8] FROM docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#5 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd
+#5 resolve docker.io/library/python:3.14.5-alpine3.22@sha256:6b91e66ab2a880ce9ca5a1b91c70f45963ff71ff68268df056336e1a657d5efd 0.1s done
+#5 DONE 0.1s
+
+#4 [internal] load build context
+#4 transferring context: 93.24kB 0.1s done
+#4 DONE 0.1s
+
+#6 [2/8] WORKDIR /app
+#6 CACHED
+
+#7 [3/8] RUN apk upgrade --no-cache
+#7 CACHED
+
+#8 [4/8] COPY services/mcp-gateway/requirements.txt .
+#8 DONE 0.1s
+
+#9 [5/8] RUN pip install --no-cache-dir -r requirements.txt
+#9 3.516 Collecting fastapi==0.136.3 (from -r requirements.txt (line 1))
+#9 3.649   Downloading fastapi-0.136.3-py3-none-any.whl.metadata (27 kB)
+#9 3.737 Collecting uvicorn==0.49.0 (from uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 3.767   Downloading uvicorn-0.49.0-py3-none-any.whl.metadata (6.7 kB)
+#9 3.977 Collecting pydantic==2.13.4 (from -r requirements.txt (line 3))
+#9 4.024   Downloading pydantic-2.13.4-py3-none-any.whl.metadata (109 kB)
+#9 4.130 Collecting starlette>=0.46.0 (from fastapi==0.136.3->-r requirements.txt (line 1))
+#9 4.165   Downloading starlette-1.6.0-py3-none-any.whl.metadata (6.4 kB)
+#9 4.217 Collecting typing-extensions>=4.8.0 (from fastapi==0.136.3->-r requirements.txt (line 1))
+#9 4.257   Downloading typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+#9 4.301 Collecting typing-inspection>=0.4.2 (from fastapi==0.136.3->-r requirements.txt (line 1))
+#9 4.345   Downloading typing_inspection-0.4.4-py3-none-any.whl.metadata (2.6 kB)
+#9 4.398 Collecting annotated-doc>=0.0.2 (from fastapi==0.136.3->-r requirements.txt (line 1))
+#9 4.432   Downloading annotated_doc-0.0.5-py3-none-any.whl.metadata (6.5 kB)
+#9 4.489 Collecting click>=7.0 (from uvicorn==0.49.0->uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 4.531   Downloading click-8.5.0-py3-none-any.whl.metadata (2.6 kB)
+#9 4.573 Collecting h11>=0.8 (from uvicorn==0.49.0->uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 4.611   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+#9 4.667 Collecting annotated-types>=0.6.0 (from pydantic==2.13.4->-r requirements.txt (line 3))
+#9 4.718   Downloading annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+#9 6.033 Collecting pydantic-core==2.46.4 (from pydantic==2.13.4->-r requirements.txt (line 3))
+#9 6.081   Downloading pydantic_core-2.46.4-cp314-cp314-musllinux_1_1_x86_64.whl.metadata (6.6 kB)
+#9 6.155 Collecting httptools>=0.8.0 (from uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 6.198   Downloading httptools-0.8.0-cp314-cp314-musllinux_1_2_x86_64.whl.metadata (3.5 kB)
+#9 6.269 Collecting python-dotenv>=0.13 (from uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 6.311   Downloading python_dotenv-1.2.3-py3-none-any.whl.metadata (29 kB)
+#9 6.396 Collecting pyyaml>=5.1 (from uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 6.434   Downloading pyyaml-6.0.3-cp314-cp314-musllinux_1_2_x86_64.whl.metadata (2.4 kB)
+#9 6.518 Collecting uvloop>=0.15.1 (from uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 6.561   Downloading uvloop-0.22.1-cp314-cp314-musllinux_1_2_x86_64.whl.metadata (4.9 kB)
+#9 6.686 Collecting watchfiles>=0.20 (from uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 6.727   Downloading watchfiles-1.2.0-cp314-cp314-musllinux_1_1_x86_64.whl.metadata (4.9 kB)
+#9 6.916 Collecting websockets>=10.4 (from uvicorn[standard]==0.49.0->-r requirements.txt (line 2))
+#9 6.950   Downloading websockets-17.1-cp314-cp314-musllinux_1_2_x86_64.whl.metadata (6.3 kB)
+#9 7.018 Collecting anyio<5,>=3.6.2 (from starlette>=0.46.0->fastapi==0.136.3->-r requirements.txt (line 1))
+#9 7.063   Downloading anyio-4.15.1-py3-none-any.whl.metadata (4.7 kB)
+#9 7.128 Collecting idna>=2.8 (from anyio<5,>=3.6.2->starlette>=0.46.0->fastapi==0.136.3->-r requirements.txt (line 1))
+#9 7.175   Downloading idna-3.19-py3-none-any.whl.metadata (9.2 kB)
+#9 7.247 Downloading fastapi-0.136.3-py3-none-any.whl (117 kB)
+#9 7.320 Downloading uvicorn-0.49.0-py3-none-any.whl (71 kB)
+#9 7.365 Downloading pydantic-2.13.4-py3-none-any.whl (472 kB)
+#9 7.489 Downloading pydantic_core-2.46.4-cp314-cp314-musllinux_1_1_x86_64.whl (2.4 MB)
+#9 7.677    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.4/2.4 MB 12.6 MB/s  0:00:00
+#9 7.771 Downloading annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+#9 7.837 Downloading annotated_types-0.8.0-py3-none-any.whl (13 kB)
+#9 7.878 Downloading click-8.5.0-py3-none-any.whl (125 kB)
+#9 7.935 Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+#9 7.981 Downloading httptools-0.8.0-cp314-cp314-musllinux_1_2_x86_64.whl (466 kB)
+#9 8.046 Downloading python_dotenv-1.2.3-py3-none-any.whl (22 kB)
+#9 8.082 Downloading pyyaml-6.0.3-cp314-cp314-musllinux_1_2_x86_64.whl (789 kB)
+#9 8.145    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 789.2/789.2 kB 13.7 MB/s  0:00:00
+#9 8.201 Downloading starlette-1.6.0-py3-none-any.whl (75 kB)
+#9 8.252 Downloading anyio-4.15.1-py3-none-any.whl (132 kB)
+#9 8.312 Downloading idna-3.19-py3-none-any.whl (68 kB)
+#9 8.354 Downloading typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+#9 8.413 Downloading typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+#9 8.464 Downloading uvloop-0.22.1-cp314-cp314-musllinux_1_2_x86_64.whl (4.2 MB)
+#9 8.712    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.2/4.2 MB 17.2 MB/s  0:00:00
+#9 8.759 Downloading watchfiles-1.2.0-cp314-cp314-musllinux_1_1_x86_64.whl (657 kB)
+#9 8.796    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 657.8/657.8 kB 20.7 MB/s  0:00:00
+#9 8.846 Downloading websockets-17.1-cp314-cp314-musllinux_1_2_x86_64.whl (224 kB)
+#9 8.971 Installing collected packages: websockets, uvloop, typing-extensions, pyyaml, python-dotenv, idna, httptools, h11, click, annotated-types, annotated-doc, uvicorn, typing-inspection, pydantic-core, anyio, watchfiles, starlette, pydantic, fastapi
+#9 12.02 
+#9 12.03 Successfully installed annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.15.1 click-8.5.0 fastapi-0.136.3 h11-0.16.0 httptools-0.8.0 idna-3.19 pydantic-2.13.4 pydantic-core-2.46.4 python-dotenv-1.2.3 pyyaml-6.0.3 starlette-1.6.0 typing-extensions-4.16.0 typing-inspection-0.4.4 uvicorn-0.49.0 uvloop-0.22.1 watchfiles-1.2.0 websockets-17.1
+#9 12.03 WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+#9 12.03 
+#9 12.03 [notice] A new release of pip is available: 26.1.1 -> 26.2.1
+#9 12.03 [notice] To update, run: pip install --upgrade pip
+#9 DONE 12.3s
+
+#10 [6/8] COPY services/mcp-gateway/app ./app
+#10 DONE 0.1s
+
+#11 [7/8] COPY docs/project-progress.manifest.json /app/readonly/project-progress.manifest.json
+#11 DONE 0.0s
+
+#12 [8/8] RUN adduser -D -u 10001 appuser     && chown -R appuser:appuser /app /tmp     && chown -R root:root /app/readonly     && chmod 0555 /app/readonly     && chmod 0444 /app/readonly/project-progress.manifest.json
+#12 DONE 0.3s
+
+#13 exporting to image
+#13 exporting layers
+#13 exporting layers 3.6s done
+#13 exporting manifest sha256:6322129d9f9bf7387a53d6ea47f834f0761be4c9aee8c17c12721361c89e0b4e 0.0s done
+#13 exporting config sha256:de4d40e088440a45dcd7014d93e286aec3a568682e0523d3c861b791699e565e 0.0s done
+#13 exporting attestation manifest sha256:607fd41f9b6284383442b9f3a73ac5cc5f451a75e0907b2a13e5475a2b52f4c4 0.0s done
+#13 exporting manifest list sha256:16e72a915d907563ebfe63d7648f44a4039fd12a922547982a1a516d67735a67
+#13 exporting manifest list sha256:16e72a915d907563ebfe63d7648f44a4039fd12a922547982a1a516d67735a67 0.0s done
+#13 naming to docker.io/cloud-superbrain-production-candidate/mcp-gateway:4e0767eb4c284acc1ddc5d96808dc670958768d8 done
+#13 unpacking to docker.io/cloud-superbrain-production-candidate/mcp-gateway:4e0767eb4c284acc1ddc5d96808dc670958768d8
+#13 unpacking to docker.io/cloud-superbrain-production-candidate/mcp-gateway:4e0767eb4c284acc1ddc5d96808dc670958768d8 0.7s done
+#13 DONE 4.5s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/vb69l66p5h8h5vfju4q3xmriy
