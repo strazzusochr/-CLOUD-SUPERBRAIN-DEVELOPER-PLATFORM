@@ -137,8 +137,8 @@ export const API_SURFACES: SurfaceGroup[] = [
  * only on /diagnostics (never on Home/Workbench as a hero).
  * ------------------------------------------------------------------ */
 export const MANIFEST = {
-  snapshot: "2026-09-14",
-  overall: 100,
+  snapshot: "2026-09-13",
+  overall: 90,
   integrity: "verified",
   modules: [
     { name: "Frontend", layer: 1, pct: 100 },
@@ -153,9 +153,9 @@ export const MANIFEST = {
     { id: "P0", pct: 100 },
     { id: "P1", pct: 100 },
     { id: "P2", pct: 100 },
-    { id: "P3", pct: 100 },
+    { id: "P3", pct: 44 },
     { id: "P4", pct: 100 },
-    { id: "P5", pct: 100 },
+    { id: "P5", pct: 89 },
     { id: "P6", pct: 100 },
   ],
 } as const;
