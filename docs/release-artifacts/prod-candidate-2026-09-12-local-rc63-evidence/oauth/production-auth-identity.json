@@ -48,7 +48,7 @@
   "source_binding": {
     "auth_runtime_deployment_id": "0c3004cc-c640-44b2-8daf-9e6234baf2ef",
     "auth_runtime_evidence_ref": "docs/runtime-state/cloudflare-oauth-hosted-current.json",
-    "auth_runtime_evidence_sha256": "309ecffdcd9e7726ce2d2eb824efb0e6c2a76f5958c6bc8ecb840d74415a76a0",
+    "auth_runtime_evidence_sha256": "d8608e0cffaaa89f8292b8b6efd6a7022f41afd9cd7aa733045efc4bf73b33c3",
     "auth_runtime_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
     "callback_origin": "https://frontend-seven-psi-78.vercel.app",
     "callback_url": "https://frontend-seven-psi-78.vercel.app/api/v1/auth/callback",
