@@ -49,21 +49,21 @@
     "capability_gates": {
       "contract_version": "capability-gate-state-v1",
       "path": "docs/runtime-state/capability-gates.json",
-      "sha256": "5d8cabd686930a0ad00530a19e5e9f6f8533c7f111ccf887f72a90693f7da7f5"
+      "sha256": "6e87ef79488e01e7d7af43df53b7a02c935a467bb1aeccac0856f9a96d07cb81"
     },
     "flow": {
       "contract_version": "cloudflare-oauth-hosted-current-flow-v2",
       "path": "docs/runtime-state/cloudflare-oauth-hosted-current-flow.json",
-      "sha256": "8c45f8e4bbd895d44c696478e3999066eaa42e9bd4d0ea48d16cc602af286385"
+      "sha256": "6845bcc6aa8398feed69c4f1b559976c39de393e167ab3b88745008137054158"
     },
     "production_auth_identity": {
       "contract_version": "production-auth-identity-proof-v2",
       "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/production-auth-identity.json",
-      "sha256": "9171f9bdea660af989203c944e925434df007c099925315586ebdb9fa647e95a"
+      "sha256": "937e1f4e2162f367d22595ff6de71d0a5525df2d7f37effee62ba140846d29ff"
     },
     "raw_verifier": {
       "path": "scripts/verify-cloudflare-oauth-p3-raw-evidence.ps1",
-      "sha256": "2c03ab13f6195c31de3ea662cd4f8cdc9e3451fce6fec5cddef848ab0c286274"
+      "sha256": "d1e31bbb1d69a8d27399d62a0ffdd15200183e503d5c609db4d7a2d90a25e04c"
     }
   },
   "live_github_oauth_calls": 2,
