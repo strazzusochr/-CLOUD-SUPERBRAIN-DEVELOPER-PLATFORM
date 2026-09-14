@@ -73,7 +73,8 @@ jobs:
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           curl --fail --silent --show-error --location --output "${checksums}" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
-          grep " gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz$" "${checksums}" | sha256sum --check --strict
+          expected_hash="$(grep " gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz$" "${checksums}" | awk '{print $1}')"
+          printf '%s  %s\n' "${expected_hash}" "${archive}" | sha256sum --check --strict
           tar -xzf "${archive}" -C "${GITLEAKS_DIR}" gitleaks
           chmod +x "${GITLEAKS_DIR}/gitleaks"
 
