@@ -2026,8 +2026,8 @@ try {
     )
     $pinnedFrontendOverlayHashes = [ordered]@{
       "apps/frontend/next-env.d.ts" = "1862ac4bbbc5192d4bf562161df66ea547ed3e67173100656ab606ae9797db2b"
-      "apps/frontend/package-lock.json" = "9f86f41ef29745bb256500289529479459ed404bd3aee1901bba9d5f68e05570"
-      "apps/frontend/package.json" = "15f2841043146fe2efde1e984e2b1be420229dc17c3c16c93c9116fe92198817"
+      "apps/frontend/package-lock.json" = "c48c77fa4596a984b82fa65f8025ccf6fb3d2739c87697f9552086944a9add44"
+      "apps/frontend/package.json" = "3affc492123ba7a8a79a90962775b978c9fc9d3045a45b0dd049d54c3eb67af0"
     }
     $selectedSourceHasPinnedOverlay = @(
       $pinnedFrontendOverlayHashes.GetEnumerator() |
