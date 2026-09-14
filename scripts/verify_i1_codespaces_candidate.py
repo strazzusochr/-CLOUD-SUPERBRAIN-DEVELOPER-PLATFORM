@@ -280,7 +280,14 @@ def validate_runtime_provenance(
         require(entry.get("container_image_ref") == observation.image_ref, f"{service} container did not retain digest ref")
         require(entry.get("top_digest") == observation.top_digest, f"{service} runtime top digest mismatch")
         runtime_image_id = require_digest(entry.get("runtime_image_id"), f"{service} runtime image ID")
-        require(runtime_image_id == observation.config_digest, f"{service} runtime image ID does not equal amd64 config digest")
+        # Docker reports the manifest-list/top digest for a multi-platform image
+        # pulled by Compose, while older single-platform evidence recorded the
+        # AMD64 config digest.  Both are valid identities only when the already
+        # checked top-digest binding is exact; reject every other value.
+        require(
+            runtime_image_id in {observation.top_digest, observation.config_digest},
+            f"{service} runtime image ID matches neither the published top digest nor the AMD64 config digest",
+        )
         require(entry.get("oci_revision") == binding.source_sha, f"{service} runtime OCI revision mismatch")
         require(entry.get("oci_source") == binding.oci_source, f"{service} runtime OCI source mismatch")
         require(entry.get("running") is True and entry.get("healthy") is True, f"{service} is not running and healthy")

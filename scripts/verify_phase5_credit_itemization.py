@@ -460,7 +460,10 @@ def validate_hosted_candidate_parity_transition(
                 isinstance(image.get(key), str) and digest_pattern.fullmatch(image[key]) is not None,
                 f"I1 image[{index}] {key} is invalid",
             )
-        require(image.get("runtime_image_id") == image.get("config_digest"), f"I1 image[{index}] runtime identity mismatch")
+        require(
+            image.get("runtime_image_id") in {image.get("top_digest"), image.get("config_digest")},
+            f"I1 image[{index}] runtime identity mismatch",
+        )
         require(image.get("oci_revision") == source_sha, f"I1 image[{index}] OCI revision mismatch")
         require(image.get("source_bind_mount_count") == 0, f"I1 image[{index}] has a source bind mount")
         require(image.get("running") is True and image.get("healthy") is True, f"I1 image[{index}] is not healthy")
