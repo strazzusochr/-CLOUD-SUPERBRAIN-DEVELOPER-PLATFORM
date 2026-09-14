@@ -583,7 +583,7 @@
     "frontend_evidence_sha256": "d0c981e139151ac96b687aa64ec71aa6db2d9a010e784e00f98a286c1e0a3102",
     "frontend_origin": "https://frontend-seven-psi-78.vercel.app",
     "frontend_source_commit_sha": "0e5e543b2c5811cf3f267f316cbe4df4a6c41d6d",
-    "runtime_evidence_sha256": "309ecffdcd9e7726ce2d2eb824efb0e6c2a76f5958c6bc8ecb840d74415a76a0",
+    "runtime_evidence_sha256": "d8608e0cffaaa89f8292b8b6efd6a7022f41afd9cd7aa733045efc4bf73b33c3",
     "worker_deployment_id_sha256": "b6ee8bf6a7cb353ce11faccd10550f7e05c692b954ae0424de53b64ade9790cb",
     "worker_origin": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
     "worker_source_archive_sha256": "0796e69e958c1abd1e466d74f79b7f82eac6207ef3706df3334ca3a178f01077",
