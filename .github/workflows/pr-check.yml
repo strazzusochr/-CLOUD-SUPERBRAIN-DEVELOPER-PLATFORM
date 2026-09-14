@@ -7,6 +7,10 @@ on:
         description: Optional exact candidate commit to verify when called by the publication workflow
         required: false
         type: string
+    secrets:
+      VERCEL_TOKEN:
+        description: Read-only Vercel token for authenticated hosted metadata validation
+        required: false
   pull_request:
     branches: [chore/repo-bootstrap]
   workflow_dispatch:
