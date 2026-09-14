@@ -471,6 +471,16 @@ class Layer5RegistryReleaseEvidenceTests(unittest.TestCase):
             self.assertEqual(reused["push_step"]["conclusion"], "skipped")
             self.assertEqual(reused["push_step"]["mode"], "reused_existing_immutable_tag")
 
+    def test_layer5_review_accepts_reused_immutable_candidate_tag(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            inputs = self._publication_inputs(root)
+            review, _ = build_publication_evidence(**inputs)
+            reused = review["publish_jobs"][0]["push_step"]
+            reused["conclusion"] = "skipped"
+            reused["mode"] = "reused_existing_immutable_tag"
+            _validate_review(review, RELEASE_ID, CANDIDATE_SHA, CONTROL_SHA)
+
     def test_publication_collector_accepts_canonically_verified_existing_registry_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

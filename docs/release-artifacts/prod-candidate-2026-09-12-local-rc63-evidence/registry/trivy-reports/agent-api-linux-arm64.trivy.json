@@ -3,8 +3,8 @@
   "Trivy": {
     "Version": "0.72.0"
   },
-  "ReportID": "01a09b8a-4795-76bc-ae12-112b079954b8",
-  "CreatedAt": "2026-09-13T16:12:05.909442765Z",
+  "ReportID": "01a0a0dd-93f0-72e9-82a4-36fce3dc0f05",
+  "CreatedAt": "2026-09-14T17:01:11.024191938Z",
   "ArtifactID": "sha256:28db0feb2e5f4572034c2f0f3a1f7494cf849fbd9c424911720a537714fdfc6d",
   "ArtifactName": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api@sha256:f96245cbddcd912cf4a58bd10a8395d6ce7e0f5433517dc28d0da81609e767d6",
   "ArtifactType": "container_image",
