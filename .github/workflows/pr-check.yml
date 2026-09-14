@@ -406,6 +406,7 @@ jobs:
           CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-five-axis
           FIVE_AXIS_LEDGER_ONLY: "1"
           SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
           cleanup() {
@@ -486,6 +487,7 @@ jobs:
           SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
           CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-truth
           CONTROL_INTEGRITY_DIR: ${{ runner.temp }}/pr-check-control-integrity
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
           cleanup() {
