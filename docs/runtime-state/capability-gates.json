@@ -27,15 +27,15 @@
     },
     "docker_registry_publish": {
       "owner_granted": true,
-      "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3:docker_registry_publish",
+      "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O3::docker_registry_publish::prod-candidate-2026-09-12-local-rc63::0e9c680c191927dc352c96d119fc909c7d842296",
       "live_verified": true,
-      "evidence_artifact": "docs/release-artifacts/prod-candidate-2026-09-05-local-rc44-evidence/registry/layer5-registry-release-credit-evidence.json",
-      "verified_at_utc": "2026-09-06T01:05:23.752Z",
+      "evidence_artifact": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/layer5-registry-release-credit-evidence.json",
+      "verified_at_utc": "2026-09-14T18:34:40.661Z",
       "provider": "ghcr",
       "paid_provider": false,
       "verifier": "scripts/verify_layer5_registry_release_evidence.py",
-      "note": "Verified from layer5-registry-release-credit-evidence-v1; evidence_sha256=a4d6c211c1cee7c498d24bf276aef34bb0ff3f757a5a54d6ebf2afdcdcd2a2ce",
-      "evidence_sha256": "a4d6c211c1cee7c498d24bf276aef34bb0ff3f757a5a54d6ebf2afdcdcd2a2ce"
+      "note": "Verified from layer5-registry-release-credit-evidence-v1; evidence_sha256=089ffffd0f963fada5c43153dbe92c72cfa1b0b07c2d7b47f6e7c8eb2c4a5d2a",
+      "evidence_sha256": "089ffffd0f963fada5c43153dbe92c72cfa1b0b07c2d7b47f6e7c8eb2c4a5d2a"
     },
     "phase6_scale_runtime": {
       "owner_granted": true,
