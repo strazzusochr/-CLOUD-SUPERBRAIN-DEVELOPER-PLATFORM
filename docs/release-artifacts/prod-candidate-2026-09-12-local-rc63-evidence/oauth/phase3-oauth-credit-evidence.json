@@ -63,7 +63,7 @@
     },
     "raw_verifier": {
       "path": "scripts/verify-cloudflare-oauth-p3-raw-evidence.ps1",
-      "sha256": "d1e31bbb1d69a8d27399d62a0ffdd15200183e503d5c609db4d7a2d90a25e04c"
+      "sha256": "2c03ab13f6195c31de3ea662cd4f8cdc9e3451fce6fec5cddef848ab0c286274"
     }
   },
   "live_github_oauth_calls": 2,
