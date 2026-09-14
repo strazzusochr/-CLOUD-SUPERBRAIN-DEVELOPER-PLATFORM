@@ -1,0 +1,108 @@
+name: RC63 registry-bound SBOM
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Exact release identifier
+        required: true
+        type: string
+        default: prod-candidate-2026-09-12-local-rc63
+      source_sha:
+        description: Exact candidate source commit
+        required: true
+        type: string
+        default: 0e9c680c191927dc352c96d119fc909c7d842296
+      control_sha:
+        description: Exact control commit containing this workflow
+        required: true
+        type: string
+        default: 5173560c77e7fdce6d3b32730d9a523287312a35
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  generate:
+    name: Generate immutable registry SBOM evidence
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact control commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.control_sha }}
+          fetch-depth: 1
+
+      - name: Login to GHCR read-only
+        shell: bash
+        env:
+          GHCR_ACTOR: ${{ github.actor }}
+          GHCR_READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${GHCR_READ_TOKEN}" | docker login ghcr.io --username "${GHCR_ACTOR}" --password-stdin >/dev/null
+
+      - name: Install checksum-pinned Syft 1.51.0
+        shell: bash
+        env:
+          SYFT_VERSION: 1.51.0
+          SYFT_DIR: ${{ runner.temp }}/syft
+        run: |
+          set -euo pipefail
+          mkdir -p "${SYFT_DIR}"
+          archive="${SYFT_DIR}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --output "${archive}" \
+            "https://github.com/anchore/syft/releases/download/v${SYFT_VERSION}/syft_${SYFT_VERSION}_linux_amd64.tar.gz"
+          expected="75adfff66c266adac51fe8addeca97702f82b4d822d02bf70b79f556c84d3a46"
+          tar -xzf "${archive}" -C "${SYFT_DIR}" syft
+          test "$(sha256sum "${SYFT_DIR}/syft" | cut -d ' ' -f 1)" = "${expected}"
+          test "$("${SYFT_DIR}/syft" version -o json | python -c 'import json,sys; print(json.load(sys.stdin)["version"])')" = "${SYFT_VERSION}"
+
+      - name: Install checksum-pinned Gitleaks
+        shell: bash
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_DIR: ${{ runner.temp }}/gitleaks
+        run: |
+          set -euo pipefail
+          mkdir -p "${GITLEAKS_DIR}"
+          archive="${GITLEAKS_DIR}/gitleaks.tar.gz"
+          checksums="${GITLEAKS_DIR}/checksums.txt"
+          curl --fail --silent --show-error --location --output "${archive}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl --fail --silent --show-error --location --output "${checksums}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz$" "${checksums}" | sha256sum --check --strict
+          tar -xzf "${archive}" -C "${GITLEAKS_DIR}" gitleaks
+          chmod +x "${GITLEAKS_DIR}/gitleaks"
+
+      - name: Generate registry-bound SBOMs without registry writes
+        shell: bash
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          RUBRIC_APPROVAL_COMMIT: e87c28a7c6cf32982caa849794042daa53ef022a
+          OUT_DIR: ${{ runner.temp }}/rc63-registry-sbom
+        run: |
+          set -euo pipefail
+          python scripts/generate_registry_bound_sbom.py \
+            --manifest "docs/release-artifacts/${RELEASE_ID}-evidence/registry/ghcr-candidate-manifest.json" \
+            --registry "docs/release-artifacts/${RELEASE_ID}-evidence/registry/candidate-registry-digests.json" \
+            --release-id "${RELEASE_ID}" \
+            --source-sha "${SOURCE_SHA}" \
+            --rubric-approval-commit "${RUBRIC_APPROVAL_COMMIT}" \
+            --syft "${{ runner.temp }}/syft/syft" \
+            --gitleaks "${{ runner.temp }}/gitleaks/gitleaks" \
+            --output "${OUT_DIR}"
+
+      - name: Upload immutable SBOM evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rc63-registry-sbom-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rc63-registry-sbom/
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+          overwrite: false
+          include-hidden-files: false
