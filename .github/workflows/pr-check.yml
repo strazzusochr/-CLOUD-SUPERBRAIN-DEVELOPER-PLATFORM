@@ -330,11 +330,15 @@ jobs:
           }
           Write-Host "[powershell-syntax] PASS scripts=$((Get-ChildItem -LiteralPath scripts -Filter '*.ps1' -File).Count)"
 
+      - name: Setup Vercel CLI for hosted readback
+        run: npm install --global vercel@54.14.0
+
       - name: Project progress delta-ledger replay regression
         env:
           CANDIDATE_DIFFERS: ${{ steps.source-binding.outputs.candidate_differs }}
           CONTROL_TRUTH_DIR: ${{ runner.temp }}/pr-check-control-project-progress
           SOURCE_PREQUALIFICATION: ${{ steps.source-binding.outputs.source_prequalification }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
           cleanup() {
