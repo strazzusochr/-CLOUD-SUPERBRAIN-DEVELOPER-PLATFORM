@@ -6,8 +6,8 @@
     "live_consent_approval_ref": "docs/runtime-state/cloudflare-oauth-hosted-candidate-consent-approval.json",
     "live_consent_approval_sha256": "b94fa5f8f2f8f5be21198879c50c8673c4c78639b2984053e6a03200e72c2873",
     "owner_approved_candidate_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
-    "owner_architecture_decision_ref": "docs/runtime-state/production-auth-architecture-decision.json",
-    "owner_architecture_decision_sha256": "f6f8a723221d6b74bf7ead3fa7fb4b32b32df935bf45b36b02ddc6ab98f70d1c"
+    "owner_architecture_decision_ref": "docs/runtime-state/cloudflare-oauth-hosted-candidate-architecture-approval.json",
+    "owner_architecture_decision_sha256": "af6a530372eaa2a337b005456088dd996229f0327069a8b16f3505cc88cbf9b2"
   },
   "architecture": "cloudflare_native",
   "atomic_replay_evidence": {
