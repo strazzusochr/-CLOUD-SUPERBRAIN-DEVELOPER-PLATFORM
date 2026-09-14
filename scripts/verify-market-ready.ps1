@@ -204,7 +204,23 @@ function Get-ReadyGateEvidenceValidation(
   if ([string]::IsNullOrWhiteSpace([string]$Gate.verifier)) { $failures.Add("verifier") }
 
   $verifiedAt = [DateTimeOffset]::MinValue
-  if (-not [DateTimeOffset]::TryParse([string]$Gate.verified_at_utc, [ref]$verifiedAt)) {
+  $verifiedAtValue = $Gate.verified_at_utc
+  $verifiedAtValid = $false
+  if ($verifiedAtValue -is [DateTimeOffset]) {
+    $verifiedAt = $verifiedAtValue
+    $verifiedAtValid = $true
+  } elseif ($verifiedAtValue -is [DateTime]) {
+    $verifiedAt = [DateTimeOffset]$verifiedAtValue
+    $verifiedAtValid = $true
+  } else {
+    $verifiedAtValid = [DateTimeOffset]::TryParse(
+      [string]$verifiedAtValue,
+      [Globalization.CultureInfo]::InvariantCulture,
+      [Globalization.DateTimeStyles]::RoundtripKind,
+      [ref]$verifiedAt
+    )
+  }
+  if (-not $verifiedAtValid) {
     $failures.Add("verified_at_utc")
   }
 
@@ -486,10 +502,9 @@ function Get-OwnerBlockedFinalGateValidation([object]$CapabilityState) {
   $authGate = $CapabilityState.gates.production_auth_identity
   if ($null -eq $authGate -or
       -not (Test-JsonBool $authGate.owner_granted $true) -or
-      -not (Test-JsonBool $authGate.live_verified $false) -or
       -not (Test-JsonBool $authGate.paid_provider $false) -or
       [string]::IsNullOrWhiteSpace([string]$authGate.owner_grant_ref)) {
-    $failures.Add("production_auth_identity_must_remain_pending")
+    $failures.Add("production_auth_identity_invalid")
   }
 
   $registryValidation = Get-HistoricalGateEvidenceValidation `
@@ -507,7 +522,7 @@ function Get-OwnerBlockedFinalGateValidation([object]$CapabilityState) {
   return [pscustomobject]@{
     ok = ($failures.Count -eq 0)
     detail = if ($failures.Count -eq 0) {
-      "auth_pending; registry_historical_verified; phase6_historical_verified"
+      "auth_verified_or_pending; registry_historical_verified; phase6_historical_verified"
     } else {
       $failures -join ";"
     }

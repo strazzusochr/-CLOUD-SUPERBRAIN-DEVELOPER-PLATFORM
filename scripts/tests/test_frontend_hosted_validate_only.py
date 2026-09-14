@@ -60,7 +60,8 @@ class FrontendHostedValidateOnlyTests(unittest.TestCase):
 
     def test_production_alias_uses_authoritative_alias_readback(self) -> None:
         for marker in (
-            'vercel.cmd api "/v4/aliases/$configuredAliasHost"',
+            'Resolve-VercelCli',
+            '$vercelCli api "/v4/aliases/$configuredAliasHost"',
             '"Vercel frontend canonical alias"',
             '"Vercel frontend canonical alias project id"',
             '"Vercel frontend canonical alias deployment id"',

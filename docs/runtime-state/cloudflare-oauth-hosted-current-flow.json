@@ -4,10 +4,10 @@
     "approved_oauth_scope": "read:user",
     "approved_worker_origin": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
     "live_consent_approval_ref": "docs/runtime-state/cloudflare-oauth-hosted-candidate-consent-approval.json",
-    "live_consent_approval_sha256": "b94fa5f8f2f8f5be21198879c50c8673c4c78639b2984053e6a03200e72c2873",
+    "live_consent_approval_sha256": "839d1f9c990c91aeb1c8b07250080f5f361fc385dfbf6e93b87a9fa32de57ffe",
     "owner_approved_candidate_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
     "owner_architecture_decision_ref": "docs/runtime-state/cloudflare-oauth-hosted-candidate-architecture-approval.json",
-    "owner_architecture_decision_sha256": "af6a530372eaa2a337b005456088dd996229f0327069a8b16f3505cc88cbf9b2"
+    "owner_architecture_decision_sha256": "1a9c418ee64132a816b1259299b3afc5a8efd4ee5ec39c5bdad573a4cd4061e4"
   },
   "architecture": "cloudflare_native",
   "atomic_replay_evidence": {
@@ -583,7 +583,7 @@
     "frontend_evidence_sha256": "d0c981e139151ac96b687aa64ec71aa6db2d9a010e784e00f98a286c1e0a3102",
     "frontend_origin": "https://frontend-seven-psi-78.vercel.app",
     "frontend_source_commit_sha": "0e5e543b2c5811cf3f267f316cbe4df4a6c41d6d",
-    "runtime_evidence_sha256": "309ecffdcd9e7726ce2d2eb824efb0e6c2a76f5958c6bc8ecb840d74415a76a0",
+    "runtime_evidence_sha256": "d8608e0cffaaa89f8292b8b6efd6a7022f41afd9cd7aa733045efc4bf73b33c3",
     "worker_deployment_id_sha256": "b6ee8bf6a7cb353ce11faccd10550f7e05c692b954ae0424de53b64ade9790cb",
     "worker_origin": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
     "worker_source_archive_sha256": "0796e69e958c1abd1e466d74f79b7f82eac6207ef3706df3334ca3a178f01077",

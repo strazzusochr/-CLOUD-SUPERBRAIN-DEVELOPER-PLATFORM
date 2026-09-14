@@ -12,17 +12,17 @@
     "capability_gates": {
       "contract_version": "capability-gate-state-v1",
       "path": "docs/runtime-state/capability-gates.json",
-      "sha256": "5d8cabd686930a0ad00530a19e5e9f6f8533c7f111ccf887f72a90693f7da7f5"
+      "sha256": "d9ab913aa409962c1e9cbc11f80ff4767d8959d69b9b6a8c335a1020e581f5c2"
     },
     "hosted_candidate_parity": {
       "contract_version": "i1-hosted-candidate-parity-v1",
       "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/i1/i1-hosted-candidate-parity.json",
-      "sha256": "a493d0ffe7edc78b6b347430e8b5600b04018c155635309219b2c164f7823085"
+      "sha256": "7afaf5817dc273c6801bb26e0c7c00625376ec360a13658d69287193d44910b4"
     },
     "production_auth_identity": {
       "contract_version": "production-auth-identity-proof-v2",
       "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/production-auth-identity.json",
-      "sha256": "9171f9bdea660af989203c944e925434df007c099925315586ebdb9fa647e95a"
+      "sha256": "937e1f4e2162f367d22595ff6de71d0a5525df2d7f37effee62ba140846d29ff"
     }
   },
   "live_provider_calls_verified": true,

@@ -54,6 +54,14 @@ function Get-HttpText([string]$Uri) {
   }
 }
 
+function Resolve-VercelCli {
+  foreach ($candidate in @('vercel.cmd', 'vercel')) {
+    $command = Get-Command $candidate -ErrorAction SilentlyContinue
+    if ($null -ne $command) { return $candidate }
+  }
+  throw "Vercel CLI is unavailable for authenticated read-only metadata validation."
+}
+
 function Assert-JsonFalseProperty([object]$Value, [string]$PropertyName, [string]$Label) {
   $property = $Value.PSObject.Properties[$PropertyName]
   Assert-True ($null -ne $property) "$Label property '$PropertyName' is missing"
@@ -105,6 +113,7 @@ function ConvertTo-UtcInstant($Value, [string]$Label) {
 }
 
 function Get-AuthenticatedDeployment([object]$Config, [string]$ExpectedTarget, [bool]$RequireArchive) {
+  $vercelCli = Resolve-VercelCli
   $vercelScope = if ([string]::IsNullOrWhiteSpace([string]$Config.vercel_scope)) {
     "strazzusochrs-projects"
   } else {
@@ -114,7 +123,7 @@ function Get-AuthenticatedDeployment([object]$Config, [string]$ExpectedTarget, [
   $previousErrorAction = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
   try {
-    $deploymentRaw = @(& vercel.cmd api "/v13/deployments/$($Config.deployment_id)" `
+    $deploymentRaw = @(& $vercelCli api "/v13/deployments/$($Config.deployment_id)" `
       --scope $vercelScope --raw 2>$null)
     $deploymentLookupExit = $LASTEXITCODE
   } finally {
@@ -162,7 +171,7 @@ function Get-AuthenticatedDeployment([object]$Config, [string]$ExpectedTarget, [
     $previousErrorAction = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-      $aliasRaw = @(& vercel.cmd api "/v4/aliases/$configuredAliasHost" `
+      $aliasRaw = @(& $vercelCli api "/v4/aliases/$configuredAliasHost" `
         --scope $vercelScope --raw 2>$null)
       $aliasLookupExit = $LASTEXITCODE
     } finally {

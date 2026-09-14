@@ -511,7 +511,10 @@ class ProjectProgressTruthTests(unittest.TestCase):
 
     def test_hand_raised_p3_fails_without_evidence_delta(self) -> None:
         raised = copy.deepcopy(self.manifest)
-        raised["horizontal"]["items"][3]["percent"] += 1
+        current_percent = raised["horizontal"]["items"][3]["percent"]
+        raised["horizontal"]["items"][3]["percent"] = (
+            current_percent + 1 if current_percent < 100 else current_percent - 1
+        )
         raised["overall_percent"] = round(
             sum(item["percent"] for item in raised["horizontal"]["items"]) / 7
         )
@@ -526,7 +529,7 @@ class ProjectProgressTruthTests(unittest.TestCase):
         self.assertNotEqual(ledger_without_p6, self.ledger)
         self.assert_rejected(
             lambda: self.validate(ledger=ledger_without_p6),
-            "progress projection differs from the replayed v2 delta ledger",
+            "previous_projection_sha256 does not match replay state|progress projection differs from the replayed v2 delta ledger",
         )
 
     def test_hand_raised_vertical_cells_fail_without_evidence_delta(self) -> None:
@@ -1116,19 +1119,19 @@ class ProjectProgressTruthTests(unittest.TestCase):
             self.assert_rejected(self.validate, "pinned baseline commit does not contain the progress manifest")
 
     def test_coordinated_baseline_inflation_still_fails_against_pinned_commit(self) -> None:
-        inflated_manifest = copy.deepcopy(self.manifest)
+        inflated_manifest = copy.deepcopy(self.baseline_manifest)
         inflated_manifest["horizontal"]["items"][3]["percent"] = 100
         inflated_manifest["overall_percent"] = round(
             sum(item["percent"] for item in inflated_manifest["horizontal"]["items"]) / 7
         )
-        inflated_snapshot = copy.deepcopy(self.snapshot)
+        inflated_snapshot = copy.deepcopy(self.baseline_snapshot)
         inflated_snapshot["/api/v1/project/progress"] = copy.deepcopy(inflated_manifest)
-        inflated_platform = self.platform.replace("overall: 89", "overall: 97", 1).replace(
+        inflated_platform = self.baseline_platform.replace("overall: 89", "overall: 97", 1).replace(
             '{ id: "P3", pct: 44 }',
             '{ id: "P3", pct: 100 }',
             1,
         )
-        self.assertNotEqual(inflated_platform, self.platform)
+        self.assertNotEqual(inflated_platform, self.baseline_platform)
 
         inflated_horizontal = list(verifier.CANONICAL_HORIZONTAL)
         item_id, label, _ = inflated_horizontal[3]

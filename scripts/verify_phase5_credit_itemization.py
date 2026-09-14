@@ -552,7 +552,19 @@ def validate_production_auth_transition(gate: Any, source_sha: str) -> bool:
     except OSError as exc:
         fail(f"production auth verifier could not run: {exc}")
     marker = "validation_mode=true read_only=true gate_promotion_performed=false secret_output=false"
-    require(completed.returncode == 0, "production auth evidence failed dedicated validation")
+    if completed.returncode != 0:
+        detail = " ".join(
+            part.strip()
+            for part in (completed.stdout, completed.stderr)
+            if part and part.strip()
+        )
+        # The dedicated verifier emits only sanitized validation diagnostics.
+        # Include a bounded excerpt so CI identifies the failing binding without
+        # ever exposing credentials or raw OAuth material.
+        fail(
+            "production auth evidence failed dedicated validation"
+            + (f": {detail[:1000]}" if detail else "")
+        )
     require(marker in completed.stdout, "production auth verifier omitted the read-only validation marker")
     return True
 

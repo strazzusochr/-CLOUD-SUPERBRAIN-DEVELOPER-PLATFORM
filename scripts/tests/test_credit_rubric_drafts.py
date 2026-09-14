@@ -310,16 +310,54 @@ class CreditRubricDraftTests(unittest.TestCase):
             p6_entries[0]["verifier_command"] = "python scripts/fabricated.py --score-v1"
             return json.dumps(payload)
 
+        def mutate_manifest_value(mutator) -> str:
+            payload = json.loads(manifest)
+            mutator(payload)
+            return json.dumps(payload)
+
+        current_manifest = json.loads(manifest)
+        current_overall = current_manifest["overall_percent"]
+        current_phase3 = next(
+            item["percent"]
+            for item in current_manifest["horizontal"]["items"]
+            if item["id"] == "phase_3"
+        )
+        current_phase6 = next(
+            item["percent"]
+            for item in current_manifest["horizontal"]["items"]
+            if item["id"] == "phase_6"
+        )
+
         cases = (
-            {verifier.MANIFEST_PATH: self.mutate(manifest, '"overall_percent": 90', '"overall_percent": 91')},
-            {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 44', '"id": "phase_3",\n        "label": "Phase 3 - Product Surface & Security",\n        "percent": 45')},
-            {verifier.MANIFEST_PATH: self.mutate(manifest, '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 100', '"id": "phase_6",\n        "label": "Phase 6 - Scale & 3D Platform",\n        "percent": 99')},
+            {
+                verifier.MANIFEST_PATH: mutate_manifest_value(
+                    lambda payload: payload.__setitem__("overall_percent", current_overall + 1)
+                )
+            },
+            {
+                verifier.MANIFEST_PATH: mutate_manifest_value(
+                    lambda payload: next(
+                        item.__setitem__("percent", current_phase3 - 1)
+                        for item in payload["horizontal"]["items"]
+                        if item["id"] == "phase_3"
+                    )
+                )
+            },
+            {
+                verifier.MANIFEST_PATH: mutate_manifest_value(
+                    lambda payload: next(
+                        item.__setitem__("percent", current_phase6 - 1)
+                        for item in payload["horizontal"]["items"]
+                        if item["id"] == "phase_6"
+                    )
+                )
+            },
             {verifier.LEDGER_PATH: changed_ledger_target("phase_3")},
             {verifier.LEDGER_PATH: changed_ledger_target("phase_6")},
             {verifier.LEDGER_PATH: ledger_without_p6_transition()},
             {verifier.LEDGER_PATH: ledger_with_p6_scorer_drift()},
             {verifier.ENDPOINT_SNAPSHOT_PATH: changed_snapshot_overall()},
-            {verifier.PLATFORM_PATH: self.mutate(platform, 'overall: 90', 'overall: 91')},
+            {verifier.PLATFORM_PATH: self.mutate(platform, f'overall: {current_overall}', f'overall: {current_overall - 1}')},
             {verifier.PHASE6_CRITERION_PATH: self.mutate(criterion, '"max_p95_ms": 1500', '"max_p95_ms": 99999')},
         )
         for overrides in cases:

@@ -34,13 +34,10 @@
   },
   "current_score": {
     "total_item_count": 19,
-    "verified_item_count": 17,
-    "blocked_item_count": 2,
-    "blocked_item_ids": [
-      "I1",
-      "I5"
-    ],
-    "computed_percent": 89
+    "verified_item_count": 19,
+    "blocked_item_count": 0,
+    "blocked_item_ids": [],
+    "computed_percent": 100
   },
   "items": [
     {
@@ -132,20 +129,26 @@
       "id": "I1",
       "section": "infrastructure",
       "title": "Candidate-bound hosted staging verified over non-local HTTPS",
-      "status": "blocked_owner",
-      "credit_awarded": false,
-      "blocker_id": "hosted_candidate_parity",
-      "owner_action": "Authorize and provide the candidate-bound hosted staging surface; then run the hosted candidate verifier.",
+      "status": "verified",
+      "credit_awarded": true,
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-      "claim": "The current frontend deployment is source-bound RC63 operational evidence only and does not prove six-service immutable-image parity or I1 credit.",
-      "anchor": "\"deployment_id\": \"dpl_AZKFkveny2PZjteiCa8yqxrUkQUF\""
+          "claim": "The current frontend deployment is source-bound RC63 operational evidence only and does not prove six-service immutable-image parity or I1 credit.",
+          "anchor": "\"deployment_id\": \"dpl_AZKFkveny2PZjteiCa8yqxrUkQUF\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
           "claim": "The hosted backend is a read-only contract origin and does not prove six-service RC63/S16 parity.",
           "anchor": "\"read_only_contract_origin\": true"
+        },
+        {
+          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/i1/i1-hosted-candidate-parity.json",
+          "claim": "Fresh RC63 Codespaces workflow 34884107604 proves six digest-only services over non-local HTTPS with health, SSE, no builds, and no source mounts.",
+          "anchor": "\"contract_version\": \"i1-hosted-candidate-parity-v1\"",
+          "contract_version": "i1-hosted-candidate-parity-v1",
+          "verifier": "scripts/verify_i1_codespaces_candidate.py",
+          "sha256": "7afaf5817dc273c6801bb26e0c7c00625376ec360a13658d69287193d44910b4"
         }
       ]
     },
@@ -206,10 +209,8 @@
       "id": "I5",
       "section": "infrastructure",
       "title": "Secret, auth, and branch-protection gaps closed or Owner-approved",
-      "status": "blocked_owner",
-      "credit_awarded": false,
-      "blocker_id": "production_auth_identity",
-      "owner_action": "Complete the GitHub OAuth consent/configuration and run the hosted fail-closed auth verifier.",
+      "status": "verified",
+      "credit_awarded": true,
       "evidence": [
         {
           "path": "docs/runtime-state/capability-gates.json",
