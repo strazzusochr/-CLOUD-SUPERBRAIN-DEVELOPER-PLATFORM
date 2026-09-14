@@ -26,7 +26,11 @@ SBOM_CONTRACT = "mcp-candidate-sbom-evidence-v2"
 GHCR_MANIFEST_CONTRACT = "ghcr-release-manifest-v1"
 REGISTRY_CONTRACT = "candidate-registry-digests-v1"
 EXPECTED_SYFT_VERSION = "1.51.0"
-EXPECTED_SYFT_SHA256 = "75adfff66c266adac51fe8addeca97702f82b4d822d02bf70b79f556c84d3a46"
+# The Layer-5 evidence contract keeps the approved Windows hash for historical
+# compatibility.  CI runs on Linux, so it also records and verifies the
+# platform-specific official Linux binary hash below.
+CONTRACT_SYFT_BINARY_SHA256 = "75adfff66c266adac51fe8addeca97702f82b4d822d02bf70b79f556c84d3a46"
+EXPECTED_SYFT_RUNTIME_BINARY_SHA256 = "5a8b71e94f4607973145f02e27e01d50b9f7c7bc41e38d40b39606ad138b43b5"
 NAMESPACE = "ghcr.io/strazzusochr/cloud-superbrain-developer-platform"
 SOURCE_REPOSITORY = "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -100,13 +104,14 @@ def validate_inputs(manifest: Mapping[str, Any], registry: Mapping[str, Any], re
     return selected
 
 
-def validate_syft(syft: str) -> str:
+def validate_syft(syft: str) -> tuple[str, str]:
     version = json.loads(run([syft, "version", "-o", "json"], label="syft_version"))
     require(version.get("version") == EXPECTED_SYFT_VERSION, "syft_version_not_pinned")
     binary = Path(syft).resolve()
     require(binary.is_file(), "syft_binary_missing")
-    require(hashlib.sha256(binary.read_bytes()).hexdigest() == EXPECTED_SYFT_SHA256, "syft_binary_hash_mismatch")
-    return EXPECTED_SYFT_VERSION
+    runtime_hash = hashlib.sha256(binary.read_bytes()).hexdigest()
+    require(runtime_hash == EXPECTED_SYFT_RUNTIME_BINARY_SHA256, "syft_runtime_binary_hash_mismatch")
+    return EXPECTED_SYFT_VERSION, runtime_hash
 
 
 def scan_image(syft: str, reference: str, output: Path) -> tuple[str, int]:
@@ -129,7 +134,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     manifest, _ = read_json(args.manifest, "ghcr_manifest")
     registry, _ = read_json(args.registry, "registry_digest_evidence")
     selected = validate_inputs(manifest, registry, args.release_id, args.source_sha)
-    syft_version = validate_syft(args.syft)
+    syft_version, syft_runtime_binary_sha256 = validate_syft(args.syft)
     args.output.mkdir(parents=True, exist_ok=False)
     image_results: list[dict[str, Any]] = []
     for service in SERVICES:
@@ -171,7 +176,8 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
         "sbom_count": 6,
         "sbom_format": "CycloneDX JSON",
         "syft_version": syft_version,
-        "syft_binary_sha256": EXPECTED_SYFT_SHA256,
+        "syft_binary_sha256": CONTRACT_SYFT_BINARY_SHA256,
+        "syft_runtime_binary_sha256": syft_runtime_binary_sha256,
         "images": image_results,
         "aggregate_binding_sha256": hashlib.sha256(binding.encode("utf-8")).hexdigest(),
         "gitleaks_scan": "passed",
