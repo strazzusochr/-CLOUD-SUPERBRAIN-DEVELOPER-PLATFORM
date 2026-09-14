@@ -580,7 +580,7 @@
     "candidate_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
     "frontend_deployment_id_sha256": "d3632e54c6f5e375d635f56c71e65a2154ea9131a8ef1f8c55c9d4846be5d26f",
     "frontend_evidence_ref": "docs/runtime-state/frontend-hosted-current.json",
-    "frontend_evidence_sha256": "d0e2d6788b7a20beaba8e6733a19ce00ea80773bbc4b73bc2305c598b2e99669",
+    "frontend_evidence_sha256": "d0c981e139151ac96b687aa64ec71aa6db2d9a010e784e00f98a286c1e0a3102",
     "frontend_origin": "https://frontend-seven-psi-78.vercel.app",
     "frontend_source_commit_sha": "0e5e543b2c5811cf3f267f316cbe4df4a6c41d6d",
     "runtime_evidence_sha256": "309ecffdcd9e7726ce2d2eb824efb0e6c2a76f5958c6bc8ecb840d74415a76a0",
