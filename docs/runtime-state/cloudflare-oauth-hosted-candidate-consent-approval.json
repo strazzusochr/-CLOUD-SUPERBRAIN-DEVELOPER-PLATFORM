@@ -2,7 +2,7 @@
   "contract_version": "cloudflare-oauth-hosted-candidate-consent-approval-v1",
   "status": "owner_approved",
   "owner_approved": true,
-  "source_commit_sha": "e949cc1a50f21a3c565c2c2f2380a663f2cc4be7",
+  "source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
   "target": "production",
   "architecture": "cloudflare_native",
   "oauth_scope": "read:user",

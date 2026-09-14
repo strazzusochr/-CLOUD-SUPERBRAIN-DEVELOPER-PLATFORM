@@ -1,0 +1,11 @@
+{
+  "contract_version": "cloudflare-oauth-hosted-current-v1",
+  "status": "verified",
+  "architecture": "cloudflare_native",
+  "source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "deployment_id": "0c3004cc-c640-44b2-8daf-9e6234baf2ef",
+  "runtime_origin": "https://cloud-superbrain-stateful-runtime.strazzusochr.workers.dev",
+  "provider_writes": false,
+  "deployment_writes": false,
+  "secret_output": false
+}
