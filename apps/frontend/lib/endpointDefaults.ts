@@ -272,8 +272,8 @@ const DEFAULTS: Record<string, () => Record<string, unknown>> = {
   }),
   "/api/v1/clouds/deployment-preflight/contract": () => ({
     ...tag,
-    contract_version: "cloud-deployment-preflight-surface-v1",
-    evidence_ref: "cloud_deployment_preflight_contract_runtime_visible",
+    contract_version: "cloud-deployment-preflight-v1",
+    evidence_ref: "cloud_deployment_preflight_visible",
     endpoint: "GET /api/v1/clouds/deployment-preflight/contract",
     runtime_endpoint: "GET /api/v1/clouds/deployment-preflight",
   }),
