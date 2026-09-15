@@ -18,9 +18,14 @@
 - **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal
   `700/700`, insgesamt `1333/1400`, `67` offen. I1 und I5 bleiben blockiert;
   `MARKET_READY:false`. Keine Gate-, Ledger- oder Prozent-Promotion.
-- **Naechster Schritt:** P05 darf erst nach dem abschliessenden RC63-Readback
-  und einer separaten geschuetzten Registry-Freigabe beginnen. Keine Registry-,
-  Secret-, Production- oder Merge-Aktion wurde in diesem Kontrollpunkt ausgefuehrt.
+- **P05-Readback:** Der read-only RC63-GHCR-Beleg ist unter
+  `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/ghcr-candidate-readback.json`
+  gespeichert: sechs Images und zwoelf Plattform-Digests stimmen mit dem
+  source-bound Manifest ueberein. Die aktive External-Gate-Zusammenfassung bleibt
+  in diesem Null-Credit-Checkpoint bewusst fail-closed; keine Registry-, Secret-,
+  Production- oder Prozent-Promotion wurde ausgefuehrt.
+- **Naechster Schritt:** I1 und I5 getrennt source-bound nachweisen; danach darf
+  nur der verifiergesteuerte atomare Evidence-Uebergang die Gate-Wahrheit aendern.
 
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-11 — RC62/S15 NO-CREDIT-NEUQUALIFIKATION
 
