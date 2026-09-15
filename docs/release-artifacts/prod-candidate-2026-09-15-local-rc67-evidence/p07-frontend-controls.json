@@ -1,0 +1,44 @@
+{
+  "contract_version": "rc67-frontend-evidence-v1",
+  "status": "verified_external_control",
+  "generated_at_utc": "2026-09-15T18:16:01.1942731Z",
+  "release_id": "prod-candidate-2026-09-15-local-rc67",
+  "source_commit_sha": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+  "control_commit_sha": "9e3363c24cb61fd2e4b8f6450187bd40330d83a2",
+  "gate_snapshot": {
+    "phase3_percent": 44,
+    "phase5_percent": 89,
+    "overall_percent": 90,
+    "points": "1333/1400",
+    "open_points": 67,
+    "phase5_items": "17/19",
+    "i1_verified": true,
+    "i5_verified": false,
+    "market_ready": false,
+    "production_release_claimed": false
+  },
+  "frontend": {
+    "alias": "https://frontend-seven-psi-78.vercel.app",
+    "deployment_id": "dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV",
+    "source_commit_sha": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+    "pages": 26,
+    "viewports": 2,
+    "click_navigation_count": 52,
+    "console_errors": 0,
+    "overflow_failures": 0,
+    "overlay_collision_failures": 0,
+    "deployment_alias_content_parity": true,
+    "production_operational_deploy_verified": true
+  },
+  "evidence_hashes": {
+    "frontend-hosted-current.json": "37a45c17c1c927901e02cf351fed4dbf16fe4dad3c22e2dd181e70c29f4526f3",
+    "verification.json": "d7f00a9058dc8296ca888fbb28916a231a529935b9af2b2a2fcda7028ebf126a",
+    "report.json": "7bca93b67ef082f9275d07260e7d6a074d818cfed203eb4f454e3104000a7d0b"
+  },
+  "non_claims": [
+    "No percentage or capability gate was promoted.",
+    "I5 production OAuth identity remains unverified.",
+    "No secret values, production OAuth activation, or release promotion is claimed."
+  ],
+  "secret_output": false
+}
