@@ -22,11 +22,13 @@
   The owner-input manifest and every later checkpoint must keep the same 90-percent
   projection until a source-bound verifier earns a new credit; never hand-set a gate
   or a percentage.
-- The refreshed external summary is source-bound to the current RC63 target. Hosted
-  Agent API contracts and Vercel backend origins are verified; GHCR digest readback
-  remains the only missing external gate until the exact private-image manifest is
-  authenticated and read back. The current frontend deployment is operational
-  evidence only, not I1 or I5 credit.
+- A read-only RC63 GHCR digest receipt is now tracked at
+  `docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/registry/ghcr-candidate-readback.json`:
+  six private images and twelve platform digests match the exact manifest. The
+  active external summary remains fail-closed during this no-credit checkpoint;
+  its truth may be promoted only in the verifier-approved atomic evidence path.
+  I1 hosted candidate parity and I5 production auth identity remain blocked, and
+  the current frontend deployment is operational evidence only.
 - Recovery rule: after a lost chat or a new task, read this section, `PROJECT_STATE.md`,
   `docs/release-artifacts/current-release-candidate.json`,
   `docs/project-progress.manifest.json`, and the live remote HEAD before doing
