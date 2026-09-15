@@ -1,7 +1,7 @@
 # RC63/S16 – aktuelle Zielverfolgung bis Market Ready
 
 **Dokumentstatus:** aktiv, evidence-gebunden, fortschreibbar
-**Stand:** 15.09.2026
+**Stand:** 15.09.2026, 12:58 Uhr
 **Aktueller bestätigter Marktstatus:** `MARKET_READY:false`
 
 Dieses Dokument ist der aktive Einstieg für die Zielverfolgung. Verbindliche Prozentwerte
@@ -14,8 +14,8 @@ Produktionsfreigaben manuell ändern.
 | Feld | Aktueller Wert |
 |---|---|
 | Standardzweig | `chore/repo-bootstrap` |
-| bestätigter Remote-HEAD | `8ac2dabbbe16f1d788295cd6e52820b8275debdd` |
-| letzter Merge | PR #132, normaler Merge-Commit |
+| bestätigter Remote-HEAD | `ce77f2d690e69d72167eefe8843ef53d273cd48d` |
+| letzter Merge | PR #133, normaler Merge-Commit |
 | Release-ID | `prod-candidate-2026-09-12-local-rc63` |
 | Produktquelle S16 | `0e9c680c191927dc352c96d119fc909c7d842296` |
 | Qualifikation Q17 | `59fdd3fb15091fba160f830f5993c1254b2c52be` |
@@ -70,12 +70,14 @@ sind. Ein gestarteter Workflow oder eine grüne Teilprüfung reicht nicht.
 
 - [x] Reviewstatus `APPROVED` und PR-Kopf `fe03b118…` bestätigt.
 - [x] Keine stale Review und keine Pflichtprüfung offen.
+- [x] Aktueller Kontroll-Readback: PR #133 `APPROVED`, anschließend gemergt.
 
 ### P03 – Merge in den Standardzweig `[x]`
 
 - [x] PR #131 als normaler Merge-Commit zusammengeführt.
 - [x] Neuer HEAD `e4e50bc7…` ist Vorfahr von PR-Kopf, S16 und Q17.
 - [x] Keine Squash-/Rebase-Abstammung und keine Prozent-Promotion.
+- [x] Aktueller Standardzweig-HEAD nach PR #133: `ce77f2d6…`.
 
 ### P04 – Post-Merge-Qualifikation `[x]`
 
@@ -118,22 +120,29 @@ Codespace mit uncommitteten Änderungen; das Codespaces-Billing-API ist für den
 aktiven Token nicht lesbar. Es wurde deshalb kein zweiter potenziell kostenpflichtiger
 Codespace blind gestartet. I1 erhält weiterhin keinen Credit.
 
-### P07 – Aktuelle Vercel-Frontend-Evidence `[~] BLOCKIERT FÜR I5`
+### P07 – Aktuelle Vercel-Frontend-Evidence `[~] KONTROLL-PR AUSSTEHEND`
 
 - [x] Canonical Alias `https://frontend-seven-psi-78.vercel.app` ist bekannt.
-- [ ] Frontend-Evidence am aktuell gebundenen Alias neu erzeugen.
-- [ ] Deployment-ID, Alias-Parität, Source-SHA, 26 Routen, zwei Viewports und
-  null erlaubte Konsolenfehler neu readbacken.
+- [x] Ein echter Vercel-Redeploy wurde mit `meta.action=redeploy` erzeugt:
+  `dpl_CQVsh383acP7Pi623p212Z556wj9`.
+- [x] Alias-Readback bindet `frontend-seven-psi-78.vercel.app` an diese Deployment-ID;
+  Source-SHA ist der zulässige Nachfolger `573116b18c4ab065e381bb5904a22287aa24b342`.
+- [x] Neue Hosted-Chrome-Evidence: 26 Routen × 2 Viewports, 52 Klicks,
+  0 Overflow, 0 Overlay-Kollisionen, 0 Console-Fehler; kanonischer
+  `verify-frontend-hosted-current.ps1 -ValidateOnly` ist grün.
+- [ ] Evidence-Refresh `8ca44211…` muss noch als Kontroll-PR gemergt und danach
+  aus dem Remote-HEAD zurückgelesen werden.
 - [ ] Keine Produktionsfreigabe aus der Frontend-Evidence ableiten.
 
-**Stale-Befund:** Die alte OAuth-Evidence referenziert `dpl_AZK…`; der aktuelle
-Alias-Readback zeigt `dpl_oEArn9VcPZU5nL3VaJeknJ64U2Hf`. Die alte Evidence darf nicht
-umgeschrieben, sondern muss durch einen neuen source-bound Beleg ersetzt werden.
+**Stale-Befund behoben:** Die alte OAuth-Evidence bleibt historische Evidence. Die
+aktuelle Frontend-Datei bindet jetzt den neuen Redeploy; I5 selbst bleibt bis zum
+neuen OAuth-Flow-Readback blockiert.
 
 ### P08 – Hosted-Control-Stand `[x]`
 
 - [x] PR #131 enthält die RC63/S16-Kontrollkorrektur und den GHCR-Receipt.
 - [x] Keine External-Gate- oder Prozent-Promotion im Merge enthalten.
+- [x] PR #133 aktualisiert den RC63-Zielbericht; Remote-Merge `ce77f2d6…` bestätigt.
 
 ### P09 – OAuth-Konfiguration `[~] OWNER-BLOCKIERT`
 
@@ -157,9 +166,10 @@ oder Allowlist-Problem, kein Grund für eine manuelle Gate-Öffnung.
 ### P11 – I5 Production OAuth Identity `[~] BLOCKIERT`
 
 - [x] Alte Evidence enthält 16 Flow-Schritte und ist sanitisiert.
-- [ ] Alte Evidence nicht wiederverwenden: der aktuelle dynamische Frontend-Readback
-  schlägt mit `Canonical hosted frontend dynamic validation failed` fehl.
-- [ ] Neue Frontend-Evidence und neue OAuth-Evidence am aktuellen Alias erzeugen.
+- [x] Neue Frontend-Evidence am aktuellen Alias ist erzeugt und kanonisch validiert.
+- [ ] Alte OAuth-Evidence nicht wiederverwenden: sie bindet den vorherigen Frontend-
+  Hash/Deployment und bleibt historische Evidence.
+- [ ] Neue OAuth-Evidence am aktuellen Alias erzeugen.
 - [ ] Owner-Identity, State-Replay, Callback-Replay, Refresh-Rotation, Logout,
   Cookie-Flags, Audit-Reihenfolge und Redaction erneut prüfen.
 - [ ] Neue Evidence mit `verify-production-auth-identity-evidence.ps1` verifizieren.
@@ -202,11 +212,12 @@ dabei nicht.
 
 ## 5. Aktueller nächster Schritt
 
-Der nächste technisch zulässige Punkt ist **P06: frische I1-Evidence**. Dafür wird eine
-erreichbare Codespaces-URL am aktuellen Kontrollstand benötigt. Parallel darf P07/P11
-nur mit einem neuen Vercel- und OAuth-Readback fortgesetzt werden. Bis beide Nachweise
-vorliegen, bleiben P12–P14 gesperrt und der bestätigte Stand bleibt unverändert bei
-`90 %`, `1333/1400`, `MARKET_READY:false`.
+Der nächste technisch zulässige Schritt ist der Kontroll-PR für den P07-Evidence-
+Refresh. Danach folgt P09/P10 mit Owner-Allowlist-Readback und `ValidateOnly`/`DryRun`;
+erst anschließend darf der neue P11-OAuth-Flow ausgeführt werden. I1 bleibt separat
+wegen fehlender sicherer Hosted-Codespaces-Kapazität blockiert. Bis I1 und I5 gültig
+source-bound und verifiergrün sind, bleiben P12–P14 gesperrt und der bestätigte Stand
+bleibt unverändert bei `90 %`, `1333/1400`, `MARKET_READY:false`.
 
 ## 6. Änderungslog
 
@@ -217,3 +228,5 @@ vorliegen, bleiben P12–P14 gesperrt und der bestätigte Stand bleibt unveränd
 | 15.09.2026 | Stale I5-Frontend-Bindung dokumentiert | alter `dpl_AZK…`, aktueller Alias-Readback |
 | 15.09.2026 | Zielbericht in PR #132 gemergt; alle vier PR-Checks, Manifest, Phase 5, Five-Axis und Gitleaks erneut grün | Merge-HEAD `8ac2dabb…` |
 | 15.09.2026 | Aktueller Codespaces-Readback: nur alter fremder Shutdown-Codespace; kein neuer I1-Start ohne Kosten-/Kontingentbeleg | GitHub Codespaces API-Readback |
+| 15.09.2026 | PR #133 gemergt und Remote-HEAD `ce77f2d6…` bestätigt | GitHub PR-/Branch-Readback |
+| 15.09.2026 | Vercel-Redeploy `dpl_CQVsh…`, Alias-Bindung und neue 26×2-Hosted-Evidence erzeugt; keine Credit-/Gate-Promotion | Provider-Readback, Browser-Evidence, Commit `8ca44211…` |
