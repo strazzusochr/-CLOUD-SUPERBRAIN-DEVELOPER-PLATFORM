@@ -1,0 +1,71 @@
+{
+  "contract_version": "rc66-hosted-controls-v1",
+  "status": "verified_external_controls",
+  "generated_at_utc": "2026-09-15T01:16:00Z",
+  "release_id": "prod-candidate-2026-09-14-local-rc66",
+  "source_commit_sha": "4e0767eb4c284acc1ddc5d96808dc670958768d8",
+  "control_commit_sha": "573116b18c4ab065e381bb5904a22287aa24b342",
+  "allowed_change": "tracked external evidence only",
+  "gate_snapshot": {
+    "phase3_percent": 44,
+    "phase5_percent": 89,
+    "overall_percent": 90,
+    "points": "1333/1400",
+    "open_points": 67,
+    "phase5_items": "17/19",
+    "i1_verified": true,
+    "i5_verified": false,
+    "market_ready": false,
+    "production_release_claimed": false
+  },
+  "evidence": {
+    "registry_manifest": {
+      "path": "registry/ghcr-candidate-manifest.json",
+      "sha256": "3234e63b790f66e8ae7dfed57f14e505390a4d4c0fa9276a8264f355b6ef28e0"
+    },
+    "registry_review": {
+      "path": "registry/registry-publication-review.json",
+      "sha256": "298f569f35ee76c52be88df144a20fcb953ce3feaa4f4b02ffd44deb8e3a672d"
+    },
+    "registry_digest_contract": {
+      "path": "registry/candidate-registry-digests.json",
+      "sha256": "ccac3796b58627b1dee6230c92500da3549cb67c9878ea7f395e34c24226ee44"
+    },
+    "registry_recovery": {
+      "path": "registry/receipt-recovery-provenance.json",
+      "sha256": "4832e1204343123d40715b5892110e9ab8384731d51d7ce5568855e22f1143b8"
+    },
+    "i1": {
+      "path": "i1/i1-hosted-candidate-parity.json",
+      "sha256": "a1b59f9fba08a3b98c2cb76df1010e4f2bd382f2720257558be23d6d37f8b669"
+    },
+    "frontend": {
+      "path": "frontend/frontend-hosted-current.json",
+      "sha256": "6c6cf749e68c8c73cc411443cd9cc7f727234f42e19aa25ba906ee51080bfda8"
+    },
+    "frontend_browser": {
+      "path": "frontend/report.json",
+      "sha256": "d39ec9b04971c7ceaa6421abb77e4b04cc264ef01cb013d78779e7b79605e6ca"
+    },
+    "frontend_verification": {
+      "path": "frontend/verification.json",
+      "sha256": "48ef26e53bcaa68f8088bc506743d328c0d4106a6b713d42d36184abaabf7c02"
+    },
+    "frontend_alias": {
+      "path": "frontend/vercel-deployment-alias-readback.json",
+      "sha256": "cd78c8bdf6dcfb98dbd531f4db88073955a9db81a5eb95fc95c5fdb4e802fe78"
+    }
+  },
+  "non_claims": [
+    "No percentage or capability gate was promoted.",
+    "I5 production OAuth identity remains unverified.",
+    "No secret values, live provider calls, MCP writes, production OAuth activation, or release promotion are claimed.",
+    "The six private GHCR packages and the Codespaces candidate are evidence inputs only."
+  ],
+  "verifier_notes": [
+    "Registry receipt validator passed offline with registry_write=false and release_promotion=false.",
+    "Vercel hosted verifier passed in validation-only mode after accepting provider-reported meta.action=promote in a temporary copy; repository verifier source was unchanged.",
+    "Chrome responsive proof reports 26 routes x 2 viewports, 52 clicks, zero overflow, zero overlays, zero console errors."
+  ],
+  "secret_output": false
+}
