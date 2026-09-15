@@ -1,0 +1,48 @@
+{
+  "contract_version": "rc67-hosted-controls-v1",
+  "status": "verified_external_controls",
+  "generated_at_utc": "2026-09-15T18:00:00Z",
+  "release_id": "prod-candidate-2026-09-15-local-rc67",
+  "source_commit_sha": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+  "control_commit_sha": "ed4143901d530b230e3f7511b6ea4261afff9130",
+  "allowed_change": "tracked external evidence only",
+  "gate_snapshot": {
+    "phase3_percent": 44,
+    "phase5_percent": 89,
+    "overall_percent": 90,
+    "points": "1333/1400",
+    "open_points": 67,
+    "phase5_items": "17/19",
+    "i1_verified": true,
+    "i5_verified": false,
+    "market_ready": false,
+    "production_release_claimed": false
+  },
+  "workflows": {
+    "ghcr_publication_run_id": 34993164247,
+    "i1_verifier_run_id": 35004310917,
+    "i1_verifier_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/35004310917",
+    "i1_codespace_port_visibility_after": "private"
+  },
+  "evidence": {
+    "registry_manifest": {
+      "path": "registry/ghcr-candidate-manifest.json",
+      "sha256": "672cf52a03f5aa0b222859cc03f95349e3f4cc19e680458b43b6a6ffd732b257"
+    },
+    "registry_remote_scan": {
+      "path": "registry/remote-image-scan.json",
+      "sha256": "772517ada679d745bf48f3500f1c4301d5ad18362ad0c2a99edf77a32190e4de"
+    },
+    "i1": {
+      "path": "i1/i1-hosted-candidate-parity.json",
+      "sha256": "306b3869480d193d5b1f853f64a415e1e929ce31f83b7cf14e9f112e5b9f3b00"
+    }
+  },
+  "non_claims": [
+    "No percentage or capability gate was promoted.",
+    "I5 production OAuth identity remains unverified.",
+    "No secret values, production OAuth activation, or release promotion is claimed.",
+    "Host-network mode was used only to work around the Codespaces bridge failure; the independent workflow verified digest-only images, no builds, no source mounts, HTTPS, health, persistence, and SSE."
+  ],
+  "secret_output": false
+}

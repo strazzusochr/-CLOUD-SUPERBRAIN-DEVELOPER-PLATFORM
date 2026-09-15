@@ -1,0 +1,183 @@
+{
+  "base_url": "https://rc67-i1-20260915-77q6p97j4vhx4q5-8080.app.github.dev",
+  "builds_absent": true,
+  "contract_version": "i1-hosted-candidate-parity-v1",
+  "control_commit_sha": "ed4143901d530b230e3f7511b6ea4261afff9130",
+  "digest_only_compose_verified": true,
+  "generated_at_utc": "2026-09-15T17:57:09Z",
+  "hosting": {
+    "primary": true,
+    "provider": "github_codespaces",
+    "same_origin_ingress": true
+  },
+  "https": {
+    "base_url": "https://rc67-i1-20260915-77q6p97j4vhx4q5-8080.app.github.dev",
+    "endpoints": [
+      {
+        "content_type": "text/html",
+        "path": "/",
+        "same_origin": true,
+        "status": 200
+      },
+      {
+        "content_type": "application/json",
+        "path": "/api/v1/health",
+        "same_origin": true,
+        "status": 200
+      },
+      {
+        "content_type": "application/json",
+        "path": "/mcp/api/v1/health",
+        "same_origin": true,
+        "status": 200
+      },
+      {
+        "content_type": "application/json",
+        "path": "/llm/api/v1/health",
+        "same_origin": true,
+        "status": 200
+      }
+    ],
+    "same_origin": true
+  },
+  "images": [
+    {
+      "amd64_manifest_digest": "sha256:0191cabe7e7e55e282d960c5dd5fac7117ae1dadb4158d4da86b2664e897b79d",
+      "config_digest": "sha256:8e621769fc266afa06cc09fa427f0b047018b351ff0b499d0d4bee931fa968a1",
+      "container_image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api@sha256:9874c2fe1cf39a8d5392bb0b2a6775b4c91e27229f653598a567cdfbc85c082a",
+      "healthy": true,
+      "image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-api@sha256:9874c2fe1cf39a8d5392bb0b2a6775b4c91e27229f653598a567cdfbc85c082a",
+      "oci_revision": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "running": true,
+      "runtime_image_id": "sha256:9874c2fe1cf39a8d5392bb0b2a6775b4c91e27229f653598a567cdfbc85c082a",
+      "service": "agent-api",
+      "source_bind_mount_count": 0,
+      "top_digest": "sha256:9874c2fe1cf39a8d5392bb0b2a6775b4c91e27229f653598a567cdfbc85c082a"
+    },
+    {
+      "amd64_manifest_digest": "sha256:772b4c7eabd2bfed9fa943a7f88385f110f237268e858e949b367f081fae1f75",
+      "config_digest": "sha256:c5d492cfa399aa0024d3d81d539477e8bb67a9a67a21ec9533db12d2e18dc1d9",
+      "container_image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/mcp-gateway@sha256:f43e8665faf47e64dda7c4172c839612768d305049b0c5d4ed45517c730c938e",
+      "healthy": true,
+      "image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/mcp-gateway@sha256:f43e8665faf47e64dda7c4172c839612768d305049b0c5d4ed45517c730c938e",
+      "oci_revision": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "running": true,
+      "runtime_image_id": "sha256:f43e8665faf47e64dda7c4172c839612768d305049b0c5d4ed45517c730c938e",
+      "service": "mcp-gateway",
+      "source_bind_mount_count": 0,
+      "top_digest": "sha256:f43e8665faf47e64dda7c4172c839612768d305049b0c5d4ed45517c730c938e"
+    },
+    {
+      "amd64_manifest_digest": "sha256:7bd447cb23fb475150231dc7cc82508754f017fe2cc27d2558c2a21b975340c3",
+      "config_digest": "sha256:dc8c46c90f18f6dd1be109574fd1f516f25ea24b08dc53270295759b2e05cc87",
+      "container_image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend@sha256:2ad6e4f3a5664fdcc6aa71518308c1c228d3d5ccb862ae230caecd831635ffc3",
+      "healthy": true,
+      "image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/frontend@sha256:2ad6e4f3a5664fdcc6aa71518308c1c228d3d5ccb862ae230caecd831635ffc3",
+      "oci_revision": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "running": true,
+      "runtime_image_id": "sha256:2ad6e4f3a5664fdcc6aa71518308c1c228d3d5ccb862ae230caecd831635ffc3",
+      "service": "frontend",
+      "source_bind_mount_count": 0,
+      "top_digest": "sha256:2ad6e4f3a5664fdcc6aa71518308c1c228d3d5ccb862ae230caecd831635ffc3"
+    },
+    {
+      "amd64_manifest_digest": "sha256:926b01e8866d664d87977266cd0131fe6795f2fd41f3231f281a6734dbe9011e",
+      "config_digest": "sha256:6c09e35f941be2defb0ab2e3679e6a9073ba298b15c37822451d3343e3a3dbd4",
+      "container_image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/llm-gateway@sha256:120cb45c59b078ad78ead14195c4b7108396443dc3de2cf64bc436c89a588809",
+      "healthy": true,
+      "image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/llm-gateway@sha256:120cb45c59b078ad78ead14195c4b7108396443dc3de2cf64bc436c89a588809",
+      "oci_revision": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "running": true,
+      "runtime_image_id": "sha256:120cb45c59b078ad78ead14195c4b7108396443dc3de2cf64bc436c89a588809",
+      "service": "llm-gateway",
+      "source_bind_mount_count": 0,
+      "top_digest": "sha256:120cb45c59b078ad78ead14195c4b7108396443dc3de2cf64bc436c89a588809"
+    },
+    {
+      "amd64_manifest_digest": "sha256:4bd79facfa980bf7203e06b332e2f9b38edb83e963abf19c56e971146a939f49",
+      "config_digest": "sha256:422082cda7d5a79ea862caca5643e1ae4a8b5d9071942ccd7eb76255836a213b",
+      "container_image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-worker@sha256:737a0ed6e71645a5556b6e46c783d2ad9e946acfe484a3ce29d0437e5c05fcfa",
+      "healthy": true,
+      "image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/agent-worker@sha256:737a0ed6e71645a5556b6e46c783d2ad9e946acfe484a3ce29d0437e5c05fcfa",
+      "oci_revision": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "running": true,
+      "runtime_image_id": "sha256:737a0ed6e71645a5556b6e46c783d2ad9e946acfe484a3ce29d0437e5c05fcfa",
+      "service": "agent-worker",
+      "source_bind_mount_count": 0,
+      "top_digest": "sha256:737a0ed6e71645a5556b6e46c783d2ad9e946acfe484a3ce29d0437e5c05fcfa"
+    },
+    {
+      "amd64_manifest_digest": "sha256:ee0fb549adcd1fdd4b5ea7e8e19f7a2985c320871fefddf8bc069261f0af4100",
+      "config_digest": "sha256:c9ba5a92531acc0d609a45e13c72db843225f42d0098f197ff52782e6cccab7e",
+      "container_image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/memory-worker@sha256:0034fcabaa063c12c2d390f7d1418a835e8953c1959ccc208a59ec90d5be4560",
+      "healthy": true,
+      "image_ref": "ghcr.io/strazzusochr/cloud-superbrain-developer-platform/memory-worker@sha256:0034fcabaa063c12c2d390f7d1418a835e8953c1959ccc208a59ec90d5be4560",
+      "oci_revision": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+      "oci_source": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+      "running": true,
+      "runtime_image_id": "sha256:0034fcabaa063c12c2d390f7d1418a835e8953c1959ccc208a59ec90d5be4560",
+      "service": "memory-worker",
+      "source_bind_mount_count": 0,
+      "top_digest": "sha256:0034fcabaa063c12c2d390f7d1418a835e8953c1959ccc208a59ec90d5be4560"
+    }
+  ],
+  "live_provider_calls": false,
+  "non_claims": [
+    "This evidence verifies candidate-bound staging parity only; it is not a production deployment or release promotion.",
+    "The verifier made read-only registry and HTTPS requests and performed no GHCR write.",
+    "No live LLM provider, live MCP write, Codespace creation, tunnel activation, or secret output is claimed."
+  ],
+  "oci_source_revision_verified": true,
+  "production_deploy": false,
+  "publication_control_commit_sha": "ed4143901d530b230e3f7511b6ea4261afff9130",
+  "publication_manifest": {
+    "contract_version": "ghcr-release-manifest-v1",
+    "run_attempt": 1,
+    "run_id": "34993164247",
+    "run_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/34993164247",
+    "sha256": "672cf52a03f5aa0b222859cc03f95349e3f4cc19e680458b43b6a6ffd732b257"
+  },
+  "registry_digest_readback_verified": true,
+  "registry_write_performed": false,
+  "release_id": "prod-candidate-2026-09-15-local-rc67",
+  "release_promotion": false,
+  "repository": "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "runtime_image_identity_verified": true,
+  "runtime_provenance": {
+    "contract_version": "i1-codespaces-runtime-provenance-v1",
+    "path": "/.well-known/cloud-superbrain/i1-provenance.json",
+    "sha256": "a1f6619290753ec81ba0b70d199e30ae109bbef2450561eceba846d73584cf6e"
+  },
+  "same_origin_https_verified": true,
+  "secret_output": false,
+  "service_count": 6,
+  "services": [
+    "agent-api",
+    "mcp-gateway",
+    "frontend",
+    "llm-gateway",
+    "agent-worker",
+    "memory-worker"
+  ],
+  "source_bind_mounts_absent": true,
+  "source_commit_sha": "987871c40d603ba4d3ba93752df14d5fcd53d3cd",
+  "sse": {
+    "audit_persisted": false,
+    "content_type": "text/event-stream",
+    "json_frame_count": 2,
+    "live_provider_calls": false,
+    "path": "/llm/v1/chat/completions",
+    "protocol": "openai_compatible_sse",
+    "provider_name": "deterministic-dry-run",
+    "status": 200,
+    "terminal_frame": "[DONE]"
+  },
+  "sse_verified": true,
+  "status": "verified",
+  "supporting_images_digest_pinned": true
+}
