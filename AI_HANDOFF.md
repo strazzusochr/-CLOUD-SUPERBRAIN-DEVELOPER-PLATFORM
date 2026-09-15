@@ -23,11 +23,10 @@
   projection until a source-bound verifier earns a new credit; never hand-set a gate
   or a percentage.
 - The refreshed external summary is source-bound to the current RC63 target. Hosted
-  Agent API contracts, Vercel backend origins, and the exact private GHCR manifest
-  readback are verified read-only. No external gate awards progress by itself; I1
-  hosted candidate parity and I5 production auth identity remain blocked until
-  their separate evidence contracts are complete. The current frontend deployment
-  is operational evidence only, not I1 or I5 credit.
+  Agent API contracts and Vercel backend origins are verified; GHCR digest readback
+  remains the only missing external gate until the exact private-image manifest is
+  authenticated and read back. The current frontend deployment is operational
+  evidence only, not I1 or I5 credit.
 - Recovery rule: after a lost chat or a new task, read this section, `PROJECT_STATE.md`,
   `docs/release-artifacts/current-release-candidate.json`,
   `docs/project-progress.manifest.json`, and the live remote HEAD before doing
