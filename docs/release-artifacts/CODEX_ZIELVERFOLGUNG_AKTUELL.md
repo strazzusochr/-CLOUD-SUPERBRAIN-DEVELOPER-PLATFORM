@@ -14,7 +14,7 @@ Produktionsfreigaben manuell ändern.
 | Feld | Aktueller Wert |
 |---|---|
 | Standardzweig | `chore/repo-bootstrap` |
-| bestätigter Remote-HEAD | `5b117aefccf89a13c2de0b873025f12e73df21aa` |
+| bestätigter Remote-HEAD | `cfc7c529daffe5b523a7bc40b40082671d0f5c97` |
 | letzter Merge | PR #136, normaler Merge-Commit |
 | Release-ID | `prod-candidate-2026-09-12-local-rc63` |
 | Produktquelle S16 | `0e9c680c191927dc352c96d119fc909c7d842296` |
@@ -70,14 +70,14 @@ sind. Ein gestarteter Workflow oder eine grüne Teilprüfung reicht nicht.
 
 - [x] Reviewstatus `APPROVED` und PR-Kopf `fe03b118…` bestätigt.
 - [x] Keine stale Review und keine Pflichtprüfung offen.
-- [x] Aktueller Kontroll-Readback: PR #133 `APPROVED`, anschließend gemergt.
+- [x] Aktueller Kontroll-Readback: PR #137 `APPROVED`, anschließend als Merge-Commit `cfc7c529…` gemergt.
 
 ### P03 – Merge in den Standardzweig `[x]`
 
 - [x] PR #131 als normaler Merge-Commit zusammengeführt.
 - [x] Neuer HEAD `e4e50bc7…` ist Vorfahr von PR-Kopf, S16 und Q17.
 - [x] Keine Squash-/Rebase-Abstammung und keine Prozent-Promotion.
-- [x] Aktueller Standardzweig-HEAD nach PR #136: `5b117aef…`.
+- [x] Aktueller Standardzweig-HEAD nach PR #137: `cfc7c529…`.
 
 ### P04 – Post-Merge-Qualifikation `[x]`
 
@@ -100,11 +100,11 @@ sind. Ein gestarteter Workflow oder eine grüne Teilprüfung reicht nicht.
 
 ### P06 – I1 Hosted Candidate Parity `[x]`
 
-- [x] Frischer Codespace `rc63-i1-20260915-x5gvg96q5rxw2r9w` am Kontrollstand `5b117aef…` bereitgestellt.
+- [x] Frischer Codespace `rc63-i1-postmerge-20260915-4jpwpg49jj4qcjrr6` am Kontrollstand `cfc7c529…` bereitgestellt.
 - [x] Digest-only-Stack mit sechs Diensten ohne Builds und Source-Mounts gestartet.
 - [x] Port `8080` nur für den Verifier öffentlich freigegeben und danach privat gestellt.
-- [x] Workflow `34974049181` erfolgreich: sechs Health-Readbacks, zwölf Plattform-Digests, HTTPS, SSE und Provenance.
-- [x] Evidence-SHA `f19ae5e7bf683cb7505b575acc7015a59dc52e3721c191ee4a6c5bf45c045865` gesichert.
+- [x] Workflow `34986842543` erfolgreich: sechs Health-Readbacks, zwölf Plattform-Digests, HTTPS, SSE und Provenance.
+- [x] Evidence-SHA `f061715c858bf344e025c9fdbb2df272f3bd6790432de0baeba65b09e87e7f38` gesichert.
 - [x] Codespace beendet; keine Registry-/Provider-Writes und keine Secret-Ausgabe.
 - [ ] Kein Credit/P5-Promotion: atomare I1+I5-Regel bleibt aktiv.
 
@@ -203,4 +203,4 @@ P06 und P07 sind technisch nachgewiesen. Der nächste zulässige Punkt ist P11: 
 | 15.09.2026 | PR #133 gemergt und Remote-HEAD `ce77f2d6…` bestätigt | GitHub PR-/Branch-Readback |
 | 15.09.2026 | Vercel-Redeploy `dpl_CQVsh…`, Alias-Bindung und neue 26×2-Hosted-Evidence erzeugt; keine Credit-/Gate-Promotion | Provider-Readback, Browser-Evidence, Commit `8ca44211…` |
 | 15.09.2026 | PR #135 Owner-Allowlist und PR #136 Frontend-Evidence gemergt; Remote-HEAD `5b117aef…` bestätigt | GitHub-Readback |
-| 15.09.2026 | P06/I1 fresh Codespaces verifier `34974049181` erfolgreich; Evidence-SHA `f19ae5e7…` | GitHub Actions, Port privat, Codespace beendet |
+| 15.09.2026 | PR #137 gemergt; neuer Kontroll-HEAD `cfc7c529…`; I1-Readback danach erneut ausgeführt | GitHub-Readback |`n| 15.09.2026 | P06/I1 fresh Codespaces verifier `34986842543` erfolgreich; Evidence-SHA `f061715c…` | GitHub Actions, Port privat, Codespace beendet |
