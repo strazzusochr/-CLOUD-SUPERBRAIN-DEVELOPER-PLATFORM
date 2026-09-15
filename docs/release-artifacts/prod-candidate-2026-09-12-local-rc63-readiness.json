@@ -4,9 +4,12 @@
   "source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
   "generated_at_utc": "2026-09-13T09:51:17Z",
   "status": "verified_with_owner_blocks",
-  "verified_item_count": 19,
-  "blocked_item_count": 0,
-  "blocked_item_ids": [],
+  "verified_item_count": 17,
+  "blocked_item_count": 2,
+  "blocked_item_ids": [
+    "I1",
+    "I5"
+  ],
   "phase5_computed_percent": 89,
   "ci_workflow": {
     "name": "pr-check",

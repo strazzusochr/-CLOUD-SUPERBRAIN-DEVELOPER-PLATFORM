@@ -29,9 +29,9 @@ review_gate: `pending`
 owner_decision: `no-release`
 hosted_staging_parity: `false`
 production_rollout_claimed: `false`
-checklist_verified_count: `19`
-checklist_blocked_count: `0`
-phase5_computed_percent: `100`
+checklist_verified_count: `17`
+checklist_blocked_count: `2`
+phase5_computed_percent: `89`
 
 ## Phase-5 Readiness Checklist
 
@@ -48,11 +48,11 @@ award progress credit and cannot close I1 `hosted_candidate_parity` or I5
 | C3 | JA | Pointer, Q17 control, candidate artifact, and staged truth select RC63/S16 exactly. |
 | C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed. |
 | C5 | JA | The committed S16 archive passed canonical npm-audit and gitleaks checks. |
-| I1 | JA | Fresh RC63 Codespaces digest-only six-service HTTPS parity evidence is bound to source S16. |
+| I1 | NEIN | No non-local HTTPS six-service hosted stack is bound exactly to RC63/S16. |
 | I2 | JA | Six private content-addressed S16 candidate images, twelve platform digests, scans, and protected publication receipt are verified; no release promotion is claimed. |
 | I3 | JA | RC62/S15 is the immutable local rollback predecessor. |
 | I4 | JA | No provider, paid tier, card requirement, recurring amount, or budget-ceiling change is introduced. |
-| I5 | JA | Production OAuth identity evidence is verifier-bound to the RC63 Cloudflare runtime and owner allowlist. |
+| I5 | NEIN | Production auth identity remains closed without its hosted OAuth evidence. |
 | V1 | JA | Health, metrics, and audit paths remain candidate-bound contracts. |
 | V2 | JA | Error, rate, session, request, trace, and gateway fail-closed contracts remain unchanged. |
 | V3 | JA | Q17, exact-head CI attestation, five local chains, and rollback source are linked. |
@@ -65,14 +65,15 @@ award progress credit and cannot close I1 `hosted_candidate_parity` or I5
 
 ## Qualification boundary
 
-This is the completed RC63 evidence-credit transition; I1 hosted parity and I5 production identity are source-bound and sanitised. The provider-bearing browser run used exactly three
+This is a completed DEV-ONLY no-credit candidate requalification with two
+explicit Owner blocks. The provider-bearing browser run used exactly three
 allowed provider responses; after a provider-free O4 metadata refresh it was
 not retried.
 
-- Current overall progress is verifier-computed at `100%` and `1400/1400` after the atomic I1/I5 evidence transition.
-- Phase 5 is verifier-computed at `19/19` and `100%`.
-- I1 and I5 are closed by their dedicated evidence verifiers.
-- `MARKET_READY:true` records the evidence-credit state; external production gates remain separately fail-closed.
+- Current overall progress remains `90%` and `1333/1400`.
+- Phase 5 remains `17/19` and `89%`.
+- I1 and I5 remain blocked.
+- `MARKET_READY:false` remains mandatory.
 - `DEV-ONLY; hosted proof still blocked.`
 - This artifact does not claim a production rollout.
 - Production deployment still requires the release-candidate gate bundle and a separate rollout proof.

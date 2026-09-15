@@ -148,34 +148,6 @@
       "verifier_command": "python scripts/score_phase6_scale_credit.py --score-v1",
       "artifact_path": ".phase1-artifacts/phase6-scale/scale-evidence-20260908T202957508Z-4f932c7ec0034c37be6faa90d1f71d19.json",
       "artifact_sha256": "3c945ce502525ea367334b117e21d14b30f8a2c20cefd61700a0a06f562ca81f"
-    },
-    {
-      "entry_id": "p3-44-to-100-rc63-oauth",
-      "scope": "horizontal",
-      "cell_id": "phase_3",
-      "old_percent": 44,
-      "new_percent": 100,
-      "overall_percent": 98,
-      "previous_projection_sha256": "6e6c7d97b119bc46664735853bb13ec3a55a3ed45590316dbf992f273d8fdf54",
-      "projection_sha256": "5aa23c944943103b3e7b517ff4ffab7b331646514069eac60aa59499fe8611ee",
-      "source_sha": "7c4d2841c7e0db6a085d45999ffb75be3db8bdff",
-      "verifier_command": "python scripts/score_phase3_oauth_credit.py --score-v1",
-      "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/phase3-oauth-credit-evidence.json",
-      "artifact_sha256": "d272ba7a10f8fa6577ac035eb11feaec676b98c6fb6bafe89cc50e907a0d74f5"
-    },
-    {
-      "entry_id": "p5-89-to-100-rc63-i1-i5",
-      "scope": "horizontal",
-      "cell_id": "phase_5",
-      "old_percent": 89,
-      "new_percent": 100,
-      "overall_percent": 100,
-      "previous_projection_sha256": "5aa23c944943103b3e7b517ff4ffab7b331646514069eac60aa59499fe8611ee",
-      "projection_sha256": "2d80bc507d22db6193c16388a4085704892622d634c04b69d79ec067431df855",
-      "source_sha": "7c4d2841c7e0db6a085d45999ffb75be3db8bdff",
-      "verifier_command": "python scripts/score_phase5_market_ready_credit.py --score-v1",
-      "artifact_path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/phase5/phase5-market-ready-credit-evidence.json",
-      "artifact_sha256": "0cd85dbd755a18ad14fe1d694bdbeefe794af30329c9c29680b7318b7ee0201b"
     }
   ]
 }
