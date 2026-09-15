@@ -16,15 +16,16 @@
   `100/100/100/44/100/89/100` = `633/700`; all seven vertical layers are `100` =
   `700/700`; total `1333/1400`, `67` open. I1 (`hosted_candidate_parity`) and I5
   (`production_auth_identity`) remain blocked. `MARKET_READY:false`.
-- PR #130 correctly revoked the stale RC63 100-percent promotion while preserving
-  historical RC66 control evidence. The current owner-input manifest and every
-  later checkpoint must keep the same 90-percent projection until a source-bound
-  verifier earns a new credit; never hand-set a gate or a percentage.
-- The current external summary is deliberately blocked at
-  `hosted_agent_api_contracts`; `ghcr_image_digest_verify` and
-  `vercel_backend_origin_health` remain subsequent missing gates. The historical
-  read-only backend origin reports a different embedded snapshot and must never be
-  accepted as RC63 hosted parity. The current frontend deployment is operational
+- PR #130 correctly revoked the stale RC63 100-percent promotion. It left the
+  source-qualification pointer on the historical RC66 successor; the control-only
+  reconciliation restores that pointer to RC63/S16 with zero credit and no rollout.
+  The owner-input manifest and every later checkpoint must keep the same 90-percent
+  projection until a source-bound verifier earns a new credit; never hand-set a gate
+  or a percentage.
+- The refreshed external summary is source-bound to the current RC63 target. Hosted
+  Agent API contracts and Vercel backend origins are verified; GHCR digest readback
+  remains the only missing external gate until the exact private-image manifest is
+  authenticated and read back. The current frontend deployment is operational
   evidence only, not I1 or I5 credit.
 - Recovery rule: after a lost chat or a new task, read this section, `PROJECT_STATE.md`,
   `docs/release-artifacts/current-release-candidate.json`,
