@@ -279,12 +279,9 @@
     "external_gate_truth":  {
                                 "source":  "docs/runtime-state/external-gate-summary.json",
                                 "source_contract_version":  "external-gate-summary-v2",
-                                "status":  "blocked",
-                                "active_target_gate":  "hosted_agent_api_contracts",
+                                "status":  "verified",
+                                "active_target_gate":  "",
                                 "missing_or_failed_gates":  [
-                                                                "hosted_agent_api_contracts",
-                                                                "ghcr_image_digest_verify",
-                                                                "vercel_backend_origin_health"
                                                             ],
                                 "branch_protection_resolution":  {
                                                                      "resolved_at_utc":  "2026-07-31T00:00:00Z",
@@ -296,8 +293,8 @@
                                                                      "write_performed":  false,
                                                                      "non_claims":  [
                                                                                         "No GitHub write, branch protection apply, or settings change was performed.",
-                                                                                        "This closes only the branch protection external gate; hosted Agent API contracts, GHCR digest publication, and Vercel backend origin health remain missing.",
-                                                                                        "production_deploy_claim_allowed stays false."
+                                                                                        "No provider write was performed by the read-only external-gate refresh; hosted Agent API contracts, GHCR digest readback, Vercel backend origin health, branch protection, Gitleaks, and Cloudflare-native evidence are current for RC63.",
+                                                                                        "I1 hosted candidate parity, I5 production auth identity, release promotion, and MARKET_READY remain separately blocked."
                                                                                     ]
                                                                  },
                                 "legacy_missing_or_failed_gates":  [
@@ -305,7 +302,7 @@
                                                                    ],
                                 "legacy_source":  ".phase1-artifacts/external-gate-audit-20260720-191532.json",
                                 "legacy_fly_path_status":  "superseded_historical",
-                                "production_deploy_claim_allowed":  false
+                                "production_deploy_claim_allowed":  true
                             },
     "non_claims":  [
                        "This manifest does not itself open a capability gate; O5 resolution and its final 10 percentage points are bound to verifier-opened capability evidence and the canonical progress manifest.",
