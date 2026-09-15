@@ -14,8 +14,8 @@ Produktionsfreigaben manuell ändern.
 | Feld | Aktueller Wert |
 |---|---|
 | Standardzweig | `chore/repo-bootstrap` |
-| bestätigter Remote-HEAD | `e4e50bc7eb6a396c63d268e729a877d6203ce80c` |
-| letzter Merge | PR #131, normaler Merge-Commit |
+| bestätigter Remote-HEAD | `8ac2dabbbe16f1d788295cd6e52820b8275debdd` |
+| letzter Merge | PR #132, normaler Merge-Commit |
 | Release-ID | `prod-candidate-2026-09-12-local-rc63` |
 | Produktquelle S16 | `0e9c680c191927dc352c96d119fc909c7d842296` |
 | Qualifikation Q17 | `59fdd3fb15091fba160f830f5993c1254b2c52be` |
@@ -100,20 +100,23 @@ sind. Ein gestarteter Workflow oder eine grüne Teilprüfung reicht nicht.
 
 - [x] Historischer I1-Run `34884107604` war technisch erfolgreich.
 - [ ] Historischer Run ist nicht mehr gültig: Control-SHA `057a0b9…` ist nicht der
-  aktuelle Kontrollstand `e4e50bc7…`.
+  aktuelle Kontrollstand `8ac2dabb…`.
 - [ ] Die gespeicherte Codespaces-URL liefert inzwischen `404`.
 - [ ] Frischen Codespace am aktuellen Standardzweig bereitstellen.
 - [ ] `.devcontainer/i1-codespaces/devcontainer.json` verwenden.
 - [ ] Digest-only-Stack mit sechs Diensten, ohne Build und ohne Source-Mount starten.
 - [ ] Port `8080` nur für die Evidence-Erzeugung öffentlich freigeben.
-- [ ] Workflow mit aktuellem `control_sha=e4e50bc7…` starten.
+- [ ] Workflow mit aktuellem `control_sha=8ac2dabb…` starten.
 - [ ] Sechs Health-Readbacks, zwölf Plattform-Digests, HTTPS, SSE und Provenance
   zurücklesen.
 - [ ] Port wieder privat stellen und Codespace stoppen.
 
 **Aktueller Abbruch:** Ein frischer Codespace wurde versucht, blieb bei
 `Provisioning` hängen und wurde nach Timeout gelöscht. Der alte fremde Codespace
-bleibt unangetastet. I1 erhält deshalb keinen Credit.
+bleibt unangetastet. Der aktuelle Readback zeigt nur diesen alten, heruntergefahrenen
+Codespace mit uncommitteten Änderungen; das Codespaces-Billing-API ist für den
+aktiven Token nicht lesbar. Es wurde deshalb kein zweiter potenziell kostenpflichtiger
+Codespace blind gestartet. I1 erhält weiterhin keinen Credit.
 
 ### P07 – Aktuelle Vercel-Frontend-Evidence `[~] BLOCKIERT FÜR I5`
 
@@ -212,3 +215,5 @@ vorliegen, bleiben P12–P14 gesperrt und der bestätigte Stand bleibt unveränd
 | 15.09.2026 | Zielverfolgung auf Merge-HEAD `e4e50bc7…` gebunden | Remote-Readback, PR #131 |
 | 15.09.2026 | I1-Timeout und stale Codespaces-Evidence dokumentiert | Run `34884107604`, URL-Readback `404` |
 | 15.09.2026 | Stale I5-Frontend-Bindung dokumentiert | alter `dpl_AZK…`, aktueller Alias-Readback |
+| 15.09.2026 | Zielbericht in PR #132 gemergt; alle vier PR-Checks, Manifest, Phase 5, Five-Axis und Gitleaks erneut grün | Merge-HEAD `8ac2dabb…` |
+| 15.09.2026 | Aktueller Codespaces-Readback: nur alter fremder Shutdown-Codespace; kein neuer I1-Start ohne Kosten-/Kontingentbeleg | GitHub Codespaces API-Readback |
