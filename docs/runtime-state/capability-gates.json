@@ -17,13 +17,13 @@
     "production_auth_identity": {
       "owner_granted": true,
       "owner_grant_ref": "OWNER_GRANTS_2026-09-02.json::O1:production_auth_identity",
-      "live_verified": true,
+      "live_verified": false,
       "evidence_artifact": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/oauth/production-auth-identity.json",
       "verified_at_utc": "2026-09-14T19:12:30.305Z",
       "provider": "github-oauth-cloudflare-native",
       "paid_provider": false,
       "verifier": "scripts/verify-production-auth-identity-evidence.ps1",
-      "note": "Verified from production-auth-identity-proof-v2; evidence_sha256=937e1f4e2162f367d22595ff6de71d0a5525df2d7f37effee62ba140846d29ff",
+      "note": "RC63 production-auth evidence is retained as historical only; current live claim revoked after the canonical frontend moved to the RC66 hosted-control deployment. Re-run P11/I5 before any promotion; evidence_sha256=937e1f4e2162f367d22595ff6de71d0a5525df2d7f37effee62ba140846d29ff",
       "evidence_sha256": "937e1f4e2162f367d22595ff6de71d0a5525df2d7f37effee62ba140846d29ff"
     },
     "docker_registry_publish": {
