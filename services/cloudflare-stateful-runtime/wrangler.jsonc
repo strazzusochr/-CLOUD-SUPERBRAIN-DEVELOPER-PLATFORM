@@ -65,7 +65,7 @@
     "GITHUB_OAUTH_CLIENT_ID": "Ov23li4cxivUXK6RUJ2C",
     "OAUTH_PUBLIC_ORIGIN": "https://frontend-seven-psi-78.vercel.app",
     "GITHUB_OAUTH_REDIRECT_URI": "https://frontend-seven-psi-78.vercel.app/api/v1/auth/callback",
-    "GITHUB_OAUTH_OWNER_IDS": "237145441",
+    "GITHUB_OAUTH_OWNER_IDS": "237145441,231157481",
     "POST_LOGIN_REDIRECT": "/workbench"
   },
   "env": {
