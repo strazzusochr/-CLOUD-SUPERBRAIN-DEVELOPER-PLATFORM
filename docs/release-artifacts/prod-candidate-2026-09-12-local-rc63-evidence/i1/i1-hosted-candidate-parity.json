@@ -1,17 +1,17 @@
 {
-  "base_url": "https://rc63-i1-g4v7v59w445p2vw79-8080.app.github.dev",
+  "base_url": "https://rc63-i1-postmerge-20260915-4jpwpg49jj4qcjrr6-8080.app.github.dev",
   "builds_absent": true,
   "contract_version": "i1-hosted-candidate-parity-v1",
-  "control_commit_sha": "057a0b92bca1632fc9744c8a479864732b37dc93",
+  "control_commit_sha": "cfc7c529daffe5b523a7bc40b40082671d0f5c97",
   "digest_only_compose_verified": true,
-  "generated_at_utc": "2026-09-14T18:59:47Z",
+  "generated_at_utc": "2026-09-15T15:12:55Z",
   "hosting": {
     "primary": true,
     "provider": "github_codespaces",
     "same_origin_ingress": true
   },
   "https": {
-    "base_url": "https://rc63-i1-g4v7v59w445p2vw79-8080.app.github.dev",
+    "base_url": "https://rc63-i1-postmerge-20260915-4jpwpg49jj4qcjrr6-8080.app.github.dev",
     "endpoints": [
       {
         "content_type": "text/html",
@@ -151,7 +151,7 @@
   "runtime_provenance": {
     "contract_version": "i1-codespaces-runtime-provenance-v1",
     "path": "/.well-known/cloud-superbrain/i1-provenance.json",
-    "sha256": "c0158ee03d815c7d1582095ef9eea624f3e355028a4e2ac1dfe00f8fee3c406b"
+    "sha256": "68b54569dc21c86245845ada53db6a6d90f8caa684b31e85fb603dd89bad8712"
   },
   "same_origin_https_verified": true,
   "secret_output": false,
