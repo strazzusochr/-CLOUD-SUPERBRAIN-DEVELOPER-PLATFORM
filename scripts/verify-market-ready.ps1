@@ -39,6 +39,24 @@ foreach ($pythonCandidate in @(
   }
 }
 
+$nodeCommand = $null
+$resolvedNode = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($null -ne $resolvedNode) {
+  $nodeCommand = $resolvedNode.Source
+}
+
+# Launch npm in a child process. A bare `& npm` can resolve npm.ps1 on Windows,
+# whose exit path terminates the aggregate verifier before it writes its report.
+$npmCommand = $null
+$npmCandidates = if ($env:OS -eq "Windows_NT") { @("npm.cmd", "npm") } else { @("npm") }
+foreach ($npmCandidate in $npmCandidates) {
+  $resolvedNpm = Get-Command $npmCandidate -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($null -ne $resolvedNpm) {
+    $npmCommand = $resolvedNpm.Source
+    break
+  }
+}
+
 function Add-Result(
   [string]$name,
   [bool]$ok,
@@ -66,8 +84,24 @@ function Invoke-Npm(
   [bool]$ownerGated = $false
 ) {
   Write-Host "[market-ready] running: npm run $script"
-  & npm run $script 2>&1 | ForEach-Object { Write-Host "    $_" }
-  $code = $LASTEXITCODE; if ($null -eq $code) { $code = 127 }
+  if ([string]::IsNullOrWhiteSpace($npmCommand)) {
+    Add-Result $name $false "npm executable unavailable" $required $ownerGated
+    return
+  }
+  try {
+    $npmProcess = Start-Process `
+      -FilePath $npmCommand `
+      -ArgumentList @("run", $script) `
+      -WorkingDirectory (Get-Location).Path `
+      -NoNewWindow `
+      -Wait `
+      -PassThru
+    $code = $npmProcess.ExitCode
+  } catch {
+    Write-Host "    npm invocation failed: $($_.Exception.Message)"
+    $code = 127
+  }
+  if ($null -eq $code) { $code = 127 }
   Add-Result $name ($code -eq 0) "exit=$code" $required $ownerGated
 }
 
@@ -1604,11 +1638,22 @@ Add-Result "canonical-evidence-portability" $canonicalEvidencePortable $canonica
 # Lint-Warnungen (marktreif = 0). Advisory-Zaehler, geht in die Pflicht ein.
 $lintOk = $false; $lintDetail = "not run"
 try {
-  Push-Location (Join-Path $repoRoot "apps\frontend")
-  $lintOut = (& npm run lint 2>&1 | Out-String)
-  $lintExit = $LASTEXITCODE
+  $frontendRoot = Join-Path $repoRoot "apps\frontend"
+  $frontendEslint = Join-Path $frontendRoot "node_modules\eslint\bin\eslint.js"
+  $frontendEslintConfig = Join-Path $frontendRoot "node_modules\eslint-config-next"
+  if ([string]::IsNullOrWhiteSpace($nodeCommand)) { throw "node executable unavailable" }
+  if (-not (Test-Path -LiteralPath $frontendEslint -PathType Leaf) -or
+      -not (Test-Path -LiteralPath $frontendEslintConfig -PathType Container)) {
+    throw "frontend local dependencies unavailable; run npm ci --prefix apps/frontend"
+  }
+  Push-Location $frontendRoot
+  try {
+    $lintOut = (& $nodeCommand $frontendEslint "." 2>&1 | Out-String)
+    $lintExit = $LASTEXITCODE
+  } finally {
+    Pop-Location
+  }
   if ($null -eq $lintExit) { $lintExit = 127 }
-  Pop-Location
   $warnCount = ([regex]::Matches($lintOut, "(?im)^\s*(?:warning|.+\s+warning\s+.+)$")).Count
   $dependencyFailure = $lintOut -match "(?im)(Cannot find package|Cannot find module|ERR_MODULE_NOT_FOUND|npm error code E(?:NOENT|MODULE))"
   $lintOk = ($lintExit -eq 0 -and $warnCount -eq 0)
