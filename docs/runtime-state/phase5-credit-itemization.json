@@ -140,7 +140,7 @@
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
           "claim": "The current frontend deployment is source-bound RC63 operational evidence only and does not prove six-service immutable-image parity or I1 credit.",
-          "anchor": "\"deployment_id\": \"dpl_CQVsh383acP7Pi623p212Z556wj9\""
+          "anchor": "\"deployment_id\": \"dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
@@ -428,4 +428,3 @@
     "This itemization alone cannot make MARKET_READY true."
   ]
 }
-
