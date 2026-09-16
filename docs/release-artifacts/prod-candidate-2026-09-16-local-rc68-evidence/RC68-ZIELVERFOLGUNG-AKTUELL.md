@@ -38,7 +38,18 @@
 
 ## Nächste konkrete Handlung
 
-**LOOP 77:** Auf `codex/rc68-i1-evidence` ausschließlich folgende Dateien prüfen und in einen Kontroll-PR geben:
+### LOOP-80-Update
+
+- [x] **80.01 – RC68 Production-Kandidat erzeugt.** `dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C` ist READY und source-bound an `a25d9bcb…`, einen Nachfolger von RC68-S.
+- [x] **80.02 – Gate-Lock und Rollback ausgeführt.** Der kanonische Alias wurde nach dem fail-closed Browserbefund auf `dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV` zurückgesetzt; Wiring und Health sind wieder HTTP 200.
+- [~] **80.03 – Browser-Vertrag korrigieren.** Nur die bestehende same-origin anonymous-auth-401-Korrelation wird auf die öffentliche Workbench-Shell erweitert. Danach Exact-Head-CI, unabhängige Review und erneuter Frontend-Readback.
+- [ ] **80.04 – Neue Frontend-Evidence kontrolliert integrieren.** Erst nach Browser-Readback; Score bleibt unverändert.
+
+**LOOP 80.03:** Die enge Browser-Verifier-Korrektur gegen genau den erwarteten anonymous `/api/v1/auth/me`-401 auf `/workbench` prüfen, PR mit Exact-Head-CI und unabhängiger Review mergen, danach die RC68-Frontend-Evidence erneut erzeugen. Kein OAuth-, Score- oder Gate-Schritt ist dabei zulässig.
+
+**Ergänzung E80-01:** Die bestehende `/run/[id]`-Ausnahme bleibt auf den fehlenden Audit-Build und HTTP 404 beschränkt; sie akzeptiert zusätzlich die reale Chromium-Textform `404 ()`.
+
+**Ergänzung E80-02:** Die existing anonymous-auth-401-Ausnahme bleibt auf exakt Root/Login/Workbench sowie same-origin `fetch` begrenzt; sie akzeptiert zusätzlich Chromiums `401 ()`.
 
 1. `i1/i1-hosted-candidate-parity.json`
 2. `RC68-MASTER-LOOP-KONTROLLPROTOKOLL.md`
