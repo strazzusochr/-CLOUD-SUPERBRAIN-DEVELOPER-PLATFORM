@@ -6,11 +6,19 @@ Du arbeitest ausschließlich am Repository `strazzusochr/-CLOUD-SUPERBRAIN-DEVEL
 
 Schließe I1 und I5 mit voneinander unabhängigen, source-bound Beweisen. Erhöhe Fortschritt ausschließlich über die vorhandenen Verifier und den kanonischen Promoter. Der einzig zulässige Zielzustand lautet: `MARKET_READY:true`, `1400/1400`, `I1 verified`, `I5 verified`, alle vorher grünen Gates weiter grün.
 
-## Aktueller Schritt: LOOP 77
+## Historischer Schritt: LOOP 77
 
 Die technische I1-Evidence ist fertig und besitzt SHA-256 `f0cbe7eb1174b86c080687d4099d3a8bb93f52ec229375b7cd1249379a9db1c9`. Sie ist an den Control-Head `5ed71d162808625e1ec5607c147465709ff0ba88` und GitHub Actions Run `35085816939` gebunden. Erstelle ausschließlich einen Evidence-Control-PR: I1-Evidence, Kontrollprotokoll, Zielverfolgung und Megaprompt. Kein Produktcode, keine Manifest-, Ledger-, Prozent- oder Gate-Promotion.
 
-**Aktualisierung:** PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) ist offen. Lies seinen finalen Head unmittelbar vor Review und Merge aus GitHub zurück; warte auf terminal grünes CI und unabhängige Review. Bis dahin keine Merge- oder Score-Handlung.
+**Ergebnis:** PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) wurde nach exakt-head CI und unabhängiger Review als Merge-Commit `77533903f46a2c99a54e60d4814a4fc11e122880` integriert. Die I1-Evidence ist getrackt; Score und Market-Ready-Status blieben unverändert.
+
+## Historischer Schritt: LOOP 79
+
+Der Preflight ist fail-closed blockiert: Vercel bindet `987871…`, Cloudflare/OAuth bindet `0e9c680…`, RC68 verlangt `10bccfc…`. Keine historische Evidence darf als RC68 gelten.
+
+## Aktueller Schritt: LOOP 80
+
+Die ValidateOnly-Prüfung beweist die Reihenfolge: **zuerst** RC68-Vercel-Frontend-Evidence und ihr getrackter Kontroll-SHA, **danach** Cloudflare-OAuth-Runtime. Erzeuge jeweils erst nach vollständigem Gate-Lock und mit dokumentierter Rollback-ID ein RC68-gebundenes Deployment über die vorhandenen sanktionierten Deployment-Skripte. Jeder Schritt braucht Provider-Readback, Source-/Archiv-/Bundle-Bindung, Health und Secret-Redaction. Es ist eine Betriebs-Evidence-Aktualisierung, keine I5-, Score- oder Market-Ready-Promotion. Nach beiden grünen Readbacks LOOP 79 erneut ausführen; nur dann den 16-Schritte-OAuth-Flow vorbereiten.
 
 ## Verbindlicher Ablauf pro Loop
 

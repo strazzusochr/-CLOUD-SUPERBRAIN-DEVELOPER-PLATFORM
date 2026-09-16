@@ -115,3 +115,27 @@ GITHUB-READBACK: `PR offen, nicht Draft; base=chore/repo-bootstrap; review=REVIE
 NICHT-CLAIM: `PR #146 setzt keinen I1-Credit, keine Prozentwerte und kein MARKET_READY.`
 STATUS NACHHER: `AKTIV; auf exakten Head gebundene CI und unabhängige Write-Review ausstehend.`
 NAECHSTER SCHRITT: `CI terminal readback. Nur wenn verify und beide Vercel-Checks grün sind, Review am finalen Head einholen; danach Merge-Commit, Remote-Readback und unveränderten Score bestätigen.`
+
+## LOOP 78 — I1 Evidence-Control-Merge und Post-Merge-Readback
+
+ZEIT UTC: `2026-09-16T12:04:00Z`
+AKTIVES GATE: `I1 Evidence-Integration ohne Credit`
+PR / FINALER HEAD / MERGE: `#146 / 194fca710d82a05174d27c2862003881c44dd93d / 77533903f46a2c99a54e60d4814a4fc11e122880`
+GITHUB-READBACK: `PR=MERGED; Review=endzeit2030666-lang APPROVED auf exakt 194fca71; verify Run 35092764798=success; beide Vercel Deployments=SUCCESS; Merge-State vor Merge=CLEAN.`
+POST-MERGE-ABSTAMMUNG: `PR-Head, S=10bccfcfb5a62c6883c7162b8b2eed4f3da817ff und Q=15b850fe03f07667e24a9a94987c1eab0fffa415 sind Vorfahren des neuen Standard-HEADs.`
+POST-MERGE-VERIFIER: `project-progress=0 (90%); phase5=0 (17/19, I1/I5); source-qualification=0 (credit=0, rollout=false); gitleaks=0; git diff --check=0.`
+TEMPORAERE RESSOURCEN: `Frischer detached Standardzweig-Checkout nur für Readback erstellt und nach vollständiger Prüfung entfernt.`
+STATUS NACHHER: `I1 Evidence ist getrackt und überprüft. I1 erhält weiterhin keinen Einzelcredit; scored truth bleibt 90%; 1333/1400; I1/I5 blocked; MARKET_READY:false.`
+NAECHSTER SCHRITT: `LOOP 79: I5 source-parity Preflight. Read-only Frontend-, Cloudflare-Runtime-, OAuth-Architektur- und Callback-Bindung an RC68 prüfen. Bei jedem Mismatch halt; keine OAuth-Evidence und keine Promotion.`
+
+## LOOP 79 — I5 Source-Parity-Preflight
+
+ZEIT UTC: `2026-09-16T12:08:00Z`
+AKTIVES GATE: `I5 production_auth_identity`
+ERWARTETE QUELLE: `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff` (RC68-S)
+READ-ONLY-BEFUND: `frontend-hosted-current.json` bindet Vercel Deployment `dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV` an `987871c40d603ba4d3ba93752df14d5fcd53d3cd`; Cloudflare OAuth Runtime, Architekturentscheidung und Consent-Approval binden `0e9c680c191927dc352c96d119fc909c7d842296`.
+VERIFIER: `pwsh verify-cloudflare-oauth-hosted-current.ps1 -ExpectedCandidateSha RC68-S -ValidateOnly` fail-closed mit `Runtime evidence source_commit_sha mismatch.`
+DEPLOY-PREFLIGHT: `deploy-cloudflare-stateful-runtime.ps1 -CommitSha RC68-S -ProductionOAuthIdentity -CandidateFrontendOrigin canonical -CandidateFrontendEvidenceCommitSha 77533903... -ValidateOnly` stoppt vor Publish mit `tracked frontend source is the selected source or its qualification descendant`.
+SICHERHEITSERGEBNIS: `Keine OAuth-Evidence erzeugt, keine Credentials ausgegeben, keine Provider-, Secret-, Registry-, Deployment- oder Gate-Änderung vorgenommen.`
+STATUS NACHHER: `BLOCKIERT; I5 bleibt unbewiesen. Die bestehende Auth-Evidence ist historisch und darf nicht auf RC68 umetikettiert werden.`
+NAECHSTER SCHRITT: `LOOP 80: Zuerst ein RC68-gebundenes Vercel-Frontend-Deployment samt Alias-, Browser- und Evidence-Readback. Erst dessen getrackter Kontroll-SHA darf den Cloudflare-OAuth-Deploy preflighten; beide Schritte brauchen Gate-Lock, Rollback-ID, Provider-Readback, Health und null Credit-Promotion.`
