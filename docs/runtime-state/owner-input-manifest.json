@@ -19,10 +19,10 @@
                                     "workspace_22_page_report":  ".codex/runs/CURRENT/master-goal/t5/22-page-actions-hosted-v2/report.json",
                                     "workspace_22_page_report_sha256":  "7F65488F60137CF8B1F4BA4361ACCAA923E302D216263A72483EF0B45EF98F8E",
                                     "non_claims":  [
-                                                         "The two referenced acceptance reports are valid historical hosted evidence for their own recorded sources and deployments.",
-                                                         "cloudflare-native-hosted-current.json explicitly does not aggregate those reports into a current combined candidate proof.",
-                                                         "This section does not prove hosted parity for RC63/S16."
-                                                     ]
+                                                       "The two referenced acceptance reports are valid historical hosted evidence for their own recorded sources and deployments.",
+                                                       "cloudflare-native-hosted-current.json explicitly does not aggregate those reports into a current combined candidate proof.",
+                                                       "This section does not prove hosted parity for RC63/S16."
+                                                   ]
                                 },
     "actions":  [
                     {
@@ -164,7 +164,7 @@
                                                "npm run verify:runtime",
                                                "npm run verify:browser"
                                            ],
-                        "codex_boundary":  "Resolved O4 credits only its bounded Agent Pool slice. MCP Gateway and Phase 6 are independently verifier-backed at 100; GHCR publication remains a separate candidate-specific gate and no credit is reused.",
+                        "codex_boundary":  "Resolved O4 credits Agent Pool 69 -\u003e 100. MCP Gateway and Phase 6 stay below 100 because GHCR publication and paid scale are separate unresolved gates; no double credit.",
                         "owner_scope_decision":  {
                                                      "decided_at_utc":  "2026-07-30T00:00:00Z",
                                                      "decision":  "approved_as_proposed",
@@ -200,7 +200,7 @@
                                                                         "live_verified was not hand-set."
                                                                     ]
                                                  },
-                        "resolved_at_utc":  "2026-09-13T09:46:45.9952488Z",
+                        "resolved_at_utc":  "2026-09-16T07:19:14.8451020Z",
                         "evidence_refs":  [
                                               "docs/runtime-state/capability-gates.json#live_agent_tool_writes",
                                               "docs/runtime-state/capability-gates.json#live_mcp_writes",
