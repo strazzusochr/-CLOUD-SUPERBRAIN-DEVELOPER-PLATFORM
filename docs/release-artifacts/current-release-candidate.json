@@ -1,8 +1,8 @@
 {
-  "active_release_id": "prod-candidate-2026-09-12-local-rc63",
-  "source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
-  "updated_at": "2026-09-13T09:52:23Z",
-  "updated_by": "rc63-no-credit-requalification-complete",
-  "reason": "RC63 selects source S16 0e9c680c191927dc352c96d119fc909c7d842296 after direct-child Q17 59fdd3fb15091fba160f830f5993c1254b2c52be bound the exact archive and GitHub Actions run 34711567878 checked Q17 as run head and S16 as the immutable source checkout. All five release-scoped local evidence chains passed. I1, I5, release promotion, and production rollout remain blocked; no percentage credit is awarded.",
+  "active_release_id": "prod-candidate-2026-09-16-local-rc68",
+  "source_commit_sha": "10bccfcfb5a62c6883c7162b8b2eed4f3da817ff",
+  "updated_at": "2026-09-16T04:40:00Z",
+  "updated_by": "rc68-no-credit-requalification",
+  "reason": "RC68 selects source 10bccfcfb5a62c6883c7162b8b2eed4f3da817ff after direct-child qualification control 15b850fe03f07667e24a9a94987c1eab0fffa415 and successful exact-head CI on PR #143. Overall remains 90%, Phase 5 remains 17/19, I1 and I5 remain blocked, MARKET_READY remains false, and production_rollout_claimed remains false.",
   "production_rollout_claimed": false
 }

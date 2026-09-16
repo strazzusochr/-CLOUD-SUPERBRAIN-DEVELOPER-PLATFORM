@@ -45,3 +45,15 @@ ERLAUBTER DELTA: `ja; Q 15b850fe03f07667e24a9a94987c1eab0fffa415 aendert gegenue
 STATUS NACHHER: `AKTIV`
 ERGAENZUNG: `E-RC68-01: PR #142 beruehrte Verifierlogik; RC67 darf deshalb nicht stillschweigend weiterverwendet werden`
 NAECHSTER SCHRITT: `RC68 Release-Artefakt und dieses Protokoll committen, pushen und Exact-Head-CI anfordern`
+
+## LOOP 3 — RC68 No-Credit-Aktivierung
+
+STATUS: `AKTIV`
+AKTIVES GATE: `RC68 candidate truth reconciliation`
+KANDIDAT: `prod-candidate-2026-09-16-local-rc68`
+SOURCE_SHA: `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`
+CONTROL_SHA: `15b850fe03f07667e24a9a94987c1eab0fffa415`
+MERGE_SHA: `81fb2f1749c7ef29fd8dddb4ff535a017fdc8dc8`
+FORTSCHRITT: `90%; 1333/1400; P3=44; P5=89; I1/I5 blocked; MARKET_READY:false`
+ERLAUBTE AENDERUNG: `Aktive Kandidatenidentitaet RC63 -> RC68; keine Credit- oder Gate-Promotion`
+NAECHSTER SCHRITT: `Staging, vollständige Verifier und Exact-Head-CI`

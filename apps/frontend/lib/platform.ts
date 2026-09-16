@@ -132,12 +132,12 @@ export const API_SURFACES: SurfaceGroup[] = [
 
 /* ------------------------------------------------------------------
  * Project manifest snapshot (PROJECT_STATE.md / docs/project-progress.manifest.json,
- * dated 2026-09-13). Live values come from GET /api/v1/project/progress and
+ * dated 2026-09-16). Live values come from GET /api/v1/project/progress and
  * /api/v1/project/progress/layers — these are the dated manifest figures, shown
  * only on /diagnostics (never on Home/Workbench as a hero).
  * ------------------------------------------------------------------ */
 export const MANIFEST = {
-  snapshot: "2026-09-13",
+  snapshot: "2026-09-16",
   overall: 90,
   integrity: "verified",
   modules: [

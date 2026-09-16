@@ -1,5 +1,15 @@
 # CLOUD SUPERBRAIN — AKTUELLER PROJEKTSTAND (Auto-Loaded by Codex)
 
+## AKTUELLER CONTROL-CHECKPOINT 2026-09-16 — RC68 NO-CREDIT-NEUQUALIFIKATION
+
+### Session 2026-09-16 — RC68 source-bound aktiviert, Credits unveraendert gesperrt
+
+- **Identitaet:** Release `prod-candidate-2026-09-16-local-rc68`, Source `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`, direkter Qualifikations-Kindcommit `15b850fe03f07667e24a9a94987c1eab0fffa415`, Archiv-SHA-256 `352429b3a637112f34e7821eb89987d5e384e0e9de9c20168496747f80ce55a9`.
+- **Kontrollstand:** PR #143 wurde nach Exact-Head-CI und unabhaengiger Review als Merge-Commit `81fb2f1749c7ef29fd8dddb4ff535a017fdc8dc8` uebernommen.
+- **Fortschritt unveraendert:** Overall `90%`; horizontal `633/700`, vertikal `700/700`, insgesamt `1333/1400`, `67` offen. Phase 3 `44%`, Phase 5 `17/19 = 89%`; I1 und I5 bleiben blockiert; `MARKET_READY:false`.
+- **Non-Claims:** Keine Prozent-, Gate-, Registry-, Secret-, Production- oder Release-Promotion. Bestehende RC67-Hosted-Evidence ist historisch und darf RC68 erst nach frischer Source-Bindung schliessen.
+- **Naechster Schritt:** RC68-GHCR- und Hosted-I1-Evidence frisch erzeugen, danach I5 gegen die produktive OAuth-Runtime beweisen.
+
 ## AKTUELLER CONTROL-CHECKPOINT 2026-09-12 — RC63/S16 NO-CREDIT-NEUQUALIFIKATION
 
 ### Session 2026-09-13 — S16/Q17 source-bound, lokale Abschlussketten abgeschlossen

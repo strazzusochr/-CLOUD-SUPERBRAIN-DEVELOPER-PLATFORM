@@ -1,28 +1,83 @@
-# Release Artifact — local RC68 source-qualified successor candidate
+# Release Artifact — local RC68 no-credit qualification
 
 release_id: `prod-candidate-2026-09-16-local-rc68`
-scope: `source-qualified no-release candidate`
+scope: `no-credit requalification of the RC68 release-control and verifier repair source`
 environment: `production-candidate`
 source_branch: `codex/rc68-source-prequal`
 source_commit_sha: `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`
-source_commit_semantics: `RC68 successor candidate; direct-child qualification control 15b850fe03f07667e24a9a94987c1eab0fffa415 changes only source-qualification-control.json`
+source_commit_semantics: `frozen RC68 source; direct-child qualification control changes only source-qualification-control.json`
 immutable_image_commit_sha: `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`
 source_attestation_control_sha: `15b850fe03f07667e24a9a94987c1eab0fffa415`
 source_archive_sha256: `352429b3a637112f34e7821eb89987d5e384e0e9de9c20168496747f80ce55a9`
+workflow_run_url: `https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/35055231525`
+exact_head_ci_attestation: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/ci/exact-head-ci-attestation.json`
+pipeline_status: `success; Q-control is the workflow head and RC68 source is the immutable source checkout; failed=0; skipped=0; secret_scan=true; provider_writes=false`
+local_validation_status: `all five independent local chains passed: runtime, browser, candidate images, candidate runtime, security`
+security_validation: `passed committed-RC68 source archive npm-audit and canonical gitleaks scan; no secret output`
+smoke_result: `one DEV-ONLY local candidate diagnostic selection and click passed; hosted parity is not claimed`
+observability_check: `candidate read-only contract, local diagnostics, runtime, browser, and O4 evidence are hash-bound`
+rollback_note: `RC63/S16 is the latest qualified local rollback predecessor; no hosted rollback is authorized`
+rollback_target_commit_sha: `0e9c680c191927dc352c96d119fc909c7d842296`
+immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`
+immutable_tag_publish_status: `unpublished`
+registry_publication_review: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/registry/registry-publication-review.json`
+registry_digest_contract: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/registry/candidate-registry-digests.json`
+registry_receipt_recovery: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/registry/receipt-recovery-provenance.json`
+rollback_drill_proof: `docs/runbooks/rollback-deploy.md`
+truth_mirror_rebaseline_proof: `docs/runtime-state/phase5-credit-itemization.json`
 review_gate: `pending`
 owner_decision: `no-release`
 hosted_staging_parity: `false`
 production_rollout_claimed: `false`
-percentage_credit_awarded: `0`
-project_overall_percent: `90`
-phase5_items: `17/19; I1 and I5 remain blocked until fresh RC68 evidence exists`
+checklist_verified_count: `17`
+checklist_blocked_count: `2`
+phase5_computed_percent: `89`
+
+## Phase-5 Readiness Checklist
+
+RC68 freezes RC68 source and binds it through direct-child Q-control. GitHub Actions run
+35055231525 verified Q-control while checking out RC68 source, with no failed or skipped
+steps. All five fresh local chains are bound to this identity. They do not
+award progress credit and cannot close I1 `hosted_candidate_parity` or I5
+`production_auth_identity`.
+
+| ID | JA/NEIN | Beleg |
+| --- | --- | --- |
+| C1 | JA | GitHub Actions run 35055231525 binds Q-control as run head and RC68 source as exact source checkout. |
+| C2 | JA | All five RC68 local verification chains passed and remain DEV-ONLY. |
+| C3 | JA | Pointer, Q-control control, candidate artifact, and staged truth select RC68/RC68 source exactly. |
+| C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed. |
+| C5 | JA | The committed RC68 source archive passed canonical npm-audit and gitleaks checks. |
+| I1 | NEIN | No non-local HTTPS six-service hosted stack is bound exactly to RC68/RC68 source. |
+| I2 | JA | Six private content-addressed RC68 source candidate images, twelve platform digests, scans, and protected publication receipt are verified; no release promotion is claimed. |
+| I3 | JA | RC63/S16 is the immutable local rollback predecessor. |
+| I4 | JA | No provider, paid tier, card requirement, recurring amount, or budget-ceiling change is introduced. |
+| I5 | NEIN | Production auth identity remains closed without its hosted OAuth evidence. |
+| V1 | JA | Health, metrics, and audit paths remain candidate-bound contracts. |
+| V2 | JA | Error, rate, session, request, trace, and gateway fail-closed contracts remain unchanged. |
+| V3 | JA | Q-control, exact-head CI attestation, five local chains, and rollback source are linked. |
+| V4 | JA | Incident escalation and stop gates remain bound. |
+| O1 | JA | The immutable rollback runbook applies to RC63/S16 as target. |
+| O2 | JA | Incident-response and secret-rotation runbooks remain present. |
+| O3 | JA | Review remains pending and no-release stays explicit. |
+| O4 | JA | I1 and I5 remain the two explicitly accepted no-release blockers. |
+| O5 | JA | Production deployment, release promotion, and rollout remain false. |
 
 ## Qualification boundary
 
-RC68 is required because PR #142 changed browser-verifier logic. The immutable
-source is `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`; the direct-child control
-commit is `15b850fe03f07667e24a9a94987c1eab0fffa415`. RC67 evidence remains
-historical and may be reused only when the responsible verifier proves forward
-binding to RC68. No percentage credit, `MARKET_READY` promotion, production
-deployment, registry publication, secret mutation, or provider-scope expansion
-is claimed.
+This is a completed DEV-ONLY no-credit candidate requalification with two
+explicit Owner blocks. The provider-bearing browser run used exactly three
+allowed provider responses; after a provider-free O4 metadata refresh it was
+not retried.
+
+- Current overall progress remains `90%` and `1333/1400`.
+- Phase 5 remains `17/19` and `89%`.
+- I1 and I5 remain blocked.
+- `MARKET_READY:false` remains mandatory.
+- `DEV-ONLY; hosted proof still blocked.`
+- This artifact does not claim a production rollout.
+- Production deployment still requires the release-candidate gate bundle and a separate rollout proof.
+- No production deploy, release promotion, provider-scope expansion, secret
+  mutation, secret output, or percentage credit is claimed; registry publication remains pending and is not claimed.
+- The Vercel variable names reported as `Needs Attention` remain a later P09
+  configuration blocker; no value was read or copied into this artifact.
