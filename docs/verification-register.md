@@ -2213,3 +2213,7 @@ Current frontend truth is `frontend-hosted-current-proof-v1` at READY Production
 ## RC68 Cloudflare OAuth runtime readback — 2026-09-16T19:09:24Z
 
 The sanctioned production OAuth runtime deployment is bound to RC68 source `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`. Cloudflare deployment `0866f00c-77f9-40be-9de3-515ae4d7d488` routes 100% to worker version `97cc5041-60f4-45cd-9ca7-e24d3ac39104`. A direct read-only health readback returns HTTP 200 with the expected source/archive/bundle binding and D1 verification; anonymous `/api/v1/auth/me` returns HTTP 401. Evidence: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/oauth/cloudflare-runtime-deployment-readback.json` SHA-256 `dc99e16620a717c84e18351981ef4f2738910075aeb49585c4c1be4b26ea27d7`. This is a runtime-binding control only: it creates no OAuth-flow proof, I1/I5 credit, score change, gate promotion, or market-ready claim.
+
+## RC68 Master Market-Ready Green control — 2026-09-16
+
+`docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/RC68-MARKET-READY-GRUEN-MASTER.md` is the current combined target tracking, master prompt, and gate-lock protocol for RC68. It binds the release source, qualification, source archive, current score, I1/I5 evidence hashes, external-gate reconciliation, owner-bound OAuth flow, atomic Phase-3/Phase-5 promotion, final verifier, and cleanup sequence. It is a no-credit control document: it does not claim I1/I5 verification, a promotion, production release, or `MARKET_READY:true`.
