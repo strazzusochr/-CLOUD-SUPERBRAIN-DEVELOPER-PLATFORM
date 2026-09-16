@@ -1,3 +1,7 @@
+# Historischer RC63/S16-Checkpoint – nicht als aktive RC68-Wahrheit verwenden
+
+> **Aktueller Verweis (2026-09-16):** Die aktive Zielverfolgung liegt unter `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/RC68-ZIELVERFOLGUNG-AKTUELL.md`. Dieser RC63-Bericht bleibt unverändert als historische Evidence erhalten; er darf keine RC68-Gates, Quellen oder Prozentwerte überschreiben.
+
 # RC63/S16 – aktuelle Zielverfolgung bis Market Ready
 
 **Dokumentstatus:** aktiv, evidence-gebunden, fortschreibbar

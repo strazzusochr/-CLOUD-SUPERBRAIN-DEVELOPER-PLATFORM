@@ -81,3 +81,37 @@ NAECHSTER SCHRITT: `Final activation verification then PR CI; no MARKET_READY cl
 E-RC68-05: Canonical live external readback 2026-09-16T08:28:12.012184+00:00 completed exit 0, hosted/origin checks green, GHCR blocked. No-credit activation contract forbids changing any external gate truth against S. New live output retained under external-preflight; activation summary and durable audit retain their prior prestate. The aggregate external selector inconsistency is known, not passed; it must be resolved in the subsequent evidence-bearing transition. No live gate result was hand-edited.
 LIVE_PREFLIGHT: `external-preflight/external-gate-audit-v2.json` SHA256 `231e78fb3e960d97bce21d550194d0b7d6375db2f07b0aa7908606aac8503e7d`
 LIVE_PREFLIGHT: `external-preflight/external-gate-summary.json` SHA256 `b2e12119293950e39fa17689c634a83b716804c733746043cda2f57683ab8267`
+
+## LOOP 76 — RC68 I1 Hosted-Candidate-Readback
+
+ZEIT UTC: `2026-09-16T10:36:28Z`
+AKTIVES GATE: `I1 hosted_candidate_parity — Evidence erfassen, ohne Credit`
+STATUS VORHER: `BLOCKIERT; 90%; 1333/1400; Phase 5 17/19; I1/I5`
+KANDIDAT: `prod-candidate-2026-09-16-local-rc68`
+S / Q / ARCHIVHASH: `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff / 15b850fe03f07667e24a9a94987c1eab0fffa415 / 352429b3a637112f34e7821eb89987d5e384e0e9de9c20168496747f80ce55a9`
+CONTROL-HEAD: `5ed71d162808625e1ec5607c147465709ff0ba88`
+GEPLANTE EINZIGE AENDERUNG: `sanitisierte I1-Evidence in einem separaten Kontrollzweig erfassen; keine Manifest-, Ledger-, Prozent- oder Gate-Aenderung`
+VORBEDINGUNGEN: `Sechs private GHCR-Digest-Abbilder und Receipt-Recovery Run 35081617328 read-only gebunden; Codespace-Nutzung wiederverwendet, keine neue bezahlte Maschine angefordert.`
+AUSGEFUEHRTE HANDLUNGEN: `Codespace-Arbeitsbaum auf CONTROL-HEAD gebunden; Digest-only Compose mit --no-build und ohne Source-Mounts gestartet; temporärer Port 8080 für den Verifier öffentlich, danach wieder private; unabhängigen Workflow gestartet; Stack, Volumes und Codespace danach gestoppt.`
+UMGEBUNGS-ERGAENZUNG E76-01: `Die Codespaces Docker-in-Docker-Bridge wurde durch eine vorhandene iptables-legacy FORWARD-DROP-Policy blockiert. DNS funktionierte, TCP timeoutte. Die Codespace-lokale Legacy-FORWARD-Policy wurde für die Testlaufzeit auf ACCEPT gesetzt; keine Projektdatei, kein Registry-Write, kein Produktionszugang und kein App-Verifier wurden abgeschwächt.`
+PROVIDER-READBACK: `GitHub Actions Run 35085816939 = success; Artifact 10441823804; HTTPS-Ingress https://rc67-i1-20260915-77q6p97j4vhx4q5-8080.app.github.dev während Prüfung healthy; nach Cleanup privat/access-gated.`
+EVIDENCE: `i1/i1-hosted-candidate-parity.json` SHA256 `f0cbe7eb1174b86c080687d4099d3a8bb93f52ec229375b7cd1249379a9db1c9`; GitHub Artifact-Digest `sha256:7b4f3556ec2c05be1afbab1c6cc347555ef50281aeec474d394cee896f6138bc`.
+VERIFIER-ERGEBNIS: `6/6 Dienste healthy; alle OCI-Revisionen=S; Digest-only=true; no-build=true; source-bind-mounts=0; HTTPS/SSE/Persistenz=true; registry_write=false; live_provider_calls=false; production_deploy=false; secret_output=false.`
+REGRESSIONSPRUEFUNG: `Aktive scored truth bleibt unverändert: 90%; 1333/1400; P3=44; P5=89; Phase 5=17/19; I1/I5 blocked; MARKET_READY:false.`
+STATUS NACHHER: `I1 technische Evidence vorhanden, aber noch nicht als Credit integriert.`
+NAECHSTER SCHRITT: `LOOP 77: ausschließlich I1-Evidence und dieses Kontrollprotokoll auf codex/rc68-i1-evidence validieren, PR erstellen, CI/Review/normalen Merge abwarten. Danach weiterhin kein Score-Anstieg; I5 bleibt der letzte fachliche Blocker.`
+
+## LOOP 77 — I1 Evidence-Control-PR
+
+ZEIT UTC: `2026-09-16T11:45:57Z`
+AKTIVES GATE: `I1 Evidence-Integration ohne Credit`
+STATUS VORHER: `I1 Evidence lokal gehasht; scored truth weiter 90%; 1333/1400; I1/I5 blocked`
+GEPLANTE EINZIGE AENDERUNG: `einen kontrollierten Evidence-PR eröffnen; keine Produktcode-, Provider-, Score- oder Gate-Änderung`
+PR: `#146 https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146`
+EVIDENCE-COMMIT: `9a1e060056baa48dc12b74382f3727e5543a3293` (ursprüngliche I1-Control-Erfassung). Der finale PR-Head wird ausschließlich unmittelbar vor Review und Merge aus GitHub zurückgelesen.
+PR-INHALT: `I1 JSON-Evidence, RC68-Kontrollprotokoll, aktuelle Zielverfolgung, Master-Megaprompt und historischer RC63-Verweis.`
+VOR-PR-VERIFIER: `diff-check=0; project-progress=0; phase5=0 (17/19, I1/I5); source-qualification=0; gitleaks=0.`
+GITHUB-READBACK: `PR offen, nicht Draft; base=chore/repo-bootstrap; review=REVIEW_REQUIRED; verify läuft; beide Vercel Checks pending.`
+NICHT-CLAIM: `PR #146 setzt keinen I1-Credit, keine Prozentwerte und kein MARKET_READY.`
+STATUS NACHHER: `AKTIV; auf exakten Head gebundene CI und unabhängige Write-Review ausstehend.`
+NAECHSTER SCHRITT: `CI terminal readback. Nur wenn verify und beide Vercel-Checks grün sind, Review am finalen Head einholen; danach Merge-Commit, Remote-Readback und unveränderten Score bestätigen.`
