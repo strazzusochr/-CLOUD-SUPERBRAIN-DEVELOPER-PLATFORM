@@ -18,7 +18,7 @@ Der Preflight ist fail-closed blockiert: Vercel bindet `987871…`, Cloudflare/O
 
 ## Aktueller Schritt: LOOP 80
 
-Erzeuge erst nach vollständigem Gate-Lock und mit dokumentierter Rollback-ID ein RC68-gebundenes Vercel-Frontend-Deployment sowie ein RC68-gebundenes Cloudflare-OAuth-Runtime-Deployment über die vorhandenen sanktionierten Deployment-Skripte. Jeder Schritt braucht Provider-Readback, Source-/Archiv-/Bundle-Bindung, Health und Secret-Redaction. Es ist eine Betriebs-Evidence-Aktualisierung, keine I5-, Score- oder Market-Ready-Promotion. Nach beiden grünen Readbacks LOOP 79 erneut ausführen; nur dann den 16-Schritte-OAuth-Flow vorbereiten.
+Die ValidateOnly-Prüfung beweist die Reihenfolge: **zuerst** RC68-Vercel-Frontend-Evidence und ihr getrackter Kontroll-SHA, **danach** Cloudflare-OAuth-Runtime. Erzeuge jeweils erst nach vollständigem Gate-Lock und mit dokumentierter Rollback-ID ein RC68-gebundenes Deployment über die vorhandenen sanktionierten Deployment-Skripte. Jeder Schritt braucht Provider-Readback, Source-/Archiv-/Bundle-Bindung, Health und Secret-Redaction. Es ist eine Betriebs-Evidence-Aktualisierung, keine I5-, Score- oder Market-Ready-Promotion. Nach beiden grünen Readbacks LOOP 79 erneut ausführen; nur dann den 16-Schritte-OAuth-Flow vorbereiten.
 
 ## Verbindlicher Ablauf pro Loop
 

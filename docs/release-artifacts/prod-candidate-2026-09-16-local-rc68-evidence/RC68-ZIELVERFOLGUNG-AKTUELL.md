@@ -34,7 +34,7 @@
 - [x] PR #146: finaler Head `194fca71…`, Review `endzeit2030666-lang`, vier Checks grün und Merge-Commit `77533903…` read-only bestätigt.
 - [x] Frischer Standardzweig-Readback: S, Q und PR-Head sind Vorfahren; Manifest bleibt `90 %`, `1333/1400`, I1/I5 blockiert; Source-Verifier und Gitleaks grün.
 - [~] **LOOP 79:** I5-Preflight fail-closed. Vercel-Evidence bindet `987871…`; Cloudflare-Runtime, Architektur und Consent binden `0e9c680…`; RC68 verlangt `10bccfc…`. Keine I5-Evidence und keine Promotion.
-- [ ] **LOOP 80:** Nach Gate-Lock je ein sanktioniertes RC68-Frontend- und OAuth-Runtime-Deployment mit Rollback-Readback erzeugen; erst danach I5 erneut preflighten.
+- [ ] **LOOP 80:** Zuerst RC68-Frontend mit Alias-, Browser- und Evidence-Readback deployen. Der ValidateOnly-Cloudflare-Preflight bestätigt, dass erst dessen getrackter Kontroll-SHA die OAuth-Runtime freigibt.
 
 ## Nächste konkrete Handlung
 
