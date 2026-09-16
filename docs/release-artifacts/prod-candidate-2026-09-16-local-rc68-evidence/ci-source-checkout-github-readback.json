@@ -1,0 +1,30 @@
+{
+  "contract_version": "github-actions-source-attestation-readback-v1",
+  "repository": "strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM",
+  "captured_at_utc": "2026-09-16T07:09:59.5011282Z",
+  "secret_output": false,
+  "run": {
+    "id": 35066350297,
+    "run_attempt": 1,
+    "event": "workflow_dispatch",
+    "status": "completed",
+    "conclusion": "success",
+    "head_sha": "15b850fe03f07667e24a9a94987c1eab0fffa415",
+    "head_branch": "codex/rc68-q-attestation",
+    "html_url": "https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/runs/35066350297"
+  },
+  "artifact": {
+    "id": 10435055620,
+    "name": "pr-check-source-checkout-attestation-35066350297-1",
+    "expired": false,
+    "digest": "sha256:9f11473d0588215b6b3a7b81de2dafd999ab8b83a283d40aa995212bf80d6c2e",
+    "url": "https://api.github.com/repos/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/artifacts/10435055620",
+    "archive_download_url": "https://api.github.com/repos/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/actions/artifacts/10435055620/zip",
+    "workflow_run": {
+      "id": 35066350297,
+      "head_sha": "15b850fe03f07667e24a9a94987c1eab0fffa415"
+    }
+  },
+  "downloaded_archive_sha256": "9f11473d0588215b6b3a7b81de2dafd999ab8b83a283d40aa995212bf80d6c2e",
+  "downloaded_attestation_sha256": "ECC76C15EF072D46126FF92E168184E376E556B21F6BF8F4DA6A33D5557B8101"
+}

@@ -3,12 +3,12 @@
   "mode": "fully_itemized",
   "credit_blocked_until_candidate_qualified": false,
   "cell_id": "phase_5",
-  "updated_at_utc": "2026-09-13T09:52:23Z",
+  "updated_at_utc": "2026-09-16T04:40:00Z",
   "checklist_path": "docs/release-checklist.md",
   "rubric": "phase5-release-readiness-19-v2",
   "scoring_rule": "Each of the 19 JA/NEIN items is one equal binary unit. computed_percent = round(verified_item_count / 19 * 100). NEIN receives no partial credit.",
-  "active_release_id": "prod-candidate-2026-09-12-local-rc63",
-  "active_source_commit_sha": "0e9c680c191927dc352c96d119fc909c7d842296",
+  "active_release_id": "prod-candidate-2026-09-16-local-rc68",
+  "active_source_commit_sha": "10bccfcfb5a62c6883c7162b8b2eed4f3da817ff",
   "legacy_gap_reconstruction": {
     "recorded_percent": 68,
     "total_item_count": 19,
@@ -80,8 +80,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The current candidate pointer selects the source-bound RC63 no-credit requalification while preserving the production non-claim.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-12-local-rc63\""
+          "claim": "The current candidate pointer selects the source-bound RC68 no-credit requalification while preserving the production non-claim.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-16-local-rc68\""
         },
         {
           "path": "scripts/verify-source-qualification-control.ps1",
@@ -89,9 +89,9 @@
           "anchor": "Assert-True \"archive matches source commit\""
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/ci/exact-head-ci-attestation.json",
-          "claim": "The immutable RC63 CI attestation binds Q17 as the run head and S16 as the exact source checkout with zero failed or skipped jobs and steps.",
-          "anchor": "\"source_commit_sha\": \"0e9c680c191927dc352c96d119fc909c7d842296\""
+          "path": "docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/ci/exact-head-ci-attestation.json",
+          "claim": "The RC68 exact-head CI attestation binds successful PR #143 CI to the qualified source ancestry with zero failed or skipped steps.",
+          "anchor": "\"candidate_source_sha\": \"10bccfcfb5a62c6883c7162b8b2eed4f3da817ff\""
         }
       ]
     },
@@ -104,8 +104,8 @@
       "evidence": [
         {
           "path": "docs/release-artifacts/current-release-candidate.json",
-          "claim": "The active pointer selects the exact source-bound RC63 candidate.",
-          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-12-local-rc63\""
+          "claim": "The active pointer selects the exact source-bound RC68 candidate.",
+          "anchor": "\"active_release_id\": \"prod-candidate-2026-09-16-local-rc68\""
         },
         {
           "path": "scripts/verify-current-release-candidate.ps1",

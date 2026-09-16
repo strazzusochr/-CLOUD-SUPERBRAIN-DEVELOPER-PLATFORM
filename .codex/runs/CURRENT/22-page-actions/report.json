@@ -2,26 +2,26 @@
   "contract_version": "22-page-action-acceptance-v2",
   "registry_contract_version": "workspace-action-matrix-v2",
   "status": "verified",
-  "started_at": "2026-09-13T09:36:54.419Z",
-  "completed_at": "2026-09-13T09:44:51.956Z",
+  "started_at": "2026-09-16T07:08:14.929Z",
+  "completed_at": "2026-09-16T07:18:56.765Z",
   "base_url": "http://localhost:8081",
   "dev_only": true,
   "hosted_proof": false,
   "proof_scope": "dev_only_localhost",
-  "source_binding_sha256": "3fa7af3b0055cb480128cbb02f33f85a66dd421d79aff08e85a9366baf76474c",
+  "source_binding_sha256": "62286261e1198cf0f98341fd8c9522acf809ad9c60ae182e4dfe8d17ad674941",
   "source_binding": {
-    "git_head": "c1fc2e489c062867cd9aaa43c42a16f9fa39f49e",
+    "git_head": "fef5d805245e6e4688202558e52f015e3a2ffcbd",
     "source_commit_sha": null,
     "source_archive_sha256": null,
     "deployment_id": null,
     "product_acceptance_report_path": ".codex/runs/CURRENT/product-acceptance/report.json",
-    "product_acceptance_report_sha256": "85053a4be2913008c99ccc1fbeef533e130ed143266082de720aa7429eb1f151",
+    "product_acceptance_report_sha256": "a8615efcbcbac4510567d037338294dee2edcbe03b778d212c5dff87dac1eef3",
     "files_sha256": {
       "action_spec": "fdfe2be30b953fb2ae34fa69341c335405a55d6903f9c614a0e3ca03cb22dd16",
       "action_matrix": "40e5386e2afcb87f80a019cdcd577480ae6520a4ffec7c6be62eabbf0adce3f9",
       "workspace_nav": "7fe5d91a2304a8524cde9ac1f2e8e5d6f52781de12fe05e88a63454487e4372c",
       "product_acceptance_spec": "bd32b7010dbd0509f4b5cfcd3b82339c3c8516e4a4b45eb3310dd9a6a7678cb6",
-      "product_acceptance_report": "85053a4be2913008c99ccc1fbeef533e130ed143266082de720aa7429eb1f151"
+      "product_acceptance_report": "a8615efcbcbac4510567d037338294dee2edcbe03b778d212c5dff87dac1eef3"
     }
   },
   "registered_route_count": 22,
@@ -611,8 +611,8 @@
       "excluded_gates": [],
       "registered_page_local_match_counts": {
         "[data-testid=\"technology-runtime-refresh\"]": 1,
-        "[data-testid=\"technology-provider-filter\"]": 0,
-        "[data-testid=\"technology-layer-select\"]": 0,
+        "[data-testid=\"technology-provider-filter\"]": 5,
+        "[data-testid=\"technology-layer-select\"]": 7,
         "[data-testid=\"technology-runtime-retry\"]": 0
       },
       "unregistered_page_local_controls": [],
@@ -701,7 +701,7 @@
       "proof_kind": "direct_effect",
       "trigger": "direct_route_build_persisted_readback",
       "details": {
-        "build_id": "f200acae-6498-4c89-8a88-b2f4f544dd71",
+        "build_id": "88a61e95-d6b9-4fce-8887-e0606112ba58",
         "response_status": 200,
         "persisted": true,
         "audit_persisted": true,
@@ -1120,7 +1120,7 @@
         "method": "GET",
         "response_status": 200,
         "visible_status": "200 OK",
-        "response_body_sha256": "ff6986d1b8446db5e58deefa2a6ac2508a7b18b4d08ea3108db082a6c100febb",
+        "response_body_sha256": "fcd40e4c45f7994e44cc99789d38f865f40ece8e8f2c621f58e326e75340f72b",
         "response_body_bound_to_visible_output": true,
         "causal_user_click": true
       },
@@ -1146,7 +1146,7 @@
             "control_index": 0,
             "tag": "button",
             "clipboard_changed": true,
-            "clipboard_length": 6201,
+            "clipboard_length": 6207,
             "trigger": "clipboard",
             "effect_visible_count": 1
           }
@@ -1368,8 +1368,8 @@
       "trigger": "preverified_exact_p0_ws_build_control",
       "details": {
         "exact_control": "[data-testid=\"ws-build\"]",
-        "p0_build_id": "927358cb-72a6-40bc-9fb1-820e096acf62",
-        "p0_product_acceptance_report_sha256": "85053a4be2913008c99ccc1fbeef533e130ed143266082de720aa7429eb1f151",
+        "p0_build_id": "07fff076-23be-4381-87ca-6d727557dc01",
+        "p0_product_acceptance_report_sha256": "a8615efcbcbac4510567d037338294dee2edcbe03b778d212c5dff87dac1eef3",
         "p0_spec_contains_exact_click": true,
         "persisted_readback": true
       },
@@ -2389,7 +2389,7 @@
       "trigger": "direct_performance_finish_after_12_samples",
       "details": {
         "sample_count": 12,
-        "result": "PASS · 12 Samples · Ø 25.5 FPS · Ø 39.4 ms Frame-Intervall · budget_met · kein GPU-Benchmark",
+        "result": "FAIL · 12 Samples · Ø 21.8 FPS · Ø 46.2 ms Frame-Intervall · budget · kein GPU-Benchmark",
         "network": false,
         "local_only": true
       },
@@ -3268,7 +3268,7 @@
       "trigger": "direct_performance_finish_after_12_samples",
       "details": {
         "sample_count": 12,
-        "result": "FAIL · 12 Samples · Ø 22.2 FPS · Ø 45.4 ms Frame-Intervall · budget · kein GPU-Benchmark",
+        "result": "FAIL · 12 Samples · Ø 22.8 FPS · Ø 45.0 ms Frame-Intervall · budget · kein GPU-Benchmark",
         "network": false,
         "local_only": true
       },
@@ -3350,7 +3350,7 @@
         "method": "GET",
         "response_status": 200,
         "visible_status": "200 OK",
-        "response_body_sha256": "a31d701952c8018184c2fb25cbed2bf0f713559d3cfa7c95b524d68d9f2b8fb8",
+        "response_body_sha256": "2bf29b07061efddb9538e5bd5249719653e2fe12c683e618797ba5f888342f6d",
         "response_body_bound_to_visible_output": true,
         "causal_user_click": true
       },
@@ -3995,7 +3995,7 @@
         "method": "GET",
         "response_status": 200,
         "visible_status": "200 OK",
-        "response_body_sha256": "c14432814c07ce328acc4b10f72de5e978375929c16ff8bc98e3a7dfd18ffe6b",
+        "response_body_sha256": "fca7afd6a1c5ba134ad8889c2b03488a893fd13cfa8c14d4506a91e1ab7ae9ee",
         "response_body_bound_to_visible_output": true,
         "causal_user_click": true
       },
@@ -4021,7 +4021,7 @@
             "control_index": 0,
             "tag": "button",
             "clipboard_changed": true,
-            "clipboard_length": 1991,
+            "clipboard_length": 1992,
             "trigger": "clipboard",
             "effect_visible_count": 1
           }
@@ -4129,7 +4129,7 @@
       "proof_kind": "direct_effect",
       "trigger": "direct_route_build_persisted_readback",
       "details": {
-        "build_id": "3900defa-4092-4af1-8ad0-e5063bd60730",
+        "build_id": "6dba7a9e-aced-4f53-aa41-573f587681cc",
         "response_status": 200,
         "persisted": true,
         "audit_persisted": true,
@@ -4415,7 +4415,7 @@
           {
             "control_index": 0,
             "tag": "a",
-            "target_url": "http://localhost:8081/run/3900defa-4092-4af1-8ad0-e5063bd60730",
+            "target_url": "http://localhost:8081/run/6dba7a9e-aced-4f53-aa41-573f587681cc",
             "trigger": "popup_navigation",
             "effect_visible_count": 1
           }
@@ -4442,8 +4442,8 @@
           {
             "control_index": 0,
             "tag": "a",
-            "target_url": "http://localhost:8081/workbench?build=3900defa-4092-4af1-8ad0-e5063bd60730",
-            "href": "/workbench?build=3900defa-4092-4af1-8ad0-e5063bd60730",
+            "target_url": "http://localhost:8081/workbench?build=6dba7a9e-aced-4f53-aa41-573f587681cc",
+            "href": "/workbench?build=6dba7a9e-aced-4f53-aa41-573f587681cc",
             "trigger": "native_anchor_navigation",
             "effect_visible_count": 1
           }
@@ -4500,7 +4500,7 @@
           {
             "control_index": 0,
             "tag": "a",
-            "target_url": "http://localhost:8081/run/3900defa-4092-4af1-8ad0-e5063bd60730",
+            "target_url": "http://localhost:8081/run/6dba7a9e-aced-4f53-aa41-573f587681cc",
             "trigger": "popup_navigation",
             "effect_visible_count": 1
           }
@@ -4527,8 +4527,8 @@
           {
             "control_index": 0,
             "tag": "a",
-            "target_url": "http://localhost:8081/workbench?build=3900defa-4092-4af1-8ad0-e5063bd60730",
-            "href": "/workbench?build=3900defa-4092-4af1-8ad0-e5063bd60730",
+            "target_url": "http://localhost:8081/workbench?build=6dba7a9e-aced-4f53-aa41-573f587681cc",
+            "href": "/workbench?build=6dba7a9e-aced-4f53-aa41-573f587681cc",
             "trigger": "native_anchor_navigation",
             "effect_visible_count": 1
           }
@@ -4972,7 +4972,7 @@
         "method": "GET",
         "response_status": 200,
         "visible_status": "200 OK",
-        "response_body_sha256": "20786f3d51cd69cce10baf8c54641caf67a132fde7203cb20512a88baeff5aa3",
+        "response_body_sha256": "29e9204787db98fb698cf230647605cccb6299f7e30fbbcf95642b3af6b61164",
         "response_body_bound_to_visible_output": true,
         "causal_user_click": true
       },
@@ -5245,8 +5245,8 @@
   "console_errors": [],
   "console_error_count": 0,
   "expected_blocked_console_errors": [
-    "http://localhost:8081/api/v1/build/3900defa-4092-4af1-8ad0-e5063bd60730",
-    "http://localhost:8081/api/v1/build/3900defa-4092-4af1-8ad0-e5063bd60730"
+    "http://localhost:8081/api/v1/build/6dba7a9e-aced-4f53-aa41-573f587681cc",
+    "http://localhost:8081/api/v1/build/6dba7a9e-aced-4f53-aa41-573f587681cc"
   ],
   "expected_blocked_console_error_count": 2,
   "expected_anonymous_auth_console_errors": [
@@ -5281,15 +5281,16 @@
     "http://localhost:8081/api/v1/auth/me",
     "http://localhost:8081/api/v1/auth/refresh",
     "http://localhost:8081/api/v1/auth/me",
+    "http://localhost:8081/api/v1/auth/refresh",
     "http://localhost:8081/api/v1/auth/me",
     "http://localhost:8081/api/v1/auth/refresh",
     "http://localhost:8081/api/v1/auth/me",
     "http://localhost:8081/api/v1/auth/refresh"
   ],
-  "expected_anonymous_auth_console_error_count": 35,
+  "expected_anonymous_auth_console_error_count": 36,
   "expected_blocked_responses": [
-    "http://localhost:8081/api/v1/build/3900defa-4092-4af1-8ad0-e5063bd60730",
-    "http://localhost:8081/api/v1/build/3900defa-4092-4af1-8ad0-e5063bd60730"
+    "http://localhost:8081/api/v1/build/6dba7a9e-aced-4f53-aa41-573f587681cc",
+    "http://localhost:8081/api/v1/build/6dba7a9e-aced-4f53-aa41-573f587681cc"
   ],
   "page_errors": [],
   "page_error_count": 0

@@ -1,0 +1,18 @@
+{
+  "contract_version": "exact-head-ci-attestation-v1",
+  "release_id": "prod-candidate-2026-09-16-local-rc68",
+  "candidate_source_sha": "10bccfcfb5a62c6883c7162b8b2eed4f3da817ff",
+  "qualification_control_sha": "15b850fe03f07667e24a9a94987c1eab0fffa415",
+  "pr_number": 143,
+  "pr_head_sha": "fb8dbf4b4e5b0afe213c7fe96549025320685ebc",
+  "merge_commit_sha": "81fb2f1749c7ef29fd8dddb4ff535a017fdc8dc8",
+  "workflow": "pr-check",
+  "run_id": 35055231525,
+  "conclusion": "success",
+  "job_count": 1,
+  "failed_step_count": 0,
+  "skipped_step_count": 0,
+  "source_is_ancestor_of_pr_head": true,
+  "production_rollout_claimed": false,
+  "secret_output": false
+}
