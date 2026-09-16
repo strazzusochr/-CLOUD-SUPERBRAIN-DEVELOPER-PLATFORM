@@ -205,3 +205,9 @@ EVIDENCE: `merge_commit=3ca62dbb69c5710525d82933eca9a73881709127; base=chore/rep
 REGRESSION: `Manifest=90%; 1333/1400; P3=44; P5=89; Phase5=17/19; I1/I5 blocked; MARKET_READY:false.`
 STATUS NACHHER: `Kontroll-Merge abgeschlossen; keine Credit-, Gate- oder Release-Promotion.`
 NÄCHSTER SCHRITT: `I5: echter 16-Schritte-Produktions-OAuth-Flow am aktuellen Merge-Stand; nur sanitizierte, source-bound Evidence.`
+
+## Kanonisches Kontrollprotokoll
+
+Ab LOOP 84 wird das vollständige Gate-Lock-, Ergänzungs- und Abschlussprotokoll
+in `RC68-MARKET-READY-GRUEN-MASTER.md` geführt. Dieser Verlauf bleibt als
+historische Evidenz unverändert lesbar.

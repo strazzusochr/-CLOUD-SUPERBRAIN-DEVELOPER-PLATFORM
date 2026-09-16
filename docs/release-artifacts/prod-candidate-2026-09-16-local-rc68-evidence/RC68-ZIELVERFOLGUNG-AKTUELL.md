@@ -113,3 +113,10 @@ Bei jeder bestätigten LOOP-Änderung wird diese Datei, der Megaprompt und das K
 - [ ] **83.05 – I5-Flow:** Neuer source-bound 16-Schritte-Produktions-OAuth-Flow am Merge-Stand; keine Wiederverwendung der historischen RC63-Evidence.
 
 **Nächster Schritt:** I5-Flow mit Endzeit-Owner-Session durchführen und ausschließlich sanitizierte Evidence erzeugen. Bis zum vollständigen Readback keine Score- oder Gate-Promotion.
+
+### Kanonische Fortsetzung
+
+Die vollständige, zusammengeführte Zielverfolgung, der Master-Prompt und das
+Kontrollprotokoll stehen ab jetzt in
+`RC68-MARKET-READY-GRUEN-MASTER.md`. Diese Datei bleibt der historische
+Loop-Verlauf; neue Haken und Ergänzungen werden im Master geführt.

@@ -84,3 +84,9 @@ Erstelle jetzt den kleinsten Frontend-Evidence-Control-PR. Zulässig sind nur `s
 PR #150 ist nach unabhängiger Review und grünen Checks als normaler Merge-Commit `3ca62dbb69c5710525d82933eca9a73881709127` in `chore/repo-bootstrap` integriert. Der Merge ändert die scored truth nicht: `90 %`, `1333/1400`, Phase 5 `17/19`, I1/I5 blockiert, `MARKET_READY:false`.
 
 Der nächste zulässige Arbeitsgang ist ausschließlich der echte source-bound 16-Schritte-GitHub-OAuth-Flow für I5 am aktuellen Merge-Stand. Dabei werden Owner-Identity, State-Einmaligkeit, Audit-vor-Credentials, Session, Refresh-Rotation, Replay-Sperre, zweite Tokenfamilie, Logout, Cookie-Flags und Redaction geprüft. Historische RC63-Evidence darf nicht umetikettiert werden. Ohne drei neue sanitizierte, gehashte Evidence-Dateien und grüne I5-Verifier bleibt jede Promotion gesperrt.
+
+## Kanonischer Master
+
+Der vollständige ab jetzt verbindliche Prompt samt Gate-Locks, Loop-Reihenfolge,
+Fehlerprotokoll und Abschlussdefinition liegt in
+`RC68-MARKET-READY-GRUEN-MASTER.md`.
