@@ -40,6 +40,12 @@
 
 Vor PR: Hash-Readback, `git diff --check`, Phase-5- und Fortschritts-Verifier, Secret-Scan. Danach CI, unabhängiger Review und **Create a merge commit**. Es bleibt ein Evidence-Merge; weder I1-Credit noch Prozentwerte ändern sich darin.
 
+### LOOP-77-Update
+
+- [x] Kontroll-PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) von `codex/rc68-i1-evidence` auf `chore/repo-bootstrap` erstellt.
+- [~] Exakter PR-Head `9a1e060056baa48dc12b74382f3727e5543a3293`: `verify` und beide Vercel-Checks laufen; GitHub verlangt danach eine unabhängige Review.
+- [ ] Erst nach terminal grünem CI: Review-Readback, normaler Merge-Commit, Remote-Readback und erneut bestätigter No-Credit-Stand.
+
 ## Fehler-Vorausschau / Stop-Regeln
 
 - Abweichender S-, Q-, Archiv- oder Kontroll-Hash: Halt; Kandidat neu binden, keine Evidence übernehmen.
