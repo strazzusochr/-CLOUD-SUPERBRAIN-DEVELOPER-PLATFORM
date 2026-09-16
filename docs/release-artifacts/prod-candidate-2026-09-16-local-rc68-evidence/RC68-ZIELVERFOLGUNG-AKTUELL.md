@@ -24,10 +24,16 @@
 - [x] **76.01 – RC68-Identität gebunden.** S, Q, Archivhash, Release und Kontroll-HEAD stimmen mit dem aktiven Kandidaten überein.
 - [x] **76.02 – GHCR-Basis belegt.** Sechs private Digest-Abbilder, zwölf Plattform-Digests und Receipt-Recovery sind vorhanden; kein Release-Claim.
 - [x] **76.03 – I1 technisch nachgewiesen.** GitHub Run `35085816939` und Evidence `i1/i1-hosted-candidate-parity.json` (`f0cbe…db1c9`) beweisen sechs Dienste, HTTPS, SSE und Persistenz ohne Build, Source-Mount oder Write.
-- [~] **76.04 – I1 kontrolliert integrieren.** Evidence liegt nur im Kontrollzweig. Score bleibt bis PR, CI, unabhängiger Review und normalem Merge unverändert.
+- [x] **76.04 – I1 kontrolliert integrieren.** PR #146 ist nach CI, unabhängiger Review und normalem Merge-Commit `77533903…` integriert. Score bleibt unverändert, bis I1 und I5 atomar promotet werden.
 - [ ] **76.05 – I5 source-bound schließen.** Erst den echten 16-Schritte-Produktions-OAuth-Flow am dann einheitlichen RC68-Stand erzeugen und vollständig sanitisiert verifizieren.
 - [ ] **76.06 – atomare Promotion.** Nur der kanonische Promoter darf I1 und I5 gleichzeitig in P3/P5/Gesamtstand übernehmen.
 - [ ] **76.07 – Finaler Market-Ready-Readback.** Erst bei `1400/1400`, `I1/I5 verified` und Exitcode 0 von `verify-market-ready.ps1 -IncludeExternalGates -RequireReady`.
+
+### LOOP-78-Update
+
+- [x] PR #146: finaler Head `194fca71…`, Review `endzeit2030666-lang`, vier Checks grün und Merge-Commit `77533903…` read-only bestätigt.
+- [x] Frischer Standardzweig-Readback: S, Q und PR-Head sind Vorfahren; Manifest bleibt `90 %`, `1333/1400`, I1/I5 blockiert; Source-Verifier und Gitleaks grün.
+- [ ] **LOOP 79:** I5 nur read-only auf RC68-Source-Parität vorprüfen: Vercel-Frontend, Cloudflare-Runtime, OAuth-Architektur und Callback müssen dieselbe RC68-Quelle binden.
 
 ## Nächste konkrete Handlung
 
@@ -40,11 +46,10 @@
 
 Vor PR: Hash-Readback, `git diff --check`, Phase-5- und Fortschritts-Verifier, Secret-Scan. Danach CI, unabhängiger Review und **Create a merge commit**. Es bleibt ein Evidence-Merge; weder I1-Credit noch Prozentwerte ändern sich darin.
 
-### LOOP-77-Update
+### Historisches LOOP-77-Update
 
 - [x] Kontroll-PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) von `codex/rc68-i1-evidence` auf `chore/repo-bootstrap` erstellt.
-- [~] Der PR-Head wird unmittelbar vor Review und Merge aus GitHub zurückgelesen: `verify` und beide Vercel-Checks müssen am selben finalen Head grün sein; GitHub verlangt danach eine unabhängige Review.
-- [ ] Erst nach terminal grünem CI: Review-Readback, normaler Merge-Commit, Remote-Readback und erneut bestätigter No-Credit-Stand.
+- [x] Finaler Head, CI, Review, normaler Merge-Commit und Remote-Readback sind in LOOP 78 dokumentiert.
 
 ## Fehler-Vorausschau / Stop-Regeln
 

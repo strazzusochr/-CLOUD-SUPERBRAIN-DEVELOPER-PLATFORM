@@ -115,3 +115,15 @@ GITHUB-READBACK: `PR offen, nicht Draft; base=chore/repo-bootstrap; review=REVIE
 NICHT-CLAIM: `PR #146 setzt keinen I1-Credit, keine Prozentwerte und kein MARKET_READY.`
 STATUS NACHHER: `AKTIV; auf exakten Head gebundene CI und unabhängige Write-Review ausstehend.`
 NAECHSTER SCHRITT: `CI terminal readback. Nur wenn verify und beide Vercel-Checks grün sind, Review am finalen Head einholen; danach Merge-Commit, Remote-Readback und unveränderten Score bestätigen.`
+
+## LOOP 78 — I1 Evidence-Control-Merge und Post-Merge-Readback
+
+ZEIT UTC: `2026-09-16T12:04:00Z`
+AKTIVES GATE: `I1 Evidence-Integration ohne Credit`
+PR / FINALER HEAD / MERGE: `#146 / 194fca710d82a05174d27c2862003881c44dd93d / 77533903f46a2c99a54e60d4814a4fc11e122880`
+GITHUB-READBACK: `PR=MERGED; Review=endzeit2030666-lang APPROVED auf exakt 194fca71; verify Run 35092764798=success; beide Vercel Deployments=SUCCESS; Merge-State vor Merge=CLEAN.`
+POST-MERGE-ABSTAMMUNG: `PR-Head, S=10bccfcfb5a62c6883c7162b8b2eed4f3da817ff und Q=15b850fe03f07667e24a9a94987c1eab0fffa415 sind Vorfahren des neuen Standard-HEADs.`
+POST-MERGE-VERIFIER: `project-progress=0 (90%); phase5=0 (17/19, I1/I5); source-qualification=0 (credit=0, rollout=false); gitleaks=0; git diff --check=0.`
+TEMPORAERE RESSOURCEN: `Frischer detached Standardzweig-Checkout nur für Readback erstellt und nach vollständiger Prüfung entfernt.`
+STATUS NACHHER: `I1 Evidence ist getrackt und überprüft. I1 erhält weiterhin keinen Einzelcredit; scored truth bleibt 90%; 1333/1400; I1/I5 blocked; MARKET_READY:false.`
+NAECHSTER SCHRITT: `LOOP 79: I5 source-parity Preflight. Read-only Frontend-, Cloudflare-Runtime-, OAuth-Architektur- und Callback-Bindung an RC68 prüfen. Bei jedem Mismatch halt; keine OAuth-Evidence und keine Promotion.`
