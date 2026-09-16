@@ -10,7 +10,7 @@ Schließe I1 und I5 mit voneinander unabhängigen, source-bound Beweisen. Erhöh
 
 Die technische I1-Evidence ist fertig und besitzt SHA-256 `f0cbe7eb1174b86c080687d4099d3a8bb93f52ec229375b7cd1249379a9db1c9`. Sie ist an den Control-Head `5ed71d162808625e1ec5607c147465709ff0ba88` und GitHub Actions Run `35085816939` gebunden. Erstelle ausschließlich einen Evidence-Control-PR: I1-Evidence, Kontrollprotokoll, Zielverfolgung und Megaprompt. Kein Produktcode, keine Manifest-, Ledger-, Prozent- oder Gate-Promotion.
 
-**Aktualisierung:** PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) ist mit Head `9a1e060056baa48dc12b74382f3727e5543a3293` offen. Warte auf terminal grünes CI und unabhängige Review; bis dahin keine Merge- oder Score-Handlung.
+**Aktualisierung:** PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) ist offen. Lies seinen finalen Head unmittelbar vor Review und Merge aus GitHub zurück; warte auf terminal grünes CI und unabhängige Review. Bis dahin keine Merge- oder Score-Handlung.
 
 ## Verbindlicher Ablauf pro Loop
 

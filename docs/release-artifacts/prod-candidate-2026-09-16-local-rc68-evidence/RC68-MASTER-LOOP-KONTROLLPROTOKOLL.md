@@ -108,7 +108,7 @@ AKTIVES GATE: `I1 Evidence-Integration ohne Credit`
 STATUS VORHER: `I1 Evidence lokal gehasht; scored truth weiter 90%; 1333/1400; I1/I5 blocked`
 GEPLANTE EINZIGE AENDERUNG: `einen kontrollierten Evidence-PR eröffnen; keine Produktcode-, Provider-, Score- oder Gate-Änderung`
 PR: `#146 https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146`
-PR-HEAD: `9a1e060056baa48dc12b74382f3727e5543a3293`
+EVIDENCE-COMMIT: `9a1e060056baa48dc12b74382f3727e5543a3293` (ursprüngliche I1-Control-Erfassung). Der finale PR-Head wird ausschließlich unmittelbar vor Review und Merge aus GitHub zurückgelesen.
 PR-INHALT: `I1 JSON-Evidence, RC68-Kontrollprotokoll, aktuelle Zielverfolgung, Master-Megaprompt und historischer RC63-Verweis.`
 VOR-PR-VERIFIER: `diff-check=0; project-progress=0; phase5=0 (17/19, I1/I5); source-qualification=0; gitleaks=0.`
 GITHUB-READBACK: `PR offen, nicht Draft; base=chore/repo-bootstrap; review=REVIEW_REQUIRED; verify läuft; beide Vercel Checks pending.`

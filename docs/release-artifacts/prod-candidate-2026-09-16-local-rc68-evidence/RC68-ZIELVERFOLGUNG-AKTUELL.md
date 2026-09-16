@@ -43,7 +43,7 @@ Vor PR: Hash-Readback, `git diff --check`, Phase-5- und Fortschritts-Verifier, S
 ### LOOP-77-Update
 
 - [x] Kontroll-PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) von `codex/rc68-i1-evidence` auf `chore/repo-bootstrap` erstellt.
-- [~] Exakter PR-Head `9a1e060056baa48dc12b74382f3727e5543a3293`: `verify` und beide Vercel-Checks laufen; GitHub verlangt danach eine unabhängige Review.
+- [~] Der PR-Head wird unmittelbar vor Review und Merge aus GitHub zurückgelesen: `verify` und beide Vercel-Checks müssen am selben finalen Head grün sein; GitHub verlangt danach eine unabhängige Review.
 - [ ] Erst nach terminal grünem CI: Review-Readback, normaler Merge-Commit, Remote-Readback und erneut bestätigter No-Credit-Stand.
 
 ## Fehler-Vorausschau / Stop-Regeln
