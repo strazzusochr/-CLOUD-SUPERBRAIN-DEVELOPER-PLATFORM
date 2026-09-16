@@ -10,6 +10,7 @@ const {
 
 const baseUrl = "http://localhost:8081";
 const login = { pageId: "login" };
+const root = { pageId: "home", route: "/" };
 const home = { pageId: "home" };
 const meConsole = "console: Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:8081/api/v1/auth/me:0";
 const meResponse = {
@@ -21,6 +22,11 @@ const meResponse = {
 test("accepts only a correlated same-origin anonymous auth 401 on login", () => {
   assert.equal(isCorrelatedAnonymousAuthConsoleError(login, baseUrl, meConsole, [meResponse]), true);
   assert.deepEqual(filteredRouteConsoleErrors(login, baseUrl, [meConsole], [meResponse]), []);
+});
+
+test("accepts the same correlated anonymous auth 401 on the public root shell", () => {
+  assert.equal(isCorrelatedAnonymousAuthConsoleError(root, baseUrl, meConsole, [meResponse]), true);
+  assert.deepEqual(filteredRouteConsoleErrors(root, baseUrl, [meConsole], [meResponse]), []);
 });
 
 test("does not mask the same auth 401 on a non-login route", () => {
