@@ -127,3 +127,14 @@ POST-MERGE-VERIFIER: `project-progress=0 (90%); phase5=0 (17/19, I1/I5); source-
 TEMPORAERE RESSOURCEN: `Frischer detached Standardzweig-Checkout nur für Readback erstellt und nach vollständiger Prüfung entfernt.`
 STATUS NACHHER: `I1 Evidence ist getrackt und überprüft. I1 erhält weiterhin keinen Einzelcredit; scored truth bleibt 90%; 1333/1400; I1/I5 blocked; MARKET_READY:false.`
 NAECHSTER SCHRITT: `LOOP 79: I5 source-parity Preflight. Read-only Frontend-, Cloudflare-Runtime-, OAuth-Architektur- und Callback-Bindung an RC68 prüfen. Bei jedem Mismatch halt; keine OAuth-Evidence und keine Promotion.`
+
+## LOOP 79 — I5 Source-Parity-Preflight
+
+ZEIT UTC: `2026-09-16T12:08:00Z`
+AKTIVES GATE: `I5 production_auth_identity`
+ERWARTETE QUELLE: `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff` (RC68-S)
+READ-ONLY-BEFUND: `frontend-hosted-current.json` bindet Vercel Deployment `dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV` an `987871c40d603ba4d3ba93752df14d5fcd53d3cd`; Cloudflare OAuth Runtime, Architekturentscheidung und Consent-Approval binden `0e9c680c191927dc352c96d119fc909c7d842296`.
+VERIFIER: `pwsh verify-cloudflare-oauth-hosted-current.ps1 -ExpectedCandidateSha RC68-S -ValidateOnly` fail-closed mit `Runtime evidence source_commit_sha mismatch.`
+SICHERHEITSERGEBNIS: `Keine OAuth-Evidence erzeugt, keine Credentials ausgegeben, keine Provider-, Secret-, Registry-, Deployment- oder Gate-Änderung vorgenommen.`
+STATUS NACHHER: `BLOCKIERT; I5 bleibt unbewiesen. Die bestehende Auth-Evidence ist historisch und darf nicht auf RC68 umetikettiert werden.`
+NAECHSTER SCHRITT: `LOOP 80: Vorbereiten und nach Gate-Lock ausführen: je ein RC68-gebundenes Vercel-Frontend- und Cloudflare-OAuth-Runtime-Deployment über die sanktionierten Skripte, jeweils mit Rollback-ID, Provider-Readback, Health und ohne Credit-Promotion. Erst danach I5 erneut preflighten.`

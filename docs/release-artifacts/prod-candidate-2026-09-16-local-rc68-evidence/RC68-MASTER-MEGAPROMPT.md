@@ -12,9 +12,13 @@ Die technische I1-Evidence ist fertig und besitzt SHA-256 `f0cbe7eb1174b86c08068
 
 **Ergebnis:** PR [#146](https://github.com/strazzusochr/-CLOUD-SUPERBRAIN-DEVELOPER-PLATFORM/pull/146) wurde nach exakt-head CI und unabhängiger Review als Merge-Commit `77533903f46a2c99a54e60d4814a4fc11e122880` integriert. Die I1-Evidence ist getrackt; Score und Market-Ready-Status blieben unverändert.
 
-## Aktueller Schritt: LOOP 79
+## Historischer Schritt: LOOP 79
 
-Führe ausschließlich den I5-Source-Parity-Preflight aus. Lies Vercel-Deployment und kanonischen Alias, Cloudflare OAuth-Runtime, Architekturentscheidung und OAuth-Callback read-only. Alle Werte müssen auf RC68-S `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff` zurückgebunden sein. Bei Source-, Deployment-, Callback- oder Scope-Mismatch: halt, Ursache dokumentieren, keine OAuth-Evidence erzeugen und keine Promotion versuchen. Erst bei vollständig gleicher Source-Epoche darf der neue 16-Schritte-Owner-OAuth-Flow vorbereitet werden.
+Der Preflight ist fail-closed blockiert: Vercel bindet `987871…`, Cloudflare/OAuth bindet `0e9c680…`, RC68 verlangt `10bccfc…`. Keine historische Evidence darf als RC68 gelten.
+
+## Aktueller Schritt: LOOP 80
+
+Erzeuge erst nach vollständigem Gate-Lock und mit dokumentierter Rollback-ID ein RC68-gebundenes Vercel-Frontend-Deployment sowie ein RC68-gebundenes Cloudflare-OAuth-Runtime-Deployment über die vorhandenen sanktionierten Deployment-Skripte. Jeder Schritt braucht Provider-Readback, Source-/Archiv-/Bundle-Bindung, Health und Secret-Redaction. Es ist eine Betriebs-Evidence-Aktualisierung, keine I5-, Score- oder Market-Ready-Promotion. Nach beiden grünen Readbacks LOOP 79 erneut ausführen; nur dann den 16-Schritte-OAuth-Flow vorbereiten.
 
 ## Verbindlicher Ablauf pro Loop
 
