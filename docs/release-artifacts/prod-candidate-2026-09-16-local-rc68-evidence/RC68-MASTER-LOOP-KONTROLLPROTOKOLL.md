@@ -196,3 +196,12 @@ GATE_LOCK_AFTER_SHA256: `43a212d73702701f5e6a1f68d9091f130b64ced9529f614e7200b91
 NICHT-CLAIM: `Kein OAuth-Flow, kein I1-/I5-Credit, keine Gate-/Score-/MARKET_READY-Promotion, keine Secret-Ausgabe.`
 STATUS NACHHER: `Runtime verifiziert; Evidence-Control-PR erforderlich; I5 BLOCKIERT.`
 NÄCHSTER SCHRITT: `LOOP 82 als kleinsten Kontroll-PR prüfen und mergen; danach frischen 16-Schritte-OAuth-Flow source-bound erfassen.`
+
+## LOOP 83 — Post-Merge-Readback
+
+STATUS VORHER: `PR #150 offen; Review erforderlich; 90%; 1333/1400; I1/I5 blocked.`
+HANDLUNG: `Review endzeit2030666-lang am exakten Head bb05b0bc… read back; PR #150 als normaler Merge-Commit übernommen.`
+EVIDENCE: `merge_commit=3ca62dbb69c5710525d82933eca9a73881709127; base=chore/repo-bootstrap; verify, Vercel-Checks und Secret-Scan grün.`
+REGRESSION: `Manifest=90%; 1333/1400; P3=44; P5=89; Phase5=17/19; I1/I5 blocked; MARKET_READY:false.`
+STATUS NACHHER: `Kontroll-Merge abgeschlossen; keine Credit-, Gate- oder Release-Promotion.`
+NÄCHSTER SCHRITT: `I5: echter 16-Schritte-Produktions-OAuth-Flow am aktuellen Merge-Stand; nur sanitizierte, source-bound Evidence.`

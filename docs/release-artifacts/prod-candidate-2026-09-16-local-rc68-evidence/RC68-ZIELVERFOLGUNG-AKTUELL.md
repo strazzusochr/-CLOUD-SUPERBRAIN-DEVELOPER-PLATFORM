@@ -103,3 +103,13 @@ Bei jeder bestätigten LOOP-Änderung wird diese Datei, der Megaprompt und das K
 - [ ] **82.04 – I5 echter Flow.** Erst nach dem Kontroll-Merge erzeugt ein frischer 16-Schritte-GitHub-OAuth-Flow die neue, vollständig sanitizierte Flow-Evidence. Die vorhandene RC63-Flow-Datei bleibt historische Evidence und erhält keinen RC68-Claim.
 
 **Nächste konkrete Handlung:** Kontroll-PR für LOOP 82 erstellen, Exact-Head-CI abwarten, Review am finalen Head lesen und als Merge-Commit übernehmen. Danach startet ausschließlich I5.
+
+### LOOP-83-Update — Kontroll-Merge von PR #150 bestätigt
+
+- [x] **83.01 – PR-Readback:** PR #150 ist mit Review von `endzeit2030666-lang` am exakten Head `bb05b0bc…` gemerged.
+- [x] **83.02 – Merge-Bindung:** Merge-Commit im Standardzweig ist `3ca62dbb69c5710525d82933eca9a73881709127`.
+- [x] **83.03 – Regression:** Manifest bleibt `90 %`, `1333/1400`, Phase 5 `17/19`, I1/I5 blockiert, `MARKET_READY:false`.
+- [~] **83.04 – Nach-Merge-Prüfungen:** Secret-Scan und Diff-Check sind grün; Manifest- und Phase-5-Readback müssen durch den laufenden Exact-Head-CI bestätigt werden, weil der lokale WSL-Wrapper den Windows-Worktree-Gitpfad nicht auflösen konnte.
+- [ ] **83.05 – I5-Flow:** Neuer source-bound 16-Schritte-Produktions-OAuth-Flow am Merge-Stand; keine Wiederverwendung der historischen RC63-Evidence.
+
+**Nächster Schritt:** I5-Flow mit Endzeit-Owner-Session durchführen und ausschließlich sanitizierte Evidence erzeugen. Bis zum vollständigen Readback keine Score- oder Gate-Promotion.
