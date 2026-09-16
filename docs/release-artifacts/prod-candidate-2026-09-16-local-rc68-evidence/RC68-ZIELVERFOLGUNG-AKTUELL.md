@@ -1,6 +1,6 @@
 # RC68 Zielverfolgung — aktiv
 
-**Stand:** `2026-09-16T17:43:43Z`  
+**Stand:** `2026-09-16T19:09:24Z`  
 **Regel:** Diese Datei beschreibt den aktuellen nachgewiesenen Zustand. Sie vergibt niemals selbst Punkte oder Gates.
 
 ## Gebundene Wahrheit
@@ -11,7 +11,7 @@
 | Produktquelle S | `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff` |
 | Qualifikation Q | `15b850fe03f07667e24a9a94987c1eab0fffa415` |
 | Archiv-SHA-256 | `352429b3a637112f34e7821eb89987d5e384e0e9de9c20168496747f80ce55a9` |
-| aktueller Kontroll-HEAD | `b34c399f1c87777f18166f27402197260ba68bc1` |
+| aktueller Kontroll-HEAD | `3be82183935e00050d84d26402c477ccbd7f8945` |
 | Standardzweig | `chore/repo-bootstrap` |
 | aktueller Score | `90 %`, `1333/1400`, `67 offen` |
 | Phasen | `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 100` |
@@ -94,3 +94,12 @@ Bei jeder bestätigten LOOP-Änderung wird diese Datei, der Megaprompt und das K
 - [ ] **81.02 – Evidence-Control-PR.** Nur die getesteten Frontend-Evidence- und Kontrollpfade committen, dann CI, unabhängige Review und Merge. I1/I5, 90 %, 1333/1400 und `MARKET_READY:false` bleiben bis dahin unverändert.
 
 **Ergänzung E81-02:** Die blockierte I1-Checkliste verweist nun auf die getrackte RC68-I1-Evidence (`f0cbe…db1c9`) und das aktuelle RC68-Frontend. Der Scorer bestätigt weiterhin 17/19, 89 %, I1/I5 blockiert und 90 % Gesamtfortschritt.
+
+### LOOP-82-Update — Cloudflare-Runtime source-bound
+
+- [x] **82.01 – Runtime vor dem OAuth-Flow gebunden.** Production-Deployment `0866f00c-77f9-40be-9de3-515ae4d7d488` liefert zu 100 % Worker-Version `97cc5041-60f4-45cd-9ca7-e24d3ac39104`. Der direkte Health-Readback ist HTTP 200, bindet RC68-S `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`, Archiv `352429b3a637112f34e7821eb89987d5e384e0e9de9c20168496747f80ce55a9` und D1; anonymes `/api/v1/auth/me` liefert korrekt HTTP 401.
+- [x] **82.02 – Gate-Lock verglichen.** Erlaubt änderte sich ausschließlich die Worker-Version/Quellbindung von der alten Runtime auf RC68-S. Score bleibt `90 %`, `1333/1400`, P3 `44`, P5 `89`, `17/19`, I1/I5 blockiert, `MARKET_READY:false`.
+- [~] **82.03 – Kontrollnachweis vorbereitet.** Sanitized Readback `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/oauth/cloudflare-runtime-deployment-readback.json` SHA-256 `dc99e16620a717c84e18351981ef4f2738910075aeb49585c4c1be4b26ea27d7` und die aktuelle Runtime-Evidence SHA-256 `56d3d3454e201cd48ca8de77e9602c67da858aac306a6d5fa699fc909133ef44` liegen im Kontrollzweig. Sie werden erst nach CI, Review und normalem Merge zum Standardzweig-Nachweis.
+- [ ] **82.04 – I5 echter Flow.** Erst nach dem Kontroll-Merge erzeugt ein frischer 16-Schritte-GitHub-OAuth-Flow die neue, vollständig sanitizierte Flow-Evidence. Die vorhandene RC63-Flow-Datei bleibt historische Evidence und erhält keinen RC68-Claim.
+
+**Nächste konkrete Handlung:** Kontroll-PR für LOOP 82 erstellen, Exact-Head-CI abwarten, Review am finalen Head lesen und als Merge-Commit übernehmen. Danach startet ausschließlich I5.

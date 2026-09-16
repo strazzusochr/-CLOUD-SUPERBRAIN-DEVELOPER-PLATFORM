@@ -68,3 +68,13 @@ Der Verifier akzeptiert zusätzlich den einzigen providerseitigen Promotion-Tran
 Erstelle jetzt den kleinsten Frontend-Evidence-Control-PR. Zulässig sind nur `scripts/verify-frontend-hosted-current.ps1`, `docs/runtime-state/frontend-hosted-current.json`, die neuen RC68-Frontend-Evidence-Dateien und die aktiven RC68-Kontrollunterlagen. Vor einem Merge müssen Exact-Head-CI und unabhängige Review grün sein. Der Merge gibt ausschließlich einen späteren Cloudflare-ValidateOnly-Preflight frei; er vergibt weder I1 noch I5, keine Punkte und keinen `MARKET_READY`-Claim.
 
 **E81-02:** Wenn eine no-credit Evidence-Aktualisierung einen alten Anker bricht, dürfen nur Pfad, Hash und Claim des blockierten Evidence-Referenzeintrags auf den aktuellen Kandidaten wechseln. Status, Credit, Blocker, Titel, Owner-Aktion und jeder Prozentwert bleiben unverändert. Der Phase-5-Scorer muss danach exakt 17/19 und 89 % ausgeben.
+
+## LOOP 82 — bindende Fortsetzung
+
+**Istzustand:** Standard-HEAD `3be82183935e00050d84d26402c477ccbd7f8945`; RC68-S `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`; Score `90 % / 1333/1400`; I1/I5 blockiert; `MARKET_READY:false`.
+
+**Erledigt:** Der Cloudflare-Worker ist ausschließlich auf RC68-S aktualisiert. Deployment `0866f00c-77f9-40be-9de3-515ae4d7d488` / Version `97cc5041-60f4-45cd-9ca7-e24d3ac39104` hat 100 % Traffic. Der Source- und Archiv-Health-Readback ist grün; D1 ist verifiziert; anonymer Auth-Zugriff ist mit 401 gesperrt. Die Belege sind `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/oauth/cloudflare-runtime-deployment-readback.json` (`dc99e16620a717c84e18351981ef4f2738910075aeb49585c4c1be4b26ea27d7`) und `docs/runtime-state/cloudflare-oauth-hosted-current.json` (`56d3d3454e201cd48ca8de77e9602c67da858aac306a6d5fa699fc909133ef44`).
+
+**Unveränderliche Regel:** Dieser Runtime-Nachweis schließt I5 nicht. Die bestehende RC63-OAuth-Flow-Evidence bleibt historisch. Für I5 sind am nun einheitlichen RC68-Stand ein neuer realer 16-Schritte-Flow, source-bound Architektur- und Consent-Nachweise, drei sanitizierte Artefakte, deren Hashes sowie die kanonischen read-only Verifier erforderlich. Erst danach darf der atomare Promoter laufen.
+
+**Jetzt:** Nur den LOOP-82-Control-PR aus Runtime-State, Readback, Zielverfolgung, Kontrollprotokoll, Megaprompt und Verification Register erstellen. Vor Merge: Diff-Check, Progress-/Phase-5-Verifier, Secret-Scan, Exact-Head-CI, unabhängige Review und Merge-Commit. Keine Gate-Promotion.
