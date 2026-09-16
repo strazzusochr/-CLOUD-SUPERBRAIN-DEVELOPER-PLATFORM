@@ -82,7 +82,10 @@ const EXPECTED_ANONYMOUS_AUTH_PATHS = new Set([
 const EXPECTED_RUN_DETAIL_NOT_FOUND_PATH = "/api/v1/build/workspace-audit-missing-build";
 
 function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors) {
-  if (surface.pageId !== "login") return false;
+  // The anonymous session boundary is intentionally probed on the public root
+  // shell as well as the login surface. Only those two exact routes may
+  // suppress a same-origin fetch 401; every other route remains fail-closed.
+  if (surface.pageId !== "login" && surface.route !== "/") return false;
   if (!/Failed to load resource: the server responded with a status of 401 \(Unauthorized\)/.test(entry)) return false;
   const location = entry.match(/ @ (https?:\/\/\S+):\d+$/);
   if (!location) return false;
