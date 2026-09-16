@@ -78,3 +78,9 @@ Erstelle jetzt den kleinsten Frontend-Evidence-Control-PR. Zulässig sind nur `s
 **Unveränderliche Regel:** Dieser Runtime-Nachweis schließt I5 nicht. Die bestehende RC63-OAuth-Flow-Evidence bleibt historisch. Für I5 sind am nun einheitlichen RC68-Stand ein neuer realer 16-Schritte-Flow, source-bound Architektur- und Consent-Nachweise, drei sanitizierte Artefakte, deren Hashes sowie die kanonischen read-only Verifier erforderlich. Erst danach darf der atomare Promoter laufen.
 
 **Jetzt:** Nur den LOOP-82-Control-PR aus Runtime-State, Readback, Zielverfolgung, Kontrollprotokoll, Megaprompt und Verification Register erstellen. Vor Merge: Diff-Check, Progress-/Phase-5-Verifier, Secret-Scan, Exact-Head-CI, unabhängige Review und Merge-Commit. Keine Gate-Promotion.
+
+## LOOP 83 — Nach-Merge-Bindung und I5-Freigabe
+
+PR #150 ist nach unabhängiger Review und grünen Checks als normaler Merge-Commit `3ca62dbb69c5710525d82933eca9a73881709127` in `chore/repo-bootstrap` integriert. Der Merge ändert die scored truth nicht: `90 %`, `1333/1400`, Phase 5 `17/19`, I1/I5 blockiert, `MARKET_READY:false`.
+
+Der nächste zulässige Arbeitsgang ist ausschließlich der echte source-bound 16-Schritte-GitHub-OAuth-Flow für I5 am aktuellen Merge-Stand. Dabei werden Owner-Identity, State-Einmaligkeit, Audit-vor-Credentials, Session, Refresh-Rotation, Replay-Sperre, zweite Tokenfamilie, Logout, Cookie-Flags und Redaction geprüft. Historische RC63-Evidence darf nicht umetikettiert werden. Ohne drei neue sanitizierte, gehashte Evidence-Dateien und grüne I5-Verifier bleibt jede Promotion gesperrt.
