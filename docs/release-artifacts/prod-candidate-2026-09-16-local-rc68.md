@@ -19,7 +19,7 @@ observability_check: `candidate read-only contract, local diagnostics, runtime, 
 rollback_note: `RC63/S16 is the latest qualified local rollback predecessor; no hosted rollback is authorized`
 rollback_target_commit_sha: `0e9c680c191927dc352c96d119fc909c7d842296`
 immutable_tag_set: `ghcr.io/strazzusochr/cloud-superbrain-developer-platform/<service>:10bccfcfb5a62c6883c7162b8b2eed4f3da817ff`
-immutable_tag_publish_status: `unpublished`
+immutable_tag_publish_status: `verified_candidate`
 registry_publication_review: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/registry/registry-publication-review.json`
 registry_digest_contract: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/registry/candidate-registry-digests.json`
 registry_receipt_recovery: `docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/registry/receipt-recovery-provenance.json`
@@ -51,7 +51,7 @@ award progress credit and cannot close I1 `hosted_candidate_parity` or I5
 | C4 | JA | Runtime-source and no-credit requalification parity remain fail-closed. |
 | C5 | JA | The committed RC68 source archive passed canonical npm-audit and gitleaks checks. |
 | I1 | NEIN | No non-local HTTPS six-service hosted stack is bound exactly to RC68/RC68 source. |
-| I2 | JA | Six local S-bound candidate images are verified; registry publication, private-package readback, platform digests and protected receipt remain pending. Local image IDs are not GHCR digests. |
+| I2 | JA | Six private immutable GHCR candidate images are verified at the exact S tag; the protected reviewer receipt, six top-level digests, twelve platform digests, OCI revision binding, and clean remote scan are tracked under `registry/`. |
 | I3 | JA | RC63/S16 is the immutable local rollback predecessor. |
 | I4 | JA | No provider, paid tier, card requirement, recurring amount, or budget-ceiling change is introduced. |
 | I5 | NEIN | Production auth identity remains closed without its hosted OAuth evidence. |
@@ -61,7 +61,7 @@ award progress credit and cannot close I1 `hosted_candidate_parity` or I5
 | V4 | JA | Incident escalation and stop gates remain bound. |
 | O1 | JA | The immutable rollback runbook applies to RC63/S16 as target. |
 | O2 | JA | Incident-response and secret-rotation runbooks remain present. |
-| O3 | JA | Review remains pending and no-release stays explicit. |
+| O3 | JA | The protected registry-publication review was approved by the independent reviewer; no-release remains explicit. |
 | O4 | JA | I1 and I5 remain the two explicitly accepted no-release blockers. |
 | O5 | JA | Production deployment, release promotion, and rollout remain false. |
 
@@ -82,6 +82,6 @@ three-response budget describes the successful evidence run, not all diagnostic 
 - This artifact does not claim a production rollout.
 - Production deployment still requires the release-candidate gate bundle and a separate rollout proof.
 - No production deploy, release promotion, provider-scope expansion, secret
-  mutation, secret output, or percentage credit is claimed; registry publication remains pending and is not claimed.
+  mutation, secret output, or percentage credit is claimed; the tracked registry publication is a private immutable candidate-only action.
 - The Vercel variable names reported as `Needs Attention` remain a later P09
   configuration blocker; no value was read or copied into this artifact.
