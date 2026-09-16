@@ -20,6 +20,10 @@ Der Preflight ist fail-closed blockiert: Vercel bindet `987871…`, Cloudflare/O
 
 Die ValidateOnly-Prüfung beweist die Reihenfolge: **zuerst** RC68-Vercel-Frontend-Evidence und ihr getrackter Kontroll-SHA, **danach** Cloudflare-OAuth-Runtime. Erzeuge jeweils erst nach vollständigem Gate-Lock und mit dokumentierter Rollback-ID ein RC68-gebundenes Deployment über die vorhandenen sanktionierten Deployment-Skripte. Jeder Schritt braucht Provider-Readback, Source-/Archiv-/Bundle-Bindung, Health und Secret-Redaction. Es ist eine Betriebs-Evidence-Aktualisierung, keine I5-, Score- oder Market-Ready-Promotion. Nach beiden grünen Readbacks LOOP 79 erneut ausführen; nur dann den 16-Schritte-OAuth-Flow vorbereiten.
 
+### LOOP-80-Status
+
+Der RC68-Production-Build `dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C` wurde aus der READY Preview mit Source `a25d9bcb…` erzeugt. Die erste Alias-/Browserprüfung fand eine fail-closed Verifier-Lücke: die öffentliche Workbench lädt absichtlich die anonyme Sessiongrenze `GET /api/v1/auth/me`, aber die bereits eng korrelierte 401-Ausnahme galt nur Root/Login. Der Alias wurde deshalb sofort auf `dpl_Akma…` zurückgesetzt. Korrigiere ausschließlich diese bestehende Ausnahme auf `pageId=workbench`; URL, same-origin, `fetch` und HTTP 401 bleiben zwingend. Danach gelten wieder Exact-Head-CI, unabhängige Review, normaler Merge, Production-Alias, Browser-/Health-Readback und Evidence-Hash. Keine Runtime-, Secret-, Registry-, Score- oder Market-Ready-Änderung gehört in diesen Loop.
+
 ## Verbindlicher Ablauf pro Loop
 
 1. `GATE_LOCK_BEFORE`: Branch, lokaler/Remote-HEAD, S/Q/Archivhash, Score, I1/I5, CI, Provider-IDs und Evidence-Hashes read-only erfassen.

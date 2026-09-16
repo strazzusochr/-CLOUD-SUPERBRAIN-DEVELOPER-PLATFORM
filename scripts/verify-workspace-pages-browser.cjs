@@ -82,11 +82,14 @@ const EXPECTED_ANONYMOUS_AUTH_PATHS = new Set([
 const EXPECTED_RUN_DETAIL_NOT_FOUND_PATH = "/api/v1/build/workspace-audit-missing-build";
 
 function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors) {
-  // The anonymous session boundary is intentionally probed on the public root
-  // shell as well as the login surface. Only those two exact routes may
-  // suppress a same-origin fetch 401; every other route remains fail-closed.
-  if (surface.pageId !== "login" && surface.route !== "/") return false;
-  if (!/Failed to load resource: the server responded with a status of 401 \(Unauthorized\)/.test(entry)) return false;
+  // The session boundary is intentionally queried by the public root, login,
+  // and unauthenticated workbench shell. Only those exact UI surfaces may
+  // suppress one same-origin auth/me or auth/refresh fetch 401. All other
+  // routes, response statuses, origins, and resource types remain fail-closed.
+  if (surface.pageId !== "login" && surface.pageId !== "workbench" && surface.route !== "/") return false;
+  // Chromium may omit the reason phrase for the same session-boundary 401.
+  // The endpoint, origin, fetch type, and status checks below remain mandatory.
+  if (!/Failed to load resource: the server responded with a status of 401 \((?:Unauthorized)?\)/.test(entry)) return false;
   const location = entry.match(/ @ (https?:\/\/\S+):\d+$/);
   if (!location) return false;
 
@@ -113,7 +116,10 @@ function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resource
 
 function isCorrelatedExpectedRunDetailNotFound(surface, baseUrl, entry, resourceErrors) {
   if (surface.pageId !== "run-detail") return false;
-  if (!/Failed to load resource: the server responded with a status of 404 \(Not Found\)/.test(entry)) return false;
+  // Chromium may render the same HTTP 404 with either an empty or a textual
+  // reason phrase. The endpoint, origin, fetch type, and status checks below
+  // keep this allowance limited to the intentional run-detail missing-build probe.
+  if (!/Failed to load resource: the server responded with a status of 404 \((?:Not Found)?\)/.test(entry)) return false;
   const location = entry.match(/ @ (https?:\/\/\S+):\d+$/);
   if (!location) return false;
 

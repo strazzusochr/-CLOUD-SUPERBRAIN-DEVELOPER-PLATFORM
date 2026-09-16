@@ -139,3 +139,22 @@ DEPLOY-PREFLIGHT: `deploy-cloudflare-stateful-runtime.ps1 -CommitSha RC68-S -Pro
 SICHERHEITSERGEBNIS: `Keine OAuth-Evidence erzeugt, keine Credentials ausgegeben, keine Provider-, Secret-, Registry-, Deployment- oder Gate-Änderung vorgenommen.`
 STATUS NACHHER: `BLOCKIERT; I5 bleibt unbewiesen. Die bestehende Auth-Evidence ist historisch und darf nicht auf RC68 umetikettiert werden.`
 NAECHSTER SCHRITT: `LOOP 80: Zuerst ein RC68-gebundenes Vercel-Frontend-Deployment samt Alias-, Browser- und Evidence-Readback. Erst dessen getrackter Kontroll-SHA darf den Cloudflare-OAuth-Deploy preflighten; beide Schritte brauchen Gate-Lock, Rollback-ID, Provider-Readback, Health und null Credit-Promotion.`
+
+## LOOP 80 — RC68 Vercel Production-Evidence, Rollback und Boundary-Korrektur
+
+ZEIT UTC: `2026-09-16T17:07:13Z`
+AKTIVES GATE: `RC68 frontend production evidence; keine I5- oder Credit-Promotion`
+GATE_LOCK_BEFORE: `Alias=dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV; Quelle=987871c40d603ba4d3ba93752df14d5fcd53d3cd; Rollback-Ziel dokumentiert.`
+NEUER KANDIDAT: `Git Preview dpl_4Cozb7Sj7R4WjdPHUL8WG7hBB8B1, source=a25d9bcb1ef6253bfafbea37df08a0073bc2a76e; RC68-S ist Vorfahr.`
+PREFLIGHT: `Vercel access HTTP 200; Preview READY; frontend lint=0; npm audit high=0; gitleaks=0; Score weiter 90%, 1333/1400, I1/I5 blocked.`
+PROVIDER-AKTION: `Vercel erzeugte aus dem Preview den neuen Production Build dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C; canonical alias wurde kurz daran gebunden.`
+READBACK: `Production READY; canonical wiring und health je HTTP 200.`
+REGRESSION: `26-Routen-Browservertrag fail-closed auf /workbench: genau same-origin GET /api/v1/auth/me ergibt anonym 401 und wurde vom Verifier trotz erwarteter Sessiongrenze nicht als korreliert erkannt.`
+ROLLBACK: `canonical alias unverzüglich auf dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV zurückgesetzt; Provider-Readback=READY; wiring=200; health=200.`
+NICHT-CLAIM: `Kein OAuth-Evidence, keine Secret-Änderung, kein Registry-Write, keine Score-/Gate-Promotion, kein MARKET_READY-Claim.`
+KORREKTUR: `Browser-Verifier wird nur für pageId=workbench um dieselbe bestehende, korrelierte anonymous-auth-401-Ausnahme ergänzt. URL, Origin, resourceType=fetch und Status=401 bleiben zwingend. Diese Änderung erweitert keine Runtime-Berechtigung und unterdrückt keine anderen Fehler.`
+NAECHSTER SCHRITT: `Korrektur-PR mit Exact-Head-CI und unabhängiger Review; danach Browservertrag erneut auf dem neuen RC68-Production-Alias ausführen. Erst bei grünem Browser-Readback wird Frontend-Evidence getrackt.`
+
+ERGÄNZUNG E80-01: `Nach der Workbench-401-Korrektur erreichte der Browserlauf /run/[id]. Der Vertrag enthält bereits den streng korrelierten 404 für /api/v1/build/workspace-audit-missing-build, aber Chromium meldete die äquivalente Reason-Phrase als 404 (). Der Verifier akzeptiert nun nur 404 () oder 404 (Not Found), zusätzlich zu unverändertem Endpoint, same-origin, fetch und HTTP-Status. Kein weiterer 404 wird erlaubt.`
+
+ERGÄNZUNG E80-02: `Chromium meldet auch den erwarteten anonymous auth/me-Status als 401 (). Der Verifier akzeptiert nur 401 () oder 401 (Unauthorized), zusätzlich zu Workbench/Root/Login, Endpoint, same-origin und fetch. Kein anderer 401 wird erlaubt.`
