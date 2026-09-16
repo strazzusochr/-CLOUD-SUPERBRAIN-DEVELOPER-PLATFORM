@@ -139,21 +139,21 @@
       "evidence": [
         {
           "path": "docs/runtime-state/frontend-hosted-current.json",
-          "claim": "The current frontend deployment is source-bound RC63 operational evidence only and does not prove six-service immutable-image parity or I1 credit.",
-          "anchor": "\"deployment_id\": \"dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV\""
+          "claim": "The current frontend deployment is source-bound RC68 operational evidence only and does not prove six-service immutable-image parity or I1 credit.",
+          "anchor": "\"deployment_id\": \"dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C\""
         },
         {
           "path": "docs/runtime-state/backend-hosted-current.json",
-          "claim": "The hosted backend is a read-only contract origin and does not prove six-service RC63/S16 parity.",
+          "claim": "The hosted backend remains a read-only contract origin and does not itself prove six-service RC68 parity.",
           "anchor": "\"read_only_contract_origin\": true"
         },
         {
-          "path": "docs/release-artifacts/prod-candidate-2026-09-12-local-rc63-evidence/i1/i1-hosted-candidate-parity.json",
-          "claim": "Fresh RC63 Codespaces workflow 34884107604 proves six digest-only services over non-local HTTPS with health, SSE, no builds, and no source mounts.",
+          "path": "docs/release-artifacts/prod-candidate-2026-09-16-local-rc68-evidence/i1/i1-hosted-candidate-parity.json",
+          "claim": "RC68 Codespaces workflow 35085816939 proves six digest-only services over non-local HTTPS with health, SSE, persistence, no builds, and no source mounts; it remains no-credit until atomic promotion.",
           "anchor": "\"contract_version\": \"i1-hosted-candidate-parity-v1\"",
           "contract_version": "i1-hosted-candidate-parity-v1",
           "verifier": "scripts/verify_i1_codespaces_candidate.py",
-          "sha256": "7afaf5817dc273c6801bb26e0c7c00625376ec360a13658d69287193d44910b4"
+          "sha256": "f0cbe7eb1174b86c080687d4099d3a8bb93f52ec229375b7cd1249379a9db1c9"
         }
       ]
     },

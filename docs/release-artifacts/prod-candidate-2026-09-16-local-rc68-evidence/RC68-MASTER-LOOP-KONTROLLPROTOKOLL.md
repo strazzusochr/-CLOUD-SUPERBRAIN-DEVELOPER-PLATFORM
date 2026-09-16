@@ -158,3 +158,24 @@ NAECHSTER SCHRITT: `Korrektur-PR mit Exact-Head-CI und unabhängiger Review; dan
 ERGÄNZUNG E80-01: `Nach der Workbench-401-Korrektur erreichte der Browserlauf /run/[id]. Der Vertrag enthält bereits den streng korrelierten 404 für /api/v1/build/workspace-audit-missing-build, aber Chromium meldete die äquivalente Reason-Phrase als 404 (). Der Verifier akzeptiert nun nur 404 () oder 404 (Not Found), zusätzlich zu unverändertem Endpoint, same-origin, fetch und HTTP-Status. Kein weiterer 404 wird erlaubt.`
 
 ERGÄNZUNG E80-02: `Chromium meldet auch den erwarteten anonymous auth/me-Status als 401 (). Der Verifier akzeptiert nur 401 () oder 401 (Unauthorized), zusätzlich zu Workbench/Root/Login, Endpoint, same-origin und fetch. Kein anderer 401 wird erlaubt.`
+
+
+## LOOP 81 — RC68 Frontend-Evidence-Readback und kontrollierter Transport-Fix
+
+ZEIT UTC: `2026-09-16T17:43:43Z`
+AKTIVES GATE: `RC68 frontend operational evidence; I1/I5 weiter blockiert`
+STATUS VORHER: `PR #148 gemerged; canonical Alias auf dokumentiertem Rollback dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV; 90%; 1333/1400; I1/I5 blocked.`
+PR-READBACK: `#148; finaler Head b673529d1e883cd5be2eb817d33c7e5dc1bd60d1; Review endzeit2030666-lang APPROVED auf exakt diesem Head; verify und drei Vercel-Checks success; Merge-Commit b34c399f1c87777f18166f27402197260ba68bc1.`
+POST-MERGE-VERIFIER: `project-progress=0 (90%); phase5=0 (17/19, I1/I5); source-qualification=0 (credit=0, rollout=false); gitleaks=0; git diff --check=0.`
+GATE_LOCK_BEFORE: `Canonical Alias=dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV; RC68 Production Kandidat=dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C READY; Rollback-Ziel erhalten.`
+PROVIDER-AKTION: `Canonical Alias auf den bereits READY RC68-Production-Kandidaten dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C gebunden.`
+PROVIDER-READBACK: `Authenticated Vercel-Metadaten bindet Production, Projekt frontend, Git-Source a25d9bcb1ef6253bfafbea37df08a0073bc2a76e und canonical Alias. RC68-S ist Vorfahr der Source. Canonical wiring=200 und health=200.`
+BROWSER-READBACK: `26 Routen x 2 Viewports = 52 Navigationen; 32 Read-Endpoints; Console=0; Overflow=0; Overlay=0; hosted HTTPS Browserreport verified.`
+ERGÄNZUNG E81-01: `Der strikte Frontend-Verifier akzeptierte nur Vercel redeploy/cli mit meta.action=redeploy. Der providerseitig dokumentierte Promotion-Transport meldet source/action=promote. Die Allowlist akzeptiert jetzt ausschließlich redeploy, cli oder promote als source sowie redeploy oder promote als action. GitSource-SHA-Konsens, Projekt-ID, Target, Aliasbindung, Zeitreihenfolge, Content-Parität und 32 Endpoint-Prüfungen bleiben unverändert obligatorisch.`
+VERIFIER-ERGEBNIS: `verify-frontend-hosted-current.ps1 = 0; status=verified; production; 26 Seiten; 2 Viewports; 52 Klicks; Browser 148.0.7778.96.`
+EVIDENCE: `frontend/report.json` SHA256 `b3e511ac18904ba5e9300648e767304a7cce2aa0171f12624ab4de99a938e2a6`; `frontend/vercel-deployment-alias-readback.json` SHA256 `3e87f60c42f54fabbc8436b6bce191744d51204e75ec18c26c9f0f3564e0574f`; Browser- und Providerbelege sind sanitisiert.`
+GATE_LOCK_AFTER: `Canonical Alias=dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C; alle scored Werte unverändert: 90%; 1333/1400; P3=44; P5=89; Phase 5=17/19; I1/I5 blocked; MARKET_READY:false.`
+NICHT-CLAIM: `Kein I1- oder I5-Credit, keine Cloudflare-/OAuth-/Secret-Änderung, kein Registry-Write, keine Release- oder MARKET_READY-Promotion.`
+NAECHSTER SCHRITT: `Den kleinsten Evidence-Control-PR aus Frontend-Evidence, Runtime-State, Transport-Verifier und diesem Protokoll erstellen. Erst Exact-Head-CI, unabhängige Review und normaler Merge liefern den Control-SHA für den späteren Cloudflare-ValidateOnly-Preflight.`
+
+ERGÄNZUNG E81-02: `Der no-credit Phase-5-Verifier fand nach der Frontend-Aktualisierung eine alte I1-Ankerreferenz auf RC63 und dpl_Akma. Korrigiert wurden ausschließlich die blockierten Evidence-Pfade, Claims, Hash und der aktuelle Frontend-Anker auf RC68. Status=blocked_owner, credit_awarded=false, I1/I5-Blocker, 17/19 und 89% blieben bytegleich in der Credit-Projektion. Nach explizitem Staging der Qualification-Truth: phase5=0 und project-progress=0.`

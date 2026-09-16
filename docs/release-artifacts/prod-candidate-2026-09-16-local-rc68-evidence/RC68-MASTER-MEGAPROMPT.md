@@ -57,3 +57,14 @@ pwsh -NoProfile -File .\scripts\verify-market-ready.ps1 -IncludeExternalGates -R
 ```
 
 Nur Exitcode `0` mit `MARKET_READY:true`, `1400/1400`, `I1 verified` und `I5 verified` ist ein Abschluss. Alles andere bleibt ein belegter Zwischenstand mit benanntem nächsten Schritt.
+
+
+## Aktueller Schritt: LOOP 81
+
+PR #148 ist als Merge-Commit `b34c399f1c87777f18166f27402197260ba68bc1` integriert. Der neue RC68-Production-Kandidat `dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C` ist READY und über die authentifizierte Vercel-Metadatenkette an `a25d9bcb1ef6253bfafbea37df08a0073bc2a76e` gebunden; diese Quelle ist ein Nachfolger von RC68-S. Der kanonische Alias zeigt auf diesen Kandidaten. Die vollständige Browserprüfung meldet 26 Routen, zwei Viewports, 52 Navigationen und null Console-, Overflow- oder Overlay-Fehler; 32 Read-Endpoints sind grün.
+
+Der Verifier akzeptiert zusätzlich den einzigen providerseitigen Promotion-Transport `source/action=promote`. Er akzeptiert keine neue URL, keinen neuen HTTP-Status, keine neue Browserausnahme und keine abweichende Git-Quelle. Die strikten GitSource-, Projekt-, Target-, Alias-, Zeit- und Content-Paritätsprüfungen bleiben bestehen.
+
+Erstelle jetzt den kleinsten Frontend-Evidence-Control-PR. Zulässig sind nur `scripts/verify-frontend-hosted-current.ps1`, `docs/runtime-state/frontend-hosted-current.json`, die neuen RC68-Frontend-Evidence-Dateien und die aktiven RC68-Kontrollunterlagen. Vor einem Merge müssen Exact-Head-CI und unabhängige Review grün sein. Der Merge gibt ausschließlich einen späteren Cloudflare-ValidateOnly-Preflight frei; er vergibt weder I1 noch I5, keine Punkte und keinen `MARKET_READY`-Claim.
+
+**E81-02:** Wenn eine no-credit Evidence-Aktualisierung einen alten Anker bricht, dürfen nur Pfad, Hash und Claim des blockierten Evidence-Referenzeintrags auf den aktuellen Kandidaten wechseln. Status, Credit, Blocker, Titel, Owner-Aktion und jeder Prozentwert bleiben unverändert. Der Phase-5-Scorer muss danach exakt 17/19 und 89 % ausgeben.

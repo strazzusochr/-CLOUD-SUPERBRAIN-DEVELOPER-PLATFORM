@@ -1,0 +1,33 @@
+{
+  "contract_version": "frontend-deployment-alias-readback-v2",
+  "status": "verified",
+  "generated_at": "2026-09-16T17:45:13.357776Z",
+  "source_commit_sha": "a25d9bcb1ef6253bfafbea37df08a0073bc2a76e",
+  "deployment_id": "dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C",
+  "immutable_deployment_url": "https://frontend-nq09aakp7-strazzusochrs-projects.vercel.app",
+  "production_alias": "https://frontend-seven-psi-78.vercel.app",
+  "vercel_target": "production",
+  "canonical_alias_deployment_id": "dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C",
+  "deployment_metadata_verifier": "scripts/verify-frontend-hosted-current.ps1",
+  "deployment_metadata_verified": true,
+  "deployment_alias_content_parity": true,
+  "canonical_root_status": 200,
+  "canonical_root_content_type": "text/html",
+  "canonical_root_sha256": "144d8de66816762cbe6a2ba2b0a3f29466a086dd200dd7c497bccbf4e2b0b959",
+  "canonical_wiring_status": 200,
+  "canonical_wiring_content_type": "application/json",
+  "canonical_wiring_sha256": "ce4dc79db03f6d6eb1954762f7cb68ca440e1385f8de99d1b7cea8c6d6394879",
+  "protected_readback_method": "authenticated_vercel_metadata_plus_canonical_alias_content",
+  "rollback_deployment_id": "dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV",
+  "evidence_hashes": {
+    "report.json": "b3e511ac18904ba5e9300648e767304a7cce2aa0171f12624ab4de99a938e2a6",
+    "frontend-hosted-current.json": "0eb5320237a3e15544a7a88b1f826a2492b690a545703262a4b99178f530e47c",
+    "verification.json": "fd139040c2a33528e427a0be71882b5621b66c52d0c11eee1319724e57d0d74b"
+  },
+  "secret_output": false,
+  "production_release_claimed": false,
+  "non_claims": [
+    "No immutable-host content body is stored because provider SSO protects that origin.",
+    "No full-platform release, I1 credit, I5 credit, OAuth identity, registry write, or MARKET_READY claim is made."
+  ]
+}

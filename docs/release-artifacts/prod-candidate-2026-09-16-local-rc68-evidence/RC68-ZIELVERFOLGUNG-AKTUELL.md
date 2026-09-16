@@ -1,6 +1,6 @@
 # RC68 Zielverfolgung — aktiv
 
-**Stand:** `2026-09-16T11:42:13Z`  
+**Stand:** `2026-09-16T17:43:43Z`  
 **Regel:** Diese Datei beschreibt den aktuellen nachgewiesenen Zustand. Sie vergibt niemals selbst Punkte oder Gates.
 
 ## Gebundene Wahrheit
@@ -11,7 +11,7 @@
 | Produktquelle S | `10bccfcfb5a62c6883c7162b8b2eed4f3da817ff` |
 | Qualifikation Q | `15b850fe03f07667e24a9a94987c1eab0fffa415` |
 | Archiv-SHA-256 | `352429b3a637112f34e7821eb89987d5e384e0e9de9c20168496747f80ce55a9` |
-| aktueller Kontroll-HEAD | `5ed71d162808625e1ec5607c147465709ff0ba88` |
+| aktueller Kontroll-HEAD | `b34c399f1c87777f18166f27402197260ba68bc1` |
 | Standardzweig | `chore/repo-bootstrap` |
 | aktueller Score | `90 %`, `1333/1400`, `67 offen` |
 | Phasen | `P0 100 · P1 100 · P2 100 · P3 44 · P4 100 · P5 89 · P6 100` |
@@ -42,10 +42,10 @@
 
 - [x] **80.01 – RC68 Production-Kandidat erzeugt.** `dpl_Fc62aha6yjHRBS9EBBZcbVdZNw7C` ist READY und source-bound an `a25d9bcb…`, einen Nachfolger von RC68-S.
 - [x] **80.02 – Gate-Lock und Rollback ausgeführt.** Der kanonische Alias wurde nach dem fail-closed Browserbefund auf `dpl_Akmaw9bDHASTJEzpKWqFq25sMzbV` zurückgesetzt; Wiring und Health sind wieder HTTP 200.
-- [~] **80.03 – Browser-Vertrag korrigieren.** Nur die bestehende same-origin anonymous-auth-401-Korrelation wird auf die öffentliche Workbench-Shell erweitert. Danach Exact-Head-CI, unabhängige Review und erneuter Frontend-Readback.
-- [ ] **80.04 – Neue Frontend-Evidence kontrolliert integrieren.** Erst nach Browser-Readback; Score bleibt unverändert.
+- [x] **80.03 – Browser-Vertrag korrigiert und integriert.** PR #148 wurde mit Exact-Head-CI, unabhängiger Review und Merge-Commit `b34c399…` integriert; die Ausnahme bleibt eng auf den korrelierten Auth- und 404-Vertrag begrenzt.
+- [~] **81.01 – Neue Frontend-Evidence erzeugt.** Alias, Browser, 32 Read-Endpoints und authentifizierter Provider-Readback sind grün; Evidence-Control-PR steht als nächster Schritt an. Score bleibt unverändert.
 
-**LOOP 80.03:** Die enge Browser-Verifier-Korrektur gegen genau den erwarteten anonymous `/api/v1/auth/me`-401 auf `/workbench` prüfen, PR mit Exact-Head-CI und unabhängiger Review mergen, danach die RC68-Frontend-Evidence erneut erzeugen. Kein OAuth-, Score- oder Gate-Schritt ist dabei zulässig.
+**LOOP 81:** Den minimalen Frontend-Evidence-Control-PR erstellen: sanitisierten Browserreport, vier Screenshots, Provider-Readback, aktuelle Runtime-State-Evidence, den eng erweiterten Transport-Verifier und die ergänzten RC68-Kontrollunterlagen. Vor Merge: Exact-Head-CI, unabhängige Review und normaler Merge-Commit. Kein OAuth-, Score- oder Gate-Schritt ist dabei zulässig.
 
 **Ergänzung E80-01:** Die bestehende `/run/[id]`-Ausnahme bleibt auf den fehlenden Audit-Build und HTTP 404 beschränkt; sie akzeptiert zusätzlich die reale Chromium-Textform `404 ()`.
 
@@ -83,3 +83,14 @@ Vor PR: Hash-Readback, `git diff --check`, Phase-5- und Fortschritts-Verifier, S
 ## Kopien / Aktualisierung
 
 Bei jeder bestätigten LOOP-Änderung wird diese Datei, der Megaprompt und das Kontrollprotokoll sofort nach `C:\Users\immer\Downloads\RC68-AKTUELL\` kopiert. Historische RC63-Dateien bleiben lesbar, sind aber keine aktuelle RC68-Wahrheit.
+
+
+### LOOP-81-Update
+
+- [x] PR #148 ist als Merge-Commit `b34c399…` im Standardzweig; seine Review hing an exakt `b673529…` und alle Pflichtprüfungen waren grün.
+- [x] Der kanonische Vercel-Alias bindet `dpl_Fc62…`; Vercel-Readback, Wiring und Health sind grün.
+- [x] RC68-Browser-/Responsive-Proof: 26 Routen, zwei Viewports, 52 Navigationen, 32 Read-Endpoints, je 0 Console-, Overflow- und Overlay-Fehler.
+- [x] Der Frontend-Verifier bindet die Promotion nur über die enge Vercel-Transport-Allowlist; Source-SHA- und Alias-Prüfungen bleiben fail-closed.
+- [ ] **81.02 – Evidence-Control-PR.** Nur die getesteten Frontend-Evidence- und Kontrollpfade committen, dann CI, unabhängige Review und Merge. I1/I5, 90 %, 1333/1400 und `MARKET_READY:false` bleiben bis dahin unverändert.
+
+**Ergänzung E81-02:** Die blockierte I1-Checkliste verweist nun auf die getrackte RC68-I1-Evidence (`f0cbe…db1c9`) und das aktuelle RC68-Frontend. Der Scorer bestätigt weiterhin 17/19, 89 %, I1/I5 blockiert und 90 % Gesamtfortschritt.
