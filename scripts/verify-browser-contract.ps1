@@ -200,9 +200,12 @@ Assert-Contains "landing title" $landingHtml "Cloud Superbrain"
 Assert-Contains "landing open workbench" $landingHtml "Open Workbench"
 Assert-Contains "landing canonical spec marker" $landingHtml "Canonical platform specification"
 $homeHtml = Invoke-Text "$BaseUrl/home"
-Assert-Contains "home product marker" $homeHtml "Entwicklerplattform"
-Assert-Contains "home evidence wiring marker" $homeHtml "Nachweise"
-Assert-Contains "home diagnostics wiring marker" $homeHtml "Diagnose"
+Assert-Contains "home workspace landing marker" $homeHtml "Dein nächster Arbeitsstand"
+Assert-Contains "home product surfaces marker" $homeHtml "Produktflächen"
+Assert-Contains "home workbench action" $homeHtml "Werkbank öffnen"
+Assert-True "home does not surface audit hero marker" (-not $homeHtml.Contains("home_hero_check"))
+Assert-True "home does not surface fake stats marker" (-not $homeHtml.Contains("fake_stats"))
+Assert-True "home does not surface dev-only hero marker" (-not $homeHtml.Contains("DEV-ONLY"))
 Assert-True "home does not surface recent projects" (-not $homeHtml.Contains("Letzte Projekte"))
 Assert-True "home does not surface project workspace status" (-not $homeHtml.Contains("Projektstand"))
 $workbenchHtml = Invoke-Text "$BaseUrl/workbench"

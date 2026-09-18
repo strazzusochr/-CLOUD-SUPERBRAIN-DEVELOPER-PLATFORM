@@ -20,6 +20,7 @@ const AUTH_REFRESH_FAMILY_ID_PATTERN = /^fam_[A-Za-z0-9_-]{22}$/;
 const AUTH_CANONICAL_ISO_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SOURCE = "cloudflare-workers-d1-stateful-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
+const WORKSPACE_SUBJECT_HEADER = "x-superbrain-workspace-subject";
 const CONTRACT_ORIGIN_HOP_PARAM = "__sb_contract_origin_hop";
 const CONTRACT_ORIGIN_HOP_VALUE = "1";
 const MAX_BODY_BYTES = 192 * 1024;
@@ -377,6 +378,28 @@ function validationCode(error, fallback = "invalid_request") {
 
 async function authenticated(request, env) {
   return secureEqual(request.headers.get(AUTH_HEADER) || "", env.AGENT_API_AUTH_TOKEN || "");
+}
+
+function workspaceSubject(request) {
+  const subject = String(request.headers.get(WORKSPACE_SUBJECT_HEADER) || "").trim();
+  if (!/^(?:github:[1-9][0-9]*|local-session:[0-9a-f-]{8,})$/.test(subject)) return null;
+  return subject;
+}
+
+async function workspaceAuthenticated(request, env) {
+  const subject = workspaceSubject(request);
+  return subject && await authenticated(request, env) ? subject : null;
+}
+
+function workspaceNotFound(requestId) {
+  return json({
+    contract_version: "github-workspace-builds-v1",
+    status: "not_found",
+    error: "workspace_build_not_found",
+    request_id: requestId,
+    persisted: false,
+    secret_output: false,
+  }, 404);
 }
 
 async function readJson(request) {
@@ -1089,6 +1112,7 @@ async function createBuild(request, env, requestId) {
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
   }
+  const ownerSubject = workspaceSubject(request);
 
   let body;
   try { body = await readJson(request); } catch (error) {
@@ -1147,8 +1171,8 @@ async function createBuild(request, env, requestId) {
       env.DB.prepare(`
         INSERT INTO builds (
           id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider,
-          live_provider_calls, created_at, updated_at, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+          live_provider_calls, created_at, updated_at, deleted_at, owner_subject
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
       `).bind(
         build.id,
         build.projectId,
@@ -1162,6 +1186,7 @@ async function createBuild(request, env, requestId) {
         build.liveProviderCalls,
         now,
         now,
+        ownerSubject,
       ),
       env.DB.prepare(`
         INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
@@ -1255,6 +1280,105 @@ async function listBuilds(url, env, requestId) {
     });
   } catch {
     return json(blocked("build_registry_read_failed", requestId, "The D1 build registry could not be read."), 503);
+  }
+}
+
+async function listWorkspaceBuilds(request, url, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const limit = limitFrom(url);
+    const buildsResult = await env.DB.prepare(`
+      SELECT id, project_id, owner_subject, title, prompt_sha256, model, gateway_mode, gateway_provider,
+             live_provider_calls, created_at, updated_at
+      FROM builds
+      WHERE owner_subject = ? AND deleted_at IS NULL
+      ORDER BY updated_at DESC, created_at DESC
+      LIMIT ?
+    `).bind(subject, limit).all();
+    const pinsResult = await env.DB.prepare(`
+      SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.gateway_mode,
+             b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at
+      FROM workspace_build_pins p
+      JOIN builds b ON b.id = p.build_id AND b.owner_subject = p.owner_subject
+      WHERE p.owner_subject = ? AND b.deleted_at IS NULL
+      ORDER BY p.created_at DESC
+      LIMIT ?
+    `).bind(subject, limit).all();
+    const pinnedIds = new Set((pinsResult.results || []).map((row) => String(row.id)));
+    const builds = (buildsResult.results || []).map((row) => ({ ...buildFromRow(row, false), pinned: pinnedIds.has(String(row.id)) }));
+    const pinnedBuilds = (pinsResult.results || []).map((row) => ({ ...buildFromRow(row, false), pinned: true }));
+    return json({
+      contract_version: "github-workspace-builds-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      subject,
+      builds,
+      pinned_builds: pinnedBuilds,
+      count: builds.length,
+      persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_build_registry_read_failed", requestId, "The D1 workspace build registry could not be read."), 503);
+  }
+}
+
+async function mutateWorkspacePin(request, id, env, requestId, pinned) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  const clean = safeId(id);
+  try {
+    const owned = await env.DB.prepare("SELECT id FROM builds WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL LIMIT 1").bind(clean, subject).first();
+    if (!owned) return workspaceNotFound(requestId);
+    const statement = pinned
+      ? env.DB.prepare("INSERT INTO workspace_build_pins (owner_subject, build_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING").bind(subject, clean, new Date().toISOString())
+      : env.DB.prepare("DELETE FROM workspace_build_pins WHERE owner_subject = ? AND build_id = ?").bind(subject, clean);
+    const result = await statement.run();
+    return json({
+      contract_version: "github-workspace-builds-v1",
+      status: pinned ? "pinned" : "unpinned",
+      id: clean,
+      persisted: true,
+      changed: Number(result.meta?.changes || 0) > 0,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_pin_persistence_unavailable", requestId, "The D1 workspace pin could not be persisted."), 503);
+  }
+}
+
+async function deleteWorkspaceBuild(request, id, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  const clean = safeId(id);
+  const now = new Date().toISOString();
+  try {
+    const owned = await env.DB.prepare("SELECT id FROM builds WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL LIMIT 1").bind(clean, subject).first();
+    if (!owned) return workspaceNotFound(requestId);
+    const result = await env.DB.prepare("UPDATE builds SET deleted_at = ?, updated_at = ? WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL").bind(now, now, clean, subject).run();
+    if (Number(result.meta?.changes || 0) !== 1) return workspaceNotFound(requestId);
+    return json({
+      contract_version: "github-workspace-builds-v1",
+      status: "deleted",
+      id: clean,
+      persisted: true,
+      logical_delete: true,
+      physical_delete: false,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_delete_persistence_unavailable", requestId, "The D1 workspace delete could not be persisted."), 503);
   }
 }
 
@@ -3760,6 +3884,12 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/v1/builds") return listBuilds(url, env, requestId);
     if (request.method === "GET" && buildMatch) return getBuild(buildMatch[1], env, requestId);
     if (request.method === "DELETE" && buildMatch) return deleteBuild(request, buildMatch[1], env, requestId);
+    const workspaceBuildMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})$/);
+    const workspacePinMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})\/pin$/);
+    if (request.method === "GET" && url.pathname === "/api/v1/workspace/builds/mine") return listWorkspaceBuilds(request, url, env, requestId);
+    if (workspacePinMatch && request.method === "PUT") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, true);
+    if (workspacePinMatch && request.method === "DELETE") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, false);
+    if (workspaceBuildMatch && request.method === "DELETE") return deleteWorkspaceBuild(request, workspaceBuildMatch[1], env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/memory/semantic") return upsertSemanticMemory(request, env, requestId);
     if (request.method === "GET" && url.pathname === "/api/v1/memory/semantic/search") return searchSemanticMemory(request, url, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/workspace/artifacts") return createArtifact(request, env, requestId);

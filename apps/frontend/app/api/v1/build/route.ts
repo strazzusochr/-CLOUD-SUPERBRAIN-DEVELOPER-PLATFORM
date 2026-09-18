@@ -3,7 +3,7 @@
 // Generation is allowed only through the configured LLM Gateway. The stateless
 // frontend never calls a provider or persistence service directly.
 
-import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary, requireWorkspaceIdentity, type WorkspaceIdentity } from "../../../../lib/frontendBoundary";
 import {
   ensureGeneratedHtmlBoundingSpheres,
   ensureGeneratedHtmlDependencies,
@@ -198,7 +198,7 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
   throw new Error(lastRejection ? `generation rejected: ${lastRejection}` : "generation failed");
 }
 
-async function persistBuild(req: Request, build: BuildRecord): Promise<Record<string, unknown> | null> {
+async function persistBuild(req: Request, build: BuildRecord, identity: WorkspaceIdentity): Promise<Record<string, unknown> | null> {
   const persistenceRequest = new Request(req.url, {
     method: "POST",
     headers: {
@@ -213,7 +213,7 @@ async function persistBuild(req: Request, build: BuildRecord): Promise<Record<st
     "agent-api",
     "/api/v1/builds",
     10_000,
-    { serviceAuth: true },
+    { serviceAuth: true, trustedWorkspaceSubject: identity.subject },
   );
   if (!response?.ok) return null;
   let payload: Record<string, unknown>;
@@ -236,6 +236,8 @@ async function persistBuild(req: Request, build: BuildRecord): Promise<Record<st
 export async function POST(req: Request): Promise<Response> {
   const writeBlock = await authorizeBoundaryWrite(req);
   if (writeBlock) return writeBlock;
+  const identity = await requireWorkspaceIdentity(req);
+  if (identity instanceof Response) return identity;
 
   let body: Record<string, unknown> = {};
   try { body = (await req.json()) as Record<string, unknown>; } catch { /* empty */ }
@@ -287,7 +289,7 @@ export async function POST(req: Request): Promise<Response> {
       gateway_provider: String(provider ?? "unknown"),
       live_provider_calls: liveProviderCalls,
     };
-    const persistedBuild = await persistBuild(req, buildRecord);
+    const persistedBuild = await persistBuild(req, buildRecord, identity);
     const persisted = persistedBuild !== null;
     if (!persistedBuild) {
       return Response.json(

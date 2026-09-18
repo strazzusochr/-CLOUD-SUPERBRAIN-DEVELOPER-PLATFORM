@@ -14,18 +14,14 @@ import {
 import { WORKSPACE_PAGES } from "../lib/nav";
 import { isCorrelatedAnonymousAuthConsoleError, type BrowserResourceError } from "./auth-console-policy.js";
 
-const baseUrl = (process.env.PAGE_ACTIONS_BASE_URL ?? "http://localhost:8081").trim().replace(/\/+$/, "");
+const baseUrl = (process.env.PAGE_ACTIONS_BASE_URL ?? "").trim().replace(/\/+$/, "");
+if (!baseUrl) throw new Error("PAGE_ACTIONS_BASE_URL must be resolved by playwright.config.ts");
 const proofScope = (process.env.PAGE_ACTIONS_PROOF_SCOPE ?? "dev_only_localhost").trim();
 const expectedSourceCommitSha = (process.env.PAGE_ACTIONS_SOURCE_COMMIT_SHA ?? "").trim();
 const expectedSourceArchiveSha256 = (process.env.PAGE_ACTIONS_SOURCE_ARCHIVE_SHA256 ?? "").trim();
 const expectedDeploymentId = (process.env.PAGE_ACTIONS_DEPLOYMENT_ID ?? "").trim();
-const EXAMPLE_SELECTION_ACTIONS = new Set(["home-example", "workbench-example", "games-example"]);
+const EXAMPLE_SELECTION_ACTIONS = new Set(["workbench-example", "games-example"]);
 const PERSISTED_BUILD_ACTIONS = new Set([
-  "home-iteration-input",
-  "home-result-fullscreen",
-  "home-result-share",
-  "home-result-download",
-  "home-result-code-toggle",
   "workbench-iteration-input",
   "workbench-preview",
   "workbench-code",
@@ -172,7 +168,7 @@ async function waitForSnapshotChange(locator: Locator, before: ElementSnapshot, 
 }
 
 async function gotoRoute(page: Page, route: string, buildId?: string): Promise<void> {
-  const needsBuildQuery = buildId && ["/home", "/workbench", "/games"].includes(route);
+  const needsBuildQuery = buildId && ["/workbench", "/games"].includes(route);
   const query = needsBuildQuery ? `${route.includes("?") ? "&" : "?"}build=${encodeURIComponent(buildId)}` : "";
   const response = await page.goto(`${baseUrl}${route}${query}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   expect(response?.status(), `GET ${route}`).toBe(200);
@@ -184,12 +180,7 @@ async function gotoRoute(page: Page, route: string, buildId?: string): Promise<v
   if (route === "/agents") {
     await expect(page.locator('input[aria-label="Forschungsziel"]')).toBeVisible({ timeout: 30_000 });
   }
-  if (needsBuildQuery) {
-    const proof = route === "/home"
-      ? page.getByTestId("ab-result")
-      : page.getByTestId("ws-log").filter({ hasText: "geladen" });
-    await expect(proof).toBeVisible({ timeout: 30_000 });
-  }
+  if (needsBuildQuery) await expect(page.getByTestId("ws-log").filter({ hasText: "geladen" })).toBeVisible({ timeout: 30_000 });
 }
 
 async function waitForTopologyMap(page: Page): Promise<void> {
@@ -274,7 +265,6 @@ async function prepareMember(page: Page, context: BrowserContext, action: Action
   }
 
   const fillValues: Record<string, [string, string]> = {
-    "home-build": [".ai-builder textarea", "P2 Home: baue eine kleine interaktive 3D-Szene mit Würfel und Punktestand."],
     "games-build-run": [".workbench-studio textarea", "P2 Games: baue ein kleines interaktives 3D-Spiel mit Würfel und Punktestand."],
     "agents-run": ['input[aria-label="Forschungsziel"]', "P2 providerfreier Aktionsnachweis für semantische Suche"],
     "agents-source-detail": ['input[aria-label="Forschungsziel"]', "P2 providerfreier Quellen-Nachweis"],
@@ -385,14 +375,12 @@ async function auditDirectBuild(
 ): Promise<ActionAudit> {
   const controls = page.locator(action.locator);
   try {
-    expect(["home-build", "games-build-run"]).toContain(action.id);
+    expect(["games-build-run"]).toContain(action.id);
     await gotoRoute(page, route);
     await prepareMember(page, context, action);
     await controls.first().waitFor({ state: "visible", timeout: 30_000 });
     await expect(controls.first()).toBeEnabled();
-    const promptLocator = action.id === "home-build"
-      ? page.locator(".ai-builder textarea")
-      : page.locator(".workbench-studio textarea");
+    const promptLocator = page.locator(".workbench-studio textarea");
     await expect(promptLocator).not.toHaveValue("");
     const responsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -888,7 +876,7 @@ async function auditMember(
   productAcceptanceSpecSource: string,
   productAcceptanceReportSha256: string,
 ): Promise<ActionAudit> {
-  if (action.id === "home-build" || action.id === "games-build-run") {
+  if (action.id === "games-build-run") {
     return auditDirectBuild(page, context, route, family, action);
   }
   if (action.verificationMode === "preverified_exact_control") {
@@ -1220,6 +1208,194 @@ async function auditMember(
 
 test.describe.configure({ mode: "serial" });
 
+test("Page 01 Home is a product entry and continuation surface, not a builder or live console", async ({ page }, testInfo) => {
+  const buildPosts: string[] = [];
+  const workspaceReads: string[] = [];
+  const sharedBuildReads: string[] = [];
+  const workspaceResponses: number[] = [];
+  const resolvedTestBaseUrl = String(testInfo.project.use.baseURL ?? "").replace(/\/+$/, "");
+  expect(baseUrl, "Page actions must use the URL resolved by playwright.config.ts").toBe(resolvedTestBaseUrl);
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (request.method() === "POST" && url.pathname === "/api/v1/build") buildPosts.push(url.toString());
+    if (request.method() === "GET" && url.pathname === "/api/v1/workspace/builds/mine") workspaceReads.push(url.toString());
+    if (request.method() === "GET" && url.pathname === "/api/v1/builds") sharedBuildReads.push(url.toString());
+  });
+  page.on("response", (response) => {
+    const url = new URL(response.url());
+    if (response.request().method() === "GET" && url.pathname === "/api/v1/workspace/builds/mine") {
+      workspaceResponses.push(response.status());
+    }
+  });
+
+  const response = await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  expect(response?.status(), "GET /home").toBe(200);
+  await expect(page.locator(".app-shell")).toHaveAttribute("data-hydrated", "true", { timeout: 30_000 });
+  await expect(page.getByRole("link", { name: "Werkbank öffnen" }).first()).toHaveAttribute("href", "/workbench");
+
+  await expect.soft(page.getByRole("textbox", { name: "Beschreibung für den Build" })).toHaveCount(0);
+  await expect.soft(page.getByText("Live-Daten", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Eigene Arbeitsstände sind gerade nicht erreichbar.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Angeheftete Arbeitsstände sind gerade nicht erreichbar.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Keine angehefteten Arbeitsstände.", { exact: true })).toHaveCount(0);
+  await expect.poll(() => workspaceReads.length, { timeout: 10_000 }).toBe(1);
+  expect(workspaceResponses, "The production-mode local server has no auth boundary, so it must fail closed instead of substituting a shared list.").toEqual([503]);
+  expect(sharedBuildReads, "Home must never substitute /api/v1/builds?project_id=default for a personal list.").toEqual([]);
+
+  await page.waitForTimeout(300);
+  expect(buildPosts, "Home may not start a build while opening").toEqual([]);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.bringToFront();
+  // Allow the decorative canvas to complete at least one post-resize frame in
+  // headless Chromium before measuring actual painted pixels.
+  await page.waitForTimeout(1500);
+  const desktopGeometry = await page.locator(".page").evaluate((root) => {
+    const rect = (element: Element | null) => {
+      if (!(element instanceof HTMLElement)) return null;
+      const box = element.getBoundingClientRect();
+      return { left: box.left, top: box.top, width: box.width, height: box.height, centerY: box.top + box.height / 2 };
+    };
+    const panelByTitle = (title: string) => Array.from(root.querySelectorAll<HTMLElement>(".panel"))
+      .find((panel) => panel.querySelector(".panel-title")?.textContent?.trim() === title) ?? null;
+    const hero = root.querySelector<HTMLElement>(".home-hero-shell");
+    const heroHeader = hero?.querySelector<HTMLElement>(".page-head") ?? null;
+    const cortex = hero?.querySelector<HTMLElement>(".home-cortex-card") ?? null;
+    const grid = root.querySelector<HTMLElement>(".grid.cols-2");
+    const product = panelByTitle("Produktflächen");
+    const ownWorkspace = panelByTitle("Eigene Arbeitsstände");
+    const pinnedWorkspace = panelByTitle("Angeheftete Arbeitsstände");
+    return {
+      hero: rect(hero),
+      heroHeader: rect(heroHeader),
+      cortex: rect(cortex),
+      grid: rect(grid),
+      product: rect(product),
+      ownWorkspace: rect(ownWorkspace),
+      pinnedWorkspace: rect(pinnedWorkspace),
+      pinnedHeaderBadgeCount: pinnedWorkspace?.querySelectorAll(".panel-head .badge").length ?? 0,
+      emptyHeights: Array.from(root.querySelectorAll<HTMLElement>(".home-workspace-empty"))
+        .map((element) => element.getBoundingClientRect().height),
+    };
+  });
+  const readCortexFootprint = () => page.locator(".home-cortex-card canvas").evaluate((node) => {
+    const canvas = node as HTMLCanvasElement;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context || canvas.width === 0 || canvas.height === 0) return { widthRatio: 0, heightRatio: 0 };
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let minX = canvas.width;
+    let minY = canvas.height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < canvas.height; y += 2) {
+      for (let x = 0; x < canvas.width; x += 2) {
+        const offset = (y * canvas.width + x) * 4;
+        const red = pixels[offset] ?? 0;
+        const green = pixels[offset + 1] ?? 0;
+        const blue = pixels[offset + 2] ?? 0;
+        const alpha = pixels[offset + 3] ?? 0;
+        const maximum = Math.max(red, green, blue);
+        const minimum = Math.min(red, green, blue);
+        if (alpha < 35 || maximum < 80 || maximum - minimum < 35) continue;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    return maxX < minX || maxY < minY
+      ? { widthRatio: 0, heightRatio: 0 }
+      : { widthRatio: (maxX - minX + 1) / canvas.width, heightRatio: (maxY - minY + 1) / canvas.height };
+  });
+  let cortexFootprint = await readCortexFootprint();
+  for (let attempt = 0; attempt < 20 && (cortexFootprint.widthRatio === 0 || cortexFootprint.heightRatio === 0); attempt += 1) {
+    await page.waitForTimeout(100);
+    cortexFootprint = await readCortexFootprint();
+  }
+  expect.soft(desktopGeometry.hero?.height, "The desktop hero must remain a compact 272–320px row, not a tall empty field.").toBeGreaterThanOrEqual(272);
+  expect.soft(desktopGeometry.hero?.height, "The desktop hero must remain a compact 272–320px row, not a tall empty field.").toBeLessThanOrEqual(320);
+  expect.soft(Math.abs((desktopGeometry.heroHeader?.centerY ?? 0) - (desktopGeometry.cortex?.centerY ?? 0)), "The visible text/action group must be vertically centered against the cortex.").toBeLessThanOrEqual(32);
+  expect.soft((desktopGeometry.cortex?.width ?? 0) / (desktopGeometry.hero?.width ?? 1), "The cortex must occupy a deliberate right-hand share of the hero.").toBeGreaterThanOrEqual(0.32);
+  expect.soft((desktopGeometry.cortex?.width ?? 0) / (desktopGeometry.hero?.width ?? 1), "The cortex may not crowd out the product entry copy.").toBeLessThanOrEqual(0.52);
+  expect.soft(cortexFootprint.widthRatio, "The rendered cyan/violet cortex geometry—not its dark card—must fill the intended canvas width.").toBeGreaterThanOrEqual(0.42);
+  expect.soft(cortexFootprint.heightRatio, "The rendered cyan/violet cortex geometry—not its dark card—must fill the intended canvas height.").toBeGreaterThanOrEqual(0.62);
+  expect.soft((desktopGeometry.product?.width ?? 0) / (desktopGeometry.grid?.width ?? 1), "Produktflächen must span the full second grid row instead of leaving a visual hole.").toBeGreaterThanOrEqual(0.98);
+  expect.soft(Math.max(...desktopGeometry.emptyHeights), "One-line unavailable states must stay compact rather than amplify empty space.").toBeLessThanOrEqual(86);
+  expect.soft(Math.abs((desktopGeometry.ownWorkspace?.height ?? 0) - (desktopGeometry.pinnedWorkspace?.height ?? 0)), "The two personal cards must close at the same height in their shared desktop grid row.").toBeLessThanOrEqual(1);
+  expect.soft(desktopGeometry.pinnedHeaderBadgeCount, "A passive personal-scope label must not occupy the header action slot.").toBe(0);
+  await page.screenshot({ path: testInfo.outputPath("page01-home-1440x900.png"), fullPage: true });
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.waitForTimeout(300);
+  const mobileGeometry = await page.locator(".page").evaluate((root) => {
+    const ownPanel = Array.from(root.querySelectorAll<HTMLElement>(".panel"))
+      .find((panel) => panel.querySelector(".panel-title")?.textContent?.trim() === "Eigene Arbeitsstände");
+    const productPanel = Array.from(root.querySelectorAll<HTMLElement>(".panel"))
+      .find((panel) => panel.querySelector(".panel-title")?.textContent?.trim() === "Produktflächen");
+    const action = Array.from(ownPanel?.querySelectorAll<HTMLAnchorElement>("a") ?? [])
+      .find((link) => link.textContent?.trim() === "Workbench öffnen →");
+    const documentsMeta = Array.from(productPanel?.querySelectorAll<HTMLElement>(".meta") ?? [])
+      .find((meta) => meta.textContent?.includes("Spezifikationen"));
+    const actionBox = action?.getBoundingClientRect();
+    return {
+      actionHeight: actionBox?.height ?? 0,
+      actionOverflows: action ? action.scrollWidth > action.clientWidth : true,
+      documentsMetaDisplay: documentsMeta ? window.getComputedStyle(documentsMeta).display : "missing",
+    };
+  });
+  expect.soft(mobileGeometry.actionHeight, "The personal-workspace action must remain a single-line control on mobile.").toBeLessThanOrEqual(34);
+  expect.soft(mobileGeometry.actionOverflows, "The personal-workspace action must not overflow or wrap on mobile.").toBe(false);
+  expect.soft(mobileGeometry.documentsMetaDisplay, "Long product-detail metadata must not create a three-line mobile row.").toBe("none");
+  await page.screenshot({ path: testInfo.outputPath("page01-home-375x812.png"), fullPage: true });
+});
+
+test("Page 01 registers conditional private-workspace controls without treating mocked client transport as runtime proof", async ({ page }) => {
+  const homeEntry = ACTION_MATRIX.find((entry) => entry.route === "/home");
+  const workspaceFamily = homeEntry?.families.find((family) => family.id === "home-private-workspace");
+  expect(workspaceFamily?.memberActions.map((action) => `${action.id}:${action.availability}`)).toEqual([
+    "home-workspace-continue:conditional",
+    "home-workspace-pin:conditional",
+    "home-workspace-delete:conditional",
+  ]);
+
+  const buildId = "page01-private-build";
+  const requests: Array<{ method: string; pathname: string }> = [];
+  await page.route("**/api/v1/workspace/builds/mine", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        contract_version: "github-workspace-builds-v1",
+        status: "verified",
+        source: "cloudflare-d1",
+        identity_scope: "server_bound_workspace_subject",
+        persisted: true,
+        builds: [{ id: buildId, title: "Privater Test-Arbeitsstand", created_at: "2026-09-18T11:00:00Z", updated_at: null, pinned: false }],
+        pinned_builds: [],
+      }),
+    });
+  });
+  await page.route(`**/api/v1/workspace/builds/${buildId}/pin`, async (route) => {
+    requests.push({ method: route.request().method(), pathname: new URL(route.request().url()).pathname });
+    await route.fulfill({ status: 204 });
+  });
+  await page.route(`**/api/v1/workspace/builds/${buildId}`, async (route) => {
+    requests.push({ method: route.request().method(), pathname: new URL(route.request().url()).pathname });
+    await route.fulfill({ status: 204 });
+  });
+
+  await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  await expect(page.getByTestId(`home-workspace-continue-${buildId}`)).toHaveAttribute("href", `/workbench?build=${buildId}`);
+  await page.getByTestId(`home-workspace-pin-${buildId}`).click();
+  await expect.poll(() => requests).toContainEqual({ method: "PUT", pathname: `/api/v1/workspace/builds/${buildId}/pin` });
+  await page.getByTestId(`home-workspace-delete-${buildId}`).click();
+  expect(requests).not.toContainEqual({ method: "DELETE", pathname: `/api/v1/workspace/builds/${buildId}` });
+  await expect(page.getByTestId(`home-workspace-delete-${buildId}`)).toHaveText("Wirklich löschen");
+  await page.getByTestId(`home-workspace-cancel-delete-${buildId}`).click();
+  expect(requests).not.toContainEqual({ method: "DELETE", pathname: `/api/v1/workspace/builds/${buildId}` });
+  await page.getByTestId(`home-workspace-delete-${buildId}`).click();
+  await page.getByTestId(`home-workspace-delete-${buildId}`).click();
+  await expect.poll(() => requests).toContainEqual({ method: "DELETE", pathname: `/api/v1/workspace/builds/${buildId}` });
+});
+
 test("all 22 canonical pages directly prove every enabled page-local action and reject unregistered controls", async ({ page, context }, testInfo) => {
   test.setTimeout(75 * 60_000);
   page.setDefaultTimeout(15_000);
@@ -1541,9 +1717,9 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     expect(directEffects).toHaveLength(enabledMembers.length - 1);
     expect(preverifiedExactControls.map((audit) => audit.action_id)).toEqual(["workbench-build"]);
     expect(nonDirectPasses).toEqual([]);
-    expect(allowedBuildRequests, "Home and Games must each use their own visible build control").toHaveLength(2);
+    expect(allowedBuildRequests, "Games must retain the sole directly verified route-local build control").toHaveLength(1);
     expect(unexpectedProviderRequests, "no direct provider/LLM endpoint may bypass /api/v1/build").toEqual([]);
-    expect(liveProviderResponses, "both direct route builds must report live_provider_calls=true").toHaveLength(2);
+    expect(liveProviderResponses, "the direct route build must report live_provider_calls=true").toHaveLength(1);
     expect(unregisteredActions, "visible page-local controls missing from the action registry").toEqual([]);
     expect(consoleErrors).toEqual([]);
     expect(pageErrors).toEqual([]);

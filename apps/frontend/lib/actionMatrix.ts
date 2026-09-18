@@ -281,28 +281,17 @@ export const ACTION_MATRIX: readonly PageActionEntry[] = [
     route: "/home",
     title: "Start",
     families: [
-      family("home-build-examples", "Build and examples", "Gateway runtime readiness is true.", "Prompt or example starts one build and renders an honest result or error.", [
-        member("home-prompt", "Enter build prompt", `.ai-builder textarea`, "Home builder is mounted.", "Prompt state changes.", `.ai-builder textarea`),
-        member("home-build", "Build prompt", `[data-testid="ab-build"]`, "Prompt is non-empty and the separately approved live-provider gate is open.", "Build result, preview, files and audit facts become visible.", `[data-testid="ab-result"]`),
-        member("home-iteration-input", "Enter build iteration", `.ab-iter-input`, "A successful build exists.", "Iteration input state changes without starting a provider request.", `.ab-iter-input`),
-        member("home-example", "Select example prompt", `.ab-chip`, "Home builder is mounted.", "Selected example is copied into the prompt without starting a provider request.", `.ai-builder textarea`),
-        member("home-cancel", "Cancel in-flight build", `.ai-builder button:has-text("Abbrechen")`, "A separately approved build request is in flight.", "Request is aborted and busy state clears.", `.ab-loading`, "conditional"),
-      ]),
-      family("home-result-actions", "Result share and download", "A successful build with HTML exists.", "Result can be inspected, shared and downloaded.", [
-        member("home-result-fullscreen", "Open result fullscreen", `[data-testid="ab-result"] button:has-text("Vollbild")`, "A successful build exists.", "Generated HTML opens in a new browser window.", `[data-testid="ab-frame"]`),
-        member("home-result-share", "Copy result share URL", `[data-testid="ab-result"] button:has-text("Teilen")`, "Build has a share_path and Clipboard API is available.", "Absolute share URL is copied.", `[data-testid="ab-result"]`),
-        member("home-result-download", "Download result HTML", `[data-testid="ab-result"] button:has-text("Herunterladen")`, "A successful build exists.", "Generated HTML downloads as a file.", `[data-testid="ab-result"]`),
-        member("home-result-code-toggle", "Toggle preview/code", `[data-testid="ab-result"] button:has-text("Code"), [data-testid="ab-result"] button:has-text("Vorschau")`, "A successful build exists.", "Visible result switches between iframe and source code.", `[data-testid="ab-frame"], .ab-code`),
-      ]),
-      family("home-links-live-console", "Product links and live console", "Home page is mounted.", "Page-local links navigate and read-only console controls update output.", [
+      family("home-product-navigation", "Product navigation", "Home page is mounted.", "Each product link performs same-origin navigation without a provider request.", [
         member("home-link-workbench", "Open workbench", `a[href="/workbench"]`, "Home page is mounted.", "Browser navigates to /workbench.", "main"),
-        member("home-link-organism", "Open organism", `a[href="/organism"]`, "Home page is mounted.", "Browser navigates to /organism.", "main"),
-        member("home-link-evidence", "Open evidence", `a[href="/evidence"]`, "Home page is mounted.", "Browser navigates to /evidence.", "main"),
         member("home-link-games", "Open games", `a[href="/games"]`, "Home page is mounted.", "Browser navigates to /games.", "main"),
         member("home-link-apps", "Open apps", `a[href="/apps"]`, "Home page is mounted.", "Browser navigates to /apps.", "main"),
         member("home-link-media", "Open media", `a[href="/media"]`, "Home page is mounted.", "Browser navigates to /media.", "main"),
         member("home-link-docs", "Open documents", `a[href="/docs-output"]`, "Home page is mounted.", "Browser navigates to /docs-output.", "main"),
-        ...liveConsoleMembers("home-live"),
+      ]),
+      family("home-private-workspace", "Conditional private workspace controls", "A server-bound workspace identity and at least one permitted persisted build are available.", "Home may only continue, pin, or delete the current person's permitted workspace records; server authorization remains required.", [
+        member("home-workspace-continue", "Continue own workspace build", `[data-testid^="home-workspace-continue-"]`, "A permitted personal build is returned by the server-bound mine scope.", "Browser navigates same-origin to the selected /workbench?build=<id>.", "main", "conditional"),
+        member("home-workspace-pin", "Pin or unpin own workspace build", `[data-testid^="home-workspace-pin-"]`, "A permitted personal build is returned by the server-bound mine scope.", "The browser sends the scoped pin request; the server must authorize it before the refreshed list changes.", `[data-testid="home-workspace-pins"]`, "conditional"),
+        member("home-workspace-delete", "Delete own workspace build", `[data-testid^="home-workspace-delete-"]`, "A permitted personal build is returned by the server-bound mine scope.", "The browser sends the scoped delete request; the server must authorize it before the refreshed list changes.", `[data-testid="home-workspace-builds"]`, "conditional"),
       ]),
     ],
     excludedGates: [],
@@ -700,12 +689,12 @@ export function validateActionMatrix(): true {
     || preverified[0].locator !== `[data-testid="ws-build"]`) {
     throw new Error("only the exact P0 workbench build control may use preverified evidence");
   }
-  for (const id of ["home-build", "games-build-run"]) {
+  for (const id of ["games-build-run"]) {
     const action = ACTION_MATRIX.flatMap((page) => page.families)
       .flatMap((item) => item.memberActions)
       .find((candidate) => candidate.id === id);
     if (!action || action.availability !== "enabled" || action.verificationMode !== "interactive") {
-      throw new Error(`${id} must remain enabled and directly verified on its own route`);
+      throw new Error(`${id} must remain the enabled, directly verified route-local build control`);
     }
     if (action.evidence.some((item) => item.source === "product-acceptance")) {
       throw new Error(`${id} must not inherit workbench product-acceptance evidence`);
