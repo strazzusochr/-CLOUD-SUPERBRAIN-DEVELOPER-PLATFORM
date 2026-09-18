@@ -89,7 +89,9 @@ export default function CortexCanvas({
   interactive = true,
   showRegions = true,
   sourceLabel = "SPEC · ORGANISM",
+  showStatus = true,
   forceReducedMotion = false,
+  visualScale = 1,
   className,
 }: {
   runState?: RunState;
@@ -99,7 +101,10 @@ export default function CortexCanvas({
   interactive?: boolean;
   showRegions?: boolean;
   sourceLabel?: string;
+  showStatus?: boolean;
   forceReducedMotion?: boolean;
+  /** Presentation-only scale for bounded decorative placements such as Home. */
+  visualScale?: number;
   className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -186,7 +191,7 @@ export default function CortexCanvas({
 
       const cx = W / 2;
       const cy = H / 2;
-      const scaleBase = Math.min(W, H) * 0.46;
+      const scaleBase = Math.min(W, H) * 0.46 * visualScale;
       const camZ = 3.4;
       const tilt = -0.22;
       const cosT = Math.cos(tilt);
@@ -276,7 +281,6 @@ export default function CortexCanvas({
       ctx.beginPath();
       ctx.arc(cx, cy + 6, coreR * 0.5, 0, Math.PI * 2);
       ctx.fill();
-
       // regions
       regionScreen.current = [];
       ctx.globalCompositeOperation = "source-over";
@@ -324,13 +328,16 @@ export default function CortexCanvas({
 
       raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
+    // Paint one complete frame immediately after the backing store has been
+    // sized. Waiting for the first RAF made the decorative canvas intermittently
+    // blank during deterministic browser measurements after a viewport resize.
+    frame(performance.now() + 1000 / 30);
 
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [brain, effectiveReducedMotion, showRegions]);
+  }, [brain, effectiveReducedMotion, showRegions, visualScale]);
 
   const handlePointer = (e: React.PointerEvent) => {
     if (!interactive || !onSelectRegion) return;
@@ -384,7 +391,7 @@ export default function CortexCanvas({
         aria-describedby="phase6-reduced-motion-description"
         data-testid="phase6-reduced-motion-fallback"
       >
-        <span className="cortex-badge">{sourceLabel} · REDUCED MOTION</span>
+        {showStatus ? <span className="cortex-badge">{sourceLabel} · REDUCED MOTION</span> : null}
         <p id="phase6-reduced-motion-description" className="sr-only">
           Zehn Fokusbereiche. Mit Pfeiltasten, Pos1 und Ende navigieren; mit Eingabe oder Leertaste auswaehlen.
         </p>
@@ -425,11 +432,13 @@ export default function CortexCanvas({
         role="img"
         aria-label={`Living cortex organism, run state ${runState}`}
       />
-      <span className="cortex-badge">{sourceLabel}</span>
-      <span className="cortex-state">
-        <span className={`dot dot-state-${runState}`} />
-        {STATE_LABEL[runState]}
-      </span>
+      {showStatus ? <span className="cortex-badge">{sourceLabel}</span> : null}
+      {showStatus ? (
+        <span className="cortex-state">
+          <span className={`dot dot-state-${runState}`} />
+          {STATE_LABEL[runState]}
+        </span>
+      ) : null}
     </div>
   );
 }

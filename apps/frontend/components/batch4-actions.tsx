@@ -37,15 +37,10 @@ export function HomeCortexHero() {
         activeRegion="prefrontal"
         interactive={false}
         showRegions={false}
-        nodeCount={520}
-        sourceLabel="CLIENT-3D · CORTEX HERO"
+        showStatus={false}
+        visualScale={2.6}
         className="home-cortex-canvas"
       />
-      <div className="home-cortex-footer">
-        <span className="badge badge-cyan">leuchtender 3D-Cortex</span>
-        <span className="badge badge-amber">client-lokal</span>
-        <span className="badge badge-green">keine Fake-Daten</span>
-      </div>
     </div>
   );
 }

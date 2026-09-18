@@ -13,6 +13,7 @@ from app import main
 
 
 TEST_AGENT_TOKEN = "unit-agent-token"
+TEST_WORKSPACE_SUBJECT = "github:101"
 
 
 class FakeResult:
@@ -30,17 +31,18 @@ class FakeResult:
 class FakeConnection:
     def __init__(self, *, fail_audit: bool = False) -> None:
         self.builds: dict[str, tuple[object, ...]] = {}
+        self.pins: set[tuple[str, str]] = set()
         self.audit_events: list[object] = []
         self.fail_audit = fail_audit
-        self._snapshot: tuple[dict[str, tuple[object, ...]], list[object]] | None = None
+        self._snapshot: tuple[dict[str, tuple[object, ...]], set[tuple[str, str]], list[object]] | None = None
 
     def __enter__(self) -> "FakeConnection":
-        self._snapshot = (dict(self.builds), list(self.audit_events))
+        self._snapshot = (dict(self.builds), set(self.pins), list(self.audit_events))
         return self
 
     def __exit__(self, exc_type: object, _exc: object, _traceback: object) -> None:
         if exc_type is not None and self._snapshot is not None:
-            self.builds, self.audit_events = self._snapshot
+            self.builds, self.pins, self.audit_events = self._snapshot
         self._snapshot = None
 
     def execute(self, sql: str, params: tuple[object, ...]) -> FakeResult:
@@ -49,6 +51,7 @@ class FakeConnection:
             (
                 build_id,
                 project_id,
+                owner_subject,
                 title,
                 prompt_sha256,
                 model,
@@ -63,6 +66,7 @@ class FakeConnection:
             row = (
                 build_id,
                 project_id,
+                owner_subject,
                 title,
                 prompt_sha256,
                 model,
@@ -75,6 +79,20 @@ class FakeConnection:
             )
             self.builds[str(build_id)] = row
             return FakeResult(row=row)
+        if normalized.startswith("INSERT INTO workspace_build_pins"):
+            owner_subject, build_id = params
+            self.pins.add((str(owner_subject), str(build_id)))
+            return FakeResult()
+        if normalized.startswith("DELETE FROM workspace_build_pins"):
+            owner_subject, build_id = params
+            self.pins.discard((str(owner_subject), str(build_id)))
+            return FakeResult()
+        if normalized.startswith("DELETE FROM builds WHERE id = %s AND owner_subject = %s"):
+            build_id, owner_subject = params
+            row = self.builds.get(str(build_id))
+            if row and row[2] == owner_subject:
+                self.builds.pop(str(build_id), None)
+            return FakeResult()
         if normalized.startswith("INSERT INTO audit_log"):
             if self.fail_audit:
                 raise RuntimeError("private database audit failure")
@@ -84,6 +102,27 @@ class FakeConnection:
             project_id, limit = params
             rows = [row for row in self.builds.values() if row[1] == project_id][: int(limit)]
             return FakeResult(rows=rows)
+        if "FROM workspace_build_pins p JOIN builds b" in normalized:
+            owner_subject = str(params[0])
+            rows = [
+                row for build_id, row in self.builds.items()
+                if (owner_subject, build_id) in self.pins and row[2] == owner_subject
+            ]
+            return FakeResult(rows=rows)
+        if "FROM builds b WHERE b.owner_subject = %s" in normalized:
+            owner_subject, limit = params
+            rows = [
+                (*row, (str(owner_subject), str(row[0])) in self.pins)
+                for row in self.builds.values()
+                if row[2] == owner_subject
+            ][: int(limit)]
+            return FakeResult(rows=rows)
+        if "SELECT id FROM builds WHERE id = %s AND owner_subject = %s" in normalized:
+            row = self.builds.get(str(params[0]))
+            return FakeResult(row=(row[0],) if row and row[2] == params[1] else None)
+        if "FROM builds WHERE id = %s AND owner_subject = %s" in normalized:
+            row = self.builds.get(str(params[0]))
+            return FakeResult(row=row if row and row[2] == params[1] else None)
         if "FROM builds WHERE id = %s" in normalized:
             return FakeResult(row=self.builds.get(str(params[0])))
         raise AssertionError(f"Unhandled SQL in build registry fake: {normalized}")
@@ -110,7 +149,11 @@ class BuildRegistryTests(unittest.TestCase):
         self.connection = FakeConnection()
         self.http_request = SimpleNamespace(state=SimpleNamespace(trace_id="trace-build-unit"))
 
-    def create(self, request: main.BuildRegistryRequest | None = None) -> dict[str, object]:
+    def create(
+        self,
+        request: main.BuildRegistryRequest | None = None,
+        owner_subject: str = TEST_WORKSPACE_SUBJECT,
+    ) -> dict[str, object]:
         with (
             patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
             patch.object(main, "database_url", return_value="postgresql://unit"),
@@ -120,18 +163,19 @@ class BuildRegistryTests(unittest.TestCase):
                 request or valid_request(),
                 self.http_request,
                 TEST_AGENT_TOKEN,
+                owner_subject,
             )
 
     def test_create_requires_configured_matching_agent_token(self) -> None:
         request = valid_request()
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(HTTPException) as unconfigured:
-                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN)
+                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
         self.assertEqual(unconfigured.exception.status_code, 503)
 
         with patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}):
             with self.assertRaises(HTTPException) as unauthorized:
-                main.create_build_registry_entry(request, self.http_request, "wrong-token")
+                main.create_build_registry_entry(request, self.http_request, "wrong-token", TEST_WORKSPACE_SUBJECT)
         self.assertEqual(unauthorized.exception.status_code, 401)
         self.assertEqual(self.connection.builds, {})
 
@@ -174,6 +218,47 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertFalse(readback["live_mcp_writes"])
         self.assertFalse(readback["secret_output"])
 
+    def test_workspace_scope_returns_only_the_server_bound_github_owner_and_keeps_pins_separate(self) -> None:
+        """A personal Home list may never fall back to the shared default project.
+
+        The workspace subject is deliberately a trusted service header rather
+        than a request-body field: this test proves both owner separation and
+        that a pin is a workspace record, not a marketplace-style favourite.
+        """
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            main.create_build_registry_entry(
+                valid_request(id="build_alice", title="Alice workspace"),
+                self.http_request,
+                TEST_AGENT_TOKEN,
+                "github:101",
+            )
+            main.create_build_registry_entry(
+                valid_request(id="build_bob", title="Bob workspace"),
+                self.http_request,
+                TEST_AGENT_TOKEN,
+                "github:202",
+            )
+            main.set_workspace_build_pin("build_alice", "github:101", TEST_AGENT_TOKEN)
+            mine = main.list_workspace_build_registry_entries("github:101", 4, TEST_AGENT_TOKEN)
+            foreign = main.get_workspace_build_registry_entry("build_bob", "github:101", TEST_AGENT_TOKEN)
+            foreign_delete = main.delete_workspace_build_registry_entry("build_bob", "github:101", TEST_AGENT_TOKEN)
+            own_delete = main.delete_workspace_build_registry_entry("build_alice", "github:101", TEST_AGENT_TOKEN)
+            after_delete = main.list_workspace_build_registry_entries("github:101", 4, TEST_AGENT_TOKEN)
+
+        self.assertEqual(mine["contract_version"], "github-workspace-builds-v1")
+        self.assertEqual([build["id"] for build in mine["builds"]], ["build_alice"])
+        self.assertEqual([build["id"] for build in mine["pinned_builds"]], ["build_alice"])
+        self.assertTrue(mine["builds"][0]["pinned"])
+        self.assertIsNone(foreign)
+        self.assertIsNone(foreign_delete)
+        self.assertEqual(own_delete["status"], "deleted")
+        self.assertEqual(after_delete["builds"], [])
+        self.assertNotIn("github:202", str(mine))
+
     def test_secret_material_is_rejected_before_database_access_without_echo(self) -> None:
         fixture_secret = "sk-" + ("unitfixture" * 3)
         request = valid_request(prompt=f"Do not store {fixture_secret}")
@@ -182,7 +267,7 @@ class BuildRegistryTests(unittest.TestCase):
             patch.object(main.psycopg, "connect") as connect,
         ):
             with self.assertRaises(HTTPException) as raised:
-                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN)
+                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
 
         self.assertEqual(raised.exception.status_code, 400)
         self.assertNotIn(fixture_secret, str(raised.exception.detail))
@@ -201,7 +286,7 @@ class BuildRegistryTests(unittest.TestCase):
             patch.object(main.psycopg, "connect") as connect,
         ):
             with self.assertRaises(HTTPException) as raised:
-                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN)
+                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
 
         self.assertEqual(raised.exception.status_code, 400)
         self.assertEqual(raised.exception.detail, "unrunnable build html")
@@ -219,7 +304,7 @@ class BuildRegistryTests(unittest.TestCase):
             patch.object(main.psycopg, "connect") as module_connect,
         ):
             with self.assertRaises(HTTPException) as module_raised:
-                main.create_build_registry_entry(module_request, self.http_request, TEST_AGENT_TOKEN)
+                main.create_build_registry_entry(module_request, self.http_request, TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
 
         self.assertEqual(module_raised.exception.status_code, 400)
         self.assertEqual(module_raised.exception.detail, "unrunnable build html")
@@ -252,7 +337,7 @@ class BuildRegistryTests(unittest.TestCase):
             patch.object(main.psycopg, "connect") as connect,
         ):
             with self.assertRaises(HTTPException) as raised:
-                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN)
+                main.create_build_registry_entry(request, self.http_request, TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
 
         self.assertEqual(raised.exception.status_code, 400)
         self.assertEqual(raised.exception.detail, "unrunnable build html")
@@ -267,7 +352,7 @@ class BuildRegistryTests(unittest.TestCase):
             patch.object(main.psycopg, "connect", return_value=self.connection),
         ):
             with self.assertRaises(HTTPException) as raised:
-                main.create_build_registry_entry(valid_request(), self.http_request, TEST_AGENT_TOKEN)
+                main.create_build_registry_entry(valid_request(), self.http_request, TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
 
         self.assertEqual(raised.exception.status_code, 503)
         self.assertEqual(raised.exception.detail, "build persistence failed")
@@ -287,6 +372,7 @@ class BuildRegistryTests(unittest.TestCase):
                     valid_request(prompt="Different replay content"),
                     self.http_request,
                     TEST_AGENT_TOKEN,
+                    TEST_WORKSPACE_SUBJECT,
                 )
 
         self.assertEqual(raised.exception.status_code, 409)

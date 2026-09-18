@@ -7,7 +7,7 @@ import worker, { RuntimeCoordinator } from "../src/index.js";
 const token = "unit-test-agent-token";
 const canonicalOauthOrigin = "https://frontend-seven-psi-78.vercel.app";
 const canonicalOauthRedirect = `${canonicalOauthOrigin}/api/v1/auth/callback`;
-const testJwtSigningSecret = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
+const testJwtSigningSecret = Buffer.alloc(32, 7).toString("base64url");
 
 class FakeStatement {
   constructor(db, sql) {
@@ -23,18 +23,29 @@ class FakeStatement {
 
   async run() {
     if (this.sql.startsWith("INSERT INTO builds")) {
-      const [id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at] = this.values;
+      const [id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at, owner_subject] = this.values;
       if (this.db.builds.has(id)) throw new Error("UNIQUE constraint failed: builds.id");
-      this.db.builds.set(id, { id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at, deleted_at: null });
+      this.db.builds.set(id, { id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at, owner_subject: owner_subject || null, deleted_at: null });
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith("UPDATE builds SET deleted_at")) {
-      const [deleted_at, updated_at, id] = this.values;
+      const [deleted_at, updated_at, id, owner_subject] = this.values;
       const row = this.db.builds.get(id);
-      if (!row || row.deleted_at) return { meta: { changes: 0 } };
+      if (!row || row.deleted_at || (this.sql.includes("owner_subject = ?") && row.owner_subject !== owner_subject)) return { meta: { changes: 0 } };
       if (this.db.keepBuildActiveOnDelete) return { meta: { changes: 1 } };
       Object.assign(row, { deleted_at, updated_at });
       return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO workspace_build_pins")) {
+      const [owner_subject, build_id, created_at] = this.values;
+      const key = `${owner_subject}:${build_id}`;
+      const existed = this.db.pins.has(key);
+      this.db.pins.set(key, { owner_subject, build_id, created_at });
+      return { meta: { changes: existed ? 0 : 1 } };
+    }
+    if (this.sql.startsWith("DELETE FROM workspace_build_pins")) {
+      const [owner_subject, build_id] = this.values;
+      return { meta: { changes: this.db.pins.delete(`${owner_subject}:${build_id}`) ? 1 : 0 } };
     }
     if (this.sql.startsWith("INSERT INTO workspace_artifacts")) {
       const [id, project_id, source_page, artifact_type, title, summary, status, run_id, metadata_json, created_at] = this.values;
@@ -332,6 +343,11 @@ class FakeStatement {
       const row = this.db.builds.get(this.values[0]);
       return row && !row.deleted_at ? { id: row.id, deleted_at: row.deleted_at } : null;
     }
+    if (this.sql.startsWith("SELECT id FROM builds WHERE id = ? AND owner_subject = ?")) {
+      const [id, owner_subject] = this.values;
+      const row = this.db.builds.get(id);
+      return row && !row.deleted_at && row.owner_subject === owner_subject ? { id: row.id } : null;
+    }
     if (this.sql.startsWith("SELECT * FROM builds WHERE id")) {
       if (this.db.throwBuildReadback) throw new Error("simulated build readback transport failure");
       const row = this.db.builds.get(this.values[0]);
@@ -362,10 +378,24 @@ class FakeStatement {
   }
 
   async all() {
+    if (this.sql.includes("FROM workspace_build_pins")) {
+      const [owner_subject, limit] = this.values;
+      const results = [...this.db.pins.values()]
+        .filter((pin) => pin.owner_subject === owner_subject)
+        .map((pin) => this.db.builds.get(pin.build_id))
+        .filter((row) => row && row.owner_subject === owner_subject && !row.deleted_at)
+        .slice(0, limit)
+        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => row);
+      return { results };
+    }
     if (this.sql.includes("FROM builds")) {
-      const [projectId, limit] = this.values;
+      const [first, second] = this.values;
+      const ownerScoped = this.sql.includes("owner_subject = ?");
+      const projectId = ownerScoped ? null : first;
+      const ownerSubject = ownerScoped ? first : null;
+      const limit = second;
       const results = [...this.db.builds.values()]
-        .filter((row) => row.project_id === projectId && !row.deleted_at)
+        .filter((row) => (ownerScoped ? row.owner_subject === ownerSubject : row.project_id === projectId) && !row.deleted_at)
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .slice(0, limit)
         .map(({ html: _html, deleted_at: _deletedAt, ...row }) => row);
@@ -416,6 +446,7 @@ class FakeD1 {
     failHealthRead = false,
   } = {}) {
     this.builds = new Map();
+    this.pins = new Map();
     this.artifacts = new Map();
     this.nativeArtifacts = new Map();
     this.sessions = new Map();
@@ -451,6 +482,7 @@ class FakeD1 {
   async batch(statements) {
     const snapshot = {
       builds: new Map([...this.builds].map(([key, value]) => [key, { ...value }])),
+      pins: new Map([...this.pins].map(([key, value]) => [key, { ...value }])),
       artifacts: new Map([...this.artifacts].map(([key, value]) => [key, { ...value }])),
       nativeArtifacts: new Map([...this.nativeArtifacts].map(([key, value]) => [key, { ...value }])),
       sessions: new Map([...this.sessions].map(([key, value]) => [key, { ...value }])),
@@ -468,6 +500,7 @@ class FakeD1 {
       return results;
     } catch (error) {
       this.builds = snapshot.builds;
+      this.pins = snapshot.pins;
       this.artifacts = snapshot.artifacts;
       this.nativeArtifacts = snapshot.nativeArtifacts;
       this.sessions = snapshot.sessions;
@@ -548,7 +581,7 @@ function env(options = {}) {
     RUNTIME_COORDINATOR: new FakeDurableNamespace(),
     RUNTIME_QUEUE: new FakeQueue(),
     GITHUB_OAUTH_CLIENT_ID: options.githubClientId !== undefined ? options.githubClientId : "Iv1.8a61f9b3a7aba766",
-    GITHUB_OAUTH_CLIENT_SECRET: options.githubClientSecret !== undefined ? options.githubClientSecret : "0123456789abcdef0123456789abcdef01234567",
+    GITHUB_OAUTH_CLIENT_SECRET: options.githubClientSecret !== undefined ? options.githubClientSecret : "unit-github-client-secret".padEnd(40, "x"),
     OAUTH_PUBLIC_ORIGIN: options.oauthPublicOrigin !== undefined ? options.oauthPublicOrigin : canonicalOauthOrigin,
     GITHUB_OAUTH_REDIRECT_URI: options.githubRedirectUri !== undefined ? options.githubRedirectUri : canonicalOauthRedirect,
     GITHUB_OAUTH_OWNER_IDS: options.githubOwnerIds !== undefined ? options.githubOwnerIds : "123456,789012",
@@ -882,6 +915,40 @@ test("a generated build survives the create-list-read-delete registry roundtrip"
   assert.equal(fakeEnv.DB.audit[1].subject_id, validBuild.id);
   const afterDelete = await worker.fetch(new Request(`https://state.example/api/v1/build/${validBuild.id}`), fakeEnv);
   assert.equal(afterDelete.status, 404);
+});
+
+test("workspace D1 routes bind list, pin, unpin, and delete to the server subject", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const foreign = "local-session:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  fakeEnv.DB.builds.set("owned_build", {
+    id: "owned_build", project_id: "default", owner_subject: owner, title: "Owner build",
+    prompt_sha256: "a".repeat(64), model: "test", gateway_mode: "dry-run", gateway_provider: "test",
+    live_provider_calls: 0, created_at: "2026-09-18T00:00:00.000Z", updated_at: "2026-09-18T00:00:00.000Z",
+    html: "<!doctype html><html><body>ok</body></html>", deleted_at: null,
+  });
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const foreignHeaders = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": foreign, "x-request-id": "same-negative-probe" };
+
+  const listed = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/mine", { headers }), fakeEnv);
+  assert.equal(listed.status, 200);
+  assert.deepEqual((await listed.json()).builds.map((build) => build.id), ["owned_build"]);
+
+  const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "PUT", headers }), fakeEnv);
+  assert.equal(pinned.status, 200);
+  assert.equal(fakeEnv.DB.pins.size, 1);
+  const foreignDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { method: "DELETE", headers: foreignHeaders }), fakeEnv);
+  const unknownDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/unknown_build", { method: "DELETE", headers: foreignHeaders }), fakeEnv);
+  assert.equal(foreignDelete.status, 404);
+  assert.equal(unknownDelete.status, 404);
+  assert.equal(await foreignDelete.clone().text(), await unknownDelete.clone().text());
+
+  const deleted = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { method: "DELETE", headers }), fakeEnv);
+  assert.equal(deleted.status, 200);
+  assert.notEqual(fakeEnv.DB.builds.get("owned_build").deleted_at, null);
+  assert.equal(fakeEnv.DB.pins.size, 1);
+  const afterDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/mine", { headers }), fakeEnv);
+  assert.deepEqual((await afterDelete.json()).builds, []);
 });
 
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {

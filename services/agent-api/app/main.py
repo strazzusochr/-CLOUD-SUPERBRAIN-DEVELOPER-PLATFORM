@@ -1498,8 +1498,10 @@ AGENT_RESEARCH_SOURCE_LONG_HEX_PATTERN = re.compile(r"\b[A-Fa-f0-9]{32,}\b")
 WORKSPACE_ARTIFACT_CONTRACT_VERSION = "goal-b-workspace-artifact-registry-v1"
 WORKSPACE_ARTIFACT_EVIDENCE_REF = "goal_b_workspace_artifact_registry_visible"
 BUILD_REGISTRY_CONTRACT_VERSION = "postgres-build-registry-v1"
+WORKSPACE_BUILD_CONTRACT_VERSION = "github-workspace-builds-v1"
 BUILD_REGISTRY_MAX_HTML_BYTES = 160 * 1024
 BUILD_REGISTRY_MAX_PROMPT_BYTES = 16 * 1024
+WORKSPACE_SUBJECT_PATTERN = re.compile(r"^(?:github:[1-9][0-9]{0,18}|local-session:[0-9a-f-]{36})$")
 READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION = "goal-b-readonly-tool-execute-v1"
 READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF = "goal_b_readonly_tool_execute_visible"
 FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION = "filesystem-project-progress-read-v1"
@@ -10541,17 +10543,19 @@ def _build_registry_authenticated(supplied_token: str | None) -> bool:
 
 
 def _build_registry_row(row: tuple[object, ...], *, include_html: bool) -> dict[str, object]:
+    # Workspace-aware rows include owner_subject after project_id; legacy rows do not.
+    offset = 1 if len(row) >= 12 else 0
     build = {
         "id": str(row[0]),
         "project_id": str(row[1]),
-        "title": str(row[2]),
-        "prompt_sha256": str(row[3]),
-        "model": str(row[4]),
-        "gateway_mode": str(row[6]),
-        "gateway_provider": str(row[7]),
-        "live_provider_calls": bool(row[8]),
-        "created_at": row[9].isoformat() if row[9] else None,
-        "updated_at": row[10].isoformat() if row[10] else None,
+        "title": str(row[2 + offset]),
+        "prompt_sha256": str(row[3 + offset]),
+        "model": str(row[4 + offset]),
+        "gateway_mode": str(row[6 + offset]),
+        "gateway_provider": str(row[7 + offset]),
+        "live_provider_calls": bool(row[8 + offset]),
+        "created_at": row[9 + offset].isoformat() if row[9 + offset] else None,
+        "updated_at": row[10 + offset].isoformat() if row[10 + offset] else None,
         "share_path": f"/run/{row[0]}",
         "persisted": True,
         "audit_persisted": True,
@@ -10561,7 +10565,7 @@ def _build_registry_row(row: tuple[object, ...], *, include_html: bool) -> dict[
         "secret_output": False,
     }
     if include_html:
-        build["html"] = str(row[5])
+        build["html"] = str(row[5 + offset])
     return build
 
 
@@ -10570,11 +10574,13 @@ def create_build_registry_entry(
     request: BuildRegistryRequest,
     http_request: Request,
     x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
 ) -> dict[str, object]:
     if not os.getenv("AGENT_API_AUTH_TOKEN", ""):
         raise HTTPException(status_code=503, detail="build registry authentication unavailable")
     if not _build_registry_authenticated(x_superbrain_agent_token):
         raise HTTPException(status_code=401, detail="build registry authentication required")
+    owner_subject = _workspace_subject(x_superbrain_workspace_subject)
     title = request.title.strip()
     prompt = request.prompt.strip()
     model = request.model.strip()
@@ -10604,9 +10610,9 @@ def create_build_registry_entry(
             row = conn.execute(
                 """
                 INSERT INTO builds (
-                  id, project_id, title, prompt_sha256, model, html,
+                  id, project_id, owner_subject, title, prompt_sha256, model, html,
                   gateway_mode, gateway_provider, live_provider_calls
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO NOTHING
                 RETURNING id, project_id, title, prompt_sha256, model, html,
                           gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at
@@ -10614,6 +10620,7 @@ def create_build_registry_entry(
                 (
                     request.id,
                     request.project_id,
+                    owner_subject,
                     title,
                     prompt_sha256,
                     model,
@@ -10743,6 +10750,203 @@ def workspace_artifact_row(row: tuple[object, ...]) -> dict[str, object]:
         "evidence_ref": str(details.get("evidence_ref", WORKSPACE_ARTIFACT_EVIDENCE_REF)),
         "metadata": details.get("metadata", {}),
     }
+
+
+def _workspace_subject(value: str | None) -> str | None:
+    clean = value.strip() if isinstance(value, str) else ""
+    return clean if WORKSPACE_SUBJECT_PATTERN.fullmatch(clean) else None
+
+
+def _workspace_build_authenticated(supplied_token: str | None, subject: str | None) -> str:
+    if not _build_registry_authenticated(supplied_token):
+        raise HTTPException(status_code=401, detail="workspace service authentication required")
+    clean_subject = _workspace_subject(subject)
+    if not clean_subject:
+        raise HTTPException(status_code=401, detail="workspace identity required")
+    return clean_subject
+
+
+def _workspace_build_row(row: tuple[object, ...], *, include_html: bool, pinned: bool = False) -> dict[str, object]:
+    build = {
+        "id": str(row[0]),
+        "project_id": str(row[1]),
+        "title": str(row[3]),
+        "prompt_sha256": str(row[4]),
+        "model": str(row[5]),
+        "gateway_mode": str(row[7]),
+        "gateway_provider": str(row[8]),
+        "live_provider_calls": bool(row[9]),
+        "created_at": row[10].isoformat() if row[10] else None,
+        "updated_at": row[11].isoformat() if row[11] else None,
+        "share_path": f"/run/{row[0]}",
+        "persisted": True,
+        "audit_persisted": True,
+        "direct_provider_calls": False,
+        "live_mcp_writes": False,
+        "production_deploy": False,
+        "secret_output": False,
+    }
+    if include_html:
+        build["html"] = str(row[6])
+    if pinned:
+        build["pinned"] = True
+    return build
+
+
+def _workspace_build_row_query() -> str:
+    return """
+        SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.html,
+               b.gateway_mode, b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at
+        FROM builds b
+    """
+
+
+def list_workspace_build_registry_entries(owner_subject: str | None, limit: int, token: str | None) -> dict[str, object]:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    safe_limit = max(1, min(int(limit), 4))
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            recent_rows = conn.execute(
+                _workspace_build_row_query().replace(
+                    "FROM builds b",
+                    "FROM builds b WHERE b.owner_subject = %s ORDER BY b.updated_at DESC LIMIT %s",
+                ),
+                (subject, safe_limit),
+            ).fetchall()
+            pinned_rows = conn.execute(
+                _workspace_build_row_query().replace(
+                    "FROM builds b",
+                    "FROM workspace_build_pins p JOIN builds b ON b.id = p.build_id AND b.owner_subject = p.owner_subject "
+                    "WHERE p.owner_subject = %s ORDER BY p.created_at DESC",
+                ),
+                (subject,),
+            ).fetchall()
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace build registry unavailable") from None
+    return {
+        "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION,
+        "status": "verified",
+        "source": "postgres",
+        "identity_scope": "server_bound_workspace_subject",
+        "builds": [
+            _workspace_build_row(
+                row,
+                include_html=False,
+                pinned=any(str(pinned[0]) == str(row[0]) for pinned in pinned_rows),
+            )
+            for row in recent_rows
+        ],
+        "pinned_builds": [_workspace_build_row(row, include_html=False, pinned=True) for row in pinned_rows],
+        "count": len(recent_rows),
+        "persisted": True,
+        "audit_persisted": True,
+        "direct_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+    }
+
+
+def get_workspace_build_registry_entry(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            row = conn.execute(
+                """
+                SELECT id, project_id, owner_subject, title, prompt_sha256, model, html,
+                       gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at
+                FROM builds
+                WHERE id = %s AND owner_subject = %s
+                """,
+                (build_id, subject),
+            ).fetchone()
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace build registry unavailable") from None
+    return _workspace_build_row(row, include_html=True) if row else None
+
+
+def set_workspace_build_pin(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url()) as conn:
+            if not conn.execute("SELECT id FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject)).fetchone():
+                return None
+            conn.execute("INSERT INTO workspace_build_pins (owner_subject, build_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (subject, build_id))
+            conn.execute("INSERT INTO audit_log(event_type, details, severity) VALUES ('workspace_build_pin_set', %s::jsonb, 'info')", (Json({"contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "build_id": build_id}),))
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace pin persistence unavailable") from None
+    return {"status": "pinned", "id": build_id, "persisted": True, "audit_persisted": True, "secret_output": False}
+
+
+def remove_workspace_build_pin(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url()) as conn:
+            if not conn.execute("SELECT id FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject)).fetchone():
+                return None
+            conn.execute("DELETE FROM workspace_build_pins WHERE owner_subject = %s AND build_id = %s", (subject, build_id))
+            conn.execute("INSERT INTO audit_log(event_type, details, severity) VALUES ('workspace_build_pin_removed', %s::jsonb, 'info')", (Json({"contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "build_id": build_id}),))
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace pin persistence unavailable") from None
+    return {"status": "unpinned", "id": build_id, "persisted": True, "audit_persisted": True, "secret_output": False}
+
+
+def delete_workspace_build_registry_entry(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url()) as conn:
+            if not conn.execute("SELECT id FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject)).fetchone():
+                return None
+            conn.execute("DELETE FROM workspace_build_pins WHERE owner_subject = %s AND build_id = %s", (subject, build_id))
+            conn.execute("DELETE FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject))
+            conn.execute("INSERT INTO audit_log(event_type, details, severity) VALUES ('workspace_build_deleted', %s::jsonb, 'info')", (Json({"contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "build_id": build_id, "owner_bound": True}),))
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace build delete unavailable") from None
+    return {"status": "deleted", "id": build_id, "persisted": True, "audit_persisted": True, "secret_output": False}
+
+
+@app.get("/api/v1/workspace/builds/mine")
+def list_workspace_builds_mine(limit: int = Query(default=4, ge=1, le=4), x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    return list_workspace_build_registry_entries(x_superbrain_workspace_subject, limit, x_superbrain_agent_token)
+
+
+@app.get("/api/v1/workspace/builds/{build_id}")
+def get_workspace_build(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    build = get_workspace_build_registry_entry(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not build:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**build, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "status": "verified", "source": "postgres", "identity_scope": "server_bound_workspace_subject"}
+
+
+@app.delete("/api/v1/workspace/builds/{build_id}")
+def delete_workspace_build_route(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    result = delete_workspace_build_registry_entry(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**result, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "source": "postgres", "identity_scope": "server_bound_workspace_subject"}
+
+
+@app.put("/api/v1/workspace/builds/{build_id}/pin")
+def set_workspace_build_pin_route(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    result = set_workspace_build_pin(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**result, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "source": "postgres"}
+
+
+@app.delete("/api/v1/workspace/builds/{build_id}/pin")
+def remove_workspace_build_pin_route(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    result = remove_workspace_build_pin(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**result, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "source": "postgres"}
 
 
 @app.get("/api/v1/workspace/artifacts/contract")

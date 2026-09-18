@@ -1787,7 +1787,7 @@ p {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
   gap: 18px;
-  align-items: stretch;
+  align-items: center;
   margin-bottom: 16px;
 }
 .home-hero-copy {
@@ -1797,7 +1797,8 @@ p {
   min-width: 0;
 }
 .home-cortex-card {
-  min-height: 360px;
+  height: 288px;
+  min-height: 288px;
   border: 1px solid var(--border-hi);
   border-radius: 12px;
   background:
@@ -1807,13 +1808,13 @@ p {
   overflow: hidden;
 }
 .home-cortex-card .cortex-wrap {
-  min-height: 306px;
+  min-height: 288px;
   border: 0;
   border-radius: 0;
   background: radial-gradient(circle at 50% 46%, rgba(0, 229, 255, 0.14), rgba(5, 7, 13, 0.22) 48%, transparent 70%);
 }
 .home-cortex-canvas {
-  height: 306px;
+  height: 288px;
 }
 .home-cortex-footer {
   display: flex;
@@ -1823,6 +1824,19 @@ p {
   border-top: 1px solid var(--border);
   background: rgba(5, 7, 13, 0.44);
 }
+.home-workspace-empty {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  align-content: center;
+  padding: 12px 14px;
+  color: var(--text-mut);
+}
+.home-workspace-empty p { margin: 0; color: var(--text-pri); font-size: 14px; }
+.home-workspace-empty span { font-size: 12px; line-height: 1.55; }
+.home-content-grid { align-items: stretch; }
+.home-workspace-panel { height: 100%; }
+.home-product-panel { grid-column: 1 / -1; }
 
 .feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 28px; }
 .feature { border: 1px solid var(--border); border-radius: var(--r14); padding: 18px; background: var(--surface-1); }
@@ -2885,7 +2899,7 @@ p {
   .hero { grid-template-columns: 1fr; }
   .hero-canvas { max-width: 420px; }
   .home-hero-shell { grid-template-columns: 1fr; }
-  .home-cortex-card { min-height: 320px; }
+  .home-cortex-card { height: 288px; min-height: 288px; }
   .home-cortex-card .cortex-wrap,
   .home-cortex-canvas {
     height: 288px;
@@ -2897,6 +2911,18 @@ p {
   /* Stack inline-style sidebar/tri-column page grids in the laptop band so their
      fixed-width columns can never force horizontal scroll (901–1279px dead zone). */
   .grid[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 640px) {
+  .home-workspace-panel .panel-head {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .home-workspace-panel .panel-head > .btn {
+    padding: 5px 7px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .home-product-panel .meta { display: none; }
 }
 @media (max-width: 900px) {
   .app-shell { grid-template-columns: 1fr; grid-template-areas: "topbar" "main"; }
