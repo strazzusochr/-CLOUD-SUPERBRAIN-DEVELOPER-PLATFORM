@@ -11044,12 +11044,12 @@ def get_workspace_build_registry_entry(build_id: str, owner_subject: str | None,
         with psycopg.connect(database_url(), autocommit=True) as conn:
             row = conn.execute(
                 """
-                SELECT id, project_id, owner_subject, title, prompt_sha256, model, html,
-                       gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at,
+                SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.html,
+                       b.gateway_mode, b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at,
                        COALESCE(u.last_used_at, b.updated_at) AS last_used_at
-                FROM builds
-                LEFT JOIN workspace_build_usage u ON u.build_id = builds.id AND u.owner_subject = builds.owner_subject
-                WHERE builds.id = %s AND builds.owner_subject = %s
+                FROM builds b
+                LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject
+                WHERE b.id = %s AND b.owner_subject = %s
                 """,
                 (build_id, subject),
             ).fetchone()

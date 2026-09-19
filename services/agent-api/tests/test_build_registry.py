@@ -146,7 +146,7 @@ class FakeConnection:
             ]
             rows = [(*row, self.workspace_usage.get((owner_subject, str(row[0])), row[11])) for row in rows]
             return FakeResult(rows=rows)
-        if "FROM builds b" in normalized and "b.owner_subject = %s" in normalized:
+        if "FROM builds b" in normalized and "b.owner_subject = %s" in normalized and "LIMIT %s" in normalized:
             owner_subject = str(params[0])
             limit = params[-1]
             cursor = params[1] if len(params) == 3 else None
@@ -157,7 +157,10 @@ class FakeConnection:
                 if row[2] == owner_subject and (cursor_dt is None or self.workspace_usage.get((owner_subject, str(row[0])), row[11]) < cursor_dt)
             ][: int(limit)]
             return FakeResult(rows=rows)
-        if "builds.id = %s AND builds.owner_subject = %s" in normalized:
+        if (
+            "builds.id = %s AND builds.owner_subject = %s" in normalized
+            or "b.id = %s AND b.owner_subject = %s" in normalized
+        ):
             row = self.builds.get(str(params[0]))
             if row and row[2] == params[1]:
                 return FakeResult(row=(*row, self.workspace_usage.get((str(params[1]), str(params[0])), row[11])))

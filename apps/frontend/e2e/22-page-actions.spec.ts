@@ -248,6 +248,38 @@ async function loadPersistedBuild(context: BrowserContext): Promise<PersistedBui
   return build as PersistedBuild;
 }
 
+async function createOwnerBoundFixtureBuild(page: Page): Promise<PersistedBuild> {
+  const result = await page.evaluate(async () => {
+    const response = await fetch("/api/v1/build", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Erzeuge eine kleine, vollständige, interaktive Workbench-Demo mit sichtbarem Titel und zwei funktionierenden Schaltflächen.",
+        project_id: "default",
+      }),
+    });
+    let payload: Record<string, unknown> = {};
+    try { payload = await response.json() as Record<string, unknown>; } catch { /* preserve status evidence */ }
+    return {
+      status: response.status,
+      id: payload.id,
+      html: payload.html,
+      persisted: payload.persisted,
+      live_provider_calls: payload.live_provider_calls,
+      direct_provider_calls: payload.direct_provider_calls,
+      secret_output: payload.secret_output,
+    };
+  });
+  expect(result.status, "owner-bound F-037 fixture build must return HTTP 200").toBe(200);
+  expect(String(result.id)).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+  expect(result.persisted).toBe(true);
+  expect(result.live_provider_calls).toBe(true);
+  expect(result.direct_provider_calls).toBe(false);
+  expect(result.secret_output).toBe(false);
+  expect(String(result.html)).toMatch(/^\s*<!doctype html/i);
+  return result as PersistedBuild;
+}
+
 async function prepareMember(page: Page, context: BrowserContext, action: ActionMember): Promise<void> {
   const normalizedId = normalizedOrganismActionId(action.id);
   if (normalizedId.startsWith("organism-")) {
@@ -1398,6 +1430,7 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   const visitedRoutes = new Set<string>();
   const unregisteredByRoute = new Map<string, readonly JsonRecord[]>();
   const registeredMatchCountsByRoute = new Map<string, Readonly<Record<string, number>>>();
+  let fixtureSetupActive = false;
   let failure: unknown = null;
   const isLoginPage = (): boolean => new URL(page.url()).pathname === "/login";
 
@@ -1411,7 +1444,7 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   });
   page.on("pageerror", (error) => pageErrors.push(safeMessage(error.message)));
   page.on("request", (request) => {
-    if (isProviderRequest(request.url(), request.method())) {
+    if (!fixtureSetupActive && isProviderRequest(request.url(), request.method())) {
       providerRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
     }
   });
@@ -1435,8 +1468,9 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   page.on("response", (response) => {
     const contentType = response.headers()["content-type"] ?? "";
     if (response.request().method() === "GET" || !contentType.includes("application/json")) return;
+    const ignoreForFixture = fixtureSetupActive;
     const inspection = response.json().then((payload) => {
-      if (JSON.stringify(payload).includes('"live_provider_calls":true')) {
+      if (!ignoreForFixture && JSON.stringify(payload).includes('"live_provider_calls":true')) {
         liveProviderResponses.push(new URL(response.url()).pathname);
       }
     }).catch(() => {});
@@ -1564,7 +1598,14 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
 
     await gotoRoute(page, "/login");
     await setSession(page, context, true);
-    const persistedBuild = await loadPersistedBuild(context);
+    let persistedBuild: PersistedBuild;
+    if (process.env.PAGE_ACTIONS_CREATE_OWNER_BOUND_FIXTURE === "true") {
+      fixtureSetupActive = true;
+      persistedBuild = await createOwnerBoundFixtureBuild(page);
+      fixtureSetupActive = false;
+    } else {
+      persistedBuild = await loadPersistedBuild(context);
+    }
 
     for (const entry of ACTION_MATRIX as readonly PageActionEntry[]) {
       await gotoRoute(page, entry.route, persistedBuild.id);
@@ -1595,6 +1636,14 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
       const registrySnapshot = await findUnregisteredPageLocalControls(page, entry);
       unregisteredByRoute.set(entry.route, registrySnapshot.unregistered);
       registeredMatchCountsByRoute.set(entry.route, registrySnapshot.registeredMatchCounts);
+      // The login family deliberately signs out and back in, which creates a
+      // fresh local-session subject. Recreate the opt-in fixture after that
+      // transition so the owner-bound Workbench/Games reads use this session.
+      if (process.env.PAGE_ACTIONS_CREATE_OWNER_BOUND_FIXTURE === "true" && entry.route === "/login") {
+        fixtureSetupActive = true;
+        persistedBuild = await createOwnerBoundFixtureBuild(page);
+        fixtureSetupActive = false;
+      }
     }
 
     await Promise.allSettled(responseInspections);
