@@ -46,4 +46,33 @@ test.describe("Page 01 — personal runtime contract", () => {
     await page.goto("/home", { waitUntil: "domcontentloaded" });
     expect(writes.filter((entry) => /\/api\/v1\/build|llm|mcp/i.test(entry))).toEqual([]);
   });
+
+  test("pauses and resumes the owner activity presentation without changing the read boundary", async ({ page }) => {
+    await page.goto("/login?monitorpause=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const session = await page.evaluate(async () => {
+      const response = await fetch("/api/v1/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "guest" }),
+      });
+      return { status: response.status, payload: await response.json() };
+    });
+    expect(session.status).toBe(200);
+    expect(session.payload.status).toBe("signed_in");
+
+    const feedResponse = page.waitForResponse((response) =>
+      response.request().method() === "GET"
+      && new URL(response.url()).pathname === "/api/v1/workspace/runtime/events",
+    );
+    await page.goto("/home?monitorpause=" + Date.now(), { waitUntil: "domcontentloaded" });
+    expect((await feedResponse).status()).toBe(200);
+
+    const pause = page.getByTestId("home-runtime-pause");
+    await expect(pause).toBeVisible({ timeout: 15_000 });
+    await pause.click();
+    await expect(pause).toHaveText("Fortsetzen");
+    await expect(page.getByTestId("home-runtime-pending")).toHaveText("Neue Ereignisse: 0");
+    await pause.click();
+    await expect(pause).toHaveText("Pausieren");
+  });
 });

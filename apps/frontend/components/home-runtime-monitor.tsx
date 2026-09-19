@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Panel } from "../components/ui";
 
 type MonitorState = "loading" | "anonymous" | "forbidden" | "unavailable" | "empty" | "ready";
@@ -21,27 +21,60 @@ type RuntimeEvent = {
 export function HomeRuntimeMonitor() {
   const [state, setState] = useState<MonitorState>("loading");
   const [events, setEvents] = useState<RuntimeEvent[]>([]);
+  const [paused, setPaused] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+  const pausedRef = useRef(false);
+
+  const readEvents = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch("/api/v1/workspace/runtime/events", { cache: "no-store", signal });
+      if (response.status === 401) return setState("anonymous");
+      if (response.status === 403) return setState("forbidden");
+      if (!response.ok) return setState("unavailable");
+      const payload = await response.json().catch(() => null) as { events?: RuntimeEvent[] } | null;
+      const nextEvents = Array.isArray(payload?.events)
+        ? payload.events.filter((event) => event && typeof event.event_id === "string")
+        : [];
+      if (pausedRef.current) {
+        setEvents((current) => {
+          const known = new Set(current.map((event) => event.event_id));
+          setPendingCount(nextEvents.filter((event) => !known.has(event.event_id)).length);
+          return current;
+        });
+        return;
+      }
+      setEvents(nextEvents);
+      setPendingCount(0);
+      setState(nextEvents.length > 0 ? "ready" : "empty");
+    } catch {
+      if (!signal?.aborted) setState("unavailable");
+    }
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 8_000);
-    void fetch("/api/v1/workspace/runtime/events", { cache: "no-store", signal: controller.signal })
-      .then(async (response) => {
-        if (response.status === 401) return setState("anonymous");
-        if (response.status === 403) return setState("forbidden");
-        if (!response.ok) return setState("unavailable");
-        const payload = await response.json().catch(() => null) as { events?: RuntimeEvent[] } | null;
-        const nextEvents = Array.isArray(payload?.events) ? payload.events.filter((event) => event && typeof event.event_id === "string") : [];
-        setEvents(nextEvents);
-        setState(nextEvents.length > 0 ? "ready" : "empty");
-      })
-      .catch(() => setState("unavailable"))
-      .finally(() => window.clearTimeout(timer));
+    const initialLoad = window.setTimeout(() => {
+      void readEvents(controller.signal).finally(() => window.clearTimeout(timer));
+    }, 0);
+    const refreshTimer = window.setInterval(() => { void readEvents(); }, 10_000);
     return () => {
+      window.clearTimeout(initialLoad);
       window.clearTimeout(timer);
+      window.clearInterval(refreshTimer);
       controller.abort();
     };
-  }, []);
+  }, [readEvents]);
+
+  function togglePaused() {
+    const next = !pausedRef.current;
+    pausedRef.current = next;
+    setPaused(next);
+    if (!next) {
+      setPendingCount(0);
+      void readEvents();
+    }
+  }
 
   const message = state === "loading"
     ? "Aktivität wird geladen."
@@ -57,7 +90,18 @@ export function HomeRuntimeMonitor() {
 
   return (
     <div data-testid="home-runtime-monitor">
-      <Panel title="Deine Aktivität" className="home-runtime-monitor">
+      <Panel
+        title="Deine Aktivität"
+        className="home-runtime-monitor"
+        actions={state === "ready" || state === "empty" ? (
+          <div className="home-runtime-actions">
+            <button type="button" className="btn btn-sm btn-ghost" data-testid="home-runtime-pause" onClick={togglePaused} aria-pressed={paused}>
+              {paused ? "Fortsetzen" : "Pausieren"}
+            </button>
+            {paused ? <span className="meta" data-testid="home-runtime-pending">Neue Ereignisse: {pendingCount}</span> : null}
+          </div>
+        ) : null}
+      >
         {state === "ready" ? (
           <div className="list home-runtime-event-list" data-testid="home-runtime-events">
             {events.map((event) => (
