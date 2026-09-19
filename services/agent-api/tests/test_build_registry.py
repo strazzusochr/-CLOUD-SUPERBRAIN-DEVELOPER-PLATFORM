@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import os
 import unittest
@@ -31,22 +32,53 @@ class FakeResult:
 class FakeConnection:
     def __init__(self, *, fail_audit: bool = False) -> None:
         self.builds: dict[str, tuple[object, ...]] = {}
+        self.workspace_usage: dict[tuple[str, str], datetime] = {}
         self.pins: set[tuple[str, str]] = set()
         self.audit_events: list[object] = []
+        self.runtime_events: list[dict[str, object]] = []
+        self.runtime_heads: dict[tuple[str, str], tuple[int, str | None]] = {}
+        self.runtime_outbox: list[dict[str, object]] = []
         self.fail_audit = fail_audit
-        self._snapshot: tuple[dict[str, tuple[object, ...]], set[tuple[str, str]], list[object]] | None = None
+        self._snapshot: tuple[dict[str, tuple[object, ...]], dict[tuple[str, str], datetime], set[tuple[str, str]], list[object], list[dict[str, object]], dict[tuple[str, str], tuple[int, str | None]], list[dict[str, object]]] | None = None
 
     def __enter__(self) -> "FakeConnection":
-        self._snapshot = (dict(self.builds), set(self.pins), list(self.audit_events))
+        self._snapshot = (dict(self.builds), dict(self.workspace_usage), set(self.pins), list(self.audit_events), list(self.runtime_events), dict(self.runtime_heads), list(self.runtime_outbox))
         return self
 
     def __exit__(self, exc_type: object, _exc: object, _traceback: object) -> None:
         if exc_type is not None and self._snapshot is not None:
-            self.builds, self.pins, self.audit_events = self._snapshot
+            self.builds, self.workspace_usage, self.pins, self.audit_events, self.runtime_events, self.runtime_heads, self.runtime_outbox = self._snapshot
         self._snapshot = None
 
     def execute(self, sql: str, params: tuple[object, ...]) -> FakeResult:
         normalized = " ".join(sql.split())
+        if normalized.startswith("INSERT INTO runtime_event_chain_heads"):
+            owner_subject, partition = params
+            self.runtime_heads.setdefault((str(owner_subject), str(partition)), (1, None))
+            return FakeResult()
+        if normalized.startswith("SELECT next_sequence, head_hash FROM runtime_event_chain_heads"):
+            owner_subject, partition = params
+            return FakeResult(row=self.runtime_heads.get((str(owner_subject), str(partition))))
+        if normalized.startswith("INSERT INTO runtime_events"):
+            self.runtime_events.append({
+                "event_id": params[0], "owner_subject": params[1], "event_type": params[2],
+                "actor_type": "runtime", "trace_id": params[3], "parent_event_id": params[4],
+                "source_service": "agent-api", "environment": params[5], "source_commit_sha": params[6],
+                "producer": params[7], "occurred_at": params[8], "observed_at": params[9],
+                "owner_sequence": params[10], "phase": params[11], "outcome": params[12],
+                "effect": getattr(params[13], "obj", params[13]), "redaction_status": "redacted",
+                "redaction_version": "home-runtime-event-v1", "prev_hash": params[14], "event_hash": params[15],
+                "chain_partition": params[16], "completeness": "complete", "missing_refs": [],
+            })
+            return FakeResult()
+        if normalized.startswith("INSERT INTO runtime_event_outbox"):
+            outbox_id, event_id, owner_subject = params
+            self.runtime_outbox.append({"outbox_id": outbox_id, "event_id": event_id, "owner_subject": owner_subject})
+            return FakeResult()
+        if normalized.startswith("UPDATE runtime_event_chain_heads"):
+            next_sequence, head_hash, owner_subject, partition = params
+            self.runtime_heads[(str(owner_subject), str(partition))] = (int(next_sequence), str(head_hash))
+            return FakeResult()
         if normalized.startswith("INSERT INTO builds"):
             (
                 build_id,
@@ -83,6 +115,10 @@ class FakeConnection:
             owner_subject, build_id = params
             self.pins.add((str(owner_subject), str(build_id)))
             return FakeResult()
+        if normalized.startswith("INSERT INTO workspace_build_usage"):
+            owner_subject, build_id = params
+            self.workspace_usage[(str(owner_subject), str(build_id))] = datetime(2026, 7, 26, tzinfo=timezone.utc)
+            return FakeResult()
         if normalized.startswith("DELETE FROM workspace_build_pins"):
             owner_subject, build_id = params
             self.pins.discard((str(owner_subject), str(build_id)))
@@ -108,15 +144,24 @@ class FakeConnection:
                 row for build_id, row in self.builds.items()
                 if (owner_subject, build_id) in self.pins and row[2] == owner_subject
             ]
+            rows = [(*row, self.workspace_usage.get((owner_subject, str(row[0])), row[11])) for row in rows]
             return FakeResult(rows=rows)
-        if "FROM builds b WHERE b.owner_subject = %s" in normalized:
-            owner_subject, limit = params
+        if "FROM builds b" in normalized and "b.owner_subject = %s" in normalized:
+            owner_subject = str(params[0])
+            limit = params[-1]
+            cursor = params[1] if len(params) == 3 else None
+            cursor_dt = datetime.fromisoformat(str(cursor).replace("Z", "+00:00")) if cursor else None
             rows = [
-                (*row, (str(owner_subject), str(row[0])) in self.pins)
+                (*row, self.workspace_usage.get((str(owner_subject), str(row[0])), row[11]), (str(owner_subject), str(row[0])) in self.pins)
                 for row in self.builds.values()
-                if row[2] == owner_subject
+                if row[2] == owner_subject and (cursor_dt is None or self.workspace_usage.get((owner_subject, str(row[0])), row[11]) < cursor_dt)
             ][: int(limit)]
             return FakeResult(rows=rows)
+        if "builds.id = %s AND builds.owner_subject = %s" in normalized:
+            row = self.builds.get(str(params[0]))
+            if row and row[2] == params[1]:
+                return FakeResult(row=(*row, self.workspace_usage.get((str(params[1]), str(params[0])), row[11])))
+            return FakeResult(row=None)
         if "SELECT id FROM builds WHERE id = %s AND owner_subject = %s" in normalized:
             row = self.builds.get(str(params[0]))
             return FakeResult(row=(row[0],) if row and row[2] == params[1] else None)
@@ -125,6 +170,34 @@ class FakeConnection:
             return FakeResult(row=row if row and row[2] == params[1] else None)
         if "FROM builds WHERE id = %s" in normalized:
             return FakeResult(row=self.builds.get(str(params[0])))
+        if "SELECT details, created_at FROM audit_log" in normalized:
+            owner_subject, limit = params
+            rows: list[tuple[object, object]] = []
+            for payload in reversed(self.audit_events):
+                details = getattr(payload, "obj", payload)
+                if isinstance(details, dict) and details.get("owner_subject") == owner_subject:
+                    rows.append((details, datetime(2026, 7, 25, tzinfo=timezone.utc)))
+                if len(rows) >= int(limit):
+                    break
+            return FakeResult(rows=rows)
+        if normalized.startswith("SELECT event_id, event_type, owner_subject, actor_type"):
+            owner_subject, limit = params
+            rows = []
+            keys = (
+                "event_id", "event_type", "owner_subject", "actor_type", "actor_id",
+                "trace_id", "span_id", "parent_event_id", "source_service", "environment",
+                "source_commit_sha", "producer", "occurred_at", "observed_at", "owner_sequence",
+                "producer_sequence", "phase", "outcome", "effect", "input_hash", "output_hash",
+                "hash_scope", "redaction_status", "redaction_version", "payload_ref", "prev_hash",
+                "event_hash", "chain_partition", "completeness", "missing_refs",
+            )
+            for event in reversed(self.runtime_events):
+                if event["owner_subject"] != owner_subject:
+                    continue
+                rows.append(tuple(event.get(key) for key in keys))
+                if len(rows) >= int(limit):
+                    break
+            return FakeResult(rows=rows)
         raise AssertionError(f"Unhandled SQL in build registry fake: {normalized}")
 
 
@@ -195,6 +268,9 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertEqual(result["prompt_sha256"], hashlib.sha256(request.prompt.encode()).hexdigest())
         self.assertEqual(len(self.connection.builds), 1)
         self.assertEqual(len(self.connection.audit_events), 1)
+        self.assertEqual(len(self.connection.runtime_events), 1)
+        self.assertEqual(len(self.connection.runtime_outbox), 1)
+        self.assertEqual(self.connection.runtime_heads[(TEST_WORKSPACE_SUBJECT, f"workspace:{TEST_WORKSPACE_SUBJECT}")][0], 2)
         persisted_row = self.connection.builds[request.id]
         self.assertNotIn(request.prompt, persisted_row)
 
@@ -258,6 +334,101 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertEqual(own_delete["status"], "deleted")
         self.assertEqual(after_delete["builds"], [])
         self.assertNotIn("github:202", str(mine))
+
+    def test_runtime_events_are_owner_bound_and_have_a_persisted_event_envelope(self) -> None:
+        self.create(valid_request(id="build_event", title="Event workspace"), "github:101")
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            events = main.list_workspace_runtime_events("github:101", TEST_AGENT_TOKEN, 8)
+            foreign = main.list_workspace_runtime_events("github:202", TEST_AGENT_TOKEN, 8)
+        self.assertEqual(events["contract_version"], "home-runtime-events-v1")
+        self.assertTrue(events["persisted"])
+        self.assertEqual(len(events["events"]), 1)
+        self.assertEqual(events["events"][0]["owner_subject"], "github:101")
+        self.assertEqual(events["events"][0]["event"], "build_created")
+        self.assertEqual(foreign["events"], [])
+
+    def test_runtime_event_detail_and_trace_reads_are_owner_bound(self) -> None:
+        self.create(valid_request(id="build_detail", title="Event detail workspace"), "github:101")
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            listed = main.list_workspace_runtime_events("github:101", TEST_AGENT_TOKEN, 8)
+            event = listed["events"][0]
+            detail = main.get_workspace_runtime_event(str(event["event_id"]), "github:101", TEST_AGENT_TOKEN)
+            own_trace = main.get_workspace_runtime_trace(str(event["trace_id"]), "github:101", TEST_AGENT_TOKEN)
+            foreign = main.get_workspace_runtime_event(str(event["event_id"]), "github:202", TEST_AGENT_TOKEN)
+            unknown = main.get_workspace_runtime_event("event-does-not-exist", "github:101", TEST_AGENT_TOKEN)
+        self.assertEqual(detail["event"]["event_id"], event["event_id"])
+        self.assertEqual(own_trace["events"][0]["event_id"], event["event_id"])
+        self.assertIsNone(foreign)
+        self.assertIsNone(unknown)
+
+    def test_runtime_stream_cursor_deduplicates_and_exposes_gap(self) -> None:
+        events = [
+            {"event_id": "e3", "event": "newest"},
+            {"event_id": "e2", "event": "middle"},
+            {"event_id": "e1", "event": "oldest"},
+        ]
+
+        async def collect(iterator: object) -> bytes:
+            chunks: list[bytes] = []
+            async for chunk in iterator:  # type: ignore[union-attr]
+                chunks.append(str(chunk).encode("utf-8"))
+            return b"".join(chunks)
+
+        with patch.object(main, "list_workspace_runtime_events", return_value={"events": events}):
+            resumed = main.workspace_runtime_event_stream("8", "e1", TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
+            gap = main.workspace_runtime_event_stream("8", "missing", TEST_AGENT_TOKEN, TEST_WORKSPACE_SUBJECT)
+
+        resumed_body = asyncio.run(collect(resumed.body_iterator))
+        gap_body = asyncio.run(collect(gap.body_iterator))
+        self.assertEqual(resumed.headers["x-runtime-gap"], "false")
+        self.assertIn(b"id: e3", resumed_body)
+        self.assertIn(b"id: e2", resumed_body)
+        self.assertNotIn(b"id: e1", resumed_body)
+        self.assertEqual(gap.headers["x-runtime-gap"], "true")
+        self.assertIn(b"runtime_gap", gap_body)
+
+    def test_reading_a_build_updates_last_used_order_for_that_owner(self) -> None:
+        self.create(valid_request(id="build_old", title="Older"), "github:101")
+        self.create(valid_request(id="build_new", title="Newer"), "github:101")
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            self.connection.builds["build_old"] = (*self.connection.builds["build_old"][:11], datetime(2026, 7, 24, tzinfo=timezone.utc))
+            self.connection.builds["build_new"] = (*self.connection.builds["build_new"][:11], datetime(2026, 7, 25, tzinfo=timezone.utc))
+            main.get_workspace_build_registry_entry("build_old", "github:101", TEST_AGENT_TOKEN)
+            listed = main.list_workspace_build_registry_entries("github:101", 4, TEST_AGENT_TOKEN)
+        self.assertEqual([build["id"] for build in listed["builds"]], ["build_old", "build_new"])
+        self.assertIn(("github:101", "build_old"), self.connection.workspace_usage)
+
+    def test_owner_can_page_through_all_workspace_builds_without_shared_defaults(self) -> None:
+        for index in range(5):
+            self.create(valid_request(id=f"build_page_{index}", title=f"Build {index}"), "github:101")
+        self.create(valid_request(id="build_foreign", title="Foreign"), "github:202")
+        for index in range(5):
+            row = self.connection.builds[f"build_page_{index}"]
+            timestamp = datetime(2026, 7, 25 - index, tzinfo=timezone.utc)
+            self.connection.builds[f"build_page_{index}"] = (*row[:11], timestamp)
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            first = main.list_all_workspace_build_registry_entries("github:101", 3, None, TEST_AGENT_TOKEN)
+            second = main.list_all_workspace_build_registry_entries("github:101", 3, first["next_cursor"], TEST_AGENT_TOKEN)
+        self.assertEqual(len(first["builds"]), 3)
+        self.assertEqual(len(second["builds"]), 2)
+        self.assertEqual(first["identity_scope"], "server_bound_workspace_subject")
+        self.assertNotIn("build_foreign", str(first))
 
     def test_secret_material_is_rejected_before_database_access_without_echo(self) -> None:
         fixture_secret = "sk-" + ("unitfixture" * 3)

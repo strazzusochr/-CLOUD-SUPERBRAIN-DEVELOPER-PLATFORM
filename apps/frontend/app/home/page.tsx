@@ -4,6 +4,7 @@ import { PageHeader, Panel, Badge } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { HomeCortexHero } from "../../components/batch4-actions";
 import { HomeWorkspace } from "../../components/home-workspace";
+import { HomeRuntimeMonitor } from "../../components/home-runtime-monitor";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Start — Cloud Superbrain" };
@@ -27,6 +28,8 @@ export default async function HomePage() {
           </div>
           <HomeCortexHero />
         </div>
+
+        <HomeRuntimeMonitor />
 
         <div className="grid cols-2 home-content-grid">
           <HomeWorkspace />

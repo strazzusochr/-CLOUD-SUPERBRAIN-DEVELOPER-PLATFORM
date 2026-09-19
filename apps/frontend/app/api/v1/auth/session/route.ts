@@ -43,11 +43,19 @@ function unavailable(operation: "create" | "read" | "revoke"): Response {
   );
 }
 
-async function setSessionCookie(token: string, expiresAtSeconds: number): Promise<void> {
+function secureCookieFor(req: Request): boolean {
+  // The canonical local browser target is `localhost`; Chromium treats its
+  // secure context as trustworthy. Keep the `__Host-` cookie contract intact.
+  // 127.0.0.1 is only an API probe and is not a browser-session target.
+  void req;
+  return true;
+}
+
+async function setSessionCookie(req: Request, token: string, expiresAtSeconds: number): Promise<void> {
   const jar = await cookies();
   jar.set(AUTH_SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: true,
+    secure: secureCookieFor(req),
     sameSite: "strict",
     path: "/",
     maxAge: AUTH_SESSION_TTL_SECONDS,
@@ -55,11 +63,11 @@ async function setSessionCookie(token: string, expiresAtSeconds: number): Promis
   });
 }
 
-async function clearSessionCookie(): Promise<void> {
+async function clearSessionCookie(req: Request): Promise<void> {
   const jar = await cookies();
   jar.set(AUTH_SESSION_COOKIE, "", {
     httpOnly: true,
-    secure: true,
+    secure: secureCookieFor(req),
     sameSite: "strict",
     path: "/",
     maxAge: 0,
@@ -80,7 +88,7 @@ export async function POST(req: Request): Promise<Response> {
 
   const hostedSession = await createHostedAuthSessionAtBoundary(req, identity);
   if (hostedSession) {
-    await setSessionCookie(hostedSession.token, hostedSession.claims.exp);
+    await setSessionCookie(req, hostedSession.token, hostedSession.claims.exp);
     return Response.json(
       {
         status: "signed_in",
@@ -99,7 +107,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!isLocalDevelopmentRequest(req)) return unavailable("create");
 
   const session = createSignedAuthSession(identity, randomUUID());
-  await setSessionCookie(session.token, session.claims.exp);
+  await setSessionCookie(req, session.token, session.claims.exp);
   return Response.json(
     {
       status: "signed_in",
@@ -156,7 +164,7 @@ export async function GET(req: Request): Promise<Response> {
       );
     }
   }
-  if (verification.reason !== "missing") await clearSessionCookie();
+  if (verification.reason !== "missing") await clearSessionCookie(req);
   return Response.json(
     {
       status: "anonymous",
@@ -176,7 +184,7 @@ export async function DELETE(req: Request): Promise<Response> {
     const registryResult = await revokeHostedAuthSessionAtBoundary(req, token);
     if (registryResult === "unavailable") return unavailable("revoke");
   }
-  await clearSessionCookie();
+  await clearSessionCookie(req);
   return Response.json(
     {
       status: "signed_out",

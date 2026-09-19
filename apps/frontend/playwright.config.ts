@@ -31,6 +31,7 @@ export default defineConfig({
             // Disabling GPU/compositing here makes WebGL2 unavailable and forces the
             // normal-motion Cortex into its accessibility-only 2D fallback.
             "--use-gl=swiftshader",
+            "--disable-gpu",
             "--ignore-gpu-blocklist",
           ],
         },
@@ -40,7 +41,11 @@ export default defineConfig({
   webServer: externalBaseURL
     ? undefined
     : {
-        command: `node node_modules/next/dist/bin/next start -p ${PORT}`,
+        // The canonical local stack is the development transport. It is
+        // required for the explicit local-session fallback used by the
+        // browser contract; `next start` forces NODE_ENV=production and
+        // turns that local-only path into a misleading 503.
+        command: `node node_modules/next/dist/bin/next dev --webpack -p ${PORT}`,
         url: `http://localhost:${PORT}/`,
         timeout: 120_000,
         reuseExistingServer: false,

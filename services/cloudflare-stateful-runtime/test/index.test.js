@@ -43,6 +43,13 @@ class FakeStatement {
       this.db.pins.set(key, { owner_subject, build_id, created_at });
       return { meta: { changes: existed ? 0 : 1 } };
     }
+    if (this.sql.startsWith("INSERT INTO workspace_build_usage")) {
+      const [owner_subject, build_id, last_used_at] = this.values;
+      const key = `${owner_subject}:${build_id}`;
+      const current = this.db.usage.get(key);
+      this.db.usage.set(key, { owner_subject, build_id, last_used_at, use_count: current ? current.use_count + 1 : 1 });
+      return { meta: { changes: 1 } };
+    }
     if (this.sql.startsWith("DELETE FROM workspace_build_pins")) {
       const [owner_subject, build_id] = this.values;
       return { meta: { changes: this.db.pins.delete(`${owner_subject}:${build_id}`) ? 1 : 0 } };
@@ -348,6 +355,14 @@ class FakeStatement {
       const row = this.db.builds.get(id);
       return row && !row.deleted_at && row.owner_subject === owner_subject ? { id: row.id } : null;
     }
+    if (this.sql.includes("FROM builds") && this.sql.includes("WHERE builds.id = ? AND builds.owner_subject = ?")) {
+      const [id, owner_subject] = this.values;
+      const row = this.db.builds.get(id);
+      if (!row || row.deleted_at || row.owner_subject !== owner_subject) return null;
+      const { html: _html, deleted_at: _deletedAt, ...publicRow } = row;
+      const usage = this.db.usage.get(`${owner_subject}:${id}`);
+      return { ...publicRow, last_used_at: usage?.last_used_at || row.updated_at };
+    }
     if (this.sql.startsWith("SELECT * FROM builds WHERE id")) {
       if (this.db.throwBuildReadback) throw new Error("simulated build readback transport failure");
       const row = this.db.builds.get(this.values[0]);
@@ -385,7 +400,7 @@ class FakeStatement {
         .map((pin) => this.db.builds.get(pin.build_id))
         .filter((row) => row && row.owner_subject === owner_subject && !row.deleted_at)
         .slice(0, limit)
-        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => row);
+        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => ({ ...row, last_used_at: this.db.usage.get(`${owner_subject}:${row.id}`)?.last_used_at || row.updated_at }));
       return { results };
     }
     if (this.sql.includes("FROM builds")) {
@@ -396,9 +411,13 @@ class FakeStatement {
       const limit = second;
       const results = [...this.db.builds.values()]
         .filter((row) => (ownerScoped ? row.owner_subject === ownerSubject : row.project_id === projectId) && !row.deleted_at)
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .sort((a, b) => {
+          const aUsed = this.db.usage.get(`${ownerSubject}:${a.id}`)?.last_used_at || a.updated_at || a.created_at;
+          const bUsed = this.db.usage.get(`${ownerSubject}:${b.id}`)?.last_used_at || b.updated_at || b.created_at;
+          return bUsed.localeCompare(aUsed);
+        })
         .slice(0, limit)
-        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => row);
+        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => ({ ...row, last_used_at: this.db.usage.get(`${ownerSubject}:${row.id}`)?.last_used_at || row.updated_at }));
       return { results };
     }
     if (this.sql.includes("FROM workspace_artifacts")) {
@@ -447,6 +466,7 @@ class FakeD1 {
   } = {}) {
     this.builds = new Map();
     this.pins = new Map();
+    this.usage = new Map();
     this.artifacts = new Map();
     this.nativeArtifacts = new Map();
     this.sessions = new Map();
@@ -483,6 +503,7 @@ class FakeD1 {
     const snapshot = {
       builds: new Map([...this.builds].map(([key, value]) => [key, { ...value }])),
       pins: new Map([...this.pins].map(([key, value]) => [key, { ...value }])),
+      usage: new Map([...this.usage].map(([key, value]) => [key, { ...value }])),
       artifacts: new Map([...this.artifacts].map(([key, value]) => [key, { ...value }])),
       nativeArtifacts: new Map([...this.nativeArtifacts].map(([key, value]) => [key, { ...value }])),
       sessions: new Map([...this.sessions].map(([key, value]) => [key, { ...value }])),
@@ -501,6 +522,7 @@ class FakeD1 {
     } catch (error) {
       this.builds = snapshot.builds;
       this.pins = snapshot.pins;
+      this.usage = snapshot.usage;
       this.artifacts = snapshot.artifacts;
       this.nativeArtifacts = snapshot.nativeArtifacts;
       this.sessions = snapshot.sessions;
@@ -933,6 +955,17 @@ test("workspace D1 routes bind list, pin, unpin, and delete to the server subjec
   const listed = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/mine", { headers }), fakeEnv);
   assert.equal(listed.status, 200);
   assert.deepEqual((await listed.json()).builds.map((build) => build.id), ["owned_build"]);
+
+  const ownRead = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { headers }), fakeEnv);
+  const ownReadBody = await ownRead.json();
+  assert.equal(ownRead.status, 200);
+  assert.equal(ownReadBody.id, "owned_build");
+  assert.equal(ownReadBody.html, undefined);
+  const foreignRead = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { headers: foreignHeaders }), fakeEnv);
+  const unknownRead = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/unknown_build", { headers: foreignHeaders }), fakeEnv);
+  assert.equal(foreignRead.status, 404);
+  assert.equal(unknownRead.status, 404);
+  assert.equal(await foreignRead.clone().text(), await unknownRead.clone().text());
 
   const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "PUT", headers }), fakeEnv);
   assert.equal(pinned.status, 200);

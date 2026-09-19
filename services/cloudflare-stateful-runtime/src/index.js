@@ -781,6 +781,7 @@ function buildFromRow(row, includeHtml = true) {
     share_path: `/run/${row.id}`,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
+    last_used_at: row.last_used_at ? String(row.last_used_at) : String(row.updated_at),
     direct_provider_calls: false,
     live_mcp_writes: false,
     production_deploy: false,
@@ -1292,18 +1293,21 @@ async function listWorkspaceBuilds(request, url, env, requestId) {
   try {
     const limit = limitFrom(url);
     const buildsResult = await env.DB.prepare(`
-      SELECT id, project_id, owner_subject, title, prompt_sha256, model, gateway_mode, gateway_provider,
-             live_provider_calls, created_at, updated_at
-      FROM builds
-      WHERE owner_subject = ? AND deleted_at IS NULL
-      ORDER BY updated_at DESC, created_at DESC
+      SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.gateway_mode, b.gateway_provider,
+             b.live_provider_calls, b.created_at, b.updated_at, COALESCE(u.last_used_at, b.updated_at) AS last_used_at
+      FROM builds b
+      LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject
+      WHERE b.owner_subject = ? AND b.deleted_at IS NULL
+      ORDER BY COALESCE(u.last_used_at, b.updated_at) DESC, b.created_at DESC
       LIMIT ?
     `).bind(subject, limit).all();
     const pinsResult = await env.DB.prepare(`
       SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.gateway_mode,
-             b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at
+             b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at,
+             COALESCE(u.last_used_at, b.updated_at) AS last_used_at
       FROM workspace_build_pins p
       JOIN builds b ON b.id = p.build_id AND b.owner_subject = p.owner_subject
+      LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject
       WHERE p.owner_subject = ? AND b.deleted_at IS NULL
       ORDER BY p.created_at DESC
       LIMIT ?
@@ -1325,6 +1329,44 @@ async function listWorkspaceBuilds(request, url, env, requestId) {
     });
   } catch {
     return json(blocked("workspace_build_registry_read_failed", requestId, "The D1 workspace build registry could not be read."), 503);
+  }
+}
+
+async function getWorkspaceBuild(request, id, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const row = await env.DB.prepare(`
+      SELECT builds.id, builds.project_id, builds.owner_subject, builds.title, builds.prompt_sha256, builds.model,
+             builds.gateway_mode, builds.gateway_provider, builds.live_provider_calls, builds.created_at,
+             builds.updated_at, COALESCE(u.last_used_at, builds.updated_at) AS last_used_at
+      FROM builds
+      LEFT JOIN workspace_build_usage u ON u.build_id = builds.id AND u.owner_subject = builds.owner_subject
+      WHERE builds.id = ? AND builds.owner_subject = ? AND builds.deleted_at IS NULL
+      LIMIT 1
+    `).bind(safeId(id), subject).first();
+    if (!row) return workspaceNotFound(requestId);
+    await env.DB.prepare(`
+      INSERT INTO workspace_build_usage (owner_subject, build_id, last_used_at, use_count)
+      VALUES (?, ?, ?, 1)
+      ON CONFLICT(owner_subject, build_id) DO UPDATE SET
+        last_used_at = excluded.last_used_at,
+        use_count = workspace_build_usage.use_count + 1
+    `).bind(subject, safeId(id), new Date().toISOString()).run();
+    return json({
+      ...buildFromRow(row, false),
+      contract_version: "github-workspace-builds-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_build_read_failed", requestId, "The D1 workspace build could not be read."), 503);
   }
 }
 
@@ -3887,6 +3929,7 @@ export default {
     const workspaceBuildMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})$/);
     const workspacePinMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})\/pin$/);
     if (request.method === "GET" && url.pathname === "/api/v1/workspace/builds/mine") return listWorkspaceBuilds(request, url, env, requestId);
+    if (workspaceBuildMatch && request.method === "GET") return getWorkspaceBuild(request, workspaceBuildMatch[1], env, requestId);
     if (workspacePinMatch && request.method === "PUT") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, true);
     if (workspacePinMatch && request.method === "DELETE") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, false);
     if (workspaceBuildMatch && request.method === "DELETE") return deleteWorkspaceBuild(request, workspaceBuildMatch[1], env, requestId);

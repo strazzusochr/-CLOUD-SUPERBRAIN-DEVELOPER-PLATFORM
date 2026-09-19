@@ -292,6 +292,7 @@ export const ACTION_MATRIX: readonly PageActionEntry[] = [
         member("home-workspace-continue", "Continue own workspace build", `[data-testid^="home-workspace-continue-"]`, "A permitted personal build is returned by the server-bound mine scope.", "Browser navigates same-origin to the selected /workbench?build=<id>.", "main", "conditional"),
         member("home-workspace-pin", "Pin or unpin own workspace build", `[data-testid^="home-workspace-pin-"]`, "A permitted personal build is returned by the server-bound mine scope.", "The browser sends the scoped pin request; the server must authorize it before the refreshed list changes.", `[data-testid="home-workspace-pins"]`, "conditional"),
         member("home-workspace-delete", "Delete own workspace build", `[data-testid^="home-workspace-delete-"]`, "A permitted personal build is returned by the server-bound mine scope.", "The browser sends the scoped delete request; the server must authorize it before the refreshed list changes.", `[data-testid="home-workspace-builds"]`, "conditional"),
+        member("home-workspace-all", "Open all own workspace builds", `[data-testid="home-workspace-all"]`, "The home workspace panel is mounted; the server-bound all-build read remains owner-authorized.", "The browser requests the paginated owner-only overview and renders either the result or an explicit error state.", "main", "conditional"),
       ]),
     ],
     excludedGates: [],

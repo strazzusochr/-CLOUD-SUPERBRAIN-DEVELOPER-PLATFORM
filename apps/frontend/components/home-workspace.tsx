@@ -9,6 +9,7 @@ type WorkspaceBuild = {
   title: string;
   created_at: string | null;
   updated_at: string | null;
+  last_used_at?: string | null;
   pinned?: boolean;
 };
 
@@ -17,6 +18,9 @@ type WorkspaceState =
   | { kind: "anonymous" }
   | { kind: "unavailable" }
   | { kind: "ready"; builds: WorkspaceBuild[]; pinnedBuilds: WorkspaceBuild[] };
+
+type AllWorkspaceState = { kind: "closed" } | { kind: "loading" } | { kind: "ready"; builds: WorkspaceBuild[]; nextCursor: string | null } | { kind: "error" };
+type WorkspaceActionError = { kind: "pin" | "delete"; build: WorkspaceBuild; message: string };
 
 function formatTimestamp(value: string | null): string {
   if (!value) return "Zeitpunkt nicht verfügbar";
@@ -45,6 +49,9 @@ function isWorkspacePayload(value: unknown): value is { builds: WorkspaceBuild[]
 export function HomeWorkspace() {
   const [state, setState] = useState<WorkspaceState>({ kind: "loading" });
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [allState, setAllState] = useState<AllWorkspaceState>({ kind: "closed" });
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<WorkspaceActionError | null>(null);
 
   const load = useCallback(async () => {
     const controller = new AbortController();
@@ -75,32 +82,68 @@ export function HomeWorkspace() {
     }
   }, []);
 
+  const loadAll = useCallback(async () => {
+    setAllState({ kind: "loading" });
+    try {
+      const response = await fetch("/api/v1/workspace/builds/mine/all?limit=100", { cache: "no-store" });
+      const payload = await response.json().catch(() => null) as { builds?: WorkspaceBuild[]; next_cursor?: string | null } | null;
+      if (!response.ok || !Array.isArray(payload?.builds)) {
+        setAllState({ kind: "error" });
+        return;
+      }
+      setAllState({ kind: "ready", builds: payload.builds, nextCursor: payload.next_cursor ?? null });
+    } catch {
+      setAllState({ kind: "error" });
+    }
+  }, []);
+
   useEffect(() => {
-    // Defer the network state transition until after hydration. This avoids a
-    // synchronous state transition during the effect commit while preserving
-    // an actual request rather than a hard-coded empty state.
+    // The first render is an honest loading state; defer the server-bound read
+    // one turn so React can finish hydration before the state transition.
     const task = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(task);
   }, [load]);
 
   const setPinned = useCallback(async (build: WorkspaceBuild, pinned: boolean) => {
-    const response = await fetch(`/api/v1/workspace/builds/${encodeURIComponent(build.id)}/pin`, {
-      method: pinned ? "DELETE" : "PUT",
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
-    if (response.ok) await load();
+    setBusyAction(`pin:${build.id}`);
+    setActionError(null);
+    try {
+      const response = await fetch(`/api/v1/workspace/builds/${encodeURIComponent(build.id)}/pin`, {
+        method: pinned ? "DELETE" : "PUT",
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        setActionError({ kind: "pin", build, message: "Die Anheftung konnte nicht gespeichert werden." });
+        return;
+      }
+      await load();
+    } catch {
+      setActionError({ kind: "pin", build, message: "Die Anheftung ist gerade nicht erreichbar." });
+    } finally {
+      setBusyAction(null);
+    }
   }, [load]);
 
   const deleteBuild = useCallback(async (build: WorkspaceBuild) => {
-    const response = await fetch(`/api/v1/workspace/builds/${encodeURIComponent(build.id)}`, {
-      method: "DELETE",
-      headers: { accept: "application/json" },
-      cache: "no-store",
-    });
-    if (response.ok) {
+    setBusyAction(`delete:${build.id}`);
+    setActionError(null);
+    try {
+      const response = await fetch(`/api/v1/workspace/builds/${encodeURIComponent(build.id)}`, {
+        method: "DELETE",
+        headers: { accept: "application/json" },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        setActionError({ kind: "delete", build, message: "Der Arbeitsstand konnte nicht gelöscht werden." });
+        return;
+      }
       setConfirmingDelete(null);
       await load();
+    } catch {
+      setActionError({ kind: "delete", build, message: "Das Löschen ist gerade nicht erreichbar." });
+    } finally {
+      setBusyAction(null);
     }
   }, [load]);
 
@@ -110,11 +153,12 @@ export function HomeWorkspace() {
         {state.builds.map((build) => (
           <div className="lrow home-workspace-row" key={build.id}>
             <Link href={buildPath(build.id)} className="lrow-title" data-testid={`home-workspace-continue-${build.id}`}>{build.title}</Link>
-            <span className="meta">{formatTimestamp(build.updated_at ?? build.created_at)}</span>
+            <span className="meta">{formatTimestamp(build.last_used_at ?? build.updated_at ?? build.created_at)}</span>
             <button
               type="button"
               className="btn btn-sm btn-ghost"
               data-testid={`home-workspace-pin-${build.id}`}
+              disabled={busyAction === `pin:${build.id}`}
               onClick={() => void setPinned(build, build.pinned === true)}
               aria-label={build.pinned ? `Anheftung von ${build.title} aufheben` : `${build.title} anheften`}
             >
@@ -124,6 +168,7 @@ export function HomeWorkspace() {
               type="button"
               className="btn btn-sm btn-ghost"
               data-testid={`home-workspace-delete-${build.id}`}
+              disabled={busyAction === `delete:${build.id}`}
               onClick={() => {
                 if (confirmingDelete === build.id) void deleteBuild(build);
                 else setConfirmingDelete(build.id);
@@ -155,7 +200,7 @@ export function HomeWorkspace() {
         {state.pinnedBuilds.map((build) => (
           <div className="lrow home-workspace-row" key={build.id}>
             <Link href={buildPath(build.id)} className="lrow-title" data-testid={`home-workspace-continue-${build.id}`}>{build.title}</Link>
-            <span className="meta">{formatTimestamp(build.updated_at ?? build.created_at)}</span>
+            <span className="meta">{formatTimestamp(build.last_used_at ?? build.updated_at ?? build.created_at)}</span>
             <button
               type="button"
               className="btn btn-sm btn-ghost"
@@ -179,8 +224,31 @@ export function HomeWorkspace() {
 
   return (
     <>
-      <Panel title="Eigene Arbeitsstände" className="home-workspace-panel" actions={<Link href="/workbench" className="btn btn-sm btn-ghost">Workbench öffnen →</Link>}>
+      <Panel title="Eigene Arbeitsstände" className="home-workspace-panel" actions={<span className="home-workspace-actions"><button type="button" className="btn btn-sm btn-ghost" data-testid="home-workspace-all" onClick={() => void loadAll()}>{allState.kind === "closed" ? "Alle anzeigen" : "Gesamtansicht aktualisieren"}</button><Link href="/workbench" className="btn btn-sm btn-ghost">Workbench öffnen →</Link></span>}>
         {recentContent}
+        {allState.kind === "loading" ? <p className="home-workspace-empty">Alle eigenen Arbeitsstände werden geladen.</p> : null}
+        {allState.kind === "error" ? <p className="home-workspace-empty">Die Gesamtansicht ist gerade nicht erreichbar.</p> : null}
+        {actionError ? (
+          <div className="home-workspace-action-error" role="alert">
+            <p>{actionError.message}</p>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => actionError.kind === "pin"
+                ? void setPinned(actionError.build, actionError.build.pinned === true)
+                : void deleteBuild(actionError.build)}
+            >
+              Wiederholen
+            </button>
+          </div>
+        ) : null}
+        {allState.kind === "ready" ? (
+          <div className="list home-workspace-all-list" data-testid="home-workspace-all-builds">
+            {allState.builds.map((build) => <Link href={buildPath(build.id)} className="lrow-title" key={`all-${build.id}`}>{build.title}</Link>)}
+            {allState.builds.length === 0 ? <p className="home-workspace-empty">Keine eigenen Arbeitsstände.</p> : null}
+            {allState.nextCursor ? <span className="meta">Weitere eigene Arbeitsstände sind verfügbar.</span> : null}
+          </div>
+        ) : null}
       </Panel>
       <Panel title="Angeheftete Arbeitsstände" className="home-workspace-panel">
         {pinsContent}

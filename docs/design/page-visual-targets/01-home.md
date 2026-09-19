@@ -192,3 +192,111 @@ logisch per `deleted_at` (D1) löscht.
 - Vor einer Implementierung muss der neue Test- und Verifier-Satz gegen den
   unveränderten alten Code nachweislich rot laufen; erst danach darf die
   Umsetzung beginnen.
+
+## F. Persönlicher Live-Monitor
+
+- Direkt unter dem Hero zeigt Home „Deine Aktivität“: ausschließlich Ereignisse
+  der serverseitig identifizierten Person; keine globale oder `default`-Liste.
+- Ein Ereignis enthält mindestens einen serverseitig erzeugten `event_id`,
+  Klartext, Quelle, Zeit, Zustand, Wirkung und — sofern vorhanden — die
+  verknüpfte Parent-/Root-Spur. Fehlende Instrumentierung wird als Lücke oder
+  „unvollständig“ angezeigt, niemals durch Beispielereignisse ersetzt.
+- Die acht Klassen sind LLM, Agent, Werkzeug/MCP, Speicher, Datei/Artefakt,
+  Build/Pin/Löschen, Anmeldung/Berechtigung und Sicherheitsblockade.
+- Zustände bleiben unterscheidbar: lädt, aktiv, keine Aktivität, nicht
+  angemeldet, nicht berechtigt, Quelle nicht verbunden, veraltet,
+  unvollständig. HTTP 401, 403 und 503 werden nicht zusammengelegt.
+- Pause friert nur die Darstellung ein; neue Ereignisse werden gezählt und
+  können nach Fortsetzen ohne Duplikat/GAP-Verlust gelesen werden.
+
+## G. Rückverfolgung und Lesegrenze
+
+- Auswahl einer Monitorzeile öffnet einen Detailbereich mit Akteur, Quelle,
+  Zeit, Dauer, Ergebnis, Wirkung und vollständiger vorhandener Parent-/Root-
+  Kette. Ein Link nach `/observe` ist Zusatz, kein Ersatz für den Home-Detail-
+  bereich.
+- Persönliche Read-/Detail-/Trace-/Stream-Routen leiten die Identität
+  ausschließlich serverseitig aus der Sitzung ab. Client-User-IDs,
+  `owner_subject`-Header und Query-Parameter sind keine Berechtigungsquelle.
+- Streams unterstützen `Last-Event-ID`, Cursor, Deduplication und sichtbare
+  Lücken. `no-store` und angemessene Timeouts verhindern veraltete oder
+  sitzungsübergreifende Daten.
+
+## H. Integrität und Wirkungsbelege
+
+- Ereignisse sind append-only und enthalten W3C-Tracefelder, Owner-Subjekt,
+  Quelle/Umgebung/Source-SHA, Phase, Ergebnis, Wirkungs- und Payload-Hashes,
+  Redaktionsstatus, Nutzungskosten nur mit Herkunft, Sequenz und
+  Vollständigkeitsstatus.
+- Effekt, Event und Outbox werden je Backend atomar behandelt; Retry-, Crash-,
+  Concurrency-, GAP- und Readbacktests sind Pflicht. Externe Wirkungen werden
+  als autorisierter Intent plus Ergebnis/Reconciliation belegt, nicht als
+  atomar mit D1/PG ausgegeben.
+- Eine Hashkette darf nur als lokal gegen einen bekannten Head verifiziert
+  bezeichnet werden. Ohne unabhängigen signierten externen Checkpoint ist
+  „unmanipulierbar“ kein zulässiger Claim.
+
+## I. Visualisierung, Leistung und Zugänglichkeit
+
+- Cortex-Regionen folgen der freigegebenen Owner-Tabelle: Prompt →
+  Sensorischer Kortex, Planung → Präfrontal, Orchestrierung → Frontallappen,
+  LLM → Balken/Callosum, Werkzeug/MCP → Thalamus, Speicher → Hippocampus,
+  Richtlinienprüfung/Nachweis → Kleinhirn, Agentenfehler → Motorkortex,
+  Konsolidierung → gesamter Hippocampus.
+- Ohne reales Ereignis bleibt die Darstellung ruhig. Binär-/Hex-Elemente
+  werden ausschließlich aus Kennungen eingetroffener Ereignisse abgeleitet.
+- Zero-Load ist Standard: Low-Power, DPR höchstens 1, begrenzte Bildrate,
+  Instancing, keine teuren Effekte, Pause im Hintergrund; hohe Qualität nur
+  nach Hinweis und Zustimmung und mit automatischer Rückstufung.
+- WebGPU, WebGL2 und statischer Fallback werden funktional und zugänglich
+  gleichwertig behandelt. Reduced Motion, Tastatur, Fokus-Rückgabe und
+  Kontrast bleiben unabhängig von GPU-Fehlern nutzbar.
+- Industrie-Stil: feine 1-px-Linien, Radius 6–10 px, sparsames Leuchten,
+  keine quietschbunten Flächen oder überall runden Ecken. Fußzeile und
+  Produktnavigation bleiben Deutsch und ohne Scheinaktionen.
+
+## J. Login- und Rollenübergänge
+
+- Nach erfolgreicher Anmeldung ist `/home` das Ziel; die Umgebungsänderung
+  `POST_LOGIN_REDIRECT=/home` ist ein separater, Owner-gegater Hosted-Schritt
+  und gilt lokal nicht als erledigt.
+- Eine Owner-Plattformansicht darf nur nach verifizierter Owner-Identität
+  erscheinen und zeigt fremde Aktivität ausschließlich als Metadaten und
+  Prüfsummen; fremde Inhalte, Prompts und Secrets bleiben verborgen. Ohne
+  diesen Scope bleibt Home persönlich.
+
+## K. Seiten- und Backend-Grenzen
+
+- `/` bleibt in diesem Slice unverändert; ein gemeinsamer Cortex-Kern darf nur
+  regressionssicher geteilt werden. Öffentliche Landingpage-Regeln gehören in
+  einen eigenen Zielvertrag.
+- `/run/<id>` bleibt eine explizite Sharefläche, nicht private Bearbeitung.
+  `/workbench?build=<id>` bleibt ownergebundene Fortsetzung ohne
+  Existenzauskunft für fremde/unbekannte IDs.
+- Postgres und D1 müssen dieselbe beobachtbare Owner-/Pin-/Löschsemantik
+  liefern. Physisches oder logisches Löschen ist intern zulässig, solange
+  aktive Listen und Owner-Schutz identisch nachgewiesen sind.
+
+## L. Abnahme- und Regressionstor
+
+- Neue Tests und Verifier laufen zuerst gegen den unveränderten Stand rot,
+  danach gegen die Implementierung grün und bei probeweiser Rücknahme wieder
+  rot. DOM-Text, hartkodierte Marker und Source-Includes sind keine Belege.
+- Nach Änderungen an gemeinsam genutzten Dateien laufen alle 22 kanonischen
+  Seitenfamilien auf demselben Port und gegen denselben Source-Stand; der
+  Basestand wird für neue rote Familien separat geprüft.
+- Abnahme benötigt Build, Lint, Tests mit Gegenprobe, anwendbare Verifier,
+  echte HTTP-/Berechtigungs-/Persistenz-Readbacks sowie Screenshots in
+  1440×900 und 375×812. `DEV-ONLY` wird ausdrücklich gekennzeichnet.
+- Keine Gate-Erhöhung, kein Fake-Done und kein Produktions-/Provider-Schritt
+  wird aus lokalen Layout- oder DOM-Tests abgeleitet.
+
+## E1–E9 verbindliche Ergänzungen
+
+E1 Owner-Regionstabelle und Ereignis-Darstellungsarten; E2 Zero-Load als
+Standard; E3 Binär-/Hex-Optik nur aus realen Event-IDs; E4 separate Owner-
+Metadatenansicht mit Datenschutzgrenze; E5 Loginziel `/home`; E6 sichtbares
+„Weiterarbeiten: <letzter eigener Arbeitsstand>“ nur bei echtem eigenen
+Datensatz; E7 deutsche Markenfußzeile; E8 Industrie-Stil; E9 `/` außerhalb
+des Seite-01-Slices. Jede Ergänzung ist nur mit der oben beschriebenen
+Netzwerk-, Besitz-, Wirkungs- und Screenshot-Belegkette erfüllt.
