@@ -2,8 +2,8 @@
   "$schema": "../runtime-contracts/source-qualification-control.schema.json",
   "contract_version": "source-qualification-control-v1",
   "release_id": "prod-candidate-2026-09-19-local-rc69",
-  "runtime_candidate_sha": "e30d6ea5b49789f36836db04cbc0c470c27ab694",
-  "source_archive_sha256": "29865af5cc3b0ca5b561d11aba0b8f06e9f36cd2f3c38e0d0e2de40732f7790a",
+  "runtime_candidate_sha": "78a3fcb91f5a28f2c7ab659da991ff72bc9acca0",
+  "source_archive_sha256": "27fd7b6aab00c067734bfa436ced6495cd37e885419205a6e83528361cae62a2",
   "production_rollout_claimed": false,
   "percentage_credit_awarded": 0,
   "secret_output": false
