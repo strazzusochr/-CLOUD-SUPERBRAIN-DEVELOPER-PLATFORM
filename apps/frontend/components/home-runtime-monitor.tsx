@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Panel } from "../components/ui";
 
-type MonitorState = "loading" | "anonymous" | "forbidden" | "unavailable" | "empty" | "ready";
+type MonitorState = "loading" | "anonymous" | "forbidden" | "unavailable" | "empty" | "incomplete" | "stale" | "ready";
 type RuntimeValue = string | number | boolean | null | undefined | Record<string, unknown> | unknown[];
 type RuntimeEvent = {
   event_id: string;
@@ -24,6 +24,7 @@ type RuntimeEvent = {
   event_hash?: string | null;
   completeness?: string | null;
   missing_refs?: string[];
+  runtime_class?: string;
   outcome?: string | null;
   observed_at?: string | null;
 };
@@ -79,6 +80,7 @@ export function HomeRuntimeMonitor() {
   const lastEventIdRef = useRef<string | null>(null);
   const knownEventIdsRef = useRef(new Set<string>());
   const detailRequestRef = useRef<string | null>(null);
+  const incompleteRef = useRef(false);
 
   const readEvents = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
     try {
@@ -86,10 +88,11 @@ export function HomeRuntimeMonitor() {
       if (response.status === 401) { setState("anonymous"); return false; }
       if (response.status === 403) { setState("forbidden"); return false; }
       if (!response.ok) { setState("unavailable"); return false; }
-      const payload = await response.json().catch(() => null) as { events?: RuntimeEvent[] } | null;
+      const payload = await response.json().catch(() => null) as { events?: RuntimeEvent[]; complete?: boolean; stale?: boolean } | null;
       const nextEvents = Array.isArray(payload?.events)
         ? payload.events.filter((event) => event && typeof event.event_id === "string")
         : [];
+      incompleteRef.current = payload?.complete === false;
       lastEventIdRef.current = nextEvents[0]?.event_id ?? lastEventIdRef.current;
       if (pausedRef.current) {
         setEvents((current) => {
@@ -102,7 +105,7 @@ export function HomeRuntimeMonitor() {
       knownEventIdsRef.current = new Set(nextEvents.map((event) => event.event_id));
       setEvents(nextEvents);
       setPendingCount(0);
-      setState(nextEvents.length > 0 ? "ready" : "empty");
+      setState(nextEvents.length > 0 ? (payload?.stale === true ? "stale" : incompleteRef.current ? "incomplete" : "ready") : "empty");
       return true;
     } catch {
       if (!signal?.aborted) setState("unavailable");
@@ -140,7 +143,7 @@ export function HomeRuntimeMonitor() {
         return merged;
       });
       setPendingCount(0);
-      setState("ready");
+      setState(incompleteRef.current ? "incomplete" : "ready");
     } catch {
       if (!signal?.aborted) setState("unavailable");
     }
@@ -216,6 +219,10 @@ export function HomeRuntimeMonitor() {
       ? "Aktivität ist für diese Identität nicht freigegeben."
       : state === "unavailable"
         ? "Aktivität ist gerade nicht erreichbar."
+      : state === "stale"
+        ? "Aktivität ist veraltet — Quelle bitte neu verbinden."
+      : state === "incomplete"
+        ? "Aktivität ist unvollständig — noch nicht alle Wirkungsquellen sind verbunden."
       : state === "empty"
         ? "Keine Aktivität"
         : "Eigene Aktivität";
@@ -234,9 +241,11 @@ export function HomeRuntimeMonitor() {
           </div>
         ) : null}
       >
-        {state === "ready" ? (
-          <div className="list home-runtime-event-list" data-testid="home-runtime-events">
-            {events.map((event) => (
+        {state === "ready" || state === "incomplete" || state === "stale" ? (
+          <>
+            {state !== "ready" ? <p className="home-workspace-empty" role="status">{message}</p> : null}
+            <div className="list home-runtime-event-list" data-testid="home-runtime-events">
+              {events.map((event) => (
               <details className="home-runtime-event" key={event.event_id} onToggle={(toggleEvent) => {
                 if ((toggleEvent.currentTarget as HTMLDetailsElement).open) void loadDetail(event);
               }}>
@@ -263,8 +272,9 @@ export function HomeRuntimeMonitor() {
                 ) : null}
                 {detailError && detail?.event.event_id === event.event_id ? <p className="home-workspace-empty">{detailError}</p> : null}
               </details>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         ) : <p className="home-workspace-empty">{message}</p>}
       </Panel>
     </div>

@@ -168,6 +168,38 @@ test.describe("Page 01 — personal runtime contract", () => {
     await expect(event).toContainText(String(build.build?.id));
   });
 
+  test("marks missing runtime producer classes as incomplete instead of claiming a complete feed", async ({ page }) => {
+    await page.goto("/login?runtime-completeness=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const result = await page.evaluate(async () => {
+      const sessionResponse = await fetch("/api/v1/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "guest" }),
+      });
+      if (sessionResponse.status !== 200) return { sessionStatus: sessionResponse.status, buildStatus: 0, feedStatus: 0, feed: null };
+      const buildResponse = await fetch("/api/v1/build", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: "Erzeuge eine kleine Runtime-Vollständigkeitsprobe.", project_id: "default" }),
+      });
+      const feedResponse = await fetch("/api/v1/workspace/runtime/events");
+      return {
+        sessionStatus: sessionResponse.status,
+        buildStatus: buildResponse.status,
+        feedStatus: feedResponse.status,
+        feed: await feedResponse.json().catch(() => null),
+      };
+    });
+    expect(result.sessionStatus).toBe(200);
+    expect(result.buildStatus).toBe(200);
+    expect(result.feedStatus).toBe(200);
+    expect(result.feed?.complete).toBe(false);
+    expect(result.feed?.observed_classes).toContain("workspace");
+    expect(result.feed?.missing_classes).toEqual(expect.arrayContaining(["llm", "agent", "tool_mcp", "memory", "artifact", "auth", "security"]));
+    await page.goto("/home?runtime-completeness-view=" + Date.now(), { waitUntil: "domcontentloaded" });
+    await expect(page.getByText(/Aktivität ist unvollständig/)).toBeVisible({ timeout: 30_000 });
+  });
+
   test("reconnects the owner-bound stream from a real persisted cursor", async ({ page }) => {
     await page.goto("/login?runtime-reconnect=" + Date.now(), { waitUntil: "domcontentloaded" });
     const result = await page.evaluate(async () => {

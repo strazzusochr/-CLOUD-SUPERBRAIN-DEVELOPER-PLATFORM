@@ -10427,6 +10427,40 @@ def _build_registry_secret_present(*values: str) -> bool:
     return any(redact_text(value) != value for value in values)
 
 
+WORKSPACE_RUNTIME_CLASSES = (
+    "llm",
+    "agent",
+    "tool_mcp",
+    "memory",
+    "artifact",
+    "workspace",
+    "auth",
+    "security",
+)
+
+
+def _runtime_class_for_event(event_type: str, producer: str) -> str:
+    """Map persisted producer metadata to the Home contract's honest classes."""
+    value = f"{producer} {event_type}".lower()
+    if "workspace" in value or any(token in value for token in ("build", "pin", "unpin", "delete")):
+        return "workspace"
+    if "llm" in value or "model" in value or "gateway" in value:
+        return "llm"
+    if "agent" in value or "orches" in value:
+        return "agent"
+    if "mcp" in value or "tool" in value:
+        return "tool_mcp"
+    if "memory" in value or "vector" in value:
+        return "memory"
+    if "artifact" in value or "file" in value:
+        return "artifact"
+    if "auth" in value or "session" in value or "permission" in value:
+        return "auth"
+    if "security" in value or "policy" in value or "block" in value:
+        return "security"
+    return "artifact"
+
+
 def _append_workspace_runtime_event(
     conn: object,
     *,
@@ -11187,6 +11221,7 @@ def list_workspace_runtime_events(owner_subject: str | None, token: str | None, 
             "parent_event_id": str(parent_event_id) if parent_event_id else None,
             "source": {"service": source_service, "environment": environment, "source_commit_sha": source_commit_sha},
             "producer": producer,
+            "runtime_class": _runtime_class_for_event(str(event_type), str(producer)),
             "occurred_at": occurred_at.isoformat() if hasattr(occurred_at, "isoformat") else occurred_at,
             "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else observed_at,
             "owner_sequence": str(owner_sequence),
@@ -11209,13 +11244,21 @@ def list_workspace_runtime_events(owner_subject: str | None, token: str | None, 
             "parent_event_ids": [str(parent_event_id)] if parent_event_id else [],
             "root_event_id": str(parent_event_id or event_id),
         })
+    observed_classes = sorted({
+        str(event.get("runtime_class"))
+        for event in events
+        if isinstance(event, dict) and event.get("runtime_class")
+    })
+    missing_classes = [runtime_class for runtime_class in WORKSPACE_RUNTIME_CLASSES if runtime_class not in observed_classes]
     return {
         "contract_version": "home-runtime-events-v1",
         "status": "verified",
         "source": "postgres",
         "identity_scope": "server_bound_workspace_subject",
         "events": events,
-        "complete": True,
+        "observed_classes": observed_classes,
+        "missing_classes": missing_classes,
+        "complete": not missing_classes,
         "persisted": True,
         "audit_persisted": True,
         "live_provider_calls": False,
