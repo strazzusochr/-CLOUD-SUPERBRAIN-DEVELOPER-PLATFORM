@@ -1163,6 +1163,7 @@ test("owner-bound D1 build creation records trusted gateway metadata as an LLM r
   assert.deepEqual(body.observed_classes, ["llm", "workspace"]);
   const llmEvent = body.events.find((event) => event.runtime_class === "llm");
   assert.equal(llmEvent.event, "llm_generation_completed");
+  assert.equal(llmEvent.producer, "llm_gateway");
   assert.equal(llmEvent.effect.gateway_provider, "cloudflare-workers-ai");
   assert.equal(llmEvent.effect.build_id, "workspace_llm_event");
 });

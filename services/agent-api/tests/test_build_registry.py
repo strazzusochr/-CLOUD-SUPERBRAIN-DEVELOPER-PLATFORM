@@ -376,6 +376,7 @@ class BuildRegistryTests(unittest.TestCase):
         llm_events = [event for event in events["events"] if event["runtime_class"] == "llm"]
         self.assertEqual(len(llm_events), 1)
         self.assertEqual(llm_events[0]["event"], "llm_generation_completed")
+        self.assertEqual(llm_events[0]["producer"], "llm_gateway")
         self.assertEqual(llm_events[0]["effect"]["gateway_provider"], "cloudflare-workers-ai")
 
     def test_runtime_event_detail_and_trace_reads_are_owner_bound(self) -> None:
