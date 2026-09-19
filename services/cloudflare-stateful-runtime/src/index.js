@@ -282,6 +282,136 @@ async function sha256(value) {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const WORKSPACE_RUNTIME_CHAIN = "workspace";
+
+async function appendWorkspaceRuntimeEvent(env, {
+  ownerSubject,
+  eventType,
+  buildId,
+  traceId,
+  phase = "committed",
+  outcome = "success",
+  effect,
+}) {
+  const now = new Date().toISOString();
+  const head = await env.DB.prepare(`
+    SELECT next_sequence, head_hash
+    FROM runtime_event_chain_heads
+    WHERE owner_subject = ? AND chain_partition = ?
+    LIMIT 1
+  `).bind(ownerSubject, WORKSPACE_RUNTIME_CHAIN).first();
+  const ownerSequence = Number(head?.next_sequence || 1);
+  const previousHash = head?.head_hash ? String(head.head_hash) : null;
+  const eventId = crypto.randomUUID();
+  const effectJson = JSON.stringify({
+    build_id: buildId,
+    ...effect,
+  });
+  const envelope = {
+    event_id: eventId,
+    owner_subject: ownerSubject,
+    event_type: eventType,
+    actor_type: "workspace",
+    actor_id: ownerSubject,
+    trace_id: traceId || null,
+    span_id: null,
+    parent_event_id: null,
+    source_service: SOURCE,
+    environment: env.ENVIRONMENT || env.RUNTIME_ENVIRONMENT || "cloudflare-d1",
+    source_commit_sha: env.SOURCE_COMMIT_SHA || null,
+    producer: "workspace-registry",
+    occurred_at: now,
+    observed_at: now,
+    owner_sequence: ownerSequence,
+    producer_sequence: ownerSequence,
+    phase,
+    outcome,
+    effect_json: effectJson,
+    input_hash: null,
+    output_hash: null,
+    hash_scope: "redacted-envelope-v1",
+    redaction_status: "redacted",
+    redaction_version: "v1",
+    payload_ref: null,
+    prev_hash: previousHash,
+    chain_partition: WORKSPACE_RUNTIME_CHAIN,
+    completeness: "complete",
+  };
+  const eventHash = await sha256(JSON.stringify(envelope));
+  const outboxId = crypto.randomUUID();
+  await env.DB.batch([
+    env.DB.prepare(`
+      INSERT INTO runtime_events (
+        event_id, owner_subject, event_type, actor_type, actor_id, trace_id,
+        span_id, parent_event_id, source_service, environment, source_commit_sha,
+        producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+        phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+        redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+        chain_partition, completeness, missing_refs_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      eventId,
+      ownerSubject,
+      eventType,
+      envelope.actor_type,
+      envelope.actor_id,
+      envelope.trace_id,
+      envelope.span_id,
+      envelope.parent_event_id,
+      envelope.source_service,
+      envelope.environment,
+      envelope.source_commit_sha,
+      envelope.producer,
+      envelope.occurred_at,
+      envelope.observed_at,
+      envelope.owner_sequence,
+      envelope.producer_sequence,
+      envelope.phase,
+      envelope.outcome,
+      envelope.effect_json,
+      envelope.input_hash,
+      envelope.output_hash,
+      envelope.hash_scope,
+      envelope.redaction_status,
+      envelope.redaction_version,
+      envelope.payload_ref,
+      envelope.prev_hash,
+      eventHash,
+      envelope.chain_partition,
+      envelope.completeness,
+      "[]",
+    ),
+    env.DB.prepare(`
+      INSERT INTO runtime_event_chain_heads (owner_subject, chain_partition, next_sequence, head_hash, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(owner_subject, chain_partition) DO UPDATE SET
+        next_sequence = excluded.next_sequence,
+        head_hash = excluded.head_hash,
+        updated_at = excluded.updated_at
+    `).bind(ownerSubject, WORKSPACE_RUNTIME_CHAIN, ownerSequence + 1, eventHash, now),
+    env.DB.prepare(`
+      INSERT INTO runtime_event_outbox (
+        outbox_id, event_id, owner_subject, status, attempts, available_at, created_at
+      ) VALUES (?, ?, ?, 'pending', 0, ?, ?)
+    `).bind(outboxId, eventId, ownerSubject, now, now),
+  ]);
+  const readback = await env.DB.prepare(`
+    SELECT event_id, owner_subject, owner_sequence, prev_hash, event_hash
+    FROM runtime_events
+    WHERE event_id = ? AND owner_subject = ? AND chain_partition = ?
+    LIMIT 1
+  `).bind(eventId, ownerSubject, WORKSPACE_RUNTIME_CHAIN).first();
+  if (!readback
+    || String(readback.event_id) !== eventId
+    || String(readback.owner_subject) !== ownerSubject
+    || Number(readback.owner_sequence) !== ownerSequence
+    || (readback.prev_hash || null) !== previousHash
+    || String(readback.event_hash) !== eventHash) {
+    throw new Error("runtime_event_readback_failed");
+  }
+  return { eventId, eventHash, ownerSequence, persisted: true };
+}
+
 function containsSecretMaterial(value) {
   if (typeof value === "string") {
     return SECRET_PATTERN_SOURCES.some(([source, flags]) => new RegExp(source, flags).test(value));
@@ -1232,6 +1362,30 @@ async function createBuild(request, env, requestId) {
       detailsJson: auditDetailsJson,
       createdAt: now,
     })) throw new Error("build_audit_readback_failed");
+    let runtimeEvent = null;
+    if (ownerSubject) {
+      try {
+        runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+          ownerSubject,
+          eventType: "workspace_build_created",
+          buildId: build.id,
+          traceId: requestId,
+          effect: {
+            project_id: build.projectId,
+            model: build.model,
+            gateway_mode: build.gatewayMode,
+            gateway_provider: build.gatewayProvider,
+          },
+        });
+      } catch {
+        return json(mutationOutcomeUnknown(
+          "build_runtime_event_outcome_unknown",
+          requestId,
+          "The D1 build and audit were persisted but the owner-bound runtime event could not be confirmed. Reconcile the build and event identifiers before retrying.",
+          { id: build.id, audit_event_id: auditEventId, operation: "create" },
+        ), 503);
+      }
+    }
     return json({
       ...buildFromRow(row),
       contract_version: CONTRACT_VERSION,
@@ -1241,6 +1395,8 @@ async function createBuild(request, env, requestId) {
       audit_event_id: auditEventId,
       audit_persisted: true,
       audit_readback_verified: true,
+      runtime_event_id: runtimeEvent?.eventId || null,
+      runtime_event_persisted: runtimeEvent?.persisted === true,
       live_mcp_writes: false,
       production_deploy: false,
     }, 201);
@@ -1384,12 +1540,33 @@ async function mutateWorkspacePin(request, id, env, requestId, pinned) {
       ? env.DB.prepare("INSERT INTO workspace_build_pins (owner_subject, build_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING").bind(subject, clean, new Date().toISOString())
       : env.DB.prepare("DELETE FROM workspace_build_pins WHERE owner_subject = ? AND build_id = ?").bind(subject, clean);
     const result = await statement.run();
+    let runtimeEvent = null;
+    if (Number(result.meta?.changes || 0) > 0) {
+      try {
+        runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+          ownerSubject: subject,
+          eventType: pinned ? "workspace_build_pinned" : "workspace_build_unpinned",
+          buildId: clean,
+          traceId: requestId,
+          effect: { pinned },
+        });
+      } catch {
+        return json(mutationOutcomeUnknown(
+          "workspace_pin_runtime_event_outcome_unknown",
+          requestId,
+          "The workspace pin changed but its runtime event could not be confirmed. Reconcile the build and event identifiers before retrying.",
+          { id: clean, operation: pinned ? "pin" : "unpin" },
+        ), 503);
+      }
+    }
     return json({
       contract_version: "github-workspace-builds-v1",
       status: pinned ? "pinned" : "unpinned",
       id: clean,
       persisted: true,
       changed: Number(result.meta?.changes || 0) > 0,
+      runtime_event_id: runtimeEvent?.eventId || null,
+      runtime_event_persisted: runtimeEvent?.persisted === true,
       secret_output: false,
     });
   } catch {
@@ -1410,6 +1587,23 @@ async function deleteWorkspaceBuild(request, id, env, requestId) {
     if (!owned) return workspaceNotFound(requestId);
     const result = await env.DB.prepare("UPDATE builds SET deleted_at = ?, updated_at = ? WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL").bind(now, now, clean, subject).run();
     if (Number(result.meta?.changes || 0) !== 1) return workspaceNotFound(requestId);
+    let runtimeEvent;
+    try {
+      runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject: subject,
+        eventType: "workspace_build_deleted",
+        buildId: clean,
+        traceId: requestId,
+        effect: { logical_delete: true, physical_delete: false },
+      });
+    } catch {
+      return json(mutationOutcomeUnknown(
+        "workspace_delete_runtime_event_outcome_unknown",
+        requestId,
+        "The workspace build was logically deleted but its runtime event could not be confirmed. Reconcile the build and event identifiers before retrying.",
+        { id: clean, operation: "delete" },
+      ), 503);
+    }
     return json({
       contract_version: "github-workspace-builds-v1",
       status: "deleted",
@@ -1417,6 +1611,8 @@ async function deleteWorkspaceBuild(request, id, env, requestId) {
       persisted: true,
       logical_delete: true,
       physical_delete: false,
+      runtime_event_id: runtimeEvent.eventId,
+      runtime_event_persisted: runtimeEvent.persisted === true,
       secret_output: false,
     });
   } catch {

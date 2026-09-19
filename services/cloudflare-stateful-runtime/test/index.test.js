@@ -119,6 +119,30 @@ class FakeStatement {
       this.db.audit.push({ id, event_type, trace_id, subject_id, details_json, created_at });
       return { meta: { changes: 1 } };
     }
+    if (this.sql.startsWith("INSERT INTO runtime_events")) {
+      const [event_id, owner_subject, event_type, actor_type, actor_id, trace_id, span_id, parent_event_id,
+        source_service, environment, source_commit_sha, producer, occurred_at, observed_at, owner_sequence,
+        producer_sequence, phase, outcome, effect_json, input_hash, output_hash, hash_scope, redaction_status,
+        redaction_version, payload_ref, prev_hash, event_hash, chain_partition, completeness, missing_refs_json] = this.values;
+      if (this.db.runtimeEvents.has(event_id)) throw new Error("UNIQUE constraint failed: runtime_events.event_id");
+      this.db.runtimeEvents.set(event_id, {
+        event_id, owner_subject, event_type, actor_type, actor_id, trace_id, span_id, parent_event_id,
+        source_service, environment, source_commit_sha, producer, occurred_at, observed_at, owner_sequence,
+        producer_sequence, phase, outcome, effect_json, input_hash, output_hash, hash_scope, redaction_status,
+        redaction_version, payload_ref, prev_hash, event_hash, chain_partition, completeness, missing_refs_json,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO runtime_event_chain_heads")) {
+      const [owner_subject, chain_partition, next_sequence, head_hash, updated_at] = this.values;
+      this.db.runtimeEventHeads.set(`${owner_subject}:${chain_partition}`, { owner_subject, chain_partition, next_sequence, head_hash, updated_at });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO runtime_event_outbox")) {
+      const [outbox_id, event_id, owner_subject, available_at, created_at] = this.values;
+      this.db.runtimeEventOutbox.set(outbox_id, { outbox_id, event_id, owner_subject, status: "pending", attempts: 0, available_at, created_at });
+      return { meta: { changes: 1 } };
+    }
     if (this.sql.startsWith("INSERT INTO oauth_states")) {
       const [state, created_at, expires_at] = this.values;
       this.db.oauthStates.set(state, { state, created_at, expires_at });
@@ -345,6 +369,13 @@ class FakeStatement {
       if (!row) return null;
       return this.db.mismatchAuditReadback ? { ...row, trace_id: `${row.trace_id}-mismatch` } : { ...row };
     }
+    if (this.sql.startsWith("SELECT next_sequence, head_hash FROM runtime_event_chain_heads")) {
+      return this.db.runtimeEventHeads.get(`${this.values[0]}:${this.values[1]}`) || null;
+    }
+    if (this.sql.startsWith("SELECT event_id, owner_subject, owner_sequence, prev_hash, event_hash FROM runtime_events")) {
+      const row = this.db.runtimeEvents.get(this.values[0]);
+      return row && row.owner_subject === this.values[1] && row.chain_partition === this.values[2] ? { ...row } : null;
+    }
     if (this.sql.startsWith("SELECT id, deleted_at FROM builds WHERE id")) {
       if (this.db.throwDeleteReadback) throw new Error("simulated delete readback transport failure");
       const row = this.db.builds.get(this.values[0]);
@@ -477,6 +508,9 @@ class FakeD1 {
     this.tasks = [];
     this.memory = [];
     this.audit = [];
+    this.runtimeEvents = new Map();
+    this.runtimeEventHeads = new Map();
+    this.runtimeEventOutbox = new Map();
     this.failAuditWrites = failAuditWrites;
     this.omitAuditReadback = omitAuditReadback;
     this.mismatchAuditReadback = mismatchAuditReadback;
@@ -514,6 +548,9 @@ class FakeD1 {
       tasks: this.tasks.map((value) => ({ ...value })),
       memory: this.memory.map((value) => ({ ...value })),
       audit: this.audit.map((value) => ({ ...value })),
+      runtimeEvents: new Map([...this.runtimeEvents].map(([key, value]) => [key, { ...value }])),
+      runtimeEventHeads: new Map([...this.runtimeEventHeads].map(([key, value]) => [key, { ...value }])),
+      runtimeEventOutbox: new Map([...this.runtimeEventOutbox].map(([key, value]) => [key, { ...value }])),
     };
     try {
       const results = [];
@@ -533,6 +570,9 @@ class FakeD1 {
       this.tasks = snapshot.tasks;
       this.memory = snapshot.memory;
       this.audit = snapshot.audit;
+      this.runtimeEvents = snapshot.runtimeEvents;
+      this.runtimeEventHeads = snapshot.runtimeEventHeads;
+      this.runtimeEventOutbox = snapshot.runtimeEventOutbox;
       if (this.forcedExpiryAfterRollback) {
         const forced = this.forcedExpiryAfterRollback;
         const family = this.refreshFamilies.get(forced.family_id);
@@ -969,7 +1009,16 @@ test("workspace D1 routes bind list, pin, unpin, and delete to the server subjec
 
   const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "PUT", headers }), fakeEnv);
   assert.equal(pinned.status, 200);
+  const pinnedBody = await pinned.json();
+  assert.match(pinnedBody.runtime_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(pinnedBody.runtime_event_persisted, true);
   assert.equal(fakeEnv.DB.pins.size, 1);
+  const unpinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "DELETE", headers }), fakeEnv);
+  assert.equal(unpinned.status, 200);
+  const unpinnedBody = await unpinned.json();
+  assert.match(unpinnedBody.runtime_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(unpinnedBody.runtime_event_persisted, true);
+  assert.equal(fakeEnv.DB.pins.size, 0);
   const foreignDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { method: "DELETE", headers: foreignHeaders }), fakeEnv);
   const unknownDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/unknown_build", { method: "DELETE", headers: foreignHeaders }), fakeEnv);
   assert.equal(foreignDelete.status, 404);
@@ -978,10 +1027,47 @@ test("workspace D1 routes bind list, pin, unpin, and delete to the server subjec
 
   const deleted = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { method: "DELETE", headers }), fakeEnv);
   assert.equal(deleted.status, 200);
+  const deletedBody = await deleted.json();
+  assert.match(deletedBody.runtime_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(deletedBody.runtime_event_persisted, true);
   assert.notEqual(fakeEnv.DB.builds.get("owned_build").deleted_at, null);
-  assert.equal(fakeEnv.DB.pins.size, 1);
+  assert.equal(fakeEnv.DB.pins.size, 0);
   const afterDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/mine", { headers }), fakeEnv);
   assert.deepEqual((await afterDelete.json()).builds, []);
+});
+
+test("owner-bound D1 build creation appends a redacted runtime event chain", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const first = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "workspace-create-1" },
+    body: JSON.stringify({ ...validBuild, id: "workspace_created_1", live_provider_calls: false }),
+  }), fakeEnv);
+  assert.equal(first.status, 201);
+  const firstBody = await first.json();
+  assert.equal(firstBody.runtime_event_persisted, true);
+  const firstEvent = fakeEnv.DB.runtimeEvents.get(firstBody.runtime_event_id);
+  assert.equal(firstEvent.owner_subject, owner);
+  assert.equal(firstEvent.event_type, "workspace_build_created");
+  assert.equal(firstEvent.owner_sequence, 1);
+  assert.equal(firstEvent.prev_hash, null);
+  assert.equal(firstEvent.effect_json.includes(validBuild.prompt), false);
+  assert.equal(firstEvent.effect_json.includes(validBuild.html), false);
+
+  const second = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "workspace-create-2" },
+    body: JSON.stringify({ ...validBuild, id: "workspace_created_2", live_provider_calls: false }),
+  }), fakeEnv);
+  assert.equal(second.status, 201);
+  const secondBody = await second.json();
+  const secondEvent = fakeEnv.DB.runtimeEvents.get(secondBody.runtime_event_id);
+  assert.equal(secondEvent.owner_sequence, 2);
+  assert.equal(secondEvent.prev_hash, firstEvent.event_hash);
+  assert.equal(fakeEnv.DB.runtimeEventHeads.get(`${owner}:workspace`).next_sequence, 3);
+  assert.equal(fakeEnv.DB.runtimeEventOutbox.size, 2);
 });
 
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {
