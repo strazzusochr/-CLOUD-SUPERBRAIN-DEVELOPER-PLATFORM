@@ -417,7 +417,9 @@ Assert-True (-not $buildProjectionSection.Contains("prompt: String(row.prompt)")
 $artifactCreateSection = Get-SourceSection $source "async function createArtifact" "async function listArtifacts" "Worker artifact create"
 foreach ($marker in @(
   "containsSecretMaterial",
-  "env.DB.batch([",
+  "const artifactMutationStatements = [",
+  "mutationStatements: artifactMutationStatements",
+  "env.DB.batch(artifactMutationStatements)",
   "INSERT INTO audit_events",
   "cloudflare_d1_workspace_artifact_created",
   "audit_persisted: true",
