@@ -4,19 +4,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Panel } from "../components/ui";
 
 type MonitorState = "loading" | "anonymous" | "forbidden" | "unavailable" | "empty" | "ready";
+type RuntimeValue = string | number | boolean | null | undefined | Record<string, unknown> | unknown[];
 type RuntimeEvent = {
   event_id: string;
   event: string;
   build_id?: string;
   trace_id?: string;
   owner_subject?: string;
-  source?: string;
+  source?: RuntimeValue;
   state?: string;
-  effect?: string;
+  effect?: RuntimeValue;
   parent_event_ids?: string[];
   root_event_id?: string;
   observed_at?: string | null;
 };
+
+function displayRuntimeValue(value: RuntimeValue): string {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value === "string") return value;
+  try { return JSON.stringify(value); } catch { return "[nicht darstellbar]"; }
+}
 
 export function HomeRuntimeMonitor() {
   const [state, setState] = useState<MonitorState>("loading");
@@ -111,9 +118,9 @@ export function HomeRuntimeMonitor() {
                   <dt>Ereignis</dt><dd>{event.event_id}</dd>
                   {event.build_id ? <><dt>Arbeitsstand</dt><dd>{event.build_id}</dd></> : null}
                   {event.trace_id ? <><dt>Spur</dt><dd>{event.trace_id}</dd></> : null}
-                  {event.source ? <><dt>Quelle</dt><dd>{event.source}</dd></> : null}
+                  {event.source ? <><dt>Quelle</dt><dd>{displayRuntimeValue(event.source)}</dd></> : null}
                   {event.state ? <><dt>Zustand</dt><dd>{event.state}</dd></> : null}
-                  {event.effect ? <><dt>Wirkung</dt><dd>{event.effect}</dd></> : null}
+                  {event.effect ? <><dt>Wirkung</dt><dd>{displayRuntimeValue(event.effect)}</dd></> : null}
                   {event.root_event_id ? <><dt>Ursprung</dt><dd>{event.root_event_id}</dd></> : null}
                   {event.observed_at ? <><dt>Zeit</dt><dd>{event.observed_at}</dd></> : null}
                 </dl>
