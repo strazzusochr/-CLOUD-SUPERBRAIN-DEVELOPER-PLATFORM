@@ -378,6 +378,9 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertEqual(llm_events[0]["event"], "llm_generation_completed")
         self.assertEqual(llm_events[0]["producer"], "llm_gateway")
         self.assertEqual(llm_events[0]["effect"]["gateway_provider"], "cloudflare-workers-ai")
+        workspace_events = [event for event in events["events"] if event["event"] == "build_created"]
+        self.assertEqual(len(workspace_events), 1)
+        self.assertEqual(workspace_events[0]["parent_event_id"], llm_events[0]["event_id"])
 
     def test_runtime_event_detail_and_trace_reads_are_owner_bound(self) -> None:
         self.create(valid_request(id="build_detail", title="Event detail workspace"), "github:101")

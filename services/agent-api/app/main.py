@@ -10810,12 +10810,13 @@ def create_build_registry_entry(
             ).fetchone()
             if not audit_row:
                 raise RuntimeError("build audit unavailable")
+            llm_event_id: str | None = None
             if owner_subject and gateway_provider not in {"", "unknown"}:
                 # The gateway has already returned a structurally complete, secret-safe
                 # document by the time the Agent API receives this trusted persistence
                 # request. Record that real producer boundary before the workspace effect;
                 # do not infer an event from a UI marker or create one for unbound legacy rows.
-                _append_workspace_runtime_event(
+                llm_event_id = _append_workspace_runtime_event(
                     conn,
                     owner_subject=owner_subject,
                     event_type="llm_generation_completed",
@@ -10840,6 +10841,7 @@ def create_build_registry_entry(
                 outcome="success",
                 effect={"build_id": request.id, "project_id": request.project_id},
                 trace_id=trace_id,
+                parent_event_id=llm_event_id,
             )
     except HTTPException:
         raise

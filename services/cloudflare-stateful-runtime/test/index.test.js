@@ -1166,6 +1166,8 @@ test("owner-bound D1 build creation records trusted gateway metadata as an LLM r
   assert.equal(llmEvent.producer, "llm_gateway");
   assert.equal(llmEvent.effect.gateway_provider, "cloudflare-workers-ai");
   assert.equal(llmEvent.effect.build_id, "workspace_llm_event");
+  const workspaceEvent = body.events.find((event) => event.runtime_class === "workspace");
+  assert.equal(workspaceEvent.parent_event_id, llmEvent.event_id);
 });
 
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {
