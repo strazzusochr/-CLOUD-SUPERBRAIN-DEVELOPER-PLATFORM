@@ -1113,6 +1113,14 @@ test("owner-bound D1 build creation appends a redacted runtime event chain", asy
   assert.equal(stream.status, 200);
   assert.equal(stream.headers.get("content-type"), "text/event-stream");
   assert.match(await stream.text(), /event: runtime_event/);
+  const resumedStream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", {
+    headers: { ...headers, "Last-Event-ID": firstBody.runtime_event_id },
+  }), fakeEnv);
+  assert.equal(resumedStream.status, 200);
+  assert.equal(resumedStream.headers.get("x-runtime-gap"), "false");
+  const resumedBody = await resumedStream.text();
+  assert.match(resumedBody, new RegExp(secondBody.runtime_event_id));
+  assert.equal(resumedBody.includes(firstBody.runtime_event_id), false);
   const gapStream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", {
     headers: { ...headers, "Last-Event-ID": "event-not-in-window" },
   }), fakeEnv);
