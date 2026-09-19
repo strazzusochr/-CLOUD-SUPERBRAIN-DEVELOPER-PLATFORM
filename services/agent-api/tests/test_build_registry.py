@@ -271,9 +271,9 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertEqual(result["prompt_sha256"], hashlib.sha256(request.prompt.encode()).hexdigest())
         self.assertEqual(len(self.connection.builds), 1)
         self.assertEqual(len(self.connection.audit_events), 1)
-        self.assertEqual(len(self.connection.runtime_events), 1)
-        self.assertEqual(len(self.connection.runtime_outbox), 1)
-        self.assertEqual(self.connection.runtime_heads[(TEST_WORKSPACE_SUBJECT, f"workspace:{TEST_WORKSPACE_SUBJECT}")][0], 2)
+        self.assertEqual(len(self.connection.runtime_events), 2)
+        self.assertEqual(len(self.connection.runtime_outbox), 2)
+        self.assertEqual(self.connection.runtime_heads[(TEST_WORKSPACE_SUBJECT, f"workspace:{TEST_WORKSPACE_SUBJECT}")][0], 3)
         persisted_row = self.connection.builds[request.id]
         self.assertNotIn(request.prompt, persisted_row)
 
@@ -349,10 +349,34 @@ class BuildRegistryTests(unittest.TestCase):
             foreign = main.list_workspace_runtime_events("github:202", TEST_AGENT_TOKEN, 8)
         self.assertEqual(events["contract_version"], "home-runtime-events-v1")
         self.assertTrue(events["persisted"])
-        self.assertEqual(len(events["events"]), 1)
+        self.assertEqual(len(events["events"]), 2)
         self.assertEqual(events["events"][0]["owner_subject"], "github:101")
         self.assertEqual(events["events"][0]["event"], "build_created")
         self.assertEqual(foreign["events"], [])
+
+    def test_persisted_gateway_metadata_records_an_owner_bound_llm_event(self) -> None:
+        self.create(
+            valid_request(
+                id="build_llm_event",
+                title="LLM event workspace",
+                model="@cf/qwen/qwen2.5-coder-32b-instruct",
+                gateway_mode="cloudflare_workers_ai_live",
+                gateway_provider="cloudflare-workers-ai",
+            ),
+            "github:101",
+        )
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            events = main.list_workspace_runtime_events("github:101", TEST_AGENT_TOKEN, 8)
+
+        self.assertEqual(events["observed_classes"], ["llm", "workspace"])
+        llm_events = [event for event in events["events"] if event["runtime_class"] == "llm"]
+        self.assertEqual(len(llm_events), 1)
+        self.assertEqual(llm_events[0]["event"], "llm_generation_completed")
+        self.assertEqual(llm_events[0]["effect"]["gateway_provider"], "cloudflare-workers-ai")
 
     def test_runtime_event_detail_and_trace_reads_are_owner_bound(self) -> None:
         self.create(valid_request(id="build_detail", title="Event detail workspace"), "github:101")

@@ -290,6 +290,7 @@ async function appendWorkspaceRuntimeEvent(env, {
   eventType,
   buildId,
   traceId,
+  producer = "workspace-registry",
   phase = "committed",
   outcome = "success",
   effect,
@@ -321,7 +322,7 @@ async function appendWorkspaceRuntimeEvent(env, {
     source_service: SOURCE,
     environment: env.ENVIRONMENT || env.RUNTIME_ENVIRONMENT || "cloudflare-d1",
     source_commit_sha: env.SOURCE_COMMIT_SHA || null,
-    producer: "workspace-registry",
+    producer,
     occurred_at: now,
     observed_at: now,
     owner_sequence: ownerSequence,
@@ -1374,6 +1375,21 @@ async function createBuild(request, env, requestId) {
     let runtimeEvent = null;
     if (ownerSubject) {
       try {
+        if (build.gatewayProvider !== "unknown") {
+          await appendWorkspaceRuntimeEvent(env, {
+            ownerSubject,
+            eventType: "llm_generation_completed",
+            producer: "llm_gateway",
+            buildId: build.id,
+            traceId: requestId,
+            effect: {
+              model: build.model,
+              gateway_mode: build.gatewayMode,
+              gateway_provider: build.gatewayProvider,
+              live_provider_calls: build.liveProviderCalls === 1,
+            },
+          });
+        }
         runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
           ownerSubject,
           eventType: "workspace_build_created",
