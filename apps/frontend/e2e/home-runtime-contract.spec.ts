@@ -195,7 +195,9 @@ test.describe("Page 01 — personal runtime contract", () => {
     expect(result.feedStatus).toBe(200);
     expect(result.feed?.complete).toBe(false);
     expect(result.feed?.observed_classes).toContain("workspace");
-    expect(result.feed?.missing_classes).toEqual(expect.arrayContaining(["llm", "agent", "tool_mcp", "memory", "artifact", "auth", "security"]));
+    expect(result.feed?.observed_classes).toContain("llm");
+    expect(result.feed?.missing_classes).toEqual(expect.arrayContaining(["agent", "tool_mcp", "memory", "artifact", "auth", "security"]));
+    expect(result.feed?.missing_classes).not.toContain("llm");
     await page.goto("/home?runtime-completeness-view=" + Date.now(), { waitUntil: "domcontentloaded" });
     await expect(page.getByText(/Aktivität ist unvollständig/)).toBeVisible({ timeout: 30_000 });
   });
