@@ -376,6 +376,11 @@ class FakeStatement {
       const row = this.db.runtimeEvents.get(this.values[0]);
       return row && row.owner_subject === this.values[1] && row.chain_partition === this.values[2] ? { ...row } : null;
     }
+    if (this.sql.startsWith("SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id")) {
+      const [event_id, owner_subject] = this.values;
+      const row = this.db.runtimeEvents.get(event_id);
+      return row && row.owner_subject === owner_subject ? { ...row } : null;
+    }
     if (this.sql.startsWith("SELECT id, deleted_at FROM builds WHERE id")) {
       if (this.db.throwDeleteReadback) throw new Error("simulated delete readback transport failure");
       const row = this.db.builds.get(this.values[0]);
@@ -428,6 +433,18 @@ class FakeStatement {
   }
 
   async all() {
+    if (this.sql.startsWith("SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id")) {
+      const owner_subject = this.values[0];
+      const trace_id = this.sql.includes("AND trace_id = ?") ? this.values[1] : null;
+      const limit = this.values[trace_id ? 2 : 1];
+      const results = [...this.db.runtimeEvents.values()]
+        .filter((event) => event.owner_subject === owner_subject && (trace_id === null || event.trace_id === trace_id))
+        .sort((a, b) => Number(b.owner_sequence) - Number(a.owner_sequence))
+        .slice(0, limit)
+        .map((event) => ({ ...event }));
+      if (trace_id !== null) results.reverse();
+      return { results };
+    }
     if (this.sql.includes("FROM workspace_build_pins")) {
       const [owner_subject, limit] = this.values;
       const results = [...this.db.pins.values()]
@@ -1079,6 +1096,33 @@ test("owner-bound D1 build creation appends a redacted runtime event chain", asy
   assert.equal(secondEvent.prev_hash, firstEvent.event_hash);
   assert.equal(fakeEnv.DB.runtimeEventHeads.get(`${owner}:workspace`).next_sequence, 3);
   assert.equal(fakeEnv.DB.runtimeEventOutbox.size, 2);
+
+  const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
+  assert.equal(feed.status, 200);
+  const feedBody = await feed.json();
+  assert.equal(feedBody.source, "cloudflare-d1");
+  assert.equal(feedBody.identity_scope, "server_bound_workspace_subject");
+  assert.deepEqual(feedBody.events.map((event) => event.event), ["workspace_build_created", "workspace_build_created"]);
+  const detail = await worker.fetch(new Request(`https://state.example/api/v1/workspace/runtime/events/${firstBody.runtime_event_id}`, { headers }), fakeEnv);
+  assert.equal(detail.status, 200);
+  assert.equal((await detail.json()).event.event_id, firstBody.runtime_event_id);
+  const trace = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/traces/workspace-create-1", { headers }), fakeEnv);
+  assert.equal(trace.status, 200);
+  assert.equal((await trace.json()).events.length, 1);
+  const stream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", { headers }), fakeEnv);
+  assert.equal(stream.status, 200);
+  assert.equal(stream.headers.get("content-type"), "text/event-stream");
+  assert.match(await stream.text(), /event: runtime_event/);
+  const gapStream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", {
+    headers: { ...headers, "Last-Event-ID": "event-not-in-window" },
+  }), fakeEnv);
+  assert.equal(gapStream.headers.get("x-runtime-gap"), "true");
+  assert.match(await gapStream.text(), /event: runtime_gap/);
+  const foreign = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events", {
+    headers: { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": "local-session:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" },
+  }), fakeEnv);
+  assert.equal(foreign.status, 200);
+  assert.deepEqual((await foreign.json()).events, []);
 });
 
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {

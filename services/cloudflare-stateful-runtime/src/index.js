@@ -1496,6 +1496,196 @@ async function listWorkspaceBuilds(request, url, env, requestId) {
   }
 }
 
+function runtimeEventFromD1Row(row) {
+  let effect = {};
+  let missingRefs = [];
+  try {
+    const parsed = JSON.parse(String(row.effect_json || "{}"));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) effect = parsed;
+  } catch { /* malformed redacted payload remains an explicit empty effect */ }
+  try {
+    const parsed = JSON.parse(String(row.missing_refs_json || "[]"));
+    if (Array.isArray(parsed)) missingRefs = parsed;
+  } catch { /* malformed references remain an explicit empty list */ }
+  return {
+    event_id: String(row.event_id),
+    event: String(row.event_type),
+    owner_subject: String(row.owner_subject),
+    actor_type: row.actor_type,
+    actor_id: row.actor_id,
+    trace_id: row.trace_id,
+    span_id: row.span_id,
+    parent_event_id: row.parent_event_id ? String(row.parent_event_id) : null,
+    source: { service: row.source_service, environment: row.environment, source_commit_sha: row.source_commit_sha },
+    producer: row.producer,
+    occurred_at: row.occurred_at,
+    observed_at: row.observed_at,
+    owner_sequence: String(row.owner_sequence),
+    producer_sequence: row.producer_sequence == null ? null : String(row.producer_sequence),
+    phase: row.phase,
+    outcome: row.outcome,
+    state: row.phase,
+    effect,
+    input_hash: row.input_hash,
+    output_hash: row.output_hash,
+    hash_scope: row.hash_scope,
+    redaction_status: row.redaction_status,
+    redaction_version: row.redaction_version,
+    payload_ref: row.payload_ref,
+    prev_hash: row.prev_hash,
+    event_hash: row.event_hash,
+    chain_partition: row.chain_partition,
+    completeness: row.completeness,
+    missing_refs: missingRefs,
+    parent_event_ids: row.parent_event_id ? [String(row.parent_event_id)] : [],
+    root_event_id: String(row.parent_event_id || row.event_id),
+  };
+}
+
+async function listWorkspaceRuntimeEventsD1(request, url, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const limit = limitFrom(url);
+    const result = await env.DB.prepare(`
+      SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id,
+             span_id, parent_event_id, source_service, environment, source_commit_sha,
+             producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+             phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+             redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+             chain_partition, completeness, missing_refs_json
+      FROM runtime_events
+      WHERE owner_subject = ?
+      ORDER BY owner_sequence DESC
+      LIMIT ?
+    `).bind(subject, limit).all();
+    const events = (result.results || []).filter((row) => String(row.owner_subject) === subject).map(runtimeEventFromD1Row);
+    return json({
+      contract_version: "home-runtime-events-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      events,
+      complete: true,
+      persisted: true,
+      audit_persisted: true,
+      live_provider_calls: false,
+      live_mcp_writes: false,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_runtime_event_feed_unavailable", requestId, "The D1 workspace runtime event feed could not be read."), 503);
+  }
+}
+
+async function getWorkspaceRuntimeEventD1(request, eventId, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const row = await env.DB.prepare(`
+      SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id,
+             span_id, parent_event_id, source_service, environment, source_commit_sha,
+             producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+             phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+             redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+             chain_partition, completeness, missing_refs_json
+      FROM runtime_events
+      WHERE event_id = ? AND owner_subject = ?
+      LIMIT 1
+    `).bind(eventId, subject).first();
+    if (!row) return workspaceNotFound(requestId);
+    return json({
+      contract_version: "home-runtime-event-detail-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      event: runtimeEventFromD1Row(row),
+      persisted: true,
+      audit_persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_runtime_event_detail_unavailable", requestId, "The D1 workspace runtime event could not be read."), 503);
+  }
+}
+
+async function streamWorkspaceRuntimeEventsD1(request, url, env, requestId) {
+  const feedResponse = await listWorkspaceRuntimeEventsD1(request, url, env, requestId);
+  if (feedResponse.status !== 200) return feedResponse;
+  const feed = await feedResponse.json();
+  let events = Array.isArray(feed.events) ? feed.events : [];
+  const lastEventId = request.headers.get("Last-Event-ID") || "";
+  let gap = false;
+  if (lastEventId) {
+    const cursorIndex = events.findIndex((event) => event?.event_id === lastEventId);
+    if (cursorIndex < 0) {
+      events = [];
+      gap = true;
+    } else {
+      events = events.slice(0, cursorIndex);
+    }
+  }
+  const chunks = [];
+  if (gap) chunks.push("event: runtime_gap\ndata: {\"reason\":\"cursor_outside_window\",\"complete\":false}\n\n");
+  for (const event of events) {
+    chunks.push(`id: ${event.event_id}\nevent: runtime_event\ndata: ${JSON.stringify(event)}\n\n`);
+  }
+  return new Response(chunks.join(""), {
+    status: 200,
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/event-stream",
+      "x-content-type-options": "nosniff",
+      "x-superbrain-source": "cloudflare-d1-owner-bound-runtime-events",
+      "x-runtime-gap": gap ? "true" : "false",
+      "x-runtime-cursor": lastEventId,
+    },
+  });
+}
+
+async function getWorkspaceRuntimeTraceD1(request, traceId, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const result = await env.DB.prepare(`
+      SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id,
+             span_id, parent_event_id, source_service, environment, source_commit_sha,
+             producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+             phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+             redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+             chain_partition, completeness, missing_refs_json
+      FROM runtime_events
+      WHERE owner_subject = ? AND trace_id = ?
+      ORDER BY owner_sequence ASC
+      LIMIT 50
+    `).bind(subject, traceId).all();
+    const events = (result.results || []).filter((row) => String(row.owner_subject) === subject).map(runtimeEventFromD1Row);
+    return json({
+      contract_version: "home-runtime-trace-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      trace_id: traceId,
+      events,
+      complete: events.length > 0,
+      persisted: true,
+      audit_persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_runtime_trace_unavailable", requestId, "The D1 workspace runtime trace could not be read."), 503);
+  }
+}
+
 async function getWorkspaceBuild(request, id, env, requestId) {
   if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
     return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
@@ -4147,7 +4337,13 @@ export default {
     if (request.method === "DELETE" && buildMatch) return deleteBuild(request, buildMatch[1], env, requestId);
     const workspaceBuildMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})$/);
     const workspacePinMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})\/pin$/);
+    const workspaceRuntimeEventMatch = url.pathname.match(/^\/api\/v1\/workspace\/runtime\/events\/([A-Za-z0-9_-]{1,128})$/);
+    const workspaceRuntimeTraceMatch = url.pathname.match(/^\/api\/v1\/workspace\/runtime\/traces\/([A-Za-z0-9_.:-]{1,255})$/);
     if (request.method === "GET" && url.pathname === "/api/v1/workspace/builds/mine") return listWorkspaceBuilds(request, url, env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/workspace/runtime/events") return listWorkspaceRuntimeEventsD1(request, url, env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/workspace/runtime/events/stream") return streamWorkspaceRuntimeEventsD1(request, url, env, requestId);
+    if (request.method === "GET" && workspaceRuntimeEventMatch) return getWorkspaceRuntimeEventD1(request, workspaceRuntimeEventMatch[1], env, requestId);
+    if (request.method === "GET" && workspaceRuntimeTraceMatch) return getWorkspaceRuntimeTraceD1(request, workspaceRuntimeTraceMatch[1], env, requestId);
     if (workspaceBuildMatch && request.method === "GET") return getWorkspaceBuild(request, workspaceBuildMatch[1], env, requestId);
     if (workspacePinMatch && request.method === "PUT") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, true);
     if (workspacePinMatch && request.method === "DELETE") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, false);
