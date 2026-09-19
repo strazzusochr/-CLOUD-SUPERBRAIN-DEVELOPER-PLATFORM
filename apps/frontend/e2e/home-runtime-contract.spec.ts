@@ -150,11 +150,21 @@ test.describe("Page 01 — personal runtime contract", () => {
     expect(build.build?.direct_provider_calls).toBe(false);
     expect(String(build.build?.id)).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
 
+    const eventFeed = await page.evaluate(async () => {
+      const response = await fetch("/api/v1/workspace/runtime/events");
+      return { status: response.status, payload: await response.json().catch(() => null) };
+    });
+    expect(eventFeed.status).toBe(200);
+    const eventHash = String(eventFeed.payload?.events?.[0]?.event_hash ?? "");
+    expect(eventHash).toMatch(/^[a-f0-9]{64}$/);
+
     await page.goto("/home?runtime-event=" + Date.now(), { waitUntil: "domcontentloaded" });
     const event = page.locator("details.home-runtime-event").filter({ hasText: "build_created" }).first();
     await expect(event).toBeVisible({ timeout: 30_000 });
     await event.locator("summary").click();
     await expect(event.getByTestId("home-runtime-detail")).toContainText("Parent-/Root-Kette:", { timeout: 15_000 });
+    await expect(event.getByTestId("home-runtime-detail")).toContainText("Hashkette:");
+    await expect(event.getByTestId("home-runtime-detail")).toContainText(eventHash);
     await expect(event).toContainText(String(build.build?.id));
   });
 });

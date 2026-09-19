@@ -20,6 +20,8 @@ type RuntimeEvent = {
   parent_event_ids?: string[];
   root_event_id?: string;
   owner_sequence?: string | null;
+  prev_hash?: string | null;
+  event_hash?: string | null;
   completeness?: string | null;
   missing_refs?: string[];
   outcome?: string | null;
@@ -255,6 +257,8 @@ export function HomeRuntimeMonitor() {
                     <span>{detail.event.actor_type ?? "Akteur unbekannt"} · {detail.event.outcome ?? "Ergebnis unbekannt"}</span>
                     <span>{detail.event.completeness ?? "Vollständigkeit unbekannt"}</span>
                     <span>Parent-/Root-Kette: {detail.chain.map((item) => item.event_id).join(" → ")}</span>
+                    <span>Hashkette: {detail.event.prev_hash ?? "Root"} → {detail.event.event_hash ?? "unbekannt"}</span>
+                    {detail.event.missing_refs?.length ? <span>Fehlende Verweise: {detail.event.missing_refs.join(", ")}</span> : null}
                   </div>
                 ) : null}
                 {detailError && detail?.event.event_id === event.event_id ? <p className="home-workspace-empty">{detailError}</p> : null}
