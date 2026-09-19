@@ -386,6 +386,10 @@ class FakeStatement {
       const row = this.db.builds.get(id);
       return row && !row.deleted_at && row.owner_subject === owner_subject ? { id: row.id } : null;
     }
+    if (this.sql.startsWith("SELECT build_id FROM workspace_build_pins")) {
+      const [owner_subject, build_id] = this.values;
+      return this.db.pins.has(`${owner_subject}:${build_id}`) ? { build_id } : null;
+    }
     if (this.sql.includes("FROM builds") && this.sql.includes("WHERE builds.id = ? AND builds.owner_subject = ?")) {
       const [id, owner_subject] = this.values;
       const row = this.db.builds.get(id);
@@ -1013,6 +1017,13 @@ test("workspace D1 routes bind list, pin, unpin, and delete to the server subjec
   assert.match(pinnedBody.runtime_event_id, /^[0-9a-f-]{36}$/i);
   assert.equal(pinnedBody.runtime_event_persisted, true);
   assert.equal(fakeEnv.DB.pins.size, 1);
+  const duplicatePin = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "PUT", headers }), fakeEnv);
+  assert.equal(duplicatePin.status, 200);
+  const duplicatePinBody = await duplicatePin.json();
+  assert.equal(duplicatePinBody.changed, false);
+  assert.equal(duplicatePinBody.runtime_event_id, null);
+  assert.equal(duplicatePinBody.runtime_event_persisted, false);
+  assert.equal(fakeEnv.DB.runtimeEvents.size, 1);
   const unpinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "DELETE", headers }), fakeEnv);
   assert.equal(unpinned.status, 200);
   const unpinnedBody = await unpinned.json();

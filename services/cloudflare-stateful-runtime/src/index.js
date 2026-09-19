@@ -292,6 +292,7 @@ async function appendWorkspaceRuntimeEvent(env, {
   phase = "committed",
   outcome = "success",
   effect,
+  mutationStatements = [],
 }) {
   const now = new Date().toISOString();
   const head = await env.DB.prepare(`
@@ -339,7 +340,8 @@ async function appendWorkspaceRuntimeEvent(env, {
   };
   const eventHash = await sha256(JSON.stringify(envelope));
   const outboxId = crypto.randomUUID();
-  await env.DB.batch([
+  const results = await env.DB.batch([
+    ...mutationStatements,
     env.DB.prepare(`
       INSERT INTO runtime_events (
         event_id, owner_subject, event_type, actor_type, actor_id, trace_id,
@@ -409,7 +411,13 @@ async function appendWorkspaceRuntimeEvent(env, {
     || String(readback.event_hash) !== eventHash) {
     throw new Error("runtime_event_readback_failed");
   }
-  return { eventId, eventHash, ownerSequence, persisted: true };
+  return {
+    eventId,
+    eventHash,
+    ownerSequence,
+    persisted: true,
+    mutationResults: results.slice(0, mutationStatements.length),
+  };
 }
 
 function containsSecretMaterial(value) {
@@ -1444,7 +1452,7 @@ async function listWorkspaceBuilds(request, url, env, requestId) {
   if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
     return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
   }
-  const subject = await workspaceAuthenticated(request, env);
+    const subject = await workspaceAuthenticated(request, env);
   if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
   try {
     const limit = limitFrom(url);
@@ -1536,37 +1544,50 @@ async function mutateWorkspacePin(request, id, env, requestId, pinned) {
   try {
     const owned = await env.DB.prepare("SELECT id FROM builds WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL LIMIT 1").bind(clean, subject).first();
     if (!owned) return workspaceNotFound(requestId);
+    const existingPin = await env.DB.prepare("SELECT build_id FROM workspace_build_pins WHERE owner_subject = ? AND build_id = ? LIMIT 1").bind(subject, clean).first();
+    const willChange = pinned ? !existingPin : Boolean(existingPin);
+    if (!willChange) {
+      return json({
+        contract_version: "github-workspace-builds-v1",
+        status: pinned ? "pinned" : "unpinned",
+        id: clean,
+        persisted: true,
+        changed: false,
+        runtime_event_id: null,
+        runtime_event_persisted: false,
+        secret_output: false,
+      });
+    }
     const statement = pinned
       ? env.DB.prepare("INSERT INTO workspace_build_pins (owner_subject, build_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING").bind(subject, clean, new Date().toISOString())
       : env.DB.prepare("DELETE FROM workspace_build_pins WHERE owner_subject = ? AND build_id = ?").bind(subject, clean);
-    const result = await statement.run();
     let runtimeEvent = null;
-    if (Number(result.meta?.changes || 0) > 0) {
-      try {
-        runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
-          ownerSubject: subject,
-          eventType: pinned ? "workspace_build_pinned" : "workspace_build_unpinned",
-          buildId: clean,
-          traceId: requestId,
-          effect: { pinned },
-        });
-      } catch {
-        return json(mutationOutcomeUnknown(
-          "workspace_pin_runtime_event_outcome_unknown",
-          requestId,
-          "The workspace pin changed but its runtime event could not be confirmed. Reconcile the build and event identifiers before retrying.",
-          { id: clean, operation: pinned ? "pin" : "unpin" },
-        ), 503);
-      }
+    try {
+      runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject: subject,
+        eventType: pinned ? "workspace_build_pinned" : "workspace_build_unpinned",
+        buildId: clean,
+        traceId: requestId,
+        effect: { pinned },
+        mutationStatements: [statement],
+      });
+    } catch {
+      return json(mutationOutcomeUnknown(
+        "workspace_pin_runtime_event_outcome_unknown",
+        requestId,
+        "The workspace pin and its runtime event could not be confirmed atomically. Reconcile the build and event identifiers before retrying.",
+        { id: clean, operation: pinned ? "pin" : "unpin" },
+      ), 503);
     }
+    const result = runtimeEvent.mutationResults[0];
     return json({
       contract_version: "github-workspace-builds-v1",
       status: pinned ? "pinned" : "unpinned",
       id: clean,
       persisted: true,
       changed: Number(result.meta?.changes || 0) > 0,
-      runtime_event_id: runtimeEvent?.eventId || null,
-      runtime_event_persisted: runtimeEvent?.persisted === true,
+      runtime_event_id: runtimeEvent.eventId,
+      runtime_event_persisted: runtimeEvent.persisted === true,
       secret_output: false,
     });
   } catch {
@@ -1585,8 +1606,7 @@ async function deleteWorkspaceBuild(request, id, env, requestId) {
   try {
     const owned = await env.DB.prepare("SELECT id FROM builds WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL LIMIT 1").bind(clean, subject).first();
     if (!owned) return workspaceNotFound(requestId);
-    const result = await env.DB.prepare("UPDATE builds SET deleted_at = ?, updated_at = ? WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL").bind(now, now, clean, subject).run();
-    if (Number(result.meta?.changes || 0) !== 1) return workspaceNotFound(requestId);
+    const mutation = env.DB.prepare("UPDATE builds SET deleted_at = ?, updated_at = ? WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL").bind(now, now, clean, subject);
     let runtimeEvent;
     try {
       runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
@@ -1595,6 +1615,7 @@ async function deleteWorkspaceBuild(request, id, env, requestId) {
         buildId: clean,
         traceId: requestId,
         effect: { logical_delete: true, physical_delete: false },
+        mutationStatements: [mutation],
       });
     } catch {
       return json(mutationOutcomeUnknown(
@@ -1604,6 +1625,8 @@ async function deleteWorkspaceBuild(request, id, env, requestId) {
         { id: clean, operation: "delete" },
       ), 503);
     }
+    const result = runtimeEvent.mutationResults[0];
+    if (Number(result?.meta?.changes || 0) !== 1) return workspaceNotFound(requestId);
     return json({
       contract_version: "github-workspace-builds-v1",
       status: "deleted",
