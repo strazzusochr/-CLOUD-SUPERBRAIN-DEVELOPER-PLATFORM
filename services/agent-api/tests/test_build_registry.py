@@ -380,12 +380,20 @@ class BuildRegistryTests(unittest.TestCase):
         ):
             events = main.list_workspace_runtime_events("github:101", TEST_AGENT_TOKEN, 8)
 
-        self.assertEqual(events["observed_classes"], ["llm", "workspace"])
+        self.assertEqual(events["observed_classes"], ["auth", "llm", "security", "workspace"])
+        auth_events = [event for event in events["events"] if event["runtime_class"] == "auth"]
+        security_events = [event for event in events["events"] if event["runtime_class"] == "security"]
         llm_events = [event for event in events["events"] if event["runtime_class"] == "llm"]
+        self.assertEqual(len(auth_events), 1)
+        self.assertEqual(auth_events[0]["event"], "auth_identity_verified")
+        self.assertEqual(len(security_events), 1)
+        self.assertEqual(security_events[0]["event"], "security_boundary_verified")
+        self.assertEqual(security_events[0]["parent_event_id"], auth_events[0]["event_id"])
         self.assertEqual(len(llm_events), 1)
         self.assertEqual(llm_events[0]["event"], "llm_generation_completed")
         self.assertEqual(llm_events[0]["producer"], "llm_gateway")
         self.assertEqual(llm_events[0]["effect"]["gateway_provider"], "cloudflare-workers-ai")
+        self.assertEqual(llm_events[0]["parent_event_id"], security_events[0]["event_id"])
         workspace_events = [event for event in events["events"] if event["event"] == "build_created"]
         self.assertEqual(len(workspace_events), 1)
         self.assertEqual(workspace_events[0]["parent_event_id"], llm_events[0]["event_id"])
@@ -441,7 +449,8 @@ class BuildRegistryTests(unittest.TestCase):
             events = main.list_workspace_runtime_events("github:101", TEST_AGENT_TOKEN, 8)
         llm_event = next(event for event in events["events"] if event["event"] == "llm_generation_completed")
         pin_event = next(event for event in events["events"] if event["event"] == "workspace_build_pin_set")
-        self.assertEqual(pin_event["root_event_id"], llm_event["event_id"])
+        auth_event = next(event for event in events["events"] if event["event"] == "auth_identity_verified")
+        self.assertEqual(pin_event["root_event_id"], auth_event["event_id"])
 
     def test_runtime_stream_cursor_deduplicates_and_exposes_gap(self) -> None:
         events = [

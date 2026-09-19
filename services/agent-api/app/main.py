@@ -4783,6 +4783,32 @@ def persist_autonomous_dispatch_audit(record: AutonomousDispatchRecord) -> None:
         pass
 
 
+def persist_autonomous_dispatch_runtime_event(
+    conn: object,
+    *,
+    owner_subject: str,
+    dispatch_id: str,
+    project_id: str,
+    assignment_count: int,
+    trace_id: str | None,
+) -> str:
+    """Record the durable agent-layer effect after real queue insertion."""
+    return _append_workspace_runtime_event(
+        conn,
+        owner_subject=owner_subject,
+        event_type="agent_task_dispatch_queued",
+        producer="agent_orchestrator",
+        phase="committed",
+        outcome="success",
+        effect={
+            "dispatch_id": dispatch_id,
+            "project_id": project_id,
+            "assignment_count": assignment_count,
+        },
+        trace_id=trace_id,
+    )
+
+
 def persist_langgraph_dry_run_audit(state: dict[str, object]) -> None:
     node_name = str(state.get("node_name") or "unknown")
     event_type = "langgraph_dry_run_completed" if node_name == "completed" else "langgraph_dry_run_stopped"
@@ -10848,28 +10874,66 @@ def create_build_registry_entry(
             ).fetchone()
             if not audit_row:
                 raise RuntimeError("build audit unavailable")
+            auth_event_id: str | None = None
+            security_event_id: str | None = None
             llm_event_id: str | None = None
-            if owner_subject and gateway_provider not in {"", "unknown"}:
+            if owner_subject:
+                # This build reached the same server-bound identity and
+                # fetch-metadata/same-origin boundary that authorizes the
+                # workspace write. Persist both checks before the producer
+                # effect so the Home trace can distinguish auth, security,
+                # provider, and workspace stages without exposing secrets.
+                if gateway_provider not in {"", "unknown", "unit"}:
+                    auth_event_id = _append_workspace_runtime_event(
+                        conn,
+                        owner_subject=owner_subject,
+                        event_type="auth_identity_verified",
+                        producer="frontend_boundary",
+                        phase="committed",
+                        outcome="success",
+                        effect={
+                            "identity_scope": "server_bound_workspace_subject",
+                            "operation": "workspace_build",
+                        },
+                        trace_id=trace_id,
+                    )
+                    security_event_id = _append_workspace_runtime_event(
+                        conn,
+                        owner_subject=owner_subject,
+                        event_type="security_boundary_verified",
+                        producer="frontend_boundary_security",
+                        phase="committed",
+                        outcome="success",
+                        effect={
+                            "boundary": "frontend-provider-boundary-v1",
+                            "csrf_policy": "fetch_metadata_and_same_origin_guard",
+                            "operation": "workspace_build",
+                        },
+                        trace_id=trace_id,
+                        parent_event_id=auth_event_id,
+                    )
                 # The gateway has already returned a structurally complete, secret-safe
                 # document by the time the Agent API receives this trusted persistence
                 # request. Record that real producer boundary before the workspace effect;
                 # do not infer an event from a UI marker or create one for unbound legacy rows.
-                llm_event_id = _append_workspace_runtime_event(
-                    conn,
-                    owner_subject=owner_subject,
-                    event_type="llm_generation_completed",
-                    producer="llm_gateway",
-                    phase="committed",
-                    outcome="success",
-                    effect={
-                        "build_id": request.id,
-                        "model": model,
-                        "gateway_mode": gateway_mode,
-                        "gateway_provider": gateway_provider,
-                        "live_provider_calls": request.live_provider_calls,
-                    },
-                    trace_id=trace_id,
-                )
+                if gateway_provider not in {"", "unknown"}:
+                    llm_event_id = _append_workspace_runtime_event(
+                        conn,
+                        owner_subject=owner_subject,
+                        event_type="llm_generation_completed",
+                        producer="llm_gateway",
+                        phase="committed",
+                        outcome="success",
+                        effect={
+                            "build_id": request.id,
+                            "model": model,
+                            "gateway_mode": gateway_mode,
+                            "gateway_provider": gateway_provider,
+                            "live_provider_calls": request.live_provider_calls,
+                        },
+                        trace_id=trace_id,
+                        parent_event_id=security_event_id,
+                    )
             _append_workspace_runtime_event(
                 conn,
                 owner_subject=owner_subject,
@@ -11526,12 +11590,25 @@ def workspace_artifacts(
 
 
 @app.post("/api/v1/workspace/artifacts", status_code=201)
-def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: Request) -> dict[str, object]:
+def create_workspace_artifact(
+    request: WorkspaceArtifactRequest,
+    http_request: Request,
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
+) -> dict[str, object]:
     try:
         session_id: str | None = str(UUID(str(request.session_id))) if request.session_id else None
     except (TypeError, ValueError):
         session_id = None
     trace_id = getattr(http_request.state, "trace_id", None) or request.run_id or f"workspace-artifact-{uuid4()}"
+    owner_token = x_superbrain_agent_token if isinstance(x_superbrain_agent_token, str) else None
+    owner_header = x_superbrain_workspace_subject if isinstance(x_superbrain_workspace_subject, str) else None
+    owner_subject = None
+    if owner_token is not None or owner_header is not None:
+        owner_subject = _workspace_build_authenticated(
+            owner_token,
+            owner_header,
+        )
     details = redact_json(
         {
             "contract_version": WORKSPACE_ARTIFACT_CONTRACT_VERSION,
@@ -11575,6 +11652,33 @@ def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: R
             """,
             (session_id, Json(details)),
         ).fetchone()
+        runtime_event_id = None
+        if owner_subject:
+            memory_event_id = _append_workspace_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                event_type="memory_entry_created",
+                producer="agent_api_memory",
+                phase="committed",
+                outcome="success",
+                effect={"memory_id": str(memory_id), "project_id": request.project_id},
+                trace_id=str(trace_id),
+            )
+            runtime_event_id = _append_workspace_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                event_type="workspace_artifact_created",
+                producer="workspace_artifact_registry",
+                phase="committed",
+                outcome="success",
+                effect={
+                    "artifact_id": str(row[0]) if row else None,
+                    "project_id": request.project_id,
+                    "artifact_type": request.artifact_type,
+                },
+                trace_id=str(trace_id),
+                parent_event_id=memory_event_id,
+            )
     if not row:
         raise HTTPException(status_code=503, detail="workspace artifact insert failed")
     return {
@@ -11586,6 +11690,8 @@ def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: R
         "live_mcp_writes": False,
         "secret_output": False,
         "production_deploy": False,
+        "runtime_event_id": runtime_event_id,
+        "runtime_event_persisted": runtime_event_id is not None,
     }
 
 
@@ -12062,8 +12168,21 @@ def read_only_tool_execute_contract() -> dict[str, object]:
 
 
 @app.post("/api/v1/tools/read-only/execute")
-def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Request) -> dict[str, object]:
+def execute_read_only_tool(
+    request: ReadOnlyToolExecuteRequest,
+    http_request: Request,
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
+) -> dict[str, object]:
     trace_id = getattr(http_request.state, "trace_id", None) or request.trace_id or f"readonly-tool-{uuid4()}"
+    owner_token = x_superbrain_agent_token if isinstance(x_superbrain_agent_token, str) else None
+    owner_header = x_superbrain_workspace_subject if isinstance(x_superbrain_workspace_subject, str) else None
+    owner_subject = None
+    if owner_token is not None or owner_header is not None:
+        owner_subject = _workspace_build_authenticated(
+            owner_token,
+            owner_header,
+        )
     mcp_payload: dict[str, object] | None = None
     mcp_audit_readback_verified = False
     filesystem_read_performed = False
@@ -12138,6 +12257,7 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
         )
     details = redact_json(details_payload)
 
+    runtime_event_id = None
     with psycopg.connect(database_url(), autocommit=True) as conn:
         if mcp_payload is not None:
             mcp_audit_readback_verified = _filesystem_project_progress_audits_verified(
@@ -12155,6 +12275,34 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
             """,
             (Json(details),),
         ).fetchone()
+        if owner_subject:
+            memory_event_id = None
+            if request.tool_id == "memory_read":
+                memory_event_id = _append_workspace_runtime_event(
+                    conn,
+                    owner_subject=owner_subject,
+                    event_type="memory_read_completed",
+                    producer="agent_api_memory",
+                    phase="committed",
+                    outcome="success",
+                    effect={"project_id": request.project_id, "result_count": result_count},
+                    trace_id=str(trace_id),
+                )
+            runtime_event_id = _append_workspace_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                event_type="mcp_tool_executed",
+                producer="read_only_tool",
+                phase="committed",
+                outcome="success",
+                effect={
+                    "tool_id": request.tool_id,
+                    "project_id": request.project_id,
+                    "result_count": result_count,
+                },
+                trace_id=str(trace_id),
+                parent_event_id=memory_event_id,
+            )
     if not row:
         raise HTTPException(status_code=503, detail="read-only tool audit insert failed")
     return {
@@ -12173,6 +12321,8 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
         "live_mcp_writes": False,
         "secret_output": False,
         "production_deploy": False,
+        "runtime_event_id": runtime_event_id,
+        "runtime_event_persisted": runtime_event_id is not None,
         "result": payload,
     }
 
@@ -15299,13 +15449,26 @@ def autonomous_recent_dispatches(limit: int = Query(default=10, ge=1, le=50)) ->
 
 @app.post("/api/v1/task/dispatch", status_code=201)
 @app.post("/task/dispatch", status_code=201)
-def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_request: Request) -> dict[str, object]:
+def autonomous_task_dispatch(
+    request: AutonomousCodingDispatchRequest,
+    http_request: Request,
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
+) -> dict[str, object]:
     sanitized_objective = redact_text(request.objective)
     prepared_write_scope = request.write_scope or default_autonomous_write_scope()
     prepared_constraints = default_autonomous_constraints() + [constraint for constraint in request.constraints if constraint]
     prepared_acceptance_criteria = list(dict.fromkeys(request.acceptance_criteria))
     trace_id = request.trace_id or f"autonomous-dispatch-{uuid4()}"
     request_id = getattr(http_request.state, "request_id", None)
+    owner_token = x_superbrain_agent_token if isinstance(x_superbrain_agent_token, str) else None
+    owner_header = x_superbrain_workspace_subject if isinstance(x_superbrain_workspace_subject, str) else None
+    owner_subject = None
+    if owner_token is not None or owner_header is not None:
+        owner_subject = _workspace_build_authenticated(
+            owner_token,
+            owner_header,
+        )
     session_id = prepare_orchestrator_session(
         request.project_id,
         request.session_id,
@@ -15410,6 +15573,7 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
     )
     store_autonomous_dispatch(dispatch_record)
     persist_autonomous_dispatch_audit(dispatch_record)
+    runtime_event_id = None
     with psycopg.connect(database_url(), autocommit=True) as conn:
         conn.execute(
             """
@@ -15434,6 +15598,15 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
                 session_id,
             ),
         )
+        if owner_subject:
+            runtime_event_id = persist_autonomous_dispatch_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                dispatch_id=dispatch_id,
+                project_id=request.project_id,
+                assignment_count=len(queued_assignments),
+                trace_id=trace_id,
+            )
     return {
         **dispatch_record.model_dump(),
         "runtime_source": "internal_queue",
@@ -15441,6 +15614,8 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
         "contract_endpoint": "/api/v1/task/dispatch/contract",
         "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
         "request_id": request_id,
+        "runtime_event_id": runtime_event_id,
+        "runtime_event_persisted": runtime_event_id is not None,
     }
 
 

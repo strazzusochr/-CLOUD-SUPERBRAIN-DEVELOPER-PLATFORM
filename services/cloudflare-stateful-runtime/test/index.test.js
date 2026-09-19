@@ -1102,7 +1102,7 @@ test("owner-bound D1 build creation appends a redacted runtime event chain", asy
   const firstEvent = fakeEnv.DB.runtimeEvents.get(firstBody.runtime_event_id);
   assert.equal(firstEvent.owner_subject, owner);
   assert.equal(firstEvent.event_type, "workspace_build_created");
-  assert.equal(firstEvent.owner_sequence, 2);
+  assert.equal(firstEvent.owner_sequence, 4);
   assert.notEqual(firstEvent.prev_hash, null);
   assert.equal(firstEvent.effect_json.includes(validBuild.prompt), false);
   assert.equal(firstEvent.effect_json.includes(validBuild.html), false);
@@ -1115,31 +1115,46 @@ test("owner-bound D1 build creation appends a redacted runtime event chain", asy
   assert.equal(second.status, 201);
   const secondBody = await second.json();
   const secondEvent = fakeEnv.DB.runtimeEvents.get(secondBody.runtime_event_id);
-  const firstLlmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed" && event.owner_sequence === 1);
-  const secondLlmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed" && event.owner_sequence === 3);
+  const firstAuthEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "auth_identity_verified" && event.owner_sequence === 1);
+  const firstSecurityEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "security_boundary_verified" && event.owner_sequence === 2);
+  const firstLlmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed" && event.owner_sequence === 3);
+  const secondAuthEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "auth_identity_verified" && event.owner_sequence === 5);
+  const secondSecurityEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "security_boundary_verified" && event.owner_sequence === 6);
+  const secondLlmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed" && event.owner_sequence === 7);
+  assert.ok(firstAuthEvent);
+  assert.ok(firstSecurityEvent);
   assert.ok(firstLlmEvent);
+  assert.ok(secondAuthEvent);
+  assert.ok(secondSecurityEvent);
   assert.ok(secondLlmEvent);
+  assert.equal(firstSecurityEvent.parent_event_id, firstAuthEvent.event_id);
+  assert.equal(firstLlmEvent.parent_event_id, firstSecurityEvent.event_id);
+  assert.equal(secondSecurityEvent.parent_event_id, secondAuthEvent.event_id);
+  assert.equal(secondLlmEvent.parent_event_id, secondSecurityEvent.event_id);
   assert.equal(firstEvent.prev_hash, firstLlmEvent.event_hash);
-  assert.equal(secondEvent.owner_sequence, 4);
+  assert.equal(secondEvent.owner_sequence, 8);
   assert.equal(secondEvent.prev_hash, secondLlmEvent.event_hash);
-  assert.equal(fakeEnv.DB.runtimeEventHeads.get(`${owner}:workspace`).next_sequence, 5);
-  assert.equal(fakeEnv.DB.runtimeEventOutbox.size, 4);
+  assert.equal(fakeEnv.DB.runtimeEventHeads.get(`${owner}:workspace`).next_sequence, 9);
+  assert.equal(fakeEnv.DB.runtimeEventOutbox.size, 8);
 
   const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
   assert.equal(feed.status, 200);
   const feedBody = await feed.json();
   assert.equal(feedBody.source, "cloudflare-d1");
   assert.equal(feedBody.identity_scope, "server_bound_workspace_subject");
-  assert.deepEqual(feedBody.events.map((event) => event.event), ["workspace_build_created", "llm_generation_completed", "workspace_build_created", "llm_generation_completed"]);
+  assert.deepEqual(feedBody.events.map((event) => event.event), [
+    "workspace_build_created", "llm_generation_completed", "security_boundary_verified", "auth_identity_verified",
+    "workspace_build_created", "llm_generation_completed", "security_boundary_verified", "auth_identity_verified",
+  ]);
   assert.equal(feedBody.complete, false);
-  assert.deepEqual(feedBody.observed_classes, ["llm", "workspace"]);
-  assert.deepEqual(feedBody.missing_classes, ["agent", "tool_mcp", "memory", "artifact", "auth", "security"]);
+  assert.deepEqual(feedBody.observed_classes, ["auth", "llm", "security", "workspace"]);
+  assert.deepEqual(feedBody.missing_classes, ["agent", "tool_mcp", "memory", "artifact"]);
   const detail = await worker.fetch(new Request(`https://state.example/api/v1/workspace/runtime/events/${firstBody.runtime_event_id}`, { headers }), fakeEnv);
   assert.equal(detail.status, 200);
   assert.equal((await detail.json()).event.event_id, firstBody.runtime_event_id);
   const trace = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/traces/workspace-create-1", { headers }), fakeEnv);
   assert.equal(trace.status, 200);
-  assert.equal((await trace.json()).events.length, 2);
+  assert.equal((await trace.json()).events.length, 4);
   const stream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", { headers }), fakeEnv);
   assert.equal(stream.status, 200);
   assert.equal(stream.headers.get("content-type"), "text/event-stream");
@@ -1185,12 +1200,18 @@ test("owner-bound D1 build creation records trusted gateway metadata as an LLM r
   assert.equal(response.status, 201);
   const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
   const body = await feed.json();
-  assert.deepEqual(body.observed_classes, ["llm", "workspace"]);
+  assert.deepEqual(body.observed_classes, ["auth", "llm", "security", "workspace"]);
+  const authEvent = body.events.find((event) => event.runtime_class === "auth");
+  const securityEvent = body.events.find((event) => event.runtime_class === "security");
   const llmEvent = body.events.find((event) => event.runtime_class === "llm");
+  assert.equal(authEvent.event, "auth_identity_verified");
+  assert.equal(securityEvent.event, "security_boundary_verified");
+  assert.equal(securityEvent.parent_event_id, authEvent.event_id);
   assert.equal(llmEvent.event, "llm_generation_completed");
   assert.equal(llmEvent.producer, "llm_gateway");
   assert.equal(llmEvent.effect.gateway_provider, "cloudflare-workers-ai");
   assert.equal(llmEvent.effect.build_id, "workspace_llm_event");
+  assert.equal(llmEvent.parent_event_id, securityEvent.event_id);
   const workspaceEvent = body.events.find((event) => event.runtime_class === "workspace");
   assert.equal(workspaceEvent.parent_event_id, llmEvent.event_id);
 });
@@ -1244,7 +1265,8 @@ test("owner-bound D1 pin event preserves the LLM root event", async () => {
   const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
   const body = await feed.json();
   const feedPin = body.events.find((event) => event.event === "workspace_build_pinned");
-  assert.equal(feedPin.root_event_id, llmEvent.event_id);
+  const authEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "auth_identity_verified");
+  assert.equal(feedPin.root_event_id, authEvent.event_id);
 });
 
 test("concurrent owner-bound D1 builds retry a chain-head conflict", async () => {
@@ -1538,6 +1560,26 @@ test("workspace artifacts use the same authenticated D1 boundary", async () => {
   assert.equal(listedBody.artifacts[0].artifact_type, "document");
 });
 
+test("owner-bound D1 artifacts append a workspace artifact runtime event", async () => {
+  const fakeEnv = env();
+  const request = writeRequest("/api/v1/workspace/artifacts", {
+    project_id: "default",
+    source_page: "home",
+    artifact_type: "note",
+    title: "Owner note",
+    summary: "Runtime event evidence",
+    status: "created",
+    metadata: {},
+  });
+  request.headers.set("x-superbrain-workspace-subject", "local-session:12345678-1234-1234-1234-123456789abc");
+  const response = await worker.fetch(request, fakeEnv);
+  const body = await response.json();
+  assert.equal(response.status, 201);
+  assert.equal(body.runtime_event_persisted, true);
+  assert.equal(fakeEnv.DB.runtimeEvents.size, 1);
+  assert.equal([...fakeEnv.DB.runtimeEvents.values()][0].event_type, "workspace_artifact_created");
+});
+
 test("workspace artifact persistence rolls back when its audit write fails", async () => {
   const fakeEnv = env({ failAuditWrites: true });
   const response = await worker.fetch(writeRequest("/api/v1/workspace/artifacts", {
@@ -1739,6 +1781,23 @@ test("LangGraph executes four roles and persists run, tasks, checkpoint, memory,
   assert.equal(readBody.tasks.length, 4);
   assert.equal(readBody.memory_records.length, 1);
   assert.equal(readBody.secret_output, false);
+});
+
+test("owner-bound LangGraph runtime records agent and memory producers", async () => {
+  const fakeEnv = env();
+  const request = writeRequest("/api/v1/phase2/runtime/start", {
+    project_id: "default",
+    prompt: "Owner-bound runtime producer proof",
+  });
+  request.headers.set("x-superbrain-workspace-subject", "local-session:12345678-1234-1234-1234-123456789abc");
+  const started = await worker.fetch(request, fakeEnv);
+  const body = await started.json();
+  assert.equal(started.status, 201);
+  assert.equal(body.runtime_event_persisted, true);
+  assert.deepEqual(
+    [...fakeEnv.DB.runtimeEvents.values()].map((event) => event.event_type),
+    ["agent_task_dispatch_queued", "memory_entry_created"],
+  );
 });
 
 test("Cloudflare-native candidate contract is fail-closed and labels local proof honestly", async () => {

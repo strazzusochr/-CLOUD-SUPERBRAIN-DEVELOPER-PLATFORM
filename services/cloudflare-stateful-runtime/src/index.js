@@ -1398,25 +1398,54 @@ async function createBuild(request, env, requestId) {
       detailsJson: auditDetailsJson,
       createdAt: now,
     })) throw new Error("build_audit_readback_failed");
-    let runtimeEvent = null;
-    if (ownerSubject) {
-      try {
-        let llmRuntimeEvent = null;
-        if (build.gatewayProvider !== "unknown") {
-          llmRuntimeEvent = await appendWorkspaceRuntimeEvent(env, {
-            ownerSubject,
-            eventType: "llm_generation_completed",
+      let runtimeEvent = null;
+      if (ownerSubject) {
+        try {
+          let authRuntimeEvent = null;
+          let securityRuntimeEvent = null;
+          let llmRuntimeEvent = null;
+          if (!["", "unknown", "unit"].includes(build.gatewayProvider)) {
+            authRuntimeEvent = await appendWorkspaceRuntimeEvent(env, {
+              ownerSubject,
+              eventType: "auth_identity_verified",
+              producer: "frontend_boundary",
+              buildId: build.id,
+              traceId: requestId,
+              effect: {
+                identity_scope: "server_bound_workspace_subject",
+                operation: "workspace_build",
+              },
+            });
+            securityRuntimeEvent = await appendWorkspaceRuntimeEvent(env, {
+              ownerSubject,
+              eventType: "security_boundary_verified",
+              producer: "frontend_boundary_security",
+              buildId: build.id,
+              traceId: requestId,
+              parentEventId: authRuntimeEvent.eventId,
+              effect: {
+                boundary: "frontend-provider-boundary-v1",
+                csrf_policy: "fetch_metadata_and_same_origin_guard",
+                operation: "workspace_build",
+              },
+            });
+          }
+          if (!["", "unknown"].includes(build.gatewayProvider)) {
+            llmRuntimeEvent = await appendWorkspaceRuntimeEvent(env, {
+              ownerSubject,
+              eventType: "llm_generation_completed",
             producer: "llm_gateway",
             buildId: build.id,
             traceId: requestId,
             effect: {
               model: build.model,
               gateway_mode: build.gatewayMode,
-              gateway_provider: build.gatewayProvider,
-              live_provider_calls: build.liveProviderCalls === 1,
-            },
-          });
-        }
+                gateway_provider: build.gatewayProvider,
+                live_provider_calls: build.liveProviderCalls === 1,
+              },
+              parentEventId: securityRuntimeEvent?.eventId || null,
+            });
+          }
         runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
           ownerSubject,
           eventType: "workspace_build_created",
@@ -2146,6 +2175,7 @@ async function createArtifact(request, env, requestId) {
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
   }
+  const ownerSubject = await workspaceAuthenticated(request, env);
   let body;
   try { body = await readJson(request); } catch (error) {
     return json(blocked(error instanceof Error ? error.message : "invalid_request", requestId, "The artifact request is invalid."), 400);
@@ -2176,7 +2206,7 @@ async function createArtifact(request, env, requestId) {
 
   const now = new Date().toISOString();
   try {
-    await env.DB.batch([
+    const artifactMutationStatements = [
       env.DB.prepare(`
         INSERT INTO workspace_artifacts (
           id, project_id, source_page, artifact_type, title, summary, status,
@@ -2211,7 +2241,27 @@ async function createArtifact(request, env, requestId) {
         }),
         now,
       ),
-    ]);
+    ];
+    let runtimeEvent = null;
+    if (ownerSubject) {
+      runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject,
+        eventType: "workspace_artifact_created",
+        buildId: artifact.id,
+        traceId: requestId,
+        producer: "artifact_registry",
+        phase: "committed",
+        outcome: "success",
+        effect: {
+          artifact_id: artifact.id,
+          project_id: artifact.projectId,
+          artifact_type: artifact.artifactType,
+        },
+        mutationStatements: artifactMutationStatements,
+      });
+    } else {
+      await env.DB.batch(artifactMutationStatements);
+    }
     const row = await env.DB.prepare("SELECT * FROM workspace_artifacts WHERE id = ?").bind(artifact.id).first();
     if (!row) throw new Error("artifact_readback_failed");
     return json({
@@ -2220,6 +2270,8 @@ async function createArtifact(request, env, requestId) {
       status: "created",
       source: "cloudflare-d1",
       audit_persisted: true,
+      runtime_event_id: runtimeEvent?.eventId || null,
+      runtime_event_persisted: runtimeEvent?.persisted === true,
       live_provider_calls: false,
       live_mcp_writes: false,
       secret_output: false,
@@ -2319,6 +2371,7 @@ async function startRuntime(request, env, requestId) {
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
   }
+  const ownerSubject = await workspaceAuthenticated(request, env);
 
   let body;
   try { body = await readJson(request); } catch (error) {
@@ -2382,7 +2435,32 @@ async function startRuntime(request, env, requestId) {
         JSON.stringify({ status: state.status, role_count: state.role_results.length, prompt_sha256: promptSha256 }), now,
       ),
     ];
-    await env.DB.batch(statements);
+    let runtimeEventId = null;
+    let runtimeEventPersisted = false;
+    if (ownerSubject) {
+      const agentEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject,
+        eventType: "agent_task_dispatch_queued",
+        buildId: runId,
+        traceId: requestId,
+        producer: "cloudflare_langgraph",
+        effect: { run_id: runId, project_id: projectId, task_count: state.role_results.length },
+        mutationStatements: statements,
+      });
+      const memoryEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject,
+        eventType: "memory_entry_created",
+        buildId: runId,
+        traceId: requestId,
+        producer: "cloudflare_d1_memory",
+        parentEventId: agentEvent.eventId,
+        effect: { run_id: runId, project_id: projectId, kind: "runtime_summary" },
+      });
+      runtimeEventId = memoryEvent.eventId;
+      runtimeEventPersisted = memoryEvent.persisted === true;
+    } else {
+      await env.DB.batch(statements);
+    }
     const row = await env.DB.prepare("SELECT * FROM runtime_runs WHERE id = ?").bind(runId).first();
     const run = runtimeRunFromRow(row);
     return json({
@@ -2393,6 +2471,8 @@ async function startRuntime(request, env, requestId) {
       audit_persisted: true,
       memory_persisted: true,
       task_count: state.role_results.length,
+      runtime_event_id: runtimeEventId,
+      runtime_event_persisted: runtimeEventPersisted,
     }, 201);
   } catch {
     return json(blocked("langgraph_d1_runtime_failed", requestId, "The hosted graph did not complete and persist."), 503);
