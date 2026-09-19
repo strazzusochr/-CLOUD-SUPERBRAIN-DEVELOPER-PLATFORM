@@ -1103,6 +1103,9 @@ test("owner-bound D1 build creation appends a redacted runtime event chain", asy
   assert.equal(feedBody.source, "cloudflare-d1");
   assert.equal(feedBody.identity_scope, "server_bound_workspace_subject");
   assert.deepEqual(feedBody.events.map((event) => event.event), ["workspace_build_created", "workspace_build_created"]);
+  assert.equal(feedBody.complete, false);
+  assert.deepEqual(feedBody.observed_classes, ["workspace"]);
+  assert.deepEqual(feedBody.missing_classes, ["llm", "agent", "tool_mcp", "memory", "artifact", "auth", "security"]);
   const detail = await worker.fetch(new Request(`https://state.example/api/v1/workspace/runtime/events/${firstBody.runtime_event_id}`, { headers }), fakeEnv);
   assert.equal(detail.status, 200);
   assert.equal((await detail.json()).event.event_id, firstBody.runtime_event_id);

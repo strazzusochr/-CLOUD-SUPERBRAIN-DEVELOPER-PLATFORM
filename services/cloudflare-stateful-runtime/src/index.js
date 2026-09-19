@@ -29,6 +29,7 @@ const MAX_METADATA_BYTES = 8 * 1024;
 const MAX_NATIVE_CONTENT_BYTES = 32 * 1024;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 100;
+const WORKSPACE_RUNTIME_CLASSES = ["llm", "agent", "tool_mcp", "memory", "artifact", "workspace", "auth", "security"];
 const AGENT_ROLES = ["planner", "coder", "tester", "devops"];
 const AUTONOMOUS_TEAM_CONTRACT_VERSION = "autonomous-coding-team-v1";
 const AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION = "autonomous-task-dispatch-v1";
@@ -1496,6 +1497,19 @@ async function listWorkspaceBuilds(request, url, env, requestId) {
   }
 }
 
+function runtimeClassForEvent(eventType, producer) {
+  const value = `${producer || ""} ${eventType || ""}`.toLowerCase();
+  if (value.includes("workspace") || ["build", "pin", "unpin", "delete"].some((token) => value.includes(token))) return "workspace";
+  if (["llm", "model", "gateway"].some((token) => value.includes(token))) return "llm";
+  if (["agent", "orches"].some((token) => value.includes(token))) return "agent";
+  if (["mcp", "tool"].some((token) => value.includes(token))) return "tool_mcp";
+  if (["memory", "vector"].some((token) => value.includes(token))) return "memory";
+  if (["artifact", "file"].some((token) => value.includes(token))) return "artifact";
+  if (["auth", "session", "permission"].some((token) => value.includes(token))) return "auth";
+  if (["security", "policy", "block"].some((token) => value.includes(token))) return "security";
+  return "artifact";
+}
+
 function runtimeEventFromD1Row(row) {
   let effect = {};
   let missingRefs = [];
@@ -1518,6 +1532,7 @@ function runtimeEventFromD1Row(row) {
     parent_event_id: row.parent_event_id ? String(row.parent_event_id) : null,
     source: { service: row.source_service, environment: row.environment, source_commit_sha: row.source_commit_sha },
     producer: row.producer,
+    runtime_class: runtimeClassForEvent(row.event_type, row.producer),
     occurred_at: row.occurred_at,
     observed_at: row.observed_at,
     owner_sequence: String(row.owner_sequence),
@@ -1563,13 +1578,17 @@ async function listWorkspaceRuntimeEventsD1(request, url, env, requestId) {
       LIMIT ?
     `).bind(subject, limit).all();
     const events = (result.results || []).filter((row) => String(row.owner_subject) === subject).map(runtimeEventFromD1Row);
+    const observedClasses = [...new Set(events.map((event) => event.runtime_class).filter(Boolean))].sort();
+    const missingClasses = WORKSPACE_RUNTIME_CLASSES.filter((runtimeClass) => !observedClasses.includes(runtimeClass));
     return json({
       contract_version: "home-runtime-events-v1",
       status: "verified",
       source: "cloudflare-d1",
       identity_scope: "server_bound_workspace_subject",
       events,
-      complete: true,
+      observed_classes: observedClasses,
+      missing_classes: missingClasses,
+      complete: missingClasses.length === 0,
       persisted: true,
       audit_persisted: true,
       live_provider_calls: false,
