@@ -1586,6 +1586,22 @@ function runtimeEventFromD1Row(row) {
   };
 }
 
+function resolveRuntimeEventRoots(events) {
+  const byId = new Map(events.map((event) => [String(event.event_id), event]));
+  for (const event of events) {
+    let root = event.parent_event_id ? String(event.parent_event_id) : String(event.event_id);
+    const seen = new Set([String(event.event_id)]);
+    while (byId.has(root) && !seen.has(root)) {
+      seen.add(root);
+      const ancestor = byId.get(root)?.parent_event_id;
+      if (!ancestor) break;
+      root = String(ancestor);
+    }
+    event.root_event_id = root;
+  }
+  return events;
+}
+
 async function listWorkspaceRuntimeEventsD1(request, url, env, requestId) {
   if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
     return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
@@ -1606,7 +1622,9 @@ async function listWorkspaceRuntimeEventsD1(request, url, env, requestId) {
       ORDER BY owner_sequence DESC
       LIMIT ?
     `).bind(subject, limit).all();
-    const events = (result.results || []).filter((row) => String(row.owner_subject) === subject).map(runtimeEventFromD1Row);
+    const events = resolveRuntimeEventRoots(
+      (result.results || []).filter((row) => String(row.owner_subject) === subject).map(runtimeEventFromD1Row),
+    );
     const observedClasses = [...new Set(events.map((event) => event.runtime_class).filter(Boolean))].sort();
     const missingClasses = WORKSPACE_RUNTIME_CLASSES.filter((runtimeClass) => !observedClasses.includes(runtimeClass));
     return json({

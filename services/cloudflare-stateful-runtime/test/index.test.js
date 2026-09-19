@@ -1199,6 +1199,38 @@ test("owner-bound D1 pin event points to the prior build effect", async () => {
   assert.equal(pinEvent.parent_event_id, createdBody.runtime_event_id);
 });
 
+test("owner-bound D1 pin event preserves the LLM root event", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const created = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "root-pin-create" },
+    body: JSON.stringify({
+      ...validBuild,
+      id: "root_pin_build",
+      gateway_mode: "cloudflare_workers_ai_live",
+      gateway_provider: "cloudflare-workers-ai",
+      live_provider_calls: false,
+    }),
+  }), fakeEnv);
+  assert.equal(created.status, 201);
+  const createdBody = await created.json();
+  const llmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed");
+  assert.ok(llmEvent);
+  const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/root_pin_build/pin", {
+    method: "PUT", headers,
+  }), fakeEnv);
+  assert.equal(pinned.status, 200);
+  const pinBody = await pinned.json();
+  const pinEvent = fakeEnv.DB.runtimeEvents.get(pinBody.runtime_event_id);
+  assert.equal(pinEvent.parent_event_id, createdBody.runtime_event_id);
+  const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
+  const body = await feed.json();
+  const feedPin = body.events.find((event) => event.event === "workspace_build_pinned");
+  assert.equal(feedPin.root_event_id, llmEvent.event_id);
+});
+
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {
   const fakeEnv = env({ failAuditWrites: true });
   const response = await worker.fetch(writeRequest("/api/v1/builds", validBuild), fakeEnv);

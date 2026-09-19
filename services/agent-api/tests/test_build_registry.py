@@ -422,6 +422,27 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertTrue(pinned["persisted"])
         self.assertEqual(pin_event["parent_event_id"], build_event["event_id"])
 
+    def test_workspace_pin_event_preserves_the_llm_root_event(self) -> None:
+        self.create(
+            valid_request(
+                id="build_root_pin",
+                title="Root pin",
+                gateway_mode="cloudflare_workers_ai_live",
+                gateway_provider="cloudflare-workers-ai",
+            ),
+            "github:101",
+        )
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            main.set_workspace_build_pin("build_root_pin", "github:101", TEST_AGENT_TOKEN)
+            events = main.list_workspace_runtime_events("github:101", TEST_AGENT_TOKEN, 8)
+        llm_event = next(event for event in events["events"] if event["event"] == "llm_generation_completed")
+        pin_event = next(event for event in events["events"] if event["event"] == "workspace_build_pin_set")
+        self.assertEqual(pin_event["root_event_id"], llm_event["event_id"])
+
     def test_runtime_stream_cursor_deduplicates_and_exposes_gap(self) -> None:
         events = [
             {"event_id": "e3", "event": "newest"},

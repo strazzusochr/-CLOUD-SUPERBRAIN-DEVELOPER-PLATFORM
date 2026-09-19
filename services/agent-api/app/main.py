@@ -10461,6 +10461,32 @@ def _runtime_class_for_event(event_type: str, producer: str) -> str:
     return "artifact"
 
 
+def _resolve_runtime_event_roots(events: list[dict[str, object]]) -> None:
+    """Resolve root ancestry for the events present in one bounded owner feed.
+
+    If a parent is outside the bounded window, its ID remains the best available
+    root reference; the feed must not invent an ancestor or claim completeness.
+    """
+    by_id = {
+        str(event.get("event_id")): event
+        for event in events
+        if isinstance(event, dict) and event.get("event_id")
+    }
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        parent = event.get("parent_event_id")
+        root = str(parent) if parent else str(event.get("event_id"))
+        seen = {str(event.get("event_id"))}
+        while root in by_id and root not in seen:
+            seen.add(root)
+            ancestor = by_id[root].get("parent_event_id")
+            if not ancestor:
+                break
+            root = str(ancestor)
+        event["root_event_id"] = root
+
+
 def _append_workspace_runtime_event(
     conn: object,
     *,
@@ -11279,6 +11305,7 @@ def list_workspace_runtime_events(owner_subject: str | None, token: str | None, 
             "parent_event_ids": [str(parent_event_id)] if parent_event_id else [],
             "root_event_id": str(parent_event_id or event_id),
         })
+    _resolve_runtime_event_roots(events)
     observed_classes = sorted({
         str(event.get("runtime_class"))
         for event in events
