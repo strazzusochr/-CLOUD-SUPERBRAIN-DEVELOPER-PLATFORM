@@ -167,4 +167,59 @@ test.describe("Page 01 — personal runtime contract", () => {
     await expect(event.getByTestId("home-runtime-detail")).toContainText(eventHash);
     await expect(event).toContainText(String(build.build?.id));
   });
+
+  test("reconnects the owner-bound stream from a real persisted cursor", async ({ page }) => {
+    await page.goto("/login?runtime-reconnect=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const result = await page.evaluate(async () => {
+      const sessionResponse = await fetch("/api/v1/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "guest" }),
+      });
+      if (sessionResponse.status !== 200) return { sessionStatus: sessionResponse.status, buildStatuses: [], feedStatus: 0, streamStatus: 0, gap: "", cursor: "", eventIds: [], body: "" };
+      const buildStatuses: number[] = [];
+      for (const suffix of ["one", "two"]) {
+        const response = await fetch("/api/v1/build", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            prompt: `Erzeuge eine kleine vollständige Workbench-Demo für den Reconnect-Nachweis ${suffix}.`,
+            project_id: "default",
+          }),
+        });
+        buildStatuses.push(response.status);
+      }
+      const feedResponse = await fetch("/api/v1/workspace/runtime/events");
+      const feed = await feedResponse.json().catch(() => null) as { events?: Array<{ event_id?: string }> } | null;
+      const eventIds = Array.isArray(feed?.events)
+        ? feed.events.map((event) => String(event.event_id ?? "")).filter(Boolean)
+        : [];
+      const oldest = eventIds.at(-1) ?? "";
+      const streamResponse = oldest
+        ? await fetch("/api/v1/workspace/runtime/events/stream", { headers: { "Last-Event-ID": oldest } })
+        : null;
+      return {
+        sessionStatus: sessionResponse.status,
+        buildStatuses,
+        feedStatus: feedResponse.status,
+        streamStatus: streamResponse?.status ?? 0,
+        gap: streamResponse?.headers.get("x-runtime-gap") ?? "",
+        cursor: streamResponse?.headers.get("x-runtime-cursor") ?? "",
+        eventIds,
+        body: streamResponse ? await streamResponse.text() : "",
+      };
+    });
+    expect(result.sessionStatus).toBe(200);
+    expect(result.buildStatuses).toEqual([200, 200]);
+    expect(result.feedStatus).toBe(200);
+    expect(result.eventIds.length).toBeGreaterThanOrEqual(2);
+    const oldest = result.eventIds.at(-1);
+    const newest = result.eventIds[0];
+    expect(result.streamStatus).toBe(200);
+    expect(result.gap).toBe("false");
+    expect(result.cursor).toBe(oldest);
+    expect(result.body).toContain("runtime_event");
+    expect(result.body).toContain(newest);
+    expect(result.body).not.toContain(oldest);
+  });
 });
