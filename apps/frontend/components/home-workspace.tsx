@@ -242,6 +242,11 @@ export function HomeWorkspace() {
             </button>
           </div>
         ) : null}
+        {busyAction ? (
+          <p className="home-workspace-action-pending" role="status" data-testid="home-workspace-pending">
+            Änderung wird gespeichert …
+          </p>
+        ) : null}
         {allState.kind === "ready" ? (
           <div className="list home-workspace-all-list" data-testid="home-workspace-all-builds">
             {allState.builds.map((build) => <Link href={buildPath(build.id)} className="lrow-title" key={`all-${build.id}`}>{build.title}</Link>)}

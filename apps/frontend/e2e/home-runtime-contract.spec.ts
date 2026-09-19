@@ -200,6 +200,35 @@ test.describe("Page 01 — personal runtime contract", () => {
     await expect(page.getByText(/Aktivität ist unvollständig/)).toBeVisible({ timeout: 30_000 });
   });
 
+  test("shows a visible pending state while a real workspace mutation is in flight", async ({ page }) => {
+    await page.goto("/login?workspace-pending=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const build = await page.evaluate(async () => {
+      const sessionResponse = await fetch("/api/v1/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "guest" }),
+      });
+      if (sessionResponse.status !== 200) return { sessionStatus: sessionResponse.status, buildStatus: 0, id: "" };
+      const response = await fetch("/api/v1/build", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: "Erzeuge eine kleine persistierte Pending-Probe.", project_id: "default" }),
+      });
+      const payload = await response.json().catch(() => null) as { id?: string } | null;
+      return { sessionStatus: sessionResponse.status, buildStatus: response.status, id: String(payload?.id ?? "") };
+    });
+    expect(build.sessionStatus).toBe(200);
+    expect(build.buildStatus).toBe(200);
+    expect(build.id).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+
+    await page.goto("/home?workspace-pending-view=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const pin = page.getByTestId(`home-workspace-pin-${build.id}`);
+    await expect(pin).toBeVisible({ timeout: 30_000 });
+    await pin.click();
+    await expect(page.getByTestId("home-workspace-pending")).toBeVisible();
+    await expect(page.getByTestId("home-workspace-builds").getByTestId(`home-workspace-pin-${build.id}`)).toBeEnabled({ timeout: 30_000 });
+  });
+
   test("reconnects the owner-bound stream from a real persisted cursor", async ({ page }) => {
     await page.goto("/login?runtime-reconnect=" + Date.now(), { waitUntil: "domcontentloaded" });
     const result = await page.evaluate(async () => {
