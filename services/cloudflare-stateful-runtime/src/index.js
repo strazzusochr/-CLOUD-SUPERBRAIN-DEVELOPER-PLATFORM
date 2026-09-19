@@ -306,6 +306,16 @@ async function appendWorkspaceRuntimeEvent(env, {
   `).bind(ownerSubject, WORKSPACE_RUNTIME_CHAIN).first();
   const ownerSequence = Number(head?.next_sequence || 1);
   const previousHash = head?.head_hash ? String(head.head_hash) : null;
+  if (parentEventId === null) {
+    const prior = await env.DB.prepare(`
+      SELECT event_id
+      FROM runtime_events
+      WHERE owner_subject = ? AND chain_partition = ?
+      ORDER BY owner_sequence DESC
+      LIMIT 1
+    `).bind(ownerSubject, WORKSPACE_RUNTIME_CHAIN).first();
+    parentEventId = prior?.event_id ? String(prior.event_id) : null;
+  }
   const eventId = crypto.randomUUID();
   const effectJson = JSON.stringify({
     build_id: buildId,

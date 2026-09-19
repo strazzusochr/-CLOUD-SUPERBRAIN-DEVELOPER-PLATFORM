@@ -10501,6 +10501,18 @@ def _append_workspace_runtime_event(
         raise RuntimeError("runtime event chain head unavailable")
     owner_sequence = int(head[0])
     prev_hash = str(head[1]) if head[1] else None
+    if parent_event_id is None:
+        prior = conn.execute(
+            """
+            SELECT event_id
+            FROM runtime_events
+            WHERE owner_subject = %s AND chain_partition = %s
+            ORDER BY owner_sequence DESC
+            LIMIT 1
+            """,
+            (owner_subject, partition),
+        ).fetchone()
+        parent_event_id = str(prior[0]) if prior else None
     event_id = str(uuid4())
     occurred_at = datetime.now(timezone.utc).isoformat()
     envelope = {

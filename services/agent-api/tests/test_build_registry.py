@@ -59,6 +59,14 @@ class FakeConnection:
         if normalized.startswith("SELECT next_sequence, head_hash FROM runtime_event_chain_heads"):
             owner_subject, partition = params
             return FakeResult(row=self.runtime_heads.get((str(owner_subject), str(partition))))
+        if normalized.startswith("SELECT event_id FROM runtime_events"):
+            owner_subject, partition = params
+            rows = [
+                event for event in self.runtime_events
+                if event["owner_subject"] == owner_subject and event["chain_partition"] == partition
+            ]
+            rows.sort(key=lambda event: int(event["owner_sequence"]), reverse=True)
+            return FakeResult(row=(rows[0]["event_id"],) if rows else None)
         if normalized.startswith("INSERT INTO runtime_events"):
             self.runtime_events.append({
                 "event_id": params[0], "owner_subject": params[1], "event_type": params[2],
@@ -399,6 +407,20 @@ class BuildRegistryTests(unittest.TestCase):
         self.assertEqual(own_trace["events"][0]["event_id"], event["event_id"])
         self.assertIsNone(foreign)
         self.assertIsNone(unknown)
+
+    def test_workspace_pin_event_points_to_the_prior_build_effect(self) -> None:
+        self.create(valid_request(id="build_parent_pin", title="Parent pin"), "github:101")
+        with (
+            patch.dict(os.environ, {"AGENT_API_AUTH_TOKEN": TEST_AGENT_TOKEN}),
+            patch.object(main, "database_url", return_value="postgresql://unit"),
+            patch.object(main.psycopg, "connect", return_value=self.connection),
+        ):
+            pinned = main.set_workspace_build_pin("build_parent_pin", "github:101", TEST_AGENT_TOKEN)
+            events = main.list_workspace_runtime_events("github:101", TEST_AGENT_TOKEN, 8)
+        build_event = next(event for event in events["events"] if event["event"] == "build_created")
+        pin_event = next(event for event in events["events"] if event["event"] == "workspace_build_pin_set")
+        self.assertTrue(pinned["persisted"])
+        self.assertEqual(pin_event["parent_event_id"], build_event["event_id"])
 
     def test_runtime_stream_cursor_deduplicates_and_exposes_gap(self) -> None:
         events = [

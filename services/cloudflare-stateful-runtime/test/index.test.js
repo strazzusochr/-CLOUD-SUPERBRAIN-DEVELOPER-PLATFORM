@@ -372,6 +372,13 @@ class FakeStatement {
     if (this.sql.startsWith("SELECT next_sequence, head_hash FROM runtime_event_chain_heads")) {
       return this.db.runtimeEventHeads.get(`${this.values[0]}:${this.values[1]}`) || null;
     }
+    if (this.sql.startsWith("SELECT event_id FROM runtime_events")) {
+      const [ownerSubject, chainPartition] = this.values;
+      return [...this.db.runtimeEvents.values()]
+        .filter((row) => row.owner_subject === ownerSubject && row.chain_partition === chainPartition)
+        .sort((left, right) => Number(right.owner_sequence) - Number(left.owner_sequence))
+        .map((row) => ({ event_id: row.event_id }))[0] || null;
+    }
     if (this.sql.startsWith("SELECT event_id, owner_subject, owner_sequence, prev_hash, event_hash FROM runtime_events")) {
       const row = this.db.runtimeEvents.get(this.values[0]);
       return row && row.owner_subject === this.values[1] && row.chain_partition === this.values[2] ? { ...row } : null;
@@ -1128,7 +1135,9 @@ test("owner-bound D1 build creation appends a redacted runtime event chain", asy
   assert.equal(resumedStream.headers.get("x-runtime-gap"), "false");
   const resumedBody = await resumedStream.text();
   assert.match(resumedBody, new RegExp(secondBody.runtime_event_id));
-  assert.equal(resumedBody.includes(firstBody.runtime_event_id), false);
+  const resumedIds = [...resumedBody.matchAll(/^id: ([^\r\n]+)$/gm)].map((match) => match[1]);
+  assert.equal(resumedIds.includes(firstBody.runtime_event_id), false);
+  assert.equal(resumedIds.includes(secondBody.runtime_event_id), true);
   const gapStream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", {
     headers: { ...headers, "Last-Event-ID": "event-not-in-window" },
   }), fakeEnv);
@@ -1168,6 +1177,26 @@ test("owner-bound D1 build creation records trusted gateway metadata as an LLM r
   assert.equal(llmEvent.effect.build_id, "workspace_llm_event");
   const workspaceEvent = body.events.find((event) => event.runtime_class === "workspace");
   assert.equal(workspaceEvent.parent_event_id, llmEvent.event_id);
+});
+
+test("owner-bound D1 pin event points to the prior build effect", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const created = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "parent-pin-create" },
+    body: JSON.stringify({ ...validBuild, id: "parent_pin_build", gateway_provider: "unknown", live_provider_calls: false }),
+  }), fakeEnv);
+  assert.equal(created.status, 201);
+  const createdBody = await created.json();
+  const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/parent_pin_build/pin", {
+    method: "PUT", headers,
+  }), fakeEnv);
+  assert.equal(pinned.status, 200);
+  const pinBody = await pinned.json();
+  const pinEvent = fakeEnv.DB.runtimeEvents.get(pinBody.runtime_event_id);
+  assert.equal(pinEvent.parent_event_id, createdBody.runtime_event_id);
 });
 
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {
