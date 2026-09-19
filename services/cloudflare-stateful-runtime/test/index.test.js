@@ -125,6 +125,11 @@ class FakeStatement {
         producer_sequence, phase, outcome, effect_json, input_hash, output_hash, hash_scope, redaction_status,
         redaction_version, payload_ref, prev_hash, event_hash, chain_partition, completeness, missing_refs_json] = this.values;
       if (this.db.runtimeEvents.has(event_id)) throw new Error("UNIQUE constraint failed: runtime_events.event_id");
+      if ([...this.db.runtimeEvents.values()].some((row) => row.owner_subject === owner_subject
+        && row.chain_partition === chain_partition
+        && Number(row.owner_sequence) === Number(owner_sequence))) {
+        throw new Error("UNIQUE constraint failed: runtime_events.owner_subject, runtime_events.chain_partition, runtime_events.owner_sequence");
+      }
       this.db.runtimeEvents.set(event_id, {
         event_id, owner_subject, event_type, actor_type, actor_id, trace_id, span_id, parent_event_id,
         source_service, environment, source_commit_sha, producer, occurred_at, observed_at, owner_sequence,
@@ -370,6 +375,15 @@ class FakeStatement {
       return this.db.mismatchAuditReadback ? { ...row, trace_id: `${row.trace_id}-mismatch` } : { ...row };
     }
     if (this.sql.startsWith("SELECT next_sequence, head_hash FROM runtime_event_chain_heads")) {
+      if (this.db.chainHeadBarrier && this.db.chainHeadBarrier.count < 2) {
+        const barrier = this.db.chainHeadBarrier;
+        barrier.count += 1;
+        if (barrier.count === 2) {
+          for (const resolve of barrier.waiters.splice(0)) resolve();
+        } else {
+          await new Promise((resolve) => barrier.waiters.push(resolve));
+        }
+      }
       return this.db.runtimeEventHeads.get(`${this.values[0]}:${this.values[1]}`) || null;
     }
     if (this.sql.startsWith("SELECT event_id FROM runtime_events")) {
@@ -522,6 +536,7 @@ class FakeD1 {
     expireRefreshBeforeGuard = false,
     forceRefreshHashCollision = false,
     failHealthRead = false,
+    chainHeadBarrier = false,
   } = {}) {
     this.builds = new Map();
     this.pins = new Map();
@@ -553,6 +568,7 @@ class FakeD1 {
     this.expireRefreshBeforeGuard = expireRefreshBeforeGuard;
     this.forceRefreshHashCollision = forceRefreshHashCollision;
     this.failHealthRead = failHealthRead;
+    this.chainHeadBarrier = chainHeadBarrier ? { count: 0, waiters: [] } : null;
     this.expireRefreshBeforeGuardConsumed = false;
     this.forcedExpiryAfterRollback = null;
   }
@@ -1229,6 +1245,29 @@ test("owner-bound D1 pin event preserves the LLM root event", async () => {
   const body = await feed.json();
   const feedPin = body.events.find((event) => event.event === "workspace_build_pinned");
   assert.equal(feedPin.root_event_id, llmEvent.event_id);
+});
+
+test("concurrent owner-bound D1 builds retry a chain-head conflict", async () => {
+  const fakeEnv = env({ chainHeadBarrier: true });
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const makeRequest = (id) => new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": id },
+    body: JSON.stringify({ ...validBuild, id, gateway_provider: "unknown", live_provider_calls: false }),
+  });
+  const [first, second] = await Promise.all([
+    worker.fetch(makeRequest("concurrent_build_1"), fakeEnv),
+    worker.fetch(makeRequest("concurrent_build_2"), fakeEnv),
+  ]);
+  assert.equal(first.status, 201);
+  assert.equal(second.status, 201);
+  const events = [...fakeEnv.DB.runtimeEvents.values()].sort((left, right) => Number(left.owner_sequence) - Number(right.owner_sequence));
+  assert.equal(events.length, 2);
+  assert.deepEqual(events.map((event) => Number(event.owner_sequence)), [1, 2]);
+  assert.equal(fakeEnv.DB.runtimeEventHeads.get(`${owner}:workspace`).next_sequence, 3);
+  assert.equal(fakeEnv.DB.runtimeEventOutbox.size, 2);
+  assert.equal(events[1].prev_hash, events[0].event_hash);
 });
 
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {

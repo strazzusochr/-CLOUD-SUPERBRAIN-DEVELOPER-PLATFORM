@@ -285,7 +285,7 @@ async function sha256(value) {
 
 const WORKSPACE_RUNTIME_CHAIN = "workspace";
 
-async function appendWorkspaceRuntimeEvent(env, {
+async function appendWorkspaceRuntimeEventAttempt(env, {
   ownerSubject,
   eventType,
   buildId,
@@ -431,6 +431,21 @@ async function appendWorkspaceRuntimeEvent(env, {
     persisted: true,
     mutationResults: results.slice(0, mutationStatements.length),
   };
+}
+
+async function appendWorkspaceRuntimeEvent(env, options) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await appendWorkspaceRuntimeEventAttempt(env, options);
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || error);
+      const isOwnerSequenceConflict = /UNIQUE constraint failed:\s*runtime_events\.owner_subject/i.test(message);
+      if (!isOwnerSequenceConflict || attempt >= 2) throw error;
+    }
+  }
+  throw lastError;
 }
 
 function containsSecretMaterial(value) {
