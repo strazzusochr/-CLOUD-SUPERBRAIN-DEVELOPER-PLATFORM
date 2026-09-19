@@ -88,7 +88,7 @@ type OrdinaryRequestHeaderPolicy = "public-read" | "public-json" | "service-json
 const ORDINARY_REQUEST_HEADER_ALLOWLISTS: Record<OrdinaryRequestHeaderPolicy, readonly string[]> = {
   "public-read": ["accept", "x-request-id", "traceparent"],
   "public-json": ["accept", "content-type", "x-request-id", "traceparent"],
-  "service-json": ["accept", "content-type", "x-request-id", "traceparent"],
+  "service-json": ["accept", "content-type", "last-event-id", "x-request-id", "traceparent"],
   "gateway-json": ["accept", "content-type", "x-request-id", "traceparent"],
 };
 
@@ -171,7 +171,7 @@ function copyResponseHeaders(response: Response, source: string): Headers {
     "x-superbrain-boundary": source,
     "x-superbrain-source": response.headers.get("x-superbrain-source") ?? source,
   });
-  for (const name of ["www-authenticate", "retry-after"]) {
+  for (const name of ["www-authenticate", "retry-after", "x-runtime-gap", "x-runtime-cursor"]) {
     const value = response.headers.get(name);
     if (value) headers.set(name, value);
   }

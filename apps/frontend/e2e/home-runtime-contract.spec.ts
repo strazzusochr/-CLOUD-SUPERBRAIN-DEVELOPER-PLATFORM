@@ -75,4 +75,53 @@ test.describe("Page 01 — personal runtime contract", () => {
     await pause.click();
     await expect(pause).toHaveText("Pausieren");
   });
+
+  test("opens the owner-bound runtime stream after the authenticated collection read", async ({ page }) => {
+    await page.goto("/login?stream=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const session = await page.evaluate(async () => {
+      const response = await fetch("/api/v1/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "guest" }),
+      });
+      return { status: response.status, payload: await response.json() };
+    });
+    expect(session.status).toBe(200);
+    expect(session.payload.status).toBe("signed_in");
+
+    const streamResponse = page.waitForResponse((response) =>
+      response.request().method() === "GET"
+      && new URL(response.url()).pathname === "/api/v1/workspace/runtime/events/stream",
+    );
+    await page.goto("/home?stream=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const response = await streamResponse;
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toContain("text/event-stream");
+  });
+
+  test("forwards the authenticated stream cursor without accepting a client identity", async ({ page }) => {
+    await page.goto("/login?stream-cursor=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const session = await page.evaluate(async () => {
+      const response = await fetch("/api/v1/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "guest" }),
+      });
+      return { status: response.status, payload: await response.json() };
+    });
+    expect(session.status).toBe(200);
+    const result = await page.evaluate(async () => {
+      const response = await fetch("/api/v1/workspace/runtime/events/stream", {
+        headers: { "Last-Event-ID": "cursor-check" },
+      });
+      return {
+        status: response.status,
+        cursor: response.headers.get("x-runtime-cursor"),
+        body: await response.text(),
+      };
+    });
+    expect(result.status).toBe(200);
+    expect(result.cursor).toBe("cursor-check");
+    expect(result.body).toContain("runtime_gap");
+  });
 });
