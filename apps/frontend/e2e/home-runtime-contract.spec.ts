@@ -124,4 +124,37 @@ test.describe("Page 01 — personal runtime contract", () => {
     expect(result.cursor).toBe("cursor-check");
     expect(result.body).toContain("runtime_gap");
   });
+
+  test("shows and opens a real owner-bound build event", async ({ page }) => {
+    await page.goto("/login?runtime-event=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const build = await page.evaluate(async () => {
+      const sessionResponse = await fetch("/api/v1/auth/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: "guest" }),
+      });
+      if (sessionResponse.status !== 200) return { sessionStatus: sessionResponse.status, buildStatus: 0, build: null };
+      const response = await fetch("/api/v1/build", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          prompt: "Erzeuge eine kleine, vollständige, interaktive Workbench-Demo mit sichtbarem Titel und zwei funktionierenden Schaltflächen.",
+          project_id: "default",
+        }),
+      });
+      return { sessionStatus: sessionResponse.status, buildStatus: response.status, build: await response.json().catch(() => null) };
+    });
+    expect(build.sessionStatus).toBe(200);
+    expect(build.buildStatus).toBe(200);
+    expect(build.build?.persisted).toBe(true);
+    expect(build.build?.direct_provider_calls).toBe(false);
+    expect(String(build.build?.id)).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+
+    await page.goto("/home?runtime-event=" + Date.now(), { waitUntil: "domcontentloaded" });
+    const event = page.locator("details.home-runtime-event").filter({ hasText: "build_created" }).first();
+    await expect(event).toBeVisible({ timeout: 30_000 });
+    await event.locator("summary").click();
+    await expect(event.getByTestId("home-runtime-detail")).toContainText("Parent-/Root-Kette:", { timeout: 15_000 });
+    await expect(event).toContainText(String(build.build?.id));
+  });
 });
