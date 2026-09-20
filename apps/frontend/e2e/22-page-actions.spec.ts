@@ -49,6 +49,46 @@ type PersistedBuild = {
   secret_output: false;
 };
 
+type ProviderBuildPlan = {
+  fixture_source: "direct_fixture" | "games_route_build" | "provided_build";
+  provider_build_actions: readonly string[];
+  entries: readonly PageActionEntry[];
+};
+
+function canonicalProviderBuildPlan(
+  entries: readonly PageActionEntry[],
+  createOwnerBoundFixture: boolean,
+): ProviderBuildPlan {
+  if (!createOwnerBoundFixture) {
+    return {
+      fixture_source: "provided_build",
+      provider_build_actions: ["games-build-run"],
+      entries,
+    };
+  }
+  const login = entries.find((entry) => entry.route === "/login");
+  const games = entries.find((entry) => entry.route === "/games");
+  if (!login || !games) throw new Error("F-037 requires the canonical login and games routes");
+  // Login signs the local session out and back in. Running it first makes the
+  // single Games build belong to the final subject for all owner-bound reads.
+  const remaining = entries.filter((entry) => entry !== login && entry !== games);
+  return {
+    fixture_source: "games_route_build",
+    provider_build_actions: ["games-build-run"],
+    entries: [login, games, ...remaining],
+  };
+}
+
+type DirectBuildResult = {
+  audit: ActionAudit;
+  build: PersistedBuild | null;
+};
+
+function requirePersistedBuild(build: PersistedBuild | null, route: string, actionId: string): PersistedBuild {
+  if (build === null) throw new Error(`${route}/${actionId} requires the one persisted Games build`);
+  return build;
+}
+
 type ElementSnapshot = {
   count: number;
   visibleCount: number;
@@ -248,38 +288,6 @@ async function loadPersistedBuild(context: BrowserContext): Promise<PersistedBui
   return build as PersistedBuild;
 }
 
-async function createOwnerBoundFixtureBuild(page: Page): Promise<PersistedBuild> {
-  const result = await page.evaluate(async () => {
-    const response = await fetch("/api/v1/build", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        prompt: "Erzeuge eine kleine, vollständige, interaktive Workbench-Demo mit sichtbarem Titel und zwei funktionierenden Schaltflächen.",
-        project_id: "default",
-      }),
-    });
-    let payload: Record<string, unknown> = {};
-    try { payload = await response.json() as Record<string, unknown>; } catch { /* preserve status evidence */ }
-    return {
-      status: response.status,
-      id: payload.id,
-      html: payload.html,
-      persisted: payload.persisted,
-      live_provider_calls: payload.live_provider_calls,
-      direct_provider_calls: payload.direct_provider_calls,
-      secret_output: payload.secret_output,
-    };
-  });
-  expect(result.status, "owner-bound F-037 fixture build must return HTTP 200").toBe(200);
-  expect(String(result.id)).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
-  expect(result.persisted).toBe(true);
-  expect(result.live_provider_calls).toBe(true);
-  expect(result.direct_provider_calls).toBe(false);
-  expect(result.secret_output).toBe(false);
-  expect(String(result.html)).toMatch(/^\s*<!doctype html/i);
-  return result as PersistedBuild;
-}
-
 async function prepareMember(page: Page, context: BrowserContext, action: ActionMember): Promise<void> {
   const normalizedId = normalizedOrganismActionId(action.id);
   if (normalizedId.startsWith("organism-")) {
@@ -410,7 +418,7 @@ async function auditDirectBuild(
   route: string,
   family: ActionFamily,
   action: ActionMember,
-): Promise<ActionAudit> {
+): Promise<DirectBuildResult> {
   const controls = page.locator(action.locator);
   try {
     expect(["games-build-run"]).toContain(action.id);
@@ -441,50 +449,63 @@ async function auditDirectBuild(
     const readback = asRecord(await readbackResponse.json());
     expect(readback.id).toBe(buildId);
     expect(readback.persisted).toBe(true);
+    expect(String(readback.html ?? payload.html ?? "")).toMatch(/^\s*<!doctype html/i);
     await expect(page.locator(action.effectLocator).first()).toBeVisible({ timeout: 30_000 });
     return {
-      route,
-      family_id: family.id,
-      action_id: action.id,
-      availability: action.availability,
-      registry_status: action.status,
-      expected_effect: action.expectedEffect,
-      effect_type: "data",
-      control_count: await controls.count(),
-      audited_control_count: 1,
-      effect_observed: true,
-      click_only: false,
-      proof_kind: "direct_effect",
-      trigger: "direct_route_build_persisted_readback",
-      details: {
-        build_id: buildId,
-        response_status: response.status(),
-        persisted: true,
-        audit_persisted: true,
-        live_provider_calls: true,
-        gateway_provider: payload.gateway_provider,
-        direct_provider_calls: false,
+      audit: {
+        route,
+        family_id: family.id,
+        action_id: action.id,
+        availability: action.availability,
+        registry_status: action.status,
+        expected_effect: action.expectedEffect,
+        effect_type: "data",
+        control_count: await controls.count(),
+        audited_control_count: 1,
+        effect_observed: true,
+        click_only: false,
+        proof_kind: "direct_effect",
+        trigger: "direct_route_build_persisted_readback",
+        details: {
+          build_id: buildId,
+          response_status: response.status(),
+          persisted: true,
+          audit_persisted: true,
+          live_provider_calls: true,
+          gateway_provider: payload.gateway_provider,
+          direct_provider_calls: false,
+        },
+        passed: true,
       },
-      passed: true,
+      build: {
+        id: buildId,
+        html: String(readback.html ?? payload.html ?? ""),
+        persisted: true,
+        direct_provider_calls: false,
+        secret_output: false,
+      },
     };
   } catch (error) {
     return {
-      route,
-      family_id: family.id,
-      action_id: action.id,
-      availability: action.availability,
-      registry_status: action.status,
-      expected_effect: action.expectedEffect,
-      effect_type: "data",
-      control_count: await controls.count().catch(() => 0),
-      audited_control_count: 0,
-      effect_observed: false,
-      click_only: false,
-      proof_kind: "direct_effect",
-      trigger: "direct_route_build_persisted_readback",
-      details: { precondition: action.precondition },
-      passed: false,
-      failure: safeMessage(error instanceof Error ? error.message : error),
+      audit: {
+        route,
+        family_id: family.id,
+        action_id: action.id,
+        availability: action.availability,
+        registry_status: action.status,
+        expected_effect: action.expectedEffect,
+        effect_type: "data",
+        control_count: await controls.count().catch(() => 0),
+        audited_control_count: 0,
+        effect_observed: false,
+        click_only: false,
+        proof_kind: "direct_effect",
+        trigger: "direct_route_build_persisted_readback",
+        details: { precondition: action.precondition },
+        passed: false,
+        failure: safeMessage(error instanceof Error ? error.message : error),
+      },
+      build: null,
     };
   }
 }
@@ -910,12 +931,12 @@ async function auditMember(
   route: string,
   family: ActionFamily,
   action: ActionMember,
-  build: PersistedBuild,
+  build: PersistedBuild | null,
   productAcceptanceSpecSource: string,
   productAcceptanceReportSha256: string,
 ): Promise<ActionAudit> {
   if (action.id === "games-build-run") {
-    return auditDirectBuild(page, context, route, family, action);
+    return (await auditDirectBuild(page, context, route, family, action)).audit;
   }
   if (action.verificationMode === "preverified_exact_control") {
     return auditPreverifiedWorkbenchBuild(
@@ -924,7 +945,7 @@ async function auditMember(
       route,
       family,
       action,
-      build,
+      requirePersistedBuild(build, route, action.id),
       productAcceptanceSpecSource,
       productAcceptanceReportSha256,
     );
@@ -932,9 +953,10 @@ async function auditMember(
   if (EXAMPLE_SELECTION_ACTIONS.has(action.id) || action.id.startsWith("games-history-")) {
     await gotoRoute(page, route);
   } else if (PERSISTED_BUILD_ACTIONS.has(action.id)) {
+    const persistedBuild = requirePersistedBuild(build, route, action.id);
     const current = new URL(page.url());
-    if (current.pathname !== route || current.searchParams.get("build") !== build.id) {
-      await gotoRoute(page, route, build.id);
+    if (current.pathname !== route || current.searchParams.get("build") !== persistedBuild.id) {
+      await gotoRoute(page, route, persistedBuild.id);
     }
   }
   expect(action.verificationMode, `${route}/${action.id} must be directly interactive`).toBe("interactive");
@@ -957,7 +979,7 @@ async function auditMember(
   const detailRows: JsonRecord[] = [];
   const normalizedId = normalizedOrganismActionId(action.id);
   try {
-    if (effectType === "navigation") await gotoRoute(page, route, build.id);
+    if (effectType === "navigation") await gotoRoute(page, route, build?.id);
     if (normalizedId === "organism-performance-finish") {
       return auditPerformanceFinish(page, route, family, action);
     }
@@ -1009,7 +1031,7 @@ async function auditMember(
     const visibleIndexes = [selectedIndex];
     for (const originalIndex of visibleIndexes) {
       if (audited > 0 && effectType === "navigation") {
-        await gotoRoute(page, route, build.id);
+        await gotoRoute(page, route, build?.id);
         await prepareMember(page, context, action);
       }
       const refreshed = page.locator(action.locator);
@@ -1098,7 +1120,7 @@ async function auditMember(
           let popup: Page | null = null;
           for (let attempt = 0; attempt < 2 && popup === null; attempt += 1) {
             if (attempt > 0) {
-              await gotoRoute(page, route, build.id);
+              await gotoRoute(page, route, build?.id);
               await prepareMember(page, context, action);
             }
             const popupControls = page.locator(action.locator);
@@ -1402,6 +1424,14 @@ test("Page 01 registers conditional private-workspace controls without treating 
   // browser transport that could create a self-certifying green result.
 });
 
+test("F-037 schedules exactly one owner-bound provider build through the Games control", () => {
+  const plan = canonicalProviderBuildPlan(ACTION_MATRIX, true);
+  expect(plan.fixture_source).toBe("games_route_build");
+  expect(plan.provider_build_actions).toEqual(["games-build-run"]);
+  expect(plan.entries.map((entry) => entry.route).slice(0, 2)).toEqual(["/login", "/games"]);
+  expect(plan.entries).toHaveLength(22);
+});
+
 test("all 22 canonical pages directly prove every enabled page-local action and reject unregistered controls", async ({ page, context }, testInfo) => {
   test.setTimeout(75 * 60_000);
   page.setDefaultTimeout(15_000);
@@ -1430,7 +1460,6 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   const visitedRoutes = new Set<string>();
   const unregisteredByRoute = new Map<string, readonly JsonRecord[]>();
   const registeredMatchCountsByRoute = new Map<string, Readonly<Record<string, number>>>();
-  let fixtureSetupActive = false;
   let failure: unknown = null;
   const isLoginPage = (): boolean => new URL(page.url()).pathname === "/login";
 
@@ -1444,7 +1473,7 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   });
   page.on("pageerror", (error) => pageErrors.push(safeMessage(error.message)));
   page.on("request", (request) => {
-    if (!fixtureSetupActive && isProviderRequest(request.url(), request.method())) {
+    if (isProviderRequest(request.url(), request.method())) {
       providerRequests.push(`${request.method()} ${new URL(request.url()).pathname}`);
     }
   });
@@ -1468,9 +1497,8 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
   page.on("response", (response) => {
     const contentType = response.headers()["content-type"] ?? "";
     if (response.request().method() === "GET" || !contentType.includes("application/json")) return;
-    const ignoreForFixture = fixtureSetupActive;
     const inspection = response.json().then((payload) => {
-      if (!ignoreForFixture && JSON.stringify(payload).includes('"live_provider_calls":true')) {
+      if (JSON.stringify(payload).includes('"live_provider_calls":true')) {
         liveProviderResponses.push(new URL(response.url()).pathname);
       }
     }).catch(() => {});
@@ -1596,28 +1624,32 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
     expect(new Set(registeredRoutes).size).toBe(22);
     report.route_registry_parity = true;
 
+    const createOwnerBoundFixture = process.env.PAGE_ACTIONS_CREATE_OWNER_BOUND_FIXTURE === "true";
+    const providerBuildPlan = canonicalProviderBuildPlan(ACTION_MATRIX, createOwnerBoundFixture);
     await gotoRoute(page, "/login");
     await setSession(page, context, true);
-    let persistedBuild: PersistedBuild;
-    if (process.env.PAGE_ACTIONS_CREATE_OWNER_BOUND_FIXTURE === "true") {
-      fixtureSetupActive = true;
-      persistedBuild = await createOwnerBoundFixtureBuild(page);
-      fixtureSetupActive = false;
-    } else {
-      persistedBuild = await loadPersistedBuild(context);
-    }
+    let persistedBuild: PersistedBuild | null = createOwnerBoundFixture
+      ? null
+      : await loadPersistedBuild(context);
 
-    for (const entry of ACTION_MATRIX as readonly PageActionEntry[]) {
-      await gotoRoute(page, entry.route, persistedBuild.id);
+    for (const entry of providerBuildPlan.entries) {
+      await gotoRoute(page, entry.route, persistedBuild?.id);
       visitedRoutes.add(entry.route);
       for (const family of entry.families) {
         const enabled = family.memberActions.filter((action) => action.availability === "enabled");
         if (enabled.length > 0 && new URL(page.url()).pathname !== entry.route) {
-          await gotoRoute(page, entry.route, persistedBuild.id);
+          await gotoRoute(page, entry.route, persistedBuild?.id);
         }
         for (const action of enabled) {
           if (new URL(page.url()).pathname !== entry.route) {
-            await gotoRoute(page, entry.route, persistedBuild.id);
+            await gotoRoute(page, entry.route, persistedBuild?.id);
+          }
+          if (action.id === "games-build-run") {
+            const direct = await auditDirectBuild(page, context, entry.route, family, action);
+            audits.push(direct.audit);
+            if (direct.build === null) throw new Error("games-build-run did not return the required owner-bound fixture");
+            persistedBuild = direct.build;
+            continue;
           }
           const audit = await auditMember(
             page,
@@ -1632,18 +1664,10 @@ test("all 22 canonical pages directly prove every enabled page-local action and 
           audits.push(audit);
         }
       }
-      await gotoRoute(page, entry.route, persistedBuild.id);
+      await gotoRoute(page, entry.route, persistedBuild?.id);
       const registrySnapshot = await findUnregisteredPageLocalControls(page, entry);
       unregisteredByRoute.set(entry.route, registrySnapshot.unregistered);
       registeredMatchCountsByRoute.set(entry.route, registrySnapshot.registeredMatchCounts);
-      // The login family deliberately signs out and back in, which creates a
-      // fresh local-session subject. Recreate the opt-in fixture after that
-      // transition so the owner-bound Workbench/Games reads use this session.
-      if (process.env.PAGE_ACTIONS_CREATE_OWNER_BOUND_FIXTURE === "true" && entry.route === "/login") {
-        fixtureSetupActive = true;
-        persistedBuild = await createOwnerBoundFixtureBuild(page);
-        fixtureSetupActive = false;
-      }
     }
 
     await Promise.allSettled(responseInspections);
