@@ -3,6 +3,7 @@
 // Generation is allowed only through the configured LLM Gateway. The stateless
 // frontend never calls a provider or persistence service directly.
 
+import { createHash } from "node:crypto";
 import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary, requireWorkspaceIdentity, type WorkspaceIdentity } from "../../../../lib/frontendBoundary";
 import {
   ensureGeneratedHtmlBoundingSpheres,
@@ -222,15 +223,22 @@ async function persistBuild(req: Request, build: BuildRecord, identity: Workspac
   } catch {
     return null;
   }
-  return payload.persisted === true
+  const persistedHtml = typeof payload.html === "string" ? payload.html : "";
+  const expectedPromptSha256 = createHash("sha256").update(build.prompt, "utf8").digest("hex");
+  const readbackValid = payload.persisted === true
     && payload.audit_persisted === true
     && payload.id === build.id
-    && payload.html === build.html
+    && payload.project_id === build.project_id
+    && payload.prompt_sha256 === expectedPromptSha256
+    && payload.model === build.model
+    && payload.gateway_mode === build.gateway_mode
+    && payload.gateway_provider === build.gateway_provider
+    && completePersistableHtml(persistedHtml)
+    && !containsSecretMaterial(persistedHtml)
     && payload.direct_provider_calls === false
     && payload.live_mcp_writes === false
-    && payload.secret_output === false
-    ? payload
-    : null;
+    && payload.secret_output === false;
+  return readbackValid ? payload : null;
 }
 
 export async function POST(req: Request): Promise<Response> {

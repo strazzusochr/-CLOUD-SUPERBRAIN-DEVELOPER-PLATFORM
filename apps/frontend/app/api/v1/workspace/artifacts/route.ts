@@ -1,4 +1,4 @@
-import { authorizeBoundaryWrite, boundaryUnavailable, projectionResponse, proxyReadToBoundary, proxyToBoundary } from "../../../../../lib/frontendBoundary";
+import { authorizeBoundaryWrite, boundaryUnavailable, projectionResponse, proxyReadToBoundary, proxyWorkspaceToBoundary, requireWorkspaceIdentity } from "../../../../../lib/frontendBoundary";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,8 @@ export async function GET(req: Request): Promise<Response> {
 export async function POST(req: Request): Promise<Response> {
   const writeBlock = await authorizeBoundaryWrite(req);
   if (writeBlock) return writeBlock;
-  const response = await proxyToBoundary(req, "agent-api", "/api/v1/workspace/artifacts", 8_000, { serviceAuth: true });
+  const identity = await requireWorkspaceIdentity(req);
+  if (identity instanceof Response) return identity;
+  const response = await proxyWorkspaceToBoundary(req, "/api/v1/workspace/artifacts", identity);
   return response ?? boundaryUnavailable("POST /api/v1/workspace/artifacts", "agent-api");
 }
