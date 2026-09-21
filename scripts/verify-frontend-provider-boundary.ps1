@@ -99,7 +99,12 @@ foreach ($relative in $actionRoutes) {
     throw "Frontend provider boundary verification failed: missing action route $relative"
   }
   $route = Get-Content -LiteralPath $path -Raw
-  Assert-Contains "$relative gateway proxy" $route "proxyToBoundary"
+  $gatewayProxyMarker = if ($relative -eq "app\api\v1\workspace\artifacts\route.ts") {
+    "proxyWorkspaceToBoundary"
+  } else {
+    "proxyToBoundary"
+  }
+  Assert-Contains "$relative gateway proxy" $route $gatewayProxyMarker
   Assert-Contains "$relative fail closed" $route "boundaryUnavailable"
 }
 
