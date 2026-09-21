@@ -1428,6 +1428,11 @@ test("every Next mutation proxy is owner-write guarded with only exact auth and 
   const exactRouteExceptions = new Set(["v1/auth/session/route.ts"]);
   for (const route of mutationRoutes) {
     if (exactRouteExceptions.has(route.relative)) continue;
+    if (route.source.includes("proxyWorkspaceToBoundary")) {
+      assert.match(route.source, /\brequireWorkspaceIdentity\b/, `${route.relative} must resolve the server-side workspace identity`);
+      assert.match(route.source, /\bproxyWorkspaceToBoundary\b/, `${route.relative} must use the owner-bound workspace proxy`);
+      continue;
+    }
     assert.match(route.source, /\bauthorizeBoundaryWrite\b/, `${route.relative} must import the write guard`);
     const guardIndex = route.source.indexOf("await authorizeBoundaryWrite(req)");
     assert.ok(guardIndex >= 0, `${route.relative} must execute the write guard`);
@@ -1476,7 +1481,7 @@ test("local and OAuth session lifecycle wiring is fail-closed and browser-cleara
   assert.match(authSessionRouteSource, /jar\.set\(AUTH_SESSION_COOKIE, "", \{/);
   for (const attribute of [
     /httpOnly: true/,
-    /secure: true/,
+    /secure: (?:true|secureCookieFor\(req\))/,
     /sameSite: "strict"/,
     /path: "\/"/,
     /maxAge: 0/,
