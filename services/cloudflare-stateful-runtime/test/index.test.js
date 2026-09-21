@@ -7,7 +7,7 @@ import worker, { RuntimeCoordinator } from "../src/index.js";
 const token = "unit-test-agent-token";
 const canonicalOauthOrigin = "https://frontend-seven-psi-78.vercel.app";
 const canonicalOauthRedirect = `${canonicalOauthOrigin}/api/v1/auth/callback`;
-const testJwtSigningSecret = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY";
+const testJwtSigningSecret = Buffer.alloc(32, 7).toString("base64url");
 
 class FakeStatement {
   constructor(db, sql) {
@@ -23,18 +23,36 @@ class FakeStatement {
 
   async run() {
     if (this.sql.startsWith("INSERT INTO builds")) {
-      const [id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at] = this.values;
+      const [id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at, owner_subject] = this.values;
       if (this.db.builds.has(id)) throw new Error("UNIQUE constraint failed: builds.id");
-      this.db.builds.set(id, { id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at, deleted_at: null });
+      this.db.builds.set(id, { id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at, owner_subject: owner_subject || null, deleted_at: null });
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith("UPDATE builds SET deleted_at")) {
-      const [deleted_at, updated_at, id] = this.values;
+      const [deleted_at, updated_at, id, owner_subject] = this.values;
       const row = this.db.builds.get(id);
-      if (!row || row.deleted_at) return { meta: { changes: 0 } };
+      if (!row || row.deleted_at || (this.sql.includes("owner_subject = ?") && row.owner_subject !== owner_subject)) return { meta: { changes: 0 } };
       if (this.db.keepBuildActiveOnDelete) return { meta: { changes: 1 } };
       Object.assign(row, { deleted_at, updated_at });
       return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO workspace_build_pins")) {
+      const [owner_subject, build_id, created_at] = this.values;
+      const key = `${owner_subject}:${build_id}`;
+      const existed = this.db.pins.has(key);
+      this.db.pins.set(key, { owner_subject, build_id, created_at });
+      return { meta: { changes: existed ? 0 : 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO workspace_build_usage")) {
+      const [owner_subject, build_id, last_used_at] = this.values;
+      const key = `${owner_subject}:${build_id}`;
+      const current = this.db.usage.get(key);
+      this.db.usage.set(key, { owner_subject, build_id, last_used_at, use_count: current ? current.use_count + 1 : 1 });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("DELETE FROM workspace_build_pins")) {
+      const [owner_subject, build_id] = this.values;
+      return { meta: { changes: this.db.pins.delete(`${owner_subject}:${build_id}`) ? 1 : 0 } };
     }
     if (this.sql.startsWith("INSERT INTO workspace_artifacts")) {
       const [id, project_id, source_page, artifact_type, title, summary, status, run_id, metadata_json, created_at] = this.values;
@@ -99,6 +117,35 @@ class FakeStatement {
       if (this.db.failAuditWrites) throw new Error("simulated audit persistence failure");
       const [id, event_type, trace_id, subject_id, details_json, created_at] = this.values;
       this.db.audit.push({ id, event_type, trace_id, subject_id, details_json, created_at });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO runtime_events")) {
+      const [event_id, owner_subject, event_type, actor_type, actor_id, trace_id, span_id, parent_event_id,
+        source_service, environment, source_commit_sha, producer, occurred_at, observed_at, owner_sequence,
+        producer_sequence, phase, outcome, effect_json, input_hash, output_hash, hash_scope, redaction_status,
+        redaction_version, payload_ref, prev_hash, event_hash, chain_partition, completeness, missing_refs_json] = this.values;
+      if (this.db.runtimeEvents.has(event_id)) throw new Error("UNIQUE constraint failed: runtime_events.event_id");
+      if ([...this.db.runtimeEvents.values()].some((row) => row.owner_subject === owner_subject
+        && row.chain_partition === chain_partition
+        && Number(row.owner_sequence) === Number(owner_sequence))) {
+        throw new Error("UNIQUE constraint failed: runtime_events.owner_subject, runtime_events.chain_partition, runtime_events.owner_sequence");
+      }
+      this.db.runtimeEvents.set(event_id, {
+        event_id, owner_subject, event_type, actor_type, actor_id, trace_id, span_id, parent_event_id,
+        source_service, environment, source_commit_sha, producer, occurred_at, observed_at, owner_sequence,
+        producer_sequence, phase, outcome, effect_json, input_hash, output_hash, hash_scope, redaction_status,
+        redaction_version, payload_ref, prev_hash, event_hash, chain_partition, completeness, missing_refs_json,
+      });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO runtime_event_chain_heads")) {
+      const [owner_subject, chain_partition, next_sequence, head_hash, updated_at] = this.values;
+      this.db.runtimeEventHeads.set(`${owner_subject}:${chain_partition}`, { owner_subject, chain_partition, next_sequence, head_hash, updated_at });
+      return { meta: { changes: 1 } };
+    }
+    if (this.sql.startsWith("INSERT INTO runtime_event_outbox")) {
+      const [outbox_id, event_id, owner_subject, available_at, created_at] = this.values;
+      this.db.runtimeEventOutbox.set(outbox_id, { outbox_id, event_id, owner_subject, status: "pending", attempts: 0, available_at, created_at });
       return { meta: { changes: 1 } };
     }
     if (this.sql.startsWith("INSERT INTO oauth_states")) {
@@ -327,10 +374,55 @@ class FakeStatement {
       if (!row) return null;
       return this.db.mismatchAuditReadback ? { ...row, trace_id: `${row.trace_id}-mismatch` } : { ...row };
     }
+    if (this.sql.startsWith("SELECT next_sequence, head_hash FROM runtime_event_chain_heads")) {
+      if (this.db.chainHeadBarrier && this.db.chainHeadBarrier.count < 2) {
+        const barrier = this.db.chainHeadBarrier;
+        barrier.count += 1;
+        if (barrier.count === 2) {
+          for (const resolve of barrier.waiters.splice(0)) resolve();
+        } else {
+          await new Promise((resolve) => barrier.waiters.push(resolve));
+        }
+      }
+      return this.db.runtimeEventHeads.get(`${this.values[0]}:${this.values[1]}`) || null;
+    }
+    if (this.sql.startsWith("SELECT event_id FROM runtime_events")) {
+      const [ownerSubject, chainPartition] = this.values;
+      return [...this.db.runtimeEvents.values()]
+        .filter((row) => row.owner_subject === ownerSubject && row.chain_partition === chainPartition)
+        .sort((left, right) => Number(right.owner_sequence) - Number(left.owner_sequence))
+        .map((row) => ({ event_id: row.event_id }))[0] || null;
+    }
+    if (this.sql.startsWith("SELECT event_id, owner_subject, owner_sequence, prev_hash, event_hash FROM runtime_events")) {
+      const row = this.db.runtimeEvents.get(this.values[0]);
+      return row && row.owner_subject === this.values[1] && row.chain_partition === this.values[2] ? { ...row } : null;
+    }
+    if (this.sql.startsWith("SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id")) {
+      const [event_id, owner_subject] = this.values;
+      const row = this.db.runtimeEvents.get(event_id);
+      return row && row.owner_subject === owner_subject ? { ...row } : null;
+    }
     if (this.sql.startsWith("SELECT id, deleted_at FROM builds WHERE id")) {
       if (this.db.throwDeleteReadback) throw new Error("simulated delete readback transport failure");
       const row = this.db.builds.get(this.values[0]);
       return row && !row.deleted_at ? { id: row.id, deleted_at: row.deleted_at } : null;
+    }
+    if (this.sql.startsWith("SELECT id FROM builds WHERE id = ? AND owner_subject = ?")) {
+      const [id, owner_subject] = this.values;
+      const row = this.db.builds.get(id);
+      return row && !row.deleted_at && row.owner_subject === owner_subject ? { id: row.id } : null;
+    }
+    if (this.sql.startsWith("SELECT build_id FROM workspace_build_pins")) {
+      const [owner_subject, build_id] = this.values;
+      return this.db.pins.has(`${owner_subject}:${build_id}`) ? { build_id } : null;
+    }
+    if (this.sql.includes("FROM builds") && this.sql.includes("WHERE builds.id = ? AND builds.owner_subject = ?")) {
+      const [id, owner_subject] = this.values;
+      const row = this.db.builds.get(id);
+      if (!row || row.deleted_at || row.owner_subject !== owner_subject) return null;
+      const { html: _html, deleted_at: _deletedAt, ...publicRow } = row;
+      const usage = this.db.usage.get(`${owner_subject}:${id}`);
+      return { ...publicRow, last_used_at: usage?.last_used_at || row.updated_at };
     }
     if (this.sql.startsWith("SELECT * FROM builds WHERE id")) {
       if (this.db.throwBuildReadback) throw new Error("simulated build readback transport failure");
@@ -362,13 +454,43 @@ class FakeStatement {
   }
 
   async all() {
-    if (this.sql.includes("FROM builds")) {
-      const [projectId, limit] = this.values;
-      const results = [...this.db.builds.values()]
-        .filter((row) => row.project_id === projectId && !row.deleted_at)
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    if (this.sql.startsWith("SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id")) {
+      const owner_subject = this.values[0];
+      const trace_id = this.sql.includes("AND trace_id = ?") ? this.values[1] : null;
+      const limit = this.values[trace_id ? 2 : 1];
+      const results = [...this.db.runtimeEvents.values()]
+        .filter((event) => event.owner_subject === owner_subject && (trace_id === null || event.trace_id === trace_id))
+        .sort((a, b) => Number(b.owner_sequence) - Number(a.owner_sequence))
         .slice(0, limit)
-        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => row);
+        .map((event) => ({ ...event }));
+      if (trace_id !== null) results.reverse();
+      return { results };
+    }
+    if (this.sql.includes("FROM workspace_build_pins")) {
+      const [owner_subject, limit] = this.values;
+      const results = [...this.db.pins.values()]
+        .filter((pin) => pin.owner_subject === owner_subject)
+        .map((pin) => this.db.builds.get(pin.build_id))
+        .filter((row) => row && row.owner_subject === owner_subject && !row.deleted_at)
+        .slice(0, limit)
+        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => ({ ...row, last_used_at: this.db.usage.get(`${owner_subject}:${row.id}`)?.last_used_at || row.updated_at }));
+      return { results };
+    }
+    if (this.sql.includes("FROM builds")) {
+      const [first, second] = this.values;
+      const ownerScoped = this.sql.includes("owner_subject = ?");
+      const projectId = ownerScoped ? null : first;
+      const ownerSubject = ownerScoped ? first : null;
+      const limit = second;
+      const results = [...this.db.builds.values()]
+        .filter((row) => (ownerScoped ? row.owner_subject === ownerSubject : row.project_id === projectId) && !row.deleted_at)
+        .sort((a, b) => {
+          const aUsed = this.db.usage.get(`${ownerSubject}:${a.id}`)?.last_used_at || a.updated_at || a.created_at;
+          const bUsed = this.db.usage.get(`${ownerSubject}:${b.id}`)?.last_used_at || b.updated_at || b.created_at;
+          return bUsed.localeCompare(aUsed);
+        })
+        .slice(0, limit)
+        .map(({ html: _html, deleted_at: _deletedAt, ...row }) => ({ ...row, last_used_at: this.db.usage.get(`${ownerSubject}:${row.id}`)?.last_used_at || row.updated_at }));
       return { results };
     }
     if (this.sql.includes("FROM workspace_artifacts")) {
@@ -414,8 +536,11 @@ class FakeD1 {
     expireRefreshBeforeGuard = false,
     forceRefreshHashCollision = false,
     failHealthRead = false,
+    chainHeadBarrier = false,
   } = {}) {
     this.builds = new Map();
+    this.pins = new Map();
+    this.usage = new Map();
     this.artifacts = new Map();
     this.nativeArtifacts = new Map();
     this.sessions = new Map();
@@ -426,6 +551,9 @@ class FakeD1 {
     this.tasks = [];
     this.memory = [];
     this.audit = [];
+    this.runtimeEvents = new Map();
+    this.runtimeEventHeads = new Map();
+    this.runtimeEventOutbox = new Map();
     this.failAuditWrites = failAuditWrites;
     this.omitAuditReadback = omitAuditReadback;
     this.mismatchAuditReadback = mismatchAuditReadback;
@@ -440,6 +568,7 @@ class FakeD1 {
     this.expireRefreshBeforeGuard = expireRefreshBeforeGuard;
     this.forceRefreshHashCollision = forceRefreshHashCollision;
     this.failHealthRead = failHealthRead;
+    this.chainHeadBarrier = chainHeadBarrier ? { count: 0, waiters: [] } : null;
     this.expireRefreshBeforeGuardConsumed = false;
     this.forcedExpiryAfterRollback = null;
   }
@@ -451,6 +580,8 @@ class FakeD1 {
   async batch(statements) {
     const snapshot = {
       builds: new Map([...this.builds].map(([key, value]) => [key, { ...value }])),
+      pins: new Map([...this.pins].map(([key, value]) => [key, { ...value }])),
+      usage: new Map([...this.usage].map(([key, value]) => [key, { ...value }])),
       artifacts: new Map([...this.artifacts].map(([key, value]) => [key, { ...value }])),
       nativeArtifacts: new Map([...this.nativeArtifacts].map(([key, value]) => [key, { ...value }])),
       sessions: new Map([...this.sessions].map(([key, value]) => [key, { ...value }])),
@@ -461,6 +592,9 @@ class FakeD1 {
       tasks: this.tasks.map((value) => ({ ...value })),
       memory: this.memory.map((value) => ({ ...value })),
       audit: this.audit.map((value) => ({ ...value })),
+      runtimeEvents: new Map([...this.runtimeEvents].map(([key, value]) => [key, { ...value }])),
+      runtimeEventHeads: new Map([...this.runtimeEventHeads].map(([key, value]) => [key, { ...value }])),
+      runtimeEventOutbox: new Map([...this.runtimeEventOutbox].map(([key, value]) => [key, { ...value }])),
     };
     try {
       const results = [];
@@ -468,6 +602,8 @@ class FakeD1 {
       return results;
     } catch (error) {
       this.builds = snapshot.builds;
+      this.pins = snapshot.pins;
+      this.usage = snapshot.usage;
       this.artifacts = snapshot.artifacts;
       this.nativeArtifacts = snapshot.nativeArtifacts;
       this.sessions = snapshot.sessions;
@@ -478,6 +614,9 @@ class FakeD1 {
       this.tasks = snapshot.tasks;
       this.memory = snapshot.memory;
       this.audit = snapshot.audit;
+      this.runtimeEvents = snapshot.runtimeEvents;
+      this.runtimeEventHeads = snapshot.runtimeEventHeads;
+      this.runtimeEventOutbox = snapshot.runtimeEventOutbox;
       if (this.forcedExpiryAfterRollback) {
         const forced = this.forcedExpiryAfterRollback;
         const family = this.refreshFamilies.get(forced.family_id);
@@ -548,7 +687,7 @@ function env(options = {}) {
     RUNTIME_COORDINATOR: new FakeDurableNamespace(),
     RUNTIME_QUEUE: new FakeQueue(),
     GITHUB_OAUTH_CLIENT_ID: options.githubClientId !== undefined ? options.githubClientId : "Iv1.8a61f9b3a7aba766",
-    GITHUB_OAUTH_CLIENT_SECRET: options.githubClientSecret !== undefined ? options.githubClientSecret : "0123456789abcdef0123456789abcdef01234567",
+    GITHUB_OAUTH_CLIENT_SECRET: options.githubClientSecret !== undefined ? options.githubClientSecret : "unit-github-client-secret".padEnd(40, "x"),
     OAUTH_PUBLIC_ORIGIN: options.oauthPublicOrigin !== undefined ? options.oauthPublicOrigin : canonicalOauthOrigin,
     GITHUB_OAUTH_REDIRECT_URI: options.githubRedirectUri !== undefined ? options.githubRedirectUri : canonicalOauthRedirect,
     GITHUB_OAUTH_OWNER_IDS: options.githubOwnerIds !== undefined ? options.githubOwnerIds : "123456,789012",
@@ -884,6 +1023,275 @@ test("a generated build survives the create-list-read-delete registry roundtrip"
   assert.equal(afterDelete.status, 404);
 });
 
+test("workspace D1 routes bind list, pin, unpin, and delete to the server subject", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const foreign = "local-session:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  fakeEnv.DB.builds.set("owned_build", {
+    id: "owned_build", project_id: "default", owner_subject: owner, title: "Owner build",
+    prompt_sha256: "a".repeat(64), model: "test", gateway_mode: "dry-run", gateway_provider: "test",
+    live_provider_calls: 0, created_at: "2026-09-18T00:00:00.000Z", updated_at: "2026-09-18T00:00:00.000Z",
+    html: "<!doctype html><html><body>ok</body></html>", deleted_at: null,
+  });
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const foreignHeaders = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": foreign, "x-request-id": "same-negative-probe" };
+
+  const listed = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/mine", { headers }), fakeEnv);
+  assert.equal(listed.status, 200);
+  assert.deepEqual((await listed.json()).builds.map((build) => build.id), ["owned_build"]);
+
+  const ownRead = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { headers }), fakeEnv);
+  const ownReadBody = await ownRead.json();
+  assert.equal(ownRead.status, 200);
+  assert.equal(ownReadBody.id, "owned_build");
+  assert.equal(ownReadBody.html, undefined);
+  const foreignRead = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { headers: foreignHeaders }), fakeEnv);
+  const unknownRead = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/unknown_build", { headers: foreignHeaders }), fakeEnv);
+  assert.equal(foreignRead.status, 404);
+  assert.equal(unknownRead.status, 404);
+  assert.equal(await foreignRead.clone().text(), await unknownRead.clone().text());
+
+  const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "PUT", headers }), fakeEnv);
+  assert.equal(pinned.status, 200);
+  const pinnedBody = await pinned.json();
+  assert.match(pinnedBody.runtime_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(pinnedBody.runtime_event_persisted, true);
+  assert.equal(fakeEnv.DB.pins.size, 1);
+  const duplicatePin = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "PUT", headers }), fakeEnv);
+  assert.equal(duplicatePin.status, 200);
+  const duplicatePinBody = await duplicatePin.json();
+  assert.equal(duplicatePinBody.changed, false);
+  assert.equal(duplicatePinBody.runtime_event_id, null);
+  assert.equal(duplicatePinBody.runtime_event_persisted, false);
+  assert.equal(fakeEnv.DB.runtimeEvents.size, 1);
+  const unpinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build/pin", { method: "DELETE", headers }), fakeEnv);
+  assert.equal(unpinned.status, 200);
+  const unpinnedBody = await unpinned.json();
+  assert.match(unpinnedBody.runtime_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(unpinnedBody.runtime_event_persisted, true);
+  assert.equal(fakeEnv.DB.pins.size, 0);
+  const foreignDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { method: "DELETE", headers: foreignHeaders }), fakeEnv);
+  const unknownDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/unknown_build", { method: "DELETE", headers: foreignHeaders }), fakeEnv);
+  assert.equal(foreignDelete.status, 404);
+  assert.equal(unknownDelete.status, 404);
+  assert.equal(await foreignDelete.clone().text(), await unknownDelete.clone().text());
+
+  const deleted = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/owned_build", { method: "DELETE", headers }), fakeEnv);
+  assert.equal(deleted.status, 200);
+  const deletedBody = await deleted.json();
+  assert.match(deletedBody.runtime_event_id, /^[0-9a-f-]{36}$/i);
+  assert.equal(deletedBody.runtime_event_persisted, true);
+  assert.notEqual(fakeEnv.DB.builds.get("owned_build").deleted_at, null);
+  assert.equal(fakeEnv.DB.pins.size, 0);
+  const afterDelete = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/mine", { headers }), fakeEnv);
+  assert.deepEqual((await afterDelete.json()).builds, []);
+});
+
+test("owner-bound D1 build creation appends a redacted runtime event chain", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const first = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "workspace-create-1" },
+    body: JSON.stringify({ ...validBuild, id: "workspace_created_1", live_provider_calls: false }),
+  }), fakeEnv);
+  assert.equal(first.status, 201);
+  const firstBody = await first.json();
+  assert.equal(firstBody.runtime_event_persisted, true);
+  const firstEvent = fakeEnv.DB.runtimeEvents.get(firstBody.runtime_event_id);
+  assert.equal(firstEvent.owner_subject, owner);
+  assert.equal(firstEvent.event_type, "workspace_build_created");
+  assert.equal(firstEvent.owner_sequence, 4);
+  assert.notEqual(firstEvent.prev_hash, null);
+  assert.equal(firstEvent.effect_json.includes(validBuild.prompt), false);
+  assert.equal(firstEvent.effect_json.includes(validBuild.html), false);
+
+  const second = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "workspace-create-2" },
+    body: JSON.stringify({ ...validBuild, id: "workspace_created_2", live_provider_calls: false }),
+  }), fakeEnv);
+  assert.equal(second.status, 201);
+  const secondBody = await second.json();
+  const secondEvent = fakeEnv.DB.runtimeEvents.get(secondBody.runtime_event_id);
+  const firstAuthEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "auth_identity_verified" && event.owner_sequence === 1);
+  const firstSecurityEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "security_boundary_verified" && event.owner_sequence === 2);
+  const firstLlmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed" && event.owner_sequence === 3);
+  const secondAuthEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "auth_identity_verified" && event.owner_sequence === 5);
+  const secondSecurityEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "security_boundary_verified" && event.owner_sequence === 6);
+  const secondLlmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed" && event.owner_sequence === 7);
+  assert.ok(firstAuthEvent);
+  assert.ok(firstSecurityEvent);
+  assert.ok(firstLlmEvent);
+  assert.ok(secondAuthEvent);
+  assert.ok(secondSecurityEvent);
+  assert.ok(secondLlmEvent);
+  assert.equal(firstSecurityEvent.parent_event_id, firstAuthEvent.event_id);
+  assert.equal(firstLlmEvent.parent_event_id, firstSecurityEvent.event_id);
+  assert.equal(secondSecurityEvent.parent_event_id, secondAuthEvent.event_id);
+  assert.equal(secondLlmEvent.parent_event_id, secondSecurityEvent.event_id);
+  assert.equal(firstEvent.prev_hash, firstLlmEvent.event_hash);
+  assert.equal(secondEvent.owner_sequence, 8);
+  assert.equal(secondEvent.prev_hash, secondLlmEvent.event_hash);
+  assert.equal(fakeEnv.DB.runtimeEventHeads.get(`${owner}:workspace`).next_sequence, 9);
+  assert.equal(fakeEnv.DB.runtimeEventOutbox.size, 8);
+
+  const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
+  assert.equal(feed.status, 200);
+  const feedBody = await feed.json();
+  assert.equal(feedBody.source, "cloudflare-d1");
+  assert.equal(feedBody.identity_scope, "server_bound_workspace_subject");
+  assert.deepEqual(feedBody.events.map((event) => event.event), [
+    "workspace_build_created", "llm_generation_completed", "security_boundary_verified", "auth_identity_verified",
+    "workspace_build_created", "llm_generation_completed", "security_boundary_verified", "auth_identity_verified",
+  ]);
+  assert.equal(feedBody.complete, false);
+  assert.deepEqual(feedBody.observed_classes, ["auth", "llm", "security", "workspace"]);
+  assert.deepEqual(feedBody.missing_classes, ["agent", "tool_mcp", "memory", "artifact"]);
+  const detail = await worker.fetch(new Request(`https://state.example/api/v1/workspace/runtime/events/${firstBody.runtime_event_id}`, { headers }), fakeEnv);
+  assert.equal(detail.status, 200);
+  assert.equal((await detail.json()).event.event_id, firstBody.runtime_event_id);
+  const trace = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/traces/workspace-create-1", { headers }), fakeEnv);
+  assert.equal(trace.status, 200);
+  assert.equal((await trace.json()).events.length, 4);
+  const stream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", { headers }), fakeEnv);
+  assert.equal(stream.status, 200);
+  assert.equal(stream.headers.get("content-type"), "text/event-stream");
+  assert.match(await stream.text(), /event: runtime_event/);
+  const resumedStream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", {
+    headers: { ...headers, "Last-Event-ID": firstBody.runtime_event_id },
+  }), fakeEnv);
+  assert.equal(resumedStream.status, 200);
+  assert.equal(resumedStream.headers.get("x-runtime-gap"), "false");
+  const resumedBody = await resumedStream.text();
+  assert.match(resumedBody, new RegExp(secondBody.runtime_event_id));
+  const resumedIds = [...resumedBody.matchAll(/^id: ([^\r\n]+)$/gm)].map((match) => match[1]);
+  assert.equal(resumedIds.includes(firstBody.runtime_event_id), false);
+  assert.equal(resumedIds.includes(secondBody.runtime_event_id), true);
+  const gapStream = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events/stream", {
+    headers: { ...headers, "Last-Event-ID": "event-not-in-window" },
+  }), fakeEnv);
+  assert.equal(gapStream.headers.get("x-runtime-gap"), "true");
+  assert.match(await gapStream.text(), /event: runtime_gap/);
+  const foreign = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events", {
+    headers: { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": "local-session:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" },
+  }), fakeEnv);
+  assert.equal(foreign.status, 200);
+  assert.deepEqual((await foreign.json()).events, []);
+});
+
+test("owner-bound D1 build creation records trusted gateway metadata as an LLM runtime event", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const response = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "workspace-llm-1" },
+    body: JSON.stringify({
+      ...validBuild,
+      id: "workspace_llm_event",
+      model: "@cf/qwen/qwen2.5-coder-32b-instruct",
+      gateway_mode: "cloudflare_workers_ai_live",
+      gateway_provider: "cloudflare-workers-ai",
+      live_provider_calls: false,
+    }),
+  }), fakeEnv);
+  assert.equal(response.status, 201);
+  const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
+  const body = await feed.json();
+  assert.deepEqual(body.observed_classes, ["auth", "llm", "security", "workspace"]);
+  const authEvent = body.events.find((event) => event.runtime_class === "auth");
+  const securityEvent = body.events.find((event) => event.runtime_class === "security");
+  const llmEvent = body.events.find((event) => event.runtime_class === "llm");
+  assert.equal(authEvent.event, "auth_identity_verified");
+  assert.equal(securityEvent.event, "security_boundary_verified");
+  assert.equal(securityEvent.parent_event_id, authEvent.event_id);
+  assert.equal(llmEvent.event, "llm_generation_completed");
+  assert.equal(llmEvent.producer, "llm_gateway");
+  assert.equal(llmEvent.effect.gateway_provider, "cloudflare-workers-ai");
+  assert.equal(llmEvent.effect.build_id, "workspace_llm_event");
+  assert.equal(llmEvent.parent_event_id, securityEvent.event_id);
+  const workspaceEvent = body.events.find((event) => event.runtime_class === "workspace");
+  assert.equal(workspaceEvent.parent_event_id, llmEvent.event_id);
+});
+
+test("owner-bound D1 pin event points to the prior build effect", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const created = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "parent-pin-create" },
+    body: JSON.stringify({ ...validBuild, id: "parent_pin_build", gateway_provider: "unknown", live_provider_calls: false }),
+  }), fakeEnv);
+  assert.equal(created.status, 201);
+  const createdBody = await created.json();
+  const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/parent_pin_build/pin", {
+    method: "PUT", headers,
+  }), fakeEnv);
+  assert.equal(pinned.status, 200);
+  const pinBody = await pinned.json();
+  const pinEvent = fakeEnv.DB.runtimeEvents.get(pinBody.runtime_event_id);
+  assert.equal(pinEvent.parent_event_id, createdBody.runtime_event_id);
+});
+
+test("owner-bound D1 pin event preserves the LLM root event", async () => {
+  const fakeEnv = env();
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const created = await worker.fetch(new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": "root-pin-create" },
+    body: JSON.stringify({
+      ...validBuild,
+      id: "root_pin_build",
+      gateway_mode: "cloudflare_workers_ai_live",
+      gateway_provider: "cloudflare-workers-ai",
+      live_provider_calls: false,
+    }),
+  }), fakeEnv);
+  assert.equal(created.status, 201);
+  const createdBody = await created.json();
+  const llmEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "llm_generation_completed");
+  assert.ok(llmEvent);
+  const pinned = await worker.fetch(new Request("https://state.example/api/v1/workspace/builds/root_pin_build/pin", {
+    method: "PUT", headers,
+  }), fakeEnv);
+  assert.equal(pinned.status, 200);
+  const pinBody = await pinned.json();
+  const pinEvent = fakeEnv.DB.runtimeEvents.get(pinBody.runtime_event_id);
+  assert.equal(pinEvent.parent_event_id, createdBody.runtime_event_id);
+  const feed = await worker.fetch(new Request("https://state.example/api/v1/workspace/runtime/events?limit=8", { headers }), fakeEnv);
+  const body = await feed.json();
+  const feedPin = body.events.find((event) => event.event === "workspace_build_pinned");
+  const authEvent = [...fakeEnv.DB.runtimeEvents.values()].find((event) => event.event_type === "auth_identity_verified");
+  assert.equal(feedPin.root_event_id, authEvent.event_id);
+});
+
+test("concurrent owner-bound D1 builds retry a chain-head conflict", async () => {
+  const fakeEnv = env({ chainHeadBarrier: true });
+  const owner = "local-session:12345678-1234-1234-1234-123456789abc";
+  const headers = { "x-superbrain-agent-token": token, "x-superbrain-workspace-subject": owner };
+  const makeRequest = (id) => new Request("https://state.example/api/v1/builds", {
+    method: "POST",
+    headers: { ...headers, "content-type": "application/json", "x-request-id": id },
+    body: JSON.stringify({ ...validBuild, id, gateway_provider: "unknown", live_provider_calls: false }),
+  });
+  const [first, second] = await Promise.all([
+    worker.fetch(makeRequest("concurrent_build_1"), fakeEnv),
+    worker.fetch(makeRequest("concurrent_build_2"), fakeEnv),
+  ]);
+  assert.equal(first.status, 201);
+  assert.equal(second.status, 201);
+  const events = [...fakeEnv.DB.runtimeEvents.values()].sort((left, right) => Number(left.owner_sequence) - Number(right.owner_sequence));
+  assert.equal(events.length, 2);
+  assert.deepEqual(events.map((event) => Number(event.owner_sequence)), [1, 2]);
+  assert.equal(fakeEnv.DB.runtimeEventHeads.get(`${owner}:workspace`).next_sequence, 3);
+  assert.equal(fakeEnv.DB.runtimeEventOutbox.size, 2);
+  assert.equal(events[1].prev_hash, events[0].event_hash);
+});
+
 test("an unconfirmed build batch reports unknown outcome while the fake D1 rolls back atomically", async () => {
   const fakeEnv = env({ failAuditWrites: true });
   const response = await worker.fetch(writeRequest("/api/v1/builds", validBuild), fakeEnv);
@@ -1152,6 +1560,26 @@ test("workspace artifacts use the same authenticated D1 boundary", async () => {
   assert.equal(listedBody.artifacts[0].artifact_type, "document");
 });
 
+test("owner-bound D1 artifacts append a workspace artifact runtime event", async () => {
+  const fakeEnv = env();
+  const request = writeRequest("/api/v1/workspace/artifacts", {
+    project_id: "default",
+    source_page: "home",
+    artifact_type: "note",
+    title: "Owner note",
+    summary: "Runtime event evidence",
+    status: "created",
+    metadata: {},
+  });
+  request.headers.set("x-superbrain-workspace-subject", "local-session:12345678-1234-1234-1234-123456789abc");
+  const response = await worker.fetch(request, fakeEnv);
+  const body = await response.json();
+  assert.equal(response.status, 201);
+  assert.equal(body.runtime_event_persisted, true);
+  assert.equal(fakeEnv.DB.runtimeEvents.size, 1);
+  assert.equal([...fakeEnv.DB.runtimeEvents.values()][0].event_type, "workspace_artifact_created");
+});
+
 test("workspace artifact persistence rolls back when its audit write fails", async () => {
   const fakeEnv = env({ failAuditWrites: true });
   const response = await worker.fetch(writeRequest("/api/v1/workspace/artifacts", {
@@ -1353,6 +1781,23 @@ test("LangGraph executes four roles and persists run, tasks, checkpoint, memory,
   assert.equal(readBody.tasks.length, 4);
   assert.equal(readBody.memory_records.length, 1);
   assert.equal(readBody.secret_output, false);
+});
+
+test("owner-bound LangGraph runtime records agent and memory producers", async () => {
+  const fakeEnv = env();
+  const request = writeRequest("/api/v1/phase2/runtime/start", {
+    project_id: "default",
+    prompt: "Owner-bound runtime producer proof",
+  });
+  request.headers.set("x-superbrain-workspace-subject", "local-session:12345678-1234-1234-1234-123456789abc");
+  const started = await worker.fetch(request, fakeEnv);
+  const body = await started.json();
+  assert.equal(started.status, 201);
+  assert.equal(body.runtime_event_persisted, true);
+  assert.deepEqual(
+    [...fakeEnv.DB.runtimeEvents.values()].map((event) => event.event_type),
+    ["agent_task_dispatch_queued", "memory_entry_created"],
+  );
 });
 
 test("Cloudflare-native candidate contract is fail-closed and labels local proof honestly", async () => {

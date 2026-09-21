@@ -1,10 +1,10 @@
 import Link from "next/link";
 import AppShell from "../../components/shell/AppShell";
-import { LiveConsole } from "../../components/live-console";
-import { PageHeader, Panel, Metric, Badge, StatusDot } from "../../components/ui";
+import { PageHeader, Panel, Badge } from "../../components/ui";
 import { Icon } from "../../lib/nav";
 import { HomeCortexHero } from "../../components/batch4-actions";
-import { AiBuilder } from "../../components/ai-builder";
+import { HomeWorkspace } from "../../components/home-workspace";
+import { HomeRuntimeMonitor } from "../../components/home-runtime-monitor";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Start — Cloud Superbrain" };
@@ -13,21 +13,12 @@ export default async function HomePage() {
   return (
     <AppShell crumb="Start" runState="idle">
       <div className="page">
-        <div className="build-hero">
-          <h1 className="build-hero-title">Beschreibe es. Baue es über das LLM-Gateway. Prüfe es direkt.</h1>
-          <p className="build-hero-sub">
-            Cloud Superbrain ist eine KI-Entwicklungsplattform: Bei verbundenem Gateway entsteht aus deiner Beschreibung
-            eine App oder ein Spiel für die isolierte Vorschau. Ohne Gateway bleibt der Build sichtbar und sicher gesperrt.
-          </p>
-          <AiBuilder />
-        </div>
-
         <div className="home-hero-shell">
           <div className="home-hero-copy">
             <PageHeader
               eyebrow="Cloud Superbrain"
-              title="Entwicklerplattform"
-              subtitle="Klare Produktoberfläche für Spiele, Apps, Medien und Dokumente. Nachweise, Prüfungen und externe Laufzeitdaten bleiben getrennt unter Nachweise, Diagnose und Organismus eingebunden."
+              title="Dein nächster Arbeitsstand"
+              subtitle="Öffne die Workbench, um ein Projekt zu bauen oder einen gespeicherten Arbeitsstand weiterzuentwickeln."
               actions={
                 <Link href="/workbench" className="btn btn-primary">
                   {Icon.workbench({ size: 16 })} Werkbank öffnen
@@ -38,43 +29,14 @@ export default async function HomePage() {
           <HomeCortexHero />
         </div>
 
-        <div className="grid cols-4 mb-16">
-          <Metric
-            label="Studio-Modi"
-            value="4"
-            foot={<><StatusDot tone="cyan" /> Produkt-Konstante</>}
-          />
-          <Metric
-            label="Kernseiten"
-            value="22"
-            foot={<><StatusDot tone="green" /> kanonische Navigation</>}
-          />
-          <Metric
-            label="Cloud-Layer"
-            value="7"
-            foot={<><StatusDot tone="cyan" /> Architektur-Konstante</>}
-          />
-          <Metric
-            label="Live-Aussagen"
-            value="0"
-            foot={<><StatusDot tone="amber" /> nur mit Datenquelle</>}
-          />
-        </div>
+        <HomeRuntimeMonitor />
 
-        <div className="grid cols-2">
-          <Panel title="Live-Daten" className="mb-16" actions={<Badge tone="cyan">interaktiv</Badge>}>
-            <div className="wb-pad">
-              <LiveConsole
-                endpoints={[
-                  { label: "Systemzustand", path: "/api/v1/health" },
-                  { label: "Cloud-Provider", path: "/api/v1/clouds" },
-                  { label: "Plattformprüfung", path: "/api/v1/platform/verify" },
-                ]}
-              />
-            </div>
-          </Panel>
+        <div className="grid cols-2 home-content-grid">
+          <HomeWorkspace />
+
           <Panel
             title="Produktflächen"
+            className="home-product-panel"
             actions={<Link href="/workbench" className="btn btn-sm btn-ghost">Öffnen →</Link>}
           >
             <div className="list">
@@ -105,25 +67,6 @@ export default async function HomePage() {
             </div>
           </Panel>
 
-          <Panel title="Verdrahtung" pad>
-            <div className="stack">
-              <div className="note">Die Plattform bleibt produktklar. Laufdaten, Verifier und externe Blocker erscheinen nur in den dedizierten Nachweisflächen.</div>
-              <div className="row gap-10">
-                <Link href="/workbench" className="btn btn-primary">Werkbank öffnen</Link>
-                <Link href="/organism" className="btn">Cortex ansehen</Link>
-                <Link href="/evidence" className="btn btn-ghost">Nachweise öffnen</Link>
-              </div>
-              <div>
-                <div className="panel-title mb-8">Schnellzugriffe für Ausgaben</div>
-                <div className="chips">
-                  <Link href="/games" className="chip">Spiele</Link>
-                  <Link href="/apps" className="chip">Apps</Link>
-                  <Link href="/media" className="chip">Medien</Link>
-                  <Link href="/docs-output" className="chip">Dokumente</Link>
-                </div>
-              </div>
-            </div>
-          </Panel>
         </div>
       </div>
     </AppShell>

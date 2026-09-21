@@ -1498,8 +1498,10 @@ AGENT_RESEARCH_SOURCE_LONG_HEX_PATTERN = re.compile(r"\b[A-Fa-f0-9]{32,}\b")
 WORKSPACE_ARTIFACT_CONTRACT_VERSION = "goal-b-workspace-artifact-registry-v1"
 WORKSPACE_ARTIFACT_EVIDENCE_REF = "goal_b_workspace_artifact_registry_visible"
 BUILD_REGISTRY_CONTRACT_VERSION = "postgres-build-registry-v1"
+WORKSPACE_BUILD_CONTRACT_VERSION = "github-workspace-builds-v1"
 BUILD_REGISTRY_MAX_HTML_BYTES = 160 * 1024
 BUILD_REGISTRY_MAX_PROMPT_BYTES = 16 * 1024
+WORKSPACE_SUBJECT_PATTERN = re.compile(r"^(?:github:[1-9][0-9]{0,18}|local-session:[0-9a-f-]{36})$")
 READ_ONLY_TOOL_EXECUTE_CONTRACT_VERSION = "goal-b-readonly-tool-execute-v1"
 READ_ONLY_TOOL_EXECUTE_EVIDENCE_REF = "goal_b_readonly_tool_execute_visible"
 FILESYSTEM_PROJECT_PROGRESS_CONTRACT_VERSION = "filesystem-project-progress-read-v1"
@@ -4779,6 +4781,32 @@ def persist_autonomous_dispatch_audit(record: AutonomousDispatchRecord) -> None:
             )
     except Exception:
         pass
+
+
+def persist_autonomous_dispatch_runtime_event(
+    conn: object,
+    *,
+    owner_subject: str,
+    dispatch_id: str,
+    project_id: str,
+    assignment_count: int,
+    trace_id: str | None,
+) -> str:
+    """Record the durable agent-layer effect after real queue insertion."""
+    return _append_workspace_runtime_event(
+        conn,
+        owner_subject=owner_subject,
+        event_type="agent_task_dispatch_queued",
+        producer="agent_orchestrator",
+        phase="committed",
+        outcome="success",
+        effect={
+            "dispatch_id": dispatch_id,
+            "project_id": project_id,
+            "assignment_count": assignment_count,
+        },
+        trace_id=trace_id,
+    )
 
 
 def persist_langgraph_dry_run_audit(state: dict[str, object]) -> None:
@@ -10425,6 +10453,189 @@ def _build_registry_secret_present(*values: str) -> bool:
     return any(redact_text(value) != value for value in values)
 
 
+WORKSPACE_RUNTIME_CLASSES = (
+    "llm",
+    "agent",
+    "tool_mcp",
+    "memory",
+    "artifact",
+    "workspace",
+    "auth",
+    "security",
+)
+
+
+def _runtime_class_for_event(event_type: str, producer: str) -> str:
+    """Map persisted producer metadata to the Home contract's honest classes."""
+    value = f"{producer} {event_type}".lower()
+    if "workspace" in value or any(token in value for token in ("build", "pin", "unpin", "delete")):
+        return "workspace"
+    if "llm" in value or "model" in value or "gateway" in value:
+        return "llm"
+    if "agent" in value or "orches" in value:
+        return "agent"
+    if "mcp" in value or "tool" in value:
+        return "tool_mcp"
+    if "memory" in value or "vector" in value:
+        return "memory"
+    if "artifact" in value or "file" in value:
+        return "artifact"
+    if "auth" in value or "session" in value or "permission" in value:
+        return "auth"
+    if "security" in value or "policy" in value or "block" in value:
+        return "security"
+    return "artifact"
+
+
+def _resolve_runtime_event_roots(events: list[dict[str, object]]) -> None:
+    """Resolve root ancestry for the events present in one bounded owner feed.
+
+    If a parent is outside the bounded window, its ID remains the best available
+    root reference; the feed must not invent an ancestor or claim completeness.
+    """
+    by_id = {
+        str(event.get("event_id")): event
+        for event in events
+        if isinstance(event, dict) and event.get("event_id")
+    }
+    for event in events:
+        if not isinstance(event, dict):
+            continue
+        parent = event.get("parent_event_id")
+        root = str(parent) if parent else str(event.get("event_id"))
+        seen = {str(event.get("event_id"))}
+        while root in by_id and root not in seen:
+            seen.add(root)
+            ancestor = by_id[root].get("parent_event_id")
+            if not ancestor:
+                break
+            root = str(ancestor)
+        event["root_event_id"] = root
+
+
+def _append_workspace_runtime_event(
+    conn: object,
+    *,
+    owner_subject: str,
+    event_type: str,
+    producer: str,
+    phase: str,
+    outcome: str,
+    effect: dict[str, object],
+    trace_id: str | None = None,
+    parent_event_id: str | None = None,
+) -> str:
+    """Append one owner-bound event, chain head, and outbox row atomically.
+
+    This deliberately supplements (rather than rewrites) the legacy audit_log.
+    The caller owns the surrounding transaction; a failure aborts the producer
+    transaction so an effect cannot be presented without its durable event.
+    """
+    partition = f"workspace:{owner_subject}"
+    conn.execute(
+        """
+        INSERT INTO runtime_event_chain_heads(owner_subject, chain_partition, next_sequence)
+        VALUES (%s, %s, 1)
+        ON CONFLICT (owner_subject, chain_partition) DO NOTHING
+        """,
+        (owner_subject, partition),
+    )
+    head = conn.execute(
+        """
+        SELECT next_sequence, head_hash
+        FROM runtime_event_chain_heads
+        WHERE owner_subject = %s AND chain_partition = %s
+        FOR UPDATE
+        """,
+        (owner_subject, partition),
+    ).fetchone()
+    if not head:
+        raise RuntimeError("runtime event chain head unavailable")
+    owner_sequence = int(head[0])
+    prev_hash = str(head[1]) if head[1] else None
+    if parent_event_id is None:
+        prior = conn.execute(
+            """
+            SELECT event_id
+            FROM runtime_events
+            WHERE owner_subject = %s AND chain_partition = %s
+            ORDER BY owner_sequence DESC
+            LIMIT 1
+            """,
+            (owner_subject, partition),
+        ).fetchone()
+        parent_event_id = str(prior[0]) if prior else None
+    event_id = str(uuid4())
+    occurred_at = datetime.now(timezone.utc).isoformat()
+    envelope = {
+        "event_id": event_id,
+        "owner_subject": owner_subject,
+        "event_type": event_type,
+        "producer": producer,
+        "phase": phase,
+        "outcome": outcome,
+        "effect": effect,
+        "trace_id": trace_id,
+        "parent_event_id": parent_event_id,
+        "chain_partition": partition,
+        "owner_sequence": str(owner_sequence),
+        "prev_hash": prev_hash,
+        "occurred_at": occurred_at,
+    }
+    canonical = json.dumps(envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    event_hash = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    conn.execute(
+        """
+        INSERT INTO runtime_events(
+          event_id, owner_subject, event_type, actor_type, trace_id,
+          parent_event_id, source_service, environment, source_commit_sha,
+          producer, occurred_at, observed_at, owner_sequence, phase, outcome,
+          effect, redaction_status, redaction_version, prev_hash, event_hash,
+          chain_partition, completeness, missing_refs
+        ) VALUES (
+          %s, %s, %s, 'runtime', %s, %s, 'agent-api', %s, %s, %s, %s, %s,
+          %s, %s, %s, %s::jsonb, 'redacted', 'home-runtime-event-v1', %s,
+          %s, %s, 'complete', '[]'::jsonb
+        )
+        """,
+        (
+            event_id,
+            owner_subject,
+            event_type,
+            trace_id,
+            parent_event_id,
+            os.getenv("APP_ENV", "local"),
+            os.getenv("SOURCE_COMMIT_SHA"),
+            producer,
+            occurred_at,
+            occurred_at,
+            owner_sequence,
+            phase,
+            outcome,
+            Json(effect),
+            prev_hash,
+            event_hash,
+            partition,
+        ),
+    )
+    conn.execute(
+        """
+        INSERT INTO runtime_event_outbox(outbox_id, event_id, owner_subject)
+        VALUES (%s, %s, %s)
+        """,
+        (str(uuid4()), event_id, owner_subject),
+    )
+    conn.execute(
+        """
+        UPDATE runtime_event_chain_heads
+        SET next_sequence = %s, head_hash = %s, updated_at = NOW()
+        WHERE owner_subject = %s AND chain_partition = %s
+        """,
+        (owner_sequence + 1, event_hash, owner_subject, partition),
+    )
+    return event_id
+
+
 class _BuildHtmlScriptParser(HTMLParser):
     _removed_three_addon = re.compile(r"/three(?:@[^/]*)?/examples/js/", re.IGNORECASE)
     _module_three_addon = re.compile(r"/three(?:@[^/]*)?/examples/jsm/", re.IGNORECASE)
@@ -10541,17 +10752,19 @@ def _build_registry_authenticated(supplied_token: str | None) -> bool:
 
 
 def _build_registry_row(row: tuple[object, ...], *, include_html: bool) -> dict[str, object]:
+    # Workspace-aware rows include owner_subject after project_id; legacy rows do not.
+    offset = 1 if len(row) >= 12 else 0
     build = {
         "id": str(row[0]),
         "project_id": str(row[1]),
-        "title": str(row[2]),
-        "prompt_sha256": str(row[3]),
-        "model": str(row[4]),
-        "gateway_mode": str(row[6]),
-        "gateway_provider": str(row[7]),
-        "live_provider_calls": bool(row[8]),
-        "created_at": row[9].isoformat() if row[9] else None,
-        "updated_at": row[10].isoformat() if row[10] else None,
+        "title": str(row[2 + offset]),
+        "prompt_sha256": str(row[3 + offset]),
+        "model": str(row[4 + offset]),
+        "gateway_mode": str(row[6 + offset]),
+        "gateway_provider": str(row[7 + offset]),
+        "live_provider_calls": bool(row[8 + offset]),
+        "created_at": row[9 + offset].isoformat() if row[9 + offset] else None,
+        "updated_at": row[10 + offset].isoformat() if row[10 + offset] else None,
         "share_path": f"/run/{row[0]}",
         "persisted": True,
         "audit_persisted": True,
@@ -10561,7 +10774,7 @@ def _build_registry_row(row: tuple[object, ...], *, include_html: bool) -> dict[
         "secret_output": False,
     }
     if include_html:
-        build["html"] = str(row[5])
+        build["html"] = str(row[5 + offset])
     return build
 
 
@@ -10570,11 +10783,13 @@ def create_build_registry_entry(
     request: BuildRegistryRequest,
     http_request: Request,
     x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
 ) -> dict[str, object]:
     if not os.getenv("AGENT_API_AUTH_TOKEN", ""):
         raise HTTPException(status_code=503, detail="build registry authentication unavailable")
     if not _build_registry_authenticated(x_superbrain_agent_token):
         raise HTTPException(status_code=401, detail="build registry authentication required")
+    owner_subject = _workspace_subject(x_superbrain_workspace_subject)
     title = request.title.strip()
     prompt = request.prompt.strip()
     model = request.model.strip()
@@ -10604,9 +10819,9 @@ def create_build_registry_entry(
             row = conn.execute(
                 """
                 INSERT INTO builds (
-                  id, project_id, title, prompt_sha256, model, html,
+                  id, project_id, owner_subject, title, prompt_sha256, model, html,
                   gateway_mode, gateway_provider, live_provider_calls
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO NOTHING
                 RETURNING id, project_id, title, prompt_sha256, model, html,
                           gateway_mode, gateway_provider, live_provider_calls, created_at, updated_at
@@ -10614,6 +10829,7 @@ def create_build_registry_entry(
                 (
                     request.id,
                     request.project_id,
+                    owner_subject,
                     title,
                     prompt_sha256,
                     model,
@@ -10637,6 +10853,14 @@ def create_build_registry_entry(
                             "contract_version": BUILD_REGISTRY_CONTRACT_VERSION,
                             "build_id": request.id,
                             "project_id": request.project_id,
+                            "owner_subject": owner_subject,
+                            "event": {
+                                "event_id": str(uuid4()),
+                                "event": "build_created",
+                                "build_id": request.id,
+                                "owner_subject": owner_subject,
+                                "trace_id": trace_id,
+                            },
                             "prompt_sha256": prompt_sha256,
                             "html_sha256": html_sha256,
                             "trace_id": trace_id,
@@ -10650,6 +10874,77 @@ def create_build_registry_entry(
             ).fetchone()
             if not audit_row:
                 raise RuntimeError("build audit unavailable")
+            auth_event_id: str | None = None
+            security_event_id: str | None = None
+            llm_event_id: str | None = None
+            if owner_subject:
+                # This build reached the same server-bound identity and
+                # fetch-metadata/same-origin boundary that authorizes the
+                # workspace write. Persist both checks before the producer
+                # effect so the Home trace can distinguish auth, security,
+                # provider, and workspace stages without exposing secrets.
+                if gateway_provider not in {"", "unknown", "unit"}:
+                    auth_event_id = _append_workspace_runtime_event(
+                        conn,
+                        owner_subject=owner_subject,
+                        event_type="auth_identity_verified",
+                        producer="frontend_boundary",
+                        phase="committed",
+                        outcome="success",
+                        effect={
+                            "identity_scope": "server_bound_workspace_subject",
+                            "operation": "workspace_build",
+                        },
+                        trace_id=trace_id,
+                    )
+                    security_event_id = _append_workspace_runtime_event(
+                        conn,
+                        owner_subject=owner_subject,
+                        event_type="security_boundary_verified",
+                        producer="frontend_boundary_security",
+                        phase="committed",
+                        outcome="success",
+                        effect={
+                            "boundary": "frontend-provider-boundary-v1",
+                            "csrf_policy": "fetch_metadata_and_same_origin_guard",
+                            "operation": "workspace_build",
+                        },
+                        trace_id=trace_id,
+                        parent_event_id=auth_event_id,
+                    )
+                # The gateway has already returned a structurally complete, secret-safe
+                # document by the time the Agent API receives this trusted persistence
+                # request. Record that real producer boundary before the workspace effect;
+                # do not infer an event from a UI marker or create one for unbound legacy rows.
+                if gateway_provider not in {"", "unknown"}:
+                    llm_event_id = _append_workspace_runtime_event(
+                        conn,
+                        owner_subject=owner_subject,
+                        event_type="llm_generation_completed",
+                        producer="llm_gateway",
+                        phase="committed",
+                        outcome="success",
+                        effect={
+                            "build_id": request.id,
+                            "model": model,
+                            "gateway_mode": gateway_mode,
+                            "gateway_provider": gateway_provider,
+                            "live_provider_calls": request.live_provider_calls,
+                        },
+                        trace_id=trace_id,
+                        parent_event_id=security_event_id,
+                    )
+            _append_workspace_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                event_type="build_created",
+                producer="build_registry",
+                phase="committed",
+                outcome="success",
+                effect={"build_id": request.id, "project_id": request.project_id},
+                trace_id=trace_id,
+                parent_event_id=llm_event_id,
+            )
     except HTTPException:
         raise
     except Exception:
@@ -10745,6 +11040,507 @@ def workspace_artifact_row(row: tuple[object, ...]) -> dict[str, object]:
     }
 
 
+def _workspace_subject(value: str | None) -> str | None:
+    clean = value.strip() if isinstance(value, str) else ""
+    return clean if WORKSPACE_SUBJECT_PATTERN.fullmatch(clean) else None
+
+
+def _workspace_build_authenticated(supplied_token: str | None, subject: str | None) -> str:
+    if not _build_registry_authenticated(supplied_token):
+        raise HTTPException(status_code=401, detail="workspace service authentication required")
+    clean_subject = _workspace_subject(subject)
+    if not clean_subject:
+        raise HTTPException(status_code=401, detail="workspace identity required")
+    return clean_subject
+
+
+def _workspace_build_row(row: tuple[object, ...], *, include_html: bool, pinned: bool = False) -> dict[str, object]:
+    build = {
+        "id": str(row[0]),
+        "project_id": str(row[1]),
+        "title": str(row[3]),
+        "prompt_sha256": str(row[4]),
+        "model": str(row[5]),
+        "gateway_mode": str(row[7]),
+        "gateway_provider": str(row[8]),
+        "live_provider_calls": bool(row[9]),
+        "created_at": row[10].isoformat() if row[10] else None,
+        "updated_at": row[11].isoformat() if row[11] else None,
+        "last_used_at": row[12].isoformat() if len(row) > 12 and row[12] else None,
+        "share_path": f"/run/{row[0]}",
+        "persisted": True,
+        "audit_persisted": True,
+        "direct_provider_calls": False,
+        "live_mcp_writes": False,
+        "production_deploy": False,
+        "secret_output": False,
+    }
+    if include_html:
+        build["html"] = str(row[6])
+    if pinned:
+        build["pinned"] = True
+    return build
+
+
+def _workspace_build_row_query() -> str:
+    return """
+        SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.html,
+               b.gateway_mode, b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at,
+               COALESCE(u.last_used_at, b.updated_at) AS last_used_at
+        FROM builds b
+    """
+
+
+def _workspace_build_usage_touch(conn: object, owner_subject: str, build_id: str) -> None:
+    conn.execute(
+        """
+        INSERT INTO workspace_build_usage (owner_subject, build_id, last_used_at, use_count)
+        VALUES (%s, %s, NOW(), 1)
+        ON CONFLICT (owner_subject, build_id)
+        DO UPDATE SET last_used_at = NOW(), use_count = workspace_build_usage.use_count + 1
+        """,
+        (owner_subject, build_id),
+    )
+
+
+def list_workspace_build_registry_entries(owner_subject: str | None, limit: int, token: str | None) -> dict[str, object]:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    safe_limit = max(1, min(int(limit), 4))
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            recent_rows = conn.execute(
+                _workspace_build_row_query().replace(
+                    "FROM builds b",
+                    "FROM builds b LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject "
+                    "WHERE b.owner_subject = %s ORDER BY COALESCE(u.last_used_at, b.updated_at) DESC LIMIT %s",
+                ),
+                (subject, safe_limit),
+            ).fetchall()
+            pinned_rows = conn.execute(
+                _workspace_build_row_query().replace(
+                    "FROM builds b",
+                    "FROM workspace_build_pins p JOIN builds b ON b.id = p.build_id AND b.owner_subject = p.owner_subject "
+                    "LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject "
+                    "WHERE p.owner_subject = %s ORDER BY p.created_at DESC",
+                ),
+                (subject,),
+            ).fetchall()
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace build registry unavailable") from None
+    return {
+        "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION,
+        "status": "verified",
+        "source": "postgres",
+        "identity_scope": "server_bound_workspace_subject",
+        "builds": [
+            _workspace_build_row(
+                row,
+                include_html=False,
+                pinned=any(str(pinned[0]) == str(row[0]) for pinned in pinned_rows),
+            )
+            for row in recent_rows
+        ],
+        "pinned_builds": [_workspace_build_row(row, include_html=False, pinned=True) for row in pinned_rows],
+        "count": len(recent_rows),
+        "persisted": True,
+        "audit_persisted": True,
+        "direct_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+    }
+
+
+def list_all_workspace_build_registry_entries(
+    owner_subject: str | None,
+    limit: int,
+    cursor: str | None,
+    token: str | None,
+) -> dict[str, object]:
+    """Return a bounded, cursorable list of only the verified owner's builds."""
+    subject = _workspace_build_authenticated(token, owner_subject)
+    safe_limit = max(1, min(int(limit), 100))
+    clean_cursor = cursor.strip() if isinstance(cursor, str) and cursor.strip() else None
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            query = _workspace_build_row_query().replace(
+                "FROM builds b",
+                "FROM builds b LEFT JOIN workspace_build_usage u "
+                "ON u.build_id = b.id AND u.owner_subject = b.owner_subject "
+                "WHERE b.owner_subject = %s AND b.deleted_at IS NULL",
+            )
+            params: list[object] = [subject]
+            if clean_cursor:
+                query += " AND COALESCE(u.last_used_at, b.updated_at) < %s"
+                params.append(clean_cursor)
+            query += " ORDER BY COALESCE(u.last_used_at, b.updated_at) DESC, b.id DESC LIMIT %s"
+            params.append(safe_limit)
+            rows = conn.execute(query, tuple(params)).fetchall()
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace build registry unavailable") from None
+    builds = [_workspace_build_row(row, include_html=False) for row in rows]
+    next_cursor = builds[-1].get("last_used_at") if len(builds) == safe_limit else None
+    return {
+        "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION,
+        "status": "verified",
+        "source": "postgres",
+        "identity_scope": "server_bound_workspace_subject",
+        "builds": builds,
+        "count": len(builds),
+        "next_cursor": next_cursor,
+        "persisted": True,
+        "audit_persisted": True,
+        "direct_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+    }
+
+
+def get_workspace_build_registry_entry(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            row = conn.execute(
+                """
+                SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.html,
+                       b.gateway_mode, b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at,
+                       COALESCE(u.last_used_at, b.updated_at) AS last_used_at
+                FROM builds b
+                LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject
+                WHERE b.id = %s AND b.owner_subject = %s
+                """,
+                (build_id, subject),
+            ).fetchone()
+            if row:
+                _workspace_build_usage_touch(conn, subject, build_id)
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace build registry unavailable") from None
+    return _workspace_build_row(row, include_html=True) if row else None
+
+
+def set_workspace_build_pin(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url()) as conn:
+            if not conn.execute("SELECT id FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject)).fetchone():
+                return None
+            conn.execute("INSERT INTO workspace_build_pins (owner_subject, build_id) VALUES (%s, %s) ON CONFLICT DO NOTHING", (subject, build_id))
+            conn.execute("INSERT INTO audit_log(event_type, details, severity) VALUES ('workspace_build_pin_set', %s::jsonb, 'info')", (Json({"contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "build_id": build_id, "owner_subject": subject, "event": {"event_id": str(uuid4()), "event": "workspace_build_pin_set", "build_id": build_id, "owner_subject": subject}}),))
+            _append_workspace_runtime_event(
+                conn,
+                owner_subject=subject,
+                event_type="workspace_build_pin_set",
+                producer="workspace_builds",
+                phase="committed",
+                outcome="success",
+                effect={"build_id": build_id, "pinned": True},
+            )
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace pin persistence unavailable") from None
+    return {"status": "pinned", "id": build_id, "persisted": True, "audit_persisted": True, "secret_output": False}
+
+
+def remove_workspace_build_pin(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url()) as conn:
+            if not conn.execute("SELECT id FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject)).fetchone():
+                return None
+            conn.execute("DELETE FROM workspace_build_pins WHERE owner_subject = %s AND build_id = %s", (subject, build_id))
+            conn.execute("INSERT INTO audit_log(event_type, details, severity) VALUES ('workspace_build_pin_removed', %s::jsonb, 'info')", (Json({"contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "build_id": build_id, "owner_subject": subject, "event": {"event_id": str(uuid4()), "event": "workspace_build_pin_removed", "build_id": build_id, "owner_subject": subject}}),))
+            _append_workspace_runtime_event(
+                conn,
+                owner_subject=subject,
+                event_type="workspace_build_pin_removed",
+                producer="workspace_builds",
+                phase="committed",
+                outcome="success",
+                effect={"build_id": build_id, "pinned": False},
+            )
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace pin persistence unavailable") from None
+    return {"status": "unpinned", "id": build_id, "persisted": True, "audit_persisted": True, "secret_output": False}
+
+
+def delete_workspace_build_registry_entry(build_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    subject = _workspace_build_authenticated(token, owner_subject)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", build_id):
+        return None
+    try:
+        with psycopg.connect(database_url()) as conn:
+            if not conn.execute("SELECT id FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject)).fetchone():
+                return None
+            conn.execute("DELETE FROM workspace_build_pins WHERE owner_subject = %s AND build_id = %s", (subject, build_id))
+            conn.execute("DELETE FROM builds WHERE id = %s AND owner_subject = %s", (build_id, subject))
+            conn.execute("INSERT INTO audit_log(event_type, details, severity) VALUES ('workspace_build_deleted', %s::jsonb, 'info')", (Json({"contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "build_id": build_id, "owner_subject": subject, "owner_bound": True, "event": {"event_id": str(uuid4()), "event": "workspace_build_deleted", "build_id": build_id, "owner_subject": subject}}),))
+            _append_workspace_runtime_event(
+                conn,
+                owner_subject=subject,
+                event_type="workspace_build_deleted",
+                producer="workspace_builds",
+                phase="committed",
+                outcome="success",
+                effect={"build_id": build_id, "deleted": True},
+            )
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace build delete unavailable") from None
+    return {"status": "deleted", "id": build_id, "persisted": True, "audit_persisted": True, "secret_output": False}
+
+
+def list_workspace_runtime_events(owner_subject: str | None, token: str | None, limit: int = 8) -> dict[str, object]:
+    """Return only explicitly owner-bound runtime events.
+
+    Existing legacy audit rows are intentionally not projected into this feed:
+    their historical user_id/details fields do not establish the verified
+    workspace subject required by the Home contract.
+    """
+    subject = _workspace_build_authenticated(token, owner_subject)
+    safe_limit = max(1, min(int(limit), 50))
+    try:
+        with psycopg.connect(database_url(), autocommit=True) as conn:
+            rows = conn.execute(
+                """
+                SELECT event_id, event_type, owner_subject, actor_type, actor_id,
+                       trace_id, span_id, parent_event_id, source_service,
+                       environment, source_commit_sha, producer, occurred_at,
+                       observed_at, owner_sequence, producer_sequence, phase,
+                       outcome, effect, input_hash, output_hash, hash_scope,
+                       redaction_status, redaction_version, payload_ref,
+                       prev_hash, event_hash, chain_partition, completeness,
+                       missing_refs
+                FROM runtime_events
+                WHERE owner_subject = %s
+                ORDER BY owner_sequence DESC
+                LIMIT %s
+                """,
+                (subject, safe_limit),
+            ).fetchall()
+    except Exception:
+        raise HTTPException(status_code=503, detail="workspace runtime event feed unavailable") from None
+    events: list[dict[str, object]] = []
+    for row in rows:
+        (
+            event_id, event_type, event_owner, actor_type, actor_id, trace_id,
+            span_id, parent_event_id, source_service, environment,
+            source_commit_sha, producer, occurred_at, observed_at,
+            owner_sequence, producer_sequence, phase, outcome, effect,
+            input_hash, output_hash, hash_scope, redaction_status,
+            redaction_version, payload_ref, prev_hash, event_hash,
+            chain_partition, completeness, missing_refs,
+        ) = row
+        if str(event_owner) != subject:
+            continue
+        events.append({
+            "event_id": str(event_id),
+            "event": str(event_type),
+            "owner_subject": subject,
+            "actor_type": actor_type,
+            "actor_id": actor_id,
+            "trace_id": trace_id,
+            "span_id": span_id,
+            "parent_event_id": str(parent_event_id) if parent_event_id else None,
+            "source": {"service": source_service, "environment": environment, "source_commit_sha": source_commit_sha},
+            "producer": producer,
+            "runtime_class": _runtime_class_for_event(str(event_type), str(producer)),
+            "occurred_at": occurred_at.isoformat() if hasattr(occurred_at, "isoformat") else occurred_at,
+            "observed_at": observed_at.isoformat() if hasattr(observed_at, "isoformat") else observed_at,
+            "owner_sequence": str(owner_sequence),
+            "producer_sequence": str(producer_sequence) if producer_sequence is not None else None,
+            "phase": phase,
+            "outcome": outcome,
+            "state": phase,
+            "effect": effect if isinstance(effect, dict) else {},
+            "input_hash": input_hash,
+            "output_hash": output_hash,
+            "hash_scope": hash_scope,
+            "redaction_status": redaction_status,
+            "redaction_version": redaction_version,
+            "payload_ref": payload_ref,
+            "prev_hash": prev_hash,
+            "event_hash": event_hash,
+            "chain_partition": chain_partition,
+            "completeness": completeness,
+            "missing_refs": missing_refs if isinstance(missing_refs, list) else [],
+            "parent_event_ids": [str(parent_event_id)] if parent_event_id else [],
+            "root_event_id": str(parent_event_id or event_id),
+        })
+    _resolve_runtime_event_roots(events)
+    observed_classes = sorted({
+        str(event.get("runtime_class"))
+        for event in events
+        if isinstance(event, dict) and event.get("runtime_class")
+    })
+    missing_classes = [runtime_class for runtime_class in WORKSPACE_RUNTIME_CLASSES if runtime_class not in observed_classes]
+    return {
+        "contract_version": "home-runtime-events-v1",
+        "status": "verified",
+        "source": "postgres",
+        "identity_scope": "server_bound_workspace_subject",
+        "events": events,
+        "observed_classes": observed_classes,
+        "missing_classes": missing_classes,
+        "complete": not missing_classes,
+        "persisted": True,
+        "audit_persisted": True,
+        "live_provider_calls": False,
+        "live_mcp_writes": False,
+        "secret_output": False,
+    }
+
+
+def get_workspace_runtime_event(event_id: str, owner_subject: str | None, token: str | None) -> dict[str, object] | None:
+    """Read one persisted event without revealing foreign or unknown existence."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", event_id):
+        _workspace_build_authenticated(token, owner_subject)
+        return None
+    feed = list_workspace_runtime_events(owner_subject, token, 50)
+    for event in feed["events"]:
+        if isinstance(event, dict) and event.get("event_id") == event_id:
+            return {
+                "contract_version": "home-runtime-event-detail-v1",
+                "status": "verified",
+                "source": feed["source"],
+                "identity_scope": feed["identity_scope"],
+                "event": event,
+                "persisted": True,
+                "audit_persisted": True,
+                "secret_output": False,
+            }
+    return None
+
+
+def get_workspace_runtime_trace(trace_id: str, owner_subject: str | None, token: str | None) -> dict[str, object]:
+    """Return the owner-bound subset of a trace; foreign/unknown traces are empty."""
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,255}", trace_id):
+        _workspace_build_authenticated(token, owner_subject)
+        return {
+            "contract_version": "home-runtime-trace-v1",
+            "status": "verified",
+            "events": [],
+            "complete": False,
+            "secret_output": False,
+        }
+    feed = list_workspace_runtime_events(owner_subject, token, 50)
+    events = [event for event in feed["events"] if isinstance(event, dict) and event.get("trace_id") == trace_id]
+    return {
+        "contract_version": "home-runtime-trace-v1",
+        "status": "verified",
+        "source": feed["source"],
+        "identity_scope": feed["identity_scope"],
+        "trace_id": trace_id,
+        "events": events,
+        "complete": bool(events),
+        "persisted": True,
+        "audit_persisted": True,
+        "secret_output": False,
+    }
+
+
+@app.get("/api/v1/workspace/builds/mine")
+def list_workspace_builds_mine(limit: int = Query(default=4, ge=1, le=4), x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    return list_workspace_build_registry_entries(x_superbrain_workspace_subject, limit, x_superbrain_agent_token)
+
+
+@app.get("/api/v1/workspace/builds/mine/all")
+def list_all_workspace_builds_mine(limit: int = Query(default=24, ge=1, le=100), cursor: str | None = Query(default=None), x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    return list_all_workspace_build_registry_entries(x_superbrain_workspace_subject, limit, cursor, x_superbrain_agent_token)
+
+
+@app.get("/api/v1/workspace/runtime/events")
+def workspace_runtime_events(limit: int = Query(default=8, ge=1, le=50), x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    return list_workspace_runtime_events(x_superbrain_workspace_subject, x_superbrain_agent_token, limit)
+
+
+@app.get("/api/v1/workspace/runtime/events/stream")
+def workspace_runtime_event_stream(
+    limit: int = Query(default=8, ge=1, le=50),
+    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
+) -> StreamingResponse:
+    feed = list_workspace_runtime_events(x_superbrain_workspace_subject, x_superbrain_agent_token, limit)
+    events = [event for event in feed["events"] if isinstance(event, dict)]
+    gap = False
+    if last_event_id:
+        cursor_index = next((index for index, event in enumerate(events) if event.get("event_id") == last_event_id), None)
+        if cursor_index is None:
+            # The cursor fell outside the bounded read window. Do not replay an
+            # ambiguous subset silently; expose the gap and let the client do a
+            # fresh owner-bound collection read.
+            events = []
+            gap = True
+        else:
+            # The feed is newest-first, so only rows before the cursor are new.
+            events = events[:cursor_index]
+
+    def stream() -> object:
+        if gap:
+            yield "event: runtime_gap\ndata: {\"reason\":\"cursor_outside_window\",\"complete\":false}\n\n"
+        for event in events:
+            yield f"id: {event.get('event_id', '')}\nevent: runtime_event\ndata: {json.dumps(event, separators=(',', ':'), ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "cache-control": "no-store",
+            "x-superbrain-source": "postgres-owner-bound-runtime-events",
+            "x-runtime-gap": "true" if gap else "false",
+            "x-runtime-cursor": last_event_id or "",
+        },
+    )
+
+
+@app.get("/api/v1/workspace/runtime/events/{event_id}")
+def workspace_runtime_event_detail(event_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    event = get_workspace_runtime_event(event_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not event:
+        raise HTTPException(status_code=404, detail="runtime event not found")
+    return event
+
+
+@app.get("/api/v1/workspace/runtime/traces/{trace_id}")
+def workspace_runtime_trace(trace_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    return get_workspace_runtime_trace(trace_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+
+
+@app.get("/api/v1/workspace/builds/{build_id}")
+def get_workspace_build(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    build = get_workspace_build_registry_entry(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not build:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**build, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "status": "verified", "source": "postgres", "identity_scope": "server_bound_workspace_subject"}
+
+
+@app.delete("/api/v1/workspace/builds/{build_id}")
+def delete_workspace_build_route(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    result = delete_workspace_build_registry_entry(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**result, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "source": "postgres", "identity_scope": "server_bound_workspace_subject"}
+
+
+@app.put("/api/v1/workspace/builds/{build_id}/pin")
+def set_workspace_build_pin_route(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    result = set_workspace_build_pin(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**result, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "source": "postgres"}
+
+
+@app.delete("/api/v1/workspace/builds/{build_id}/pin")
+def remove_workspace_build_pin_route(build_id: str, x_superbrain_agent_token: str | None = Header(default=None), x_superbrain_workspace_subject: str | None = Header(default=None)) -> dict[str, object]:
+    result = remove_workspace_build_pin(build_id, x_superbrain_workspace_subject, x_superbrain_agent_token)
+    if not result:
+        raise HTTPException(status_code=404, detail="workspace build not found")
+    return {**result, "contract_version": WORKSPACE_BUILD_CONTRACT_VERSION, "source": "postgres"}
+
+
 @app.get("/api/v1/workspace/artifacts/contract")
 def workspace_artifacts_contract() -> dict[str, object]:
     return {
@@ -10794,12 +11590,25 @@ def workspace_artifacts(
 
 
 @app.post("/api/v1/workspace/artifacts", status_code=201)
-def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: Request) -> dict[str, object]:
+def create_workspace_artifact(
+    request: WorkspaceArtifactRequest,
+    http_request: Request,
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
+) -> dict[str, object]:
     try:
         session_id: str | None = str(UUID(str(request.session_id))) if request.session_id else None
     except (TypeError, ValueError):
         session_id = None
     trace_id = getattr(http_request.state, "trace_id", None) or request.run_id or f"workspace-artifact-{uuid4()}"
+    owner_token = x_superbrain_agent_token if isinstance(x_superbrain_agent_token, str) else None
+    owner_header = x_superbrain_workspace_subject if isinstance(x_superbrain_workspace_subject, str) else None
+    owner_subject = None
+    if owner_token is not None or owner_header is not None:
+        owner_subject = _workspace_build_authenticated(
+            owner_token,
+            owner_header,
+        )
     details = redact_json(
         {
             "contract_version": WORKSPACE_ARTIFACT_CONTRACT_VERSION,
@@ -10843,6 +11652,33 @@ def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: R
             """,
             (session_id, Json(details)),
         ).fetchone()
+        runtime_event_id = None
+        if owner_subject:
+            memory_event_id = _append_workspace_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                event_type="memory_entry_created",
+                producer="agent_api_memory",
+                phase="committed",
+                outcome="success",
+                effect={"memory_id": str(memory_id), "project_id": request.project_id},
+                trace_id=str(trace_id),
+            )
+            runtime_event_id = _append_workspace_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                event_type="workspace_artifact_created",
+                producer="workspace_artifact_registry",
+                phase="committed",
+                outcome="success",
+                effect={
+                    "artifact_id": str(row[0]) if row else None,
+                    "project_id": request.project_id,
+                    "artifact_type": request.artifact_type,
+                },
+                trace_id=str(trace_id),
+                parent_event_id=memory_event_id,
+            )
     if not row:
         raise HTTPException(status_code=503, detail="workspace artifact insert failed")
     return {
@@ -10854,6 +11690,8 @@ def create_workspace_artifact(request: WorkspaceArtifactRequest, http_request: R
         "live_mcp_writes": False,
         "secret_output": False,
         "production_deploy": False,
+        "runtime_event_id": runtime_event_id,
+        "runtime_event_persisted": runtime_event_id is not None,
     }
 
 
@@ -11330,8 +12168,21 @@ def read_only_tool_execute_contract() -> dict[str, object]:
 
 
 @app.post("/api/v1/tools/read-only/execute")
-def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Request) -> dict[str, object]:
+def execute_read_only_tool(
+    request: ReadOnlyToolExecuteRequest,
+    http_request: Request,
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
+) -> dict[str, object]:
     trace_id = getattr(http_request.state, "trace_id", None) or request.trace_id or f"readonly-tool-{uuid4()}"
+    owner_token = x_superbrain_agent_token if isinstance(x_superbrain_agent_token, str) else None
+    owner_header = x_superbrain_workspace_subject if isinstance(x_superbrain_workspace_subject, str) else None
+    owner_subject = None
+    if owner_token is not None or owner_header is not None:
+        owner_subject = _workspace_build_authenticated(
+            owner_token,
+            owner_header,
+        )
     mcp_payload: dict[str, object] | None = None
     mcp_audit_readback_verified = False
     filesystem_read_performed = False
@@ -11406,6 +12257,7 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
         )
     details = redact_json(details_payload)
 
+    runtime_event_id = None
     with psycopg.connect(database_url(), autocommit=True) as conn:
         if mcp_payload is not None:
             mcp_audit_readback_verified = _filesystem_project_progress_audits_verified(
@@ -11423,6 +12275,34 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
             """,
             (Json(details),),
         ).fetchone()
+        if owner_subject:
+            memory_event_id = None
+            if request.tool_id == "memory_read":
+                memory_event_id = _append_workspace_runtime_event(
+                    conn,
+                    owner_subject=owner_subject,
+                    event_type="memory_read_completed",
+                    producer="agent_api_memory",
+                    phase="committed",
+                    outcome="success",
+                    effect={"project_id": request.project_id, "result_count": result_count},
+                    trace_id=str(trace_id),
+                )
+            runtime_event_id = _append_workspace_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                event_type="mcp_tool_executed",
+                producer="read_only_tool",
+                phase="committed",
+                outcome="success",
+                effect={
+                    "tool_id": request.tool_id,
+                    "project_id": request.project_id,
+                    "result_count": result_count,
+                },
+                trace_id=str(trace_id),
+                parent_event_id=memory_event_id,
+            )
     if not row:
         raise HTTPException(status_code=503, detail="read-only tool audit insert failed")
     return {
@@ -11441,6 +12321,8 @@ def execute_read_only_tool(request: ReadOnlyToolExecuteRequest, http_request: Re
         "live_mcp_writes": False,
         "secret_output": False,
         "production_deploy": False,
+        "runtime_event_id": runtime_event_id,
+        "runtime_event_persisted": runtime_event_id is not None,
         "result": payload,
     }
 
@@ -14567,13 +15449,26 @@ def autonomous_recent_dispatches(limit: int = Query(default=10, ge=1, le=50)) ->
 
 @app.post("/api/v1/task/dispatch", status_code=201)
 @app.post("/task/dispatch", status_code=201)
-def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_request: Request) -> dict[str, object]:
+def autonomous_task_dispatch(
+    request: AutonomousCodingDispatchRequest,
+    http_request: Request,
+    x_superbrain_agent_token: str | None = Header(default=None),
+    x_superbrain_workspace_subject: str | None = Header(default=None),
+) -> dict[str, object]:
     sanitized_objective = redact_text(request.objective)
     prepared_write_scope = request.write_scope or default_autonomous_write_scope()
     prepared_constraints = default_autonomous_constraints() + [constraint for constraint in request.constraints if constraint]
     prepared_acceptance_criteria = list(dict.fromkeys(request.acceptance_criteria))
     trace_id = request.trace_id or f"autonomous-dispatch-{uuid4()}"
     request_id = getattr(http_request.state, "request_id", None)
+    owner_token = x_superbrain_agent_token if isinstance(x_superbrain_agent_token, str) else None
+    owner_header = x_superbrain_workspace_subject if isinstance(x_superbrain_workspace_subject, str) else None
+    owner_subject = None
+    if owner_token is not None or owner_header is not None:
+        owner_subject = _workspace_build_authenticated(
+            owner_token,
+            owner_header,
+        )
     session_id = prepare_orchestrator_session(
         request.project_id,
         request.session_id,
@@ -14678,6 +15573,7 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
     )
     store_autonomous_dispatch(dispatch_record)
     persist_autonomous_dispatch_audit(dispatch_record)
+    runtime_event_id = None
     with psycopg.connect(database_url(), autocommit=True) as conn:
         conn.execute(
             """
@@ -14702,6 +15598,15 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
                 session_id,
             ),
         )
+        if owner_subject:
+            runtime_event_id = persist_autonomous_dispatch_runtime_event(
+                conn,
+                owner_subject=owner_subject,
+                dispatch_id=dispatch_id,
+                project_id=request.project_id,
+                assignment_count=len(queued_assignments),
+                trace_id=trace_id,
+            )
     return {
         **dispatch_record.model_dump(),
         "runtime_source": "internal_queue",
@@ -14709,6 +15614,8 @@ def autonomous_task_dispatch(request: AutonomousCodingDispatchRequest, http_requ
         "contract_endpoint": "/api/v1/task/dispatch/contract",
         "runtime_pool_contract_version": TASK_ASSIGNMENT_CONTRACT_VERSION,
         "request_id": request_id,
+        "runtime_event_id": runtime_event_id,
+        "runtime_event_persisted": runtime_event_id is not None,
     }
 
 

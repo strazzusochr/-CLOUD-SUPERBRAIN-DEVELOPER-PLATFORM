@@ -33,10 +33,10 @@ foreach($required in @("createHmac","timingSafeEqual","AUTH_SESSION_TTL_SECONDS"
 foreach($required in @(
   "auth-session-integrity",
   "external_provider_write: false",
-  "async function clearSessionCookie()",
+  "async function clearSessionCookie(req: Request)",
   'jar.set(AUTH_SESSION_COOKIE, "", {',
   "httpOnly: true",
-  "secure: true",
+  "secure: secureCookieFor(req)",
   'sameSite: "strict"',
   'path: "/"',
   "maxAge: 0",

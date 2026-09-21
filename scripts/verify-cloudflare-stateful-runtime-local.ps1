@@ -100,6 +100,7 @@ try {
     $wrangler, "dev", "--local", "--env", "preview",
     "--persist-to", ".wrangler/state", "--port", [string]$Port,
     "--var", "AGENT_API_AUTH_TOKEN:$authToken",
+    "--var", "RUNTIME_MODE:cloudflare_native_local_candidate",
     "--var", "MEMORY_VECTOR_NAMESPACE:superbrain-memory-preview-v1",
     "--log-level", "error", "--show-interactive-dev-session", "false"
   )

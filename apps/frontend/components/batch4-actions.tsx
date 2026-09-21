@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import CortexCanvas from "./organism/CortexCanvas";
 
 type JsonValue = Record<string, unknown>;
 
@@ -30,22 +29,35 @@ function ActionResult({ state, testId }: { state: string; testId: string }) {
 }
 
 export function HomeCortexHero() {
+  const nodes = [
+    [18, 50], [22, 35], [25, 65], [30, 24], [31, 50], [32, 76],
+    [39, 34], [40, 62], [45, 18], [46, 48], [47, 80], [53, 20],
+    [54, 52], [56, 76], [62, 34], [64, 62], [69, 24], [70, 50],
+    [75, 70], [80, 38], [83, 55],
+  ];
+  const links = nodes.slice(0, -1).map((node, index) => ({
+    from: node,
+    to: nodes[index + 1],
+  }));
   return (
     <div className="home-cortex-card" data-testid="batch4-home-cortex-hero">
-      <CortexCanvas
-        runState="planning"
-        activeRegion="prefrontal"
-        interactive={false}
-        showRegions={false}
-        nodeCount={520}
-        sourceLabel="CLIENT-3D · CORTEX HERO"
-        className="home-cortex-canvas"
-      />
-      <div className="home-cortex-footer">
-        <span className="badge badge-cyan">leuchtender 3D-Cortex</span>
-        <span className="badge badge-amber">client-lokal</span>
-        <span className="badge badge-green">keine Fake-Daten</span>
-      </div>
+      <svg className="home-cortex-visual" viewBox="0 0 100 100" role="img" aria-label="Statische NeuroGlass-Cortex-Darstellung">
+        <defs>
+          <radialGradient id="home-cortex-core" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+            <stop offset="30%" stopColor="#00e5ff" stopOpacity="0.75" />
+            <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <g className="home-cortex-links" transform="translate(50 50) scale(1.35) translate(-50 -50)" stroke="#00e5ff" strokeOpacity="0.34" strokeWidth="0.7">
+          {links.map(({ from, to }, index) => <line key={index} x1={from[0]} y1={from[1]} x2={to[0]} y2={to[1]} />)}
+        </g>
+        <circle cx="50" cy="50" r="22" fill="url(#home-cortex-core)" />
+        <g className="home-cortex-nodes" transform="translate(50 50) scale(1.35) translate(-50 -50)" fill="#00e5ff">
+          {nodes.map(([cx, cy], index) => <circle key={index} cx={cx} cy={cy} r={index % 4 === 0 ? 1.8 : 1.15} />)}
+        </g>
+        <circle cx="50" cy="50" r="4" fill="#f7fbff" />
+      </svg>
     </div>
   );
 }

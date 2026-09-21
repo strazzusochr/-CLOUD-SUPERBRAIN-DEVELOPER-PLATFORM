@@ -424,7 +424,7 @@ if (
 if (!JSON.stringify(snapshotOrganism).includes("/api/v1/auth/me")) {
   throw new Error("endpoint snapshot organism contract is stale for auth/me");
 }
-if (Number(snapshotInventory?.backend?.agent_api_routes) !== 180) {
+if (Number(snapshotInventory?.backend?.agent_api_routes) !== 190) {
   throw new Error("endpoint snapshot Agent API route inventory is stale");
 }
 if (

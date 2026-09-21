@@ -16,9 +16,6 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
-Add-Type -AssemblyName System.Web.Extensions
-$jsonSerializer = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-$jsonSerializer.MaxJsonLength = 1024 * 1024
 
 function Assert-True([bool]$Condition, [string]$Message) {
   if (-not $Condition) { throw $Message }
@@ -238,7 +235,7 @@ function Invoke-JsonRequest(
   if ($null -ne $Body) {
     # Windows PowerShell 5.1 can spend minutes serializing a large string in a
     # PowerShell dictionary. A CLR-only object graph avoids that serializer bug.
-    $jsonBody = $jsonSerializer.Serialize((ConvertTo-ClrJsonValue $Body))
+    $jsonBody = ConvertTo-Json -InputObject (ConvertTo-ClrJsonValue $Body) -Depth 32 -Compress
     $bodyBytes = [Text.Encoding]::UTF8.GetBytes($jsonBody)
     $request.ContentType = "application/json; charset=utf-8"
     $request.ContentLength = $bodyBytes.Length
@@ -420,7 +417,9 @@ Assert-True (-not $buildProjectionSection.Contains("prompt: String(row.prompt)")
 $artifactCreateSection = Get-SourceSection $source "async function createArtifact" "async function listArtifacts" "Worker artifact create"
 foreach ($marker in @(
   "containsSecretMaterial",
-  "env.DB.batch([",
+  "const artifactMutationStatements = [",
+  "mutationStatements: artifactMutationStatements",
+  "env.DB.batch(artifactMutationStatements)",
   "INSERT INTO audit_events",
   "cloudflare_d1_workspace_artifact_created",
   "audit_persisted: true",
@@ -606,9 +605,9 @@ $copiedHeaderSection = Get-SourceSection $boundarySource "function copyRequestHe
 Assert-True (-not $copiedHeaderSection.Contains("x-superbrain-agent-token")) "Browser-supplied Agent API write tokens cannot be forwarded"
 
 foreach ($marker in @(
-  'persistBuild(req, buildRecord)',
+  'persistBuild(req, buildRecord, identity)',
   '"/api/v1/builds",',
-  '{ serviceAuth: true }',
+  'serviceAuth: true, trustedWorkspaceSubject: identity.subject',
   'const writeBlock = await authorizeBoundaryWrite(req)',
   'if (writeBlock) return writeBlock',
   'payload.audit_persisted === true',

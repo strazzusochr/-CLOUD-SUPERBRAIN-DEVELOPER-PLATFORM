@@ -20,6 +20,7 @@ const AUTH_REFRESH_FAMILY_ID_PATTERN = /^fam_[A-Za-z0-9_-]{22}$/;
 const AUTH_CANONICAL_ISO_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SOURCE = "cloudflare-workers-d1-stateful-runtime";
 const AUTH_HEADER = "x-superbrain-agent-token";
+const WORKSPACE_SUBJECT_HEADER = "x-superbrain-workspace-subject";
 const CONTRACT_ORIGIN_HOP_PARAM = "__sb_contract_origin_hop";
 const CONTRACT_ORIGIN_HOP_VALUE = "1";
 const MAX_BODY_BYTES = 192 * 1024;
@@ -28,6 +29,7 @@ const MAX_METADATA_BYTES = 8 * 1024;
 const MAX_NATIVE_CONTENT_BYTES = 32 * 1024;
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 100;
+const WORKSPACE_RUNTIME_CLASSES = ["llm", "agent", "tool_mcp", "memory", "artifact", "workspace", "auth", "security"];
 const AGENT_ROLES = ["planner", "coder", "tester", "devops"];
 const AUTONOMOUS_TEAM_CONTRACT_VERSION = "autonomous-coding-team-v1";
 const AUTONOMOUS_TASK_DISPATCH_CONTRACT_VERSION = "autonomous-task-dispatch-v1";
@@ -281,6 +283,171 @@ async function sha256(value) {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const WORKSPACE_RUNTIME_CHAIN = "workspace";
+
+async function appendWorkspaceRuntimeEventAttempt(env, {
+  ownerSubject,
+  eventType,
+  buildId,
+  traceId,
+  producer = "workspace-registry",
+  phase = "committed",
+  outcome = "success",
+  parentEventId = null,
+  effect,
+  mutationStatements = [],
+}) {
+  const now = new Date().toISOString();
+  const head = await env.DB.prepare(`
+    SELECT next_sequence, head_hash
+    FROM runtime_event_chain_heads
+    WHERE owner_subject = ? AND chain_partition = ?
+    LIMIT 1
+  `).bind(ownerSubject, WORKSPACE_RUNTIME_CHAIN).first();
+  const ownerSequence = Number(head?.next_sequence || 1);
+  const previousHash = head?.head_hash ? String(head.head_hash) : null;
+  if (parentEventId === null) {
+    const prior = await env.DB.prepare(`
+      SELECT event_id
+      FROM runtime_events
+      WHERE owner_subject = ? AND chain_partition = ?
+      ORDER BY owner_sequence DESC
+      LIMIT 1
+    `).bind(ownerSubject, WORKSPACE_RUNTIME_CHAIN).first();
+    parentEventId = prior?.event_id ? String(prior.event_id) : null;
+  }
+  const eventId = crypto.randomUUID();
+  const effectJson = JSON.stringify({
+    build_id: buildId,
+    ...effect,
+  });
+  const envelope = {
+    event_id: eventId,
+    owner_subject: ownerSubject,
+    event_type: eventType,
+    actor_type: "workspace",
+    actor_id: ownerSubject,
+    trace_id: traceId || null,
+    span_id: null,
+    parent_event_id: parentEventId,
+    source_service: SOURCE,
+    environment: env.ENVIRONMENT || env.RUNTIME_ENVIRONMENT || "cloudflare-d1",
+    source_commit_sha: env.SOURCE_COMMIT_SHA || null,
+    producer,
+    occurred_at: now,
+    observed_at: now,
+    owner_sequence: ownerSequence,
+    producer_sequence: ownerSequence,
+    phase,
+    outcome,
+    effect_json: effectJson,
+    input_hash: null,
+    output_hash: null,
+    hash_scope: "redacted-envelope-v1",
+    redaction_status: "redacted",
+    redaction_version: "v1",
+    payload_ref: null,
+    prev_hash: previousHash,
+    chain_partition: WORKSPACE_RUNTIME_CHAIN,
+    completeness: "complete",
+  };
+  const eventHash = await sha256(JSON.stringify(envelope));
+  const outboxId = crypto.randomUUID();
+  const results = await env.DB.batch([
+    ...mutationStatements,
+    env.DB.prepare(`
+      INSERT INTO runtime_events (
+        event_id, owner_subject, event_type, actor_type, actor_id, trace_id,
+        span_id, parent_event_id, source_service, environment, source_commit_sha,
+        producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+        phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+        redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+        chain_partition, completeness, missing_refs_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      eventId,
+      ownerSubject,
+      eventType,
+      envelope.actor_type,
+      envelope.actor_id,
+      envelope.trace_id,
+      envelope.span_id,
+      envelope.parent_event_id,
+      envelope.source_service,
+      envelope.environment,
+      envelope.source_commit_sha,
+      envelope.producer,
+      envelope.occurred_at,
+      envelope.observed_at,
+      envelope.owner_sequence,
+      envelope.producer_sequence,
+      envelope.phase,
+      envelope.outcome,
+      envelope.effect_json,
+      envelope.input_hash,
+      envelope.output_hash,
+      envelope.hash_scope,
+      envelope.redaction_status,
+      envelope.redaction_version,
+      envelope.payload_ref,
+      envelope.prev_hash,
+      eventHash,
+      envelope.chain_partition,
+      envelope.completeness,
+      "[]",
+    ),
+    env.DB.prepare(`
+      INSERT INTO runtime_event_chain_heads (owner_subject, chain_partition, next_sequence, head_hash, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(owner_subject, chain_partition) DO UPDATE SET
+        next_sequence = excluded.next_sequence,
+        head_hash = excluded.head_hash,
+        updated_at = excluded.updated_at
+    `).bind(ownerSubject, WORKSPACE_RUNTIME_CHAIN, ownerSequence + 1, eventHash, now),
+    env.DB.prepare(`
+      INSERT INTO runtime_event_outbox (
+        outbox_id, event_id, owner_subject, status, attempts, available_at, created_at
+      ) VALUES (?, ?, ?, 'pending', 0, ?, ?)
+    `).bind(outboxId, eventId, ownerSubject, now, now),
+  ]);
+  const readback = await env.DB.prepare(`
+    SELECT event_id, owner_subject, owner_sequence, prev_hash, event_hash
+    FROM runtime_events
+    WHERE event_id = ? AND owner_subject = ? AND chain_partition = ?
+    LIMIT 1
+  `).bind(eventId, ownerSubject, WORKSPACE_RUNTIME_CHAIN).first();
+  if (!readback
+    || String(readback.event_id) !== eventId
+    || String(readback.owner_subject) !== ownerSubject
+    || Number(readback.owner_sequence) !== ownerSequence
+    || (readback.prev_hash || null) !== previousHash
+    || String(readback.event_hash) !== eventHash) {
+    throw new Error("runtime_event_readback_failed");
+  }
+  return {
+    eventId,
+    eventHash,
+    ownerSequence,
+    persisted: true,
+    mutationResults: results.slice(0, mutationStatements.length),
+  };
+}
+
+async function appendWorkspaceRuntimeEvent(env, options) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await appendWorkspaceRuntimeEventAttempt(env, options);
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || error);
+      const isOwnerSequenceConflict = /UNIQUE constraint failed:\s*runtime_events\.owner_subject/i.test(message);
+      if (!isOwnerSequenceConflict || attempt >= 2) throw error;
+    }
+  }
+  throw lastError;
+}
+
 function containsSecretMaterial(value) {
   if (typeof value === "string") {
     return SECRET_PATTERN_SOURCES.some(([source, flags]) => new RegExp(source, flags).test(value));
@@ -377,6 +544,28 @@ function validationCode(error, fallback = "invalid_request") {
 
 async function authenticated(request, env) {
   return secureEqual(request.headers.get(AUTH_HEADER) || "", env.AGENT_API_AUTH_TOKEN || "");
+}
+
+function workspaceSubject(request) {
+  const subject = String(request.headers.get(WORKSPACE_SUBJECT_HEADER) || "").trim();
+  if (!/^(?:github:[1-9][0-9]*|local-session:[0-9a-f-]{8,})$/.test(subject)) return null;
+  return subject;
+}
+
+async function workspaceAuthenticated(request, env) {
+  const subject = workspaceSubject(request);
+  return subject && await authenticated(request, env) ? subject : null;
+}
+
+function workspaceNotFound(requestId) {
+  return json({
+    contract_version: "github-workspace-builds-v1",
+    status: "not_found",
+    error: "workspace_build_not_found",
+    request_id: requestId,
+    persisted: false,
+    secret_output: false,
+  }, 404);
 }
 
 async function readJson(request) {
@@ -758,6 +947,7 @@ function buildFromRow(row, includeHtml = true) {
     share_path: `/run/${row.id}`,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
+    last_used_at: row.last_used_at ? String(row.last_used_at) : String(row.updated_at),
     direct_provider_calls: false,
     live_mcp_writes: false,
     production_deploy: false,
@@ -1089,6 +1279,7 @@ async function createBuild(request, env, requestId) {
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
   }
+  const ownerSubject = workspaceSubject(request);
 
   let body;
   try { body = await readJson(request); } catch (error) {
@@ -1147,8 +1338,8 @@ async function createBuild(request, env, requestId) {
       env.DB.prepare(`
         INSERT INTO builds (
           id, project_id, title, prompt, prompt_sha256, model, html, gateway_mode, gateway_provider,
-          live_provider_calls, created_at, updated_at, deleted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+          live_provider_calls, created_at, updated_at, deleted_at, owner_subject
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
       `).bind(
         build.id,
         build.projectId,
@@ -1162,6 +1353,7 @@ async function createBuild(request, env, requestId) {
         build.liveProviderCalls,
         now,
         now,
+        ownerSubject,
       ),
       env.DB.prepare(`
         INSERT INTO audit_events (id, event_type, trace_id, subject_id, details_json, created_at)
@@ -1206,6 +1398,76 @@ async function createBuild(request, env, requestId) {
       detailsJson: auditDetailsJson,
       createdAt: now,
     })) throw new Error("build_audit_readback_failed");
+      let runtimeEvent = null;
+      if (ownerSubject) {
+        try {
+          let authRuntimeEvent = null;
+          let securityRuntimeEvent = null;
+          let llmRuntimeEvent = null;
+          if (!["", "unknown", "unit"].includes(build.gatewayProvider)) {
+            authRuntimeEvent = await appendWorkspaceRuntimeEvent(env, {
+              ownerSubject,
+              eventType: "auth_identity_verified",
+              producer: "frontend_boundary",
+              buildId: build.id,
+              traceId: requestId,
+              effect: {
+                identity_scope: "server_bound_workspace_subject",
+                operation: "workspace_build",
+              },
+            });
+            securityRuntimeEvent = await appendWorkspaceRuntimeEvent(env, {
+              ownerSubject,
+              eventType: "security_boundary_verified",
+              producer: "frontend_boundary_security",
+              buildId: build.id,
+              traceId: requestId,
+              parentEventId: authRuntimeEvent.eventId,
+              effect: {
+                boundary: "frontend-provider-boundary-v1",
+                csrf_policy: "fetch_metadata_and_same_origin_guard",
+                operation: "workspace_build",
+              },
+            });
+          }
+          if (!["", "unknown"].includes(build.gatewayProvider)) {
+            llmRuntimeEvent = await appendWorkspaceRuntimeEvent(env, {
+              ownerSubject,
+              eventType: "llm_generation_completed",
+            producer: "llm_gateway",
+            buildId: build.id,
+            traceId: requestId,
+            effect: {
+              model: build.model,
+              gateway_mode: build.gatewayMode,
+                gateway_provider: build.gatewayProvider,
+                live_provider_calls: build.liveProviderCalls === 1,
+              },
+              parentEventId: securityRuntimeEvent?.eventId || null,
+            });
+          }
+        runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+          ownerSubject,
+          eventType: "workspace_build_created",
+          buildId: build.id,
+          traceId: requestId,
+          parentEventId: llmRuntimeEvent?.eventId || null,
+          effect: {
+            project_id: build.projectId,
+            model: build.model,
+            gateway_mode: build.gatewayMode,
+            gateway_provider: build.gatewayProvider,
+          },
+        });
+      } catch {
+        return json(mutationOutcomeUnknown(
+          "build_runtime_event_outcome_unknown",
+          requestId,
+          "The D1 build and audit were persisted but the owner-bound runtime event could not be confirmed. Reconcile the build and event identifiers before retrying.",
+          { id: build.id, audit_event_id: auditEventId, operation: "create" },
+        ), 503);
+      }
+    }
     return json({
       ...buildFromRow(row),
       contract_version: CONTRACT_VERSION,
@@ -1215,6 +1477,8 @@ async function createBuild(request, env, requestId) {
       audit_event_id: auditEventId,
       audit_persisted: true,
       audit_readback_verified: true,
+      runtime_event_id: runtimeEvent?.eventId || null,
+      runtime_event_persisted: runtimeEvent?.persisted === true,
       live_mcp_writes: false,
       production_deploy: false,
     }, 201);
@@ -1255,6 +1519,427 @@ async function listBuilds(url, env, requestId) {
     });
   } catch {
     return json(blocked("build_registry_read_failed", requestId, "The D1 build registry could not be read."), 503);
+  }
+}
+
+async function listWorkspaceBuilds(request, url, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+    const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const limit = limitFrom(url);
+    const buildsResult = await env.DB.prepare(`
+      SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.gateway_mode, b.gateway_provider,
+             b.live_provider_calls, b.created_at, b.updated_at, COALESCE(u.last_used_at, b.updated_at) AS last_used_at
+      FROM builds b
+      LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject
+      WHERE b.owner_subject = ? AND b.deleted_at IS NULL
+      ORDER BY COALESCE(u.last_used_at, b.updated_at) DESC, b.created_at DESC
+      LIMIT ?
+    `).bind(subject, limit).all();
+    const pinsResult = await env.DB.prepare(`
+      SELECT b.id, b.project_id, b.owner_subject, b.title, b.prompt_sha256, b.model, b.gateway_mode,
+             b.gateway_provider, b.live_provider_calls, b.created_at, b.updated_at,
+             COALESCE(u.last_used_at, b.updated_at) AS last_used_at
+      FROM workspace_build_pins p
+      JOIN builds b ON b.id = p.build_id AND b.owner_subject = p.owner_subject
+      LEFT JOIN workspace_build_usage u ON u.build_id = b.id AND u.owner_subject = b.owner_subject
+      WHERE p.owner_subject = ? AND b.deleted_at IS NULL
+      ORDER BY p.created_at DESC
+      LIMIT ?
+    `).bind(subject, limit).all();
+    const pinnedIds = new Set((pinsResult.results || []).map((row) => String(row.id)));
+    const builds = (buildsResult.results || []).map((row) => ({ ...buildFromRow(row, false), pinned: pinnedIds.has(String(row.id)) }));
+    const pinnedBuilds = (pinsResult.results || []).map((row) => ({ ...buildFromRow(row, false), pinned: true }));
+    return json({
+      contract_version: "github-workspace-builds-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      subject,
+      builds,
+      pinned_builds: pinnedBuilds,
+      count: builds.length,
+      persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_build_registry_read_failed", requestId, "The D1 workspace build registry could not be read."), 503);
+  }
+}
+
+function runtimeClassForEvent(eventType, producer) {
+  const value = `${producer || ""} ${eventType || ""}`.toLowerCase();
+  if (value.includes("workspace") || ["build", "pin", "unpin", "delete"].some((token) => value.includes(token))) return "workspace";
+  if (["llm", "model", "gateway"].some((token) => value.includes(token))) return "llm";
+  if (["agent", "orches"].some((token) => value.includes(token))) return "agent";
+  if (["mcp", "tool"].some((token) => value.includes(token))) return "tool_mcp";
+  if (["memory", "vector"].some((token) => value.includes(token))) return "memory";
+  if (["artifact", "file"].some((token) => value.includes(token))) return "artifact";
+  if (["auth", "session", "permission"].some((token) => value.includes(token))) return "auth";
+  if (["security", "policy", "block"].some((token) => value.includes(token))) return "security";
+  return "artifact";
+}
+
+function runtimeEventFromD1Row(row) {
+  let effect = {};
+  let missingRefs = [];
+  try {
+    const parsed = JSON.parse(String(row.effect_json || "{}"));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) effect = parsed;
+  } catch { /* malformed redacted payload remains an explicit empty effect */ }
+  try {
+    const parsed = JSON.parse(String(row.missing_refs_json || "[]"));
+    if (Array.isArray(parsed)) missingRefs = parsed;
+  } catch { /* malformed references remain an explicit empty list */ }
+  return {
+    event_id: String(row.event_id),
+    event: String(row.event_type),
+    owner_subject: String(row.owner_subject),
+    actor_type: row.actor_type,
+    actor_id: row.actor_id,
+    trace_id: row.trace_id,
+    span_id: row.span_id,
+    parent_event_id: row.parent_event_id ? String(row.parent_event_id) : null,
+    source: { service: row.source_service, environment: row.environment, source_commit_sha: row.source_commit_sha },
+    producer: row.producer,
+    runtime_class: runtimeClassForEvent(row.event_type, row.producer),
+    occurred_at: row.occurred_at,
+    observed_at: row.observed_at,
+    owner_sequence: String(row.owner_sequence),
+    producer_sequence: row.producer_sequence == null ? null : String(row.producer_sequence),
+    phase: row.phase,
+    outcome: row.outcome,
+    state: row.phase,
+    effect,
+    input_hash: row.input_hash,
+    output_hash: row.output_hash,
+    hash_scope: row.hash_scope,
+    redaction_status: row.redaction_status,
+    redaction_version: row.redaction_version,
+    payload_ref: row.payload_ref,
+    prev_hash: row.prev_hash,
+    event_hash: row.event_hash,
+    chain_partition: row.chain_partition,
+    completeness: row.completeness,
+    missing_refs: missingRefs,
+    parent_event_ids: row.parent_event_id ? [String(row.parent_event_id)] : [],
+    root_event_id: String(row.parent_event_id || row.event_id),
+  };
+}
+
+function resolveRuntimeEventRoots(events) {
+  const byId = new Map(events.map((event) => [String(event.event_id), event]));
+  for (const event of events) {
+    let root = event.parent_event_id ? String(event.parent_event_id) : String(event.event_id);
+    const seen = new Set([String(event.event_id)]);
+    while (byId.has(root) && !seen.has(root)) {
+      seen.add(root);
+      const ancestor = byId.get(root)?.parent_event_id;
+      if (!ancestor) break;
+      root = String(ancestor);
+    }
+    event.root_event_id = root;
+  }
+  return events;
+}
+
+async function listWorkspaceRuntimeEventsD1(request, url, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const limit = limitFrom(url);
+    const result = await env.DB.prepare(`
+      SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id,
+             span_id, parent_event_id, source_service, environment, source_commit_sha,
+             producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+             phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+             redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+             chain_partition, completeness, missing_refs_json
+      FROM runtime_events
+      WHERE owner_subject = ?
+      ORDER BY owner_sequence DESC
+      LIMIT ?
+    `).bind(subject, limit).all();
+    const events = resolveRuntimeEventRoots(
+      (result.results || []).filter((row) => String(row.owner_subject) === subject).map(runtimeEventFromD1Row),
+    );
+    const observedClasses = [...new Set(events.map((event) => event.runtime_class).filter(Boolean))].sort();
+    const missingClasses = WORKSPACE_RUNTIME_CLASSES.filter((runtimeClass) => !observedClasses.includes(runtimeClass));
+    return json({
+      contract_version: "home-runtime-events-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      events,
+      observed_classes: observedClasses,
+      missing_classes: missingClasses,
+      complete: missingClasses.length === 0,
+      persisted: true,
+      audit_persisted: true,
+      live_provider_calls: false,
+      live_mcp_writes: false,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_runtime_event_feed_unavailable", requestId, "The D1 workspace runtime event feed could not be read."), 503);
+  }
+}
+
+async function getWorkspaceRuntimeEventD1(request, eventId, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const row = await env.DB.prepare(`
+      SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id,
+             span_id, parent_event_id, source_service, environment, source_commit_sha,
+             producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+             phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+             redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+             chain_partition, completeness, missing_refs_json
+      FROM runtime_events
+      WHERE event_id = ? AND owner_subject = ?
+      LIMIT 1
+    `).bind(eventId, subject).first();
+    if (!row) return workspaceNotFound(requestId);
+    return json({
+      contract_version: "home-runtime-event-detail-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      event: runtimeEventFromD1Row(row),
+      persisted: true,
+      audit_persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_runtime_event_detail_unavailable", requestId, "The D1 workspace runtime event could not be read."), 503);
+  }
+}
+
+async function streamWorkspaceRuntimeEventsD1(request, url, env, requestId) {
+  const feedResponse = await listWorkspaceRuntimeEventsD1(request, url, env, requestId);
+  if (feedResponse.status !== 200) return feedResponse;
+  const feed = await feedResponse.json();
+  let events = Array.isArray(feed.events) ? feed.events : [];
+  const lastEventId = request.headers.get("Last-Event-ID") || "";
+  let gap = false;
+  if (lastEventId) {
+    const cursorIndex = events.findIndex((event) => event?.event_id === lastEventId);
+    if (cursorIndex < 0) {
+      events = [];
+      gap = true;
+    } else {
+      events = events.slice(0, cursorIndex);
+    }
+  }
+  const chunks = [];
+  if (gap) chunks.push("event: runtime_gap\ndata: {\"reason\":\"cursor_outside_window\",\"complete\":false}\n\n");
+  for (const event of events) {
+    chunks.push(`id: ${event.event_id}\nevent: runtime_event\ndata: ${JSON.stringify(event)}\n\n`);
+  }
+  return new Response(chunks.join(""), {
+    status: 200,
+    headers: {
+      "cache-control": "no-store",
+      "content-type": "text/event-stream",
+      "x-content-type-options": "nosniff",
+      "x-superbrain-source": "cloudflare-d1-owner-bound-runtime-events",
+      "x-runtime-gap": gap ? "true" : "false",
+      "x-runtime-cursor": lastEventId,
+    },
+  });
+}
+
+async function getWorkspaceRuntimeTraceD1(request, traceId, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const result = await env.DB.prepare(`
+      SELECT event_id, event_type, owner_subject, actor_type, actor_id, trace_id,
+             span_id, parent_event_id, source_service, environment, source_commit_sha,
+             producer, occurred_at, observed_at, owner_sequence, producer_sequence,
+             phase, outcome, effect_json, input_hash, output_hash, hash_scope,
+             redaction_status, redaction_version, payload_ref, prev_hash, event_hash,
+             chain_partition, completeness, missing_refs_json
+      FROM runtime_events
+      WHERE owner_subject = ? AND trace_id = ?
+      ORDER BY owner_sequence ASC
+      LIMIT 50
+    `).bind(subject, traceId).all();
+    const events = (result.results || []).filter((row) => String(row.owner_subject) === subject).map(runtimeEventFromD1Row);
+    return json({
+      contract_version: "home-runtime-trace-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      trace_id: traceId,
+      events,
+      complete: events.length > 0,
+      persisted: true,
+      audit_persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_runtime_trace_unavailable", requestId, "The D1 workspace runtime trace could not be read."), 503);
+  }
+}
+
+async function getWorkspaceBuild(request, id, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  try {
+    const row = await env.DB.prepare(`
+      SELECT builds.id, builds.project_id, builds.owner_subject, builds.title, builds.prompt_sha256, builds.model,
+             builds.gateway_mode, builds.gateway_provider, builds.live_provider_calls, builds.created_at,
+             builds.updated_at, COALESCE(u.last_used_at, builds.updated_at) AS last_used_at
+      FROM builds
+      LEFT JOIN workspace_build_usage u ON u.build_id = builds.id AND u.owner_subject = builds.owner_subject
+      WHERE builds.id = ? AND builds.owner_subject = ? AND builds.deleted_at IS NULL
+      LIMIT 1
+    `).bind(safeId(id), subject).first();
+    if (!row) return workspaceNotFound(requestId);
+    await env.DB.prepare(`
+      INSERT INTO workspace_build_usage (owner_subject, build_id, last_used_at, use_count)
+      VALUES (?, ?, ?, 1)
+      ON CONFLICT(owner_subject, build_id) DO UPDATE SET
+        last_used_at = excluded.last_used_at,
+        use_count = workspace_build_usage.use_count + 1
+    `).bind(subject, safeId(id), new Date().toISOString()).run();
+    return json({
+      ...buildFromRow(row, false),
+      contract_version: "github-workspace-builds-v1",
+      status: "verified",
+      source: "cloudflare-d1",
+      identity_scope: "server_bound_workspace_subject",
+      persisted: true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_build_read_failed", requestId, "The D1 workspace build could not be read."), 503);
+  }
+}
+
+async function mutateWorkspacePin(request, id, env, requestId, pinned) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  const clean = safeId(id);
+  try {
+    const owned = await env.DB.prepare("SELECT id FROM builds WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL LIMIT 1").bind(clean, subject).first();
+    if (!owned) return workspaceNotFound(requestId);
+    const existingPin = await env.DB.prepare("SELECT build_id FROM workspace_build_pins WHERE owner_subject = ? AND build_id = ? LIMIT 1").bind(subject, clean).first();
+    const willChange = pinned ? !existingPin : Boolean(existingPin);
+    if (!willChange) {
+      return json({
+        contract_version: "github-workspace-builds-v1",
+        status: pinned ? "pinned" : "unpinned",
+        id: clean,
+        persisted: true,
+        changed: false,
+        runtime_event_id: null,
+        runtime_event_persisted: false,
+        secret_output: false,
+      });
+    }
+    const statement = pinned
+      ? env.DB.prepare("INSERT INTO workspace_build_pins (owner_subject, build_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING").bind(subject, clean, new Date().toISOString())
+      : env.DB.prepare("DELETE FROM workspace_build_pins WHERE owner_subject = ? AND build_id = ?").bind(subject, clean);
+    let runtimeEvent = null;
+    try {
+      runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject: subject,
+        eventType: pinned ? "workspace_build_pinned" : "workspace_build_unpinned",
+        buildId: clean,
+        traceId: requestId,
+        effect: { pinned },
+        mutationStatements: [statement],
+      });
+    } catch {
+      return json(mutationOutcomeUnknown(
+        "workspace_pin_runtime_event_outcome_unknown",
+        requestId,
+        "The workspace pin and its runtime event could not be confirmed atomically. Reconcile the build and event identifiers before retrying.",
+        { id: clean, operation: pinned ? "pin" : "unpin" },
+      ), 503);
+    }
+    const result = runtimeEvent.mutationResults[0];
+    return json({
+      contract_version: "github-workspace-builds-v1",
+      status: pinned ? "pinned" : "unpinned",
+      id: clean,
+      persisted: true,
+      changed: Number(result.meta?.changes || 0) > 0,
+      runtime_event_id: runtimeEvent.eventId,
+      runtime_event_persisted: runtimeEvent.persisted === true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_pin_persistence_unavailable", requestId, "The D1 workspace pin could not be persisted."), 503);
+  }
+}
+
+async function deleteWorkspaceBuild(request, id, env, requestId) {
+  if (!env.DB || !env.AGENT_API_AUTH_TOKEN) {
+    return json(blocked("stateful_runtime_configuration_unavailable", requestId, "D1 or workspace authentication is unavailable."), 503);
+  }
+  const subject = await workspaceAuthenticated(request, env);
+  if (!subject) return json(blocked("workspace_service_authentication_required", requestId, "Workspace identity and service authentication are required."), 401);
+  const clean = safeId(id);
+  const now = new Date().toISOString();
+  try {
+    const owned = await env.DB.prepare("SELECT id FROM builds WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL LIMIT 1").bind(clean, subject).first();
+    if (!owned) return workspaceNotFound(requestId);
+    const mutation = env.DB.prepare("UPDATE builds SET deleted_at = ?, updated_at = ? WHERE id = ? AND owner_subject = ? AND deleted_at IS NULL").bind(now, now, clean, subject);
+    let runtimeEvent;
+    try {
+      runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject: subject,
+        eventType: "workspace_build_deleted",
+        buildId: clean,
+        traceId: requestId,
+        effect: { logical_delete: true, physical_delete: false },
+        mutationStatements: [mutation],
+      });
+    } catch {
+      return json(mutationOutcomeUnknown(
+        "workspace_delete_runtime_event_outcome_unknown",
+        requestId,
+        "The workspace build was logically deleted but its runtime event could not be confirmed. Reconcile the build and event identifiers before retrying.",
+        { id: clean, operation: "delete" },
+      ), 503);
+    }
+    const result = runtimeEvent.mutationResults[0];
+    if (Number(result?.meta?.changes || 0) !== 1) return workspaceNotFound(requestId);
+    return json({
+      contract_version: "github-workspace-builds-v1",
+      status: "deleted",
+      id: clean,
+      persisted: true,
+      logical_delete: true,
+      physical_delete: false,
+      runtime_event_id: runtimeEvent.eventId,
+      runtime_event_persisted: runtimeEvent.persisted === true,
+      secret_output: false,
+    });
+  } catch {
+    return json(blocked("workspace_delete_persistence_unavailable", requestId, "The D1 workspace delete could not be persisted."), 503);
   }
 }
 
@@ -1490,6 +2175,7 @@ async function createArtifact(request, env, requestId) {
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
   }
+  const ownerSubject = await workspaceAuthenticated(request, env);
   let body;
   try { body = await readJson(request); } catch (error) {
     return json(blocked(error instanceof Error ? error.message : "invalid_request", requestId, "The artifact request is invalid."), 400);
@@ -1520,7 +2206,7 @@ async function createArtifact(request, env, requestId) {
 
   const now = new Date().toISOString();
   try {
-    await env.DB.batch([
+    const artifactMutationStatements = [
       env.DB.prepare(`
         INSERT INTO workspace_artifacts (
           id, project_id, source_page, artifact_type, title, summary, status,
@@ -1555,7 +2241,27 @@ async function createArtifact(request, env, requestId) {
         }),
         now,
       ),
-    ]);
+    ];
+    let runtimeEvent = null;
+    if (ownerSubject) {
+      runtimeEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject,
+        eventType: "workspace_artifact_created",
+        buildId: artifact.id,
+        traceId: requestId,
+        producer: "artifact_registry",
+        phase: "committed",
+        outcome: "success",
+        effect: {
+          artifact_id: artifact.id,
+          project_id: artifact.projectId,
+          artifact_type: artifact.artifactType,
+        },
+        mutationStatements: artifactMutationStatements,
+      });
+    } else {
+      await env.DB.batch(artifactMutationStatements);
+    }
     const row = await env.DB.prepare("SELECT * FROM workspace_artifacts WHERE id = ?").bind(artifact.id).first();
     if (!row) throw new Error("artifact_readback_failed");
     return json({
@@ -1564,6 +2270,8 @@ async function createArtifact(request, env, requestId) {
       status: "created",
       source: "cloudflare-d1",
       audit_persisted: true,
+      runtime_event_id: runtimeEvent?.eventId || null,
+      runtime_event_persisted: runtimeEvent?.persisted === true,
       live_provider_calls: false,
       live_mcp_writes: false,
       secret_output: false,
@@ -1663,6 +2371,7 @@ async function startRuntime(request, env, requestId) {
   if (!(await authenticated(request, env))) {
     return json(blocked("stateful_runtime_authentication_required", requestId, "Agent API write authentication failed."), 401);
   }
+  const ownerSubject = await workspaceAuthenticated(request, env);
 
   let body;
   try { body = await readJson(request); } catch (error) {
@@ -1726,7 +2435,32 @@ async function startRuntime(request, env, requestId) {
         JSON.stringify({ status: state.status, role_count: state.role_results.length, prompt_sha256: promptSha256 }), now,
       ),
     ];
-    await env.DB.batch(statements);
+    let runtimeEventId = null;
+    let runtimeEventPersisted = false;
+    if (ownerSubject) {
+      const agentEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject,
+        eventType: "agent_task_dispatch_queued",
+        buildId: runId,
+        traceId: requestId,
+        producer: "cloudflare_langgraph",
+        effect: { run_id: runId, project_id: projectId, task_count: state.role_results.length },
+        mutationStatements: statements,
+      });
+      const memoryEvent = await appendWorkspaceRuntimeEvent(env, {
+        ownerSubject,
+        eventType: "memory_entry_created",
+        buildId: runId,
+        traceId: requestId,
+        producer: "cloudflare_d1_memory",
+        parentEventId: agentEvent.eventId,
+        effect: { run_id: runId, project_id: projectId, kind: "runtime_summary" },
+      });
+      runtimeEventId = memoryEvent.eventId;
+      runtimeEventPersisted = memoryEvent.persisted === true;
+    } else {
+      await env.DB.batch(statements);
+    }
     const row = await env.DB.prepare("SELECT * FROM runtime_runs WHERE id = ?").bind(runId).first();
     const run = runtimeRunFromRow(row);
     return json({
@@ -1737,6 +2471,8 @@ async function startRuntime(request, env, requestId) {
       audit_persisted: true,
       memory_persisted: true,
       task_count: state.role_results.length,
+      runtime_event_id: runtimeEventId,
+      runtime_event_persisted: runtimeEventPersisted,
     }, 201);
   } catch {
     return json(blocked("langgraph_d1_runtime_failed", requestId, "The hosted graph did not complete and persist."), 503);
@@ -3760,6 +4496,19 @@ export default {
     if (request.method === "GET" && url.pathname === "/api/v1/builds") return listBuilds(url, env, requestId);
     if (request.method === "GET" && buildMatch) return getBuild(buildMatch[1], env, requestId);
     if (request.method === "DELETE" && buildMatch) return deleteBuild(request, buildMatch[1], env, requestId);
+    const workspaceBuildMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})$/);
+    const workspacePinMatch = url.pathname.match(/^\/api\/v1\/workspace\/builds\/([A-Za-z0-9_-]{1,64})\/pin$/);
+    const workspaceRuntimeEventMatch = url.pathname.match(/^\/api\/v1\/workspace\/runtime\/events\/([A-Za-z0-9_-]{1,128})$/);
+    const workspaceRuntimeTraceMatch = url.pathname.match(/^\/api\/v1\/workspace\/runtime\/traces\/([A-Za-z0-9_.:-]{1,255})$/);
+    if (request.method === "GET" && url.pathname === "/api/v1/workspace/builds/mine") return listWorkspaceBuilds(request, url, env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/workspace/runtime/events") return listWorkspaceRuntimeEventsD1(request, url, env, requestId);
+    if (request.method === "GET" && url.pathname === "/api/v1/workspace/runtime/events/stream") return streamWorkspaceRuntimeEventsD1(request, url, env, requestId);
+    if (request.method === "GET" && workspaceRuntimeEventMatch) return getWorkspaceRuntimeEventD1(request, workspaceRuntimeEventMatch[1], env, requestId);
+    if (request.method === "GET" && workspaceRuntimeTraceMatch) return getWorkspaceRuntimeTraceD1(request, workspaceRuntimeTraceMatch[1], env, requestId);
+    if (workspaceBuildMatch && request.method === "GET") return getWorkspaceBuild(request, workspaceBuildMatch[1], env, requestId);
+    if (workspacePinMatch && request.method === "PUT") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, true);
+    if (workspacePinMatch && request.method === "DELETE") return mutateWorkspacePin(request, workspacePinMatch[1], env, requestId, false);
+    if (workspaceBuildMatch && request.method === "DELETE") return deleteWorkspaceBuild(request, workspaceBuildMatch[1], env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/memory/semantic") return upsertSemanticMemory(request, env, requestId);
     if (request.method === "GET" && url.pathname === "/api/v1/memory/semantic/search") return searchSemanticMemory(request, url, env, requestId);
     if (request.method === "POST" && url.pathname === "/api/v1/workspace/artifacts") return createArtifact(request, env, requestId);
