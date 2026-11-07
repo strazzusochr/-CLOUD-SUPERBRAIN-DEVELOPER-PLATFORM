@@ -17,6 +17,7 @@ type BoundaryProxyOptions = {
   oauthRedirectPolicy?: "github-start" | "same-origin-callback";
   authSessionPolicy?: "identity" | "refresh" | "logout";
   forwardCsrfMetadata?: boolean;
+  trustedWorkspaceSubject?: string;
 };
 
 const OAUTH_STATE_COOKIE = "__Host-sb_oauth_state";
@@ -24,11 +25,17 @@ const OAUTH_ACCESS_COOKIE = "__Host-sb_access";
 const OAUTH_REFRESH_COOKIE = "__Host-sb_refresh";
 const OAUTH_STATE_PATTERN = /^phase3-auth-state-[A-Za-z0-9_-]{32}$/;
 const GITHUB_OAUTH_ISSUER = "https://github.com/login/oauth";
+const WORKSPACE_SUBJECT_PATTERN = /^(?:github:[1-9][0-9]{0,18}|local-session:[0-9a-f-]{36})$/;
 
 export type HostedAuthSessionLookup =
   | { status: "valid"; claims: AuthSessionClaims }
   | { status: "invalid" }
   | { status: "unavailable" };
+
+export type WorkspaceIdentity = {
+  subject: string;
+  source: "github-oauth" | "local-dev-session";
+};
 
 type BoundaryConfig = {
   envNames: string[];
@@ -81,7 +88,7 @@ type OrdinaryRequestHeaderPolicy = "public-read" | "public-json" | "service-json
 const ORDINARY_REQUEST_HEADER_ALLOWLISTS: Record<OrdinaryRequestHeaderPolicy, readonly string[]> = {
   "public-read": ["accept", "x-request-id", "traceparent"],
   "public-json": ["accept", "content-type", "x-request-id", "traceparent"],
-  "service-json": ["accept", "content-type", "x-request-id", "traceparent"],
+  "service-json": ["accept", "content-type", "last-event-id", "x-request-id", "traceparent"],
   "gateway-json": ["accept", "content-type", "x-request-id", "traceparent"],
 };
 
@@ -164,7 +171,7 @@ function copyResponseHeaders(response: Response, source: string): Headers {
     "x-superbrain-boundary": source,
     "x-superbrain-source": response.headers.get("x-superbrain-source") ?? source,
   });
-  for (const name of ["www-authenticate", "retry-after"]) {
+  for (const name of ["www-authenticate", "retry-after", "x-runtime-gap", "x-runtime-cursor"]) {
     const value = response.headers.get(name);
     if (value) headers.set(name, value);
   }
@@ -802,6 +809,10 @@ export async function proxyToBoundary(
     headers.delete("cookie");
     headers.delete("x-csrf-token");
   }
+  if (options.trustedWorkspaceSubject) {
+    if (!WORKSPACE_SUBJECT_PATTERN.test(options.trustedWorkspaceSubject)) return null;
+    headers.set("x-superbrain-workspace-subject", options.trustedWorkspaceSubject);
+  }
   if (attachConfiguredAuth && gatewayToken && config.authHeaderName) headers.set(config.authHeaderName, gatewayToken);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -881,6 +892,57 @@ export async function proxyAuthSessionToBoundary(
   return proxyToBoundary(req, "agent-api", targetPath, timeoutMs, { authSessionPolicy: policy });
 }
 
+function verifiedGithubWorkspaceSubject(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const envelope = payload as Record<string, unknown>;
+  const identity = envelope.identity;
+  if (!identity || typeof identity !== "object" || Array.isArray(identity)) return null;
+  const claims = identity as Record<string, unknown>;
+  const providerUserId = claims.provider_user_id;
+  const valid = envelope.status === "authenticated"
+    && envelope.contract_version === "auth-github-jwt-refresh-v1"
+    && envelope.owner_activation_granted === true
+    && envelope.identity_verified === true
+    && envelope.jwt_signature_verified === true
+    && envelope.jwt_claims_verified === true
+    && envelope.token_returned === false
+    && envelope.cookie_returned === false
+    && envelope.secret_output === false
+    && envelope.live_github_oauth_call === false
+    && claims.provider === "github"
+    && Number.isSafeInteger(providerUserId)
+    && Number(providerUserId) > 0
+    && claims.subject === `github:${providerUserId}`;
+  return valid ? String(claims.subject) : null;
+}
+
+function workspaceIdentityBlocked(status: 401 | 403 | 503, error: string, reason: string): Response {
+  return Response.json(
+    { contract_version: "github-workspace-builds-v1", status: "blocked", error, reason, accepted: false, persisted: false, secret_output: false },
+    { status, headers: { "cache-control": "no-store", "x-superbrain-source": "workspace-identity-guard" } },
+  );
+}
+
+export async function requireWorkspaceIdentity(req: Request): Promise<WorkspaceIdentity | Response> {
+  if (isLocalDevelopmentRequest(req)) {
+    const token = cookieValue(req.headers.get("cookie"), AUTH_SESSION_COOKIE);
+    const session = verifySignedAuthSession(token);
+    if (session.valid) return { subject: `local-session:${session.claims.id}`, source: "local-dev-session" };
+    return workspaceIdentityBlocked(401, "workspace_identity_required", "local_session_missing_or_invalid");
+  }
+  const identityRequest = new Request(new URL("/api/v1/auth/me", req.url), { method: "GET", headers: req.headers });
+  const identityResponse = await proxyAuthSessionToBoundary(identityRequest, "/api/v1/auth/me", 8_000);
+  if (!identityResponse) return workspaceIdentityBlocked(503, "workspace_identity_unavailable", "owner_identity_boundary_unavailable");
+  if (identityResponse.status === 401) return workspaceIdentityBlocked(401, "workspace_identity_required", "github_owner_identity_missing_or_invalid");
+  if (identityResponse.status === 403) return workspaceIdentityBlocked(403, "workspace_identity_forbidden", "github_owner_identity_not_allowed");
+  if (identityResponse.status !== 200) return workspaceIdentityBlocked(503, "workspace_identity_unavailable", "owner_identity_boundary_rejected");
+  const incomingAccessToken = cookieValue(req.headers.get("cookie"), OAUTH_ACCESS_COOKIE);
+  const payload = await readHostedSessionPayload(identityResponse, incomingAccessToken ?? undefined);
+  const subject = verifiedGithubWorkspaceSubject(payload);
+  if (!subject) return workspaceIdentityBlocked(503, "workspace_identity_unavailable", "owner_identity_contract_invalid");
+  return { subject, source: "github-oauth" };
+}
+
 export async function proxyReadToBoundary(
   req: Request,
   kind: BoundaryKind,
@@ -891,6 +953,18 @@ export async function proxyReadToBoundary(
   if (method !== "GET" && method !== "HEAD") return null;
   const response = await proxyToBoundary(req, kind, targetPath, timeoutMs);
   return response?.ok ? response : null;
+}
+
+export async function proxyWorkspaceToBoundary(
+  req: Request,
+  targetPath: string,
+  identity: WorkspaceIdentity,
+  timeoutMs = 8_000,
+): Promise<Response | null> {
+  return proxyToBoundary(req, "agent-api", targetPath, timeoutMs, {
+    serviceAuth: true,
+    trustedWorkspaceSubject: identity.subject,
+  });
 }
 
 export function boundaryUnavailable(

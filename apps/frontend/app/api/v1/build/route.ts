@@ -3,7 +3,8 @@
 // Generation is allowed only through the configured LLM Gateway. The stateless
 // frontend never calls a provider or persistence service directly.
 
-import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary } from "../../../../lib/frontendBoundary";
+import { createHash } from "node:crypto";
+import { authorizeBoundaryWrite, boundaryUnavailable, proxyToBoundary, requireWorkspaceIdentity, type WorkspaceIdentity } from "../../../../lib/frontendBoundary";
 import {
   ensureGeneratedHtmlBoundingSpheres,
   ensureGeneratedHtmlDependencies,
@@ -198,7 +199,7 @@ async function generate(req: Request, prompt: string, baseHtml?: string): Promis
   throw new Error(lastRejection ? `generation rejected: ${lastRejection}` : "generation failed");
 }
 
-async function persistBuild(req: Request, build: BuildRecord): Promise<Record<string, unknown> | null> {
+async function persistBuild(req: Request, build: BuildRecord, identity: WorkspaceIdentity): Promise<Record<string, unknown> | null> {
   const persistenceRequest = new Request(req.url, {
     method: "POST",
     headers: {
@@ -213,7 +214,7 @@ async function persistBuild(req: Request, build: BuildRecord): Promise<Record<st
     "agent-api",
     "/api/v1/builds",
     10_000,
-    { serviceAuth: true },
+    { serviceAuth: true, trustedWorkspaceSubject: identity.subject },
   );
   if (!response?.ok) return null;
   let payload: Record<string, unknown>;
@@ -222,20 +223,29 @@ async function persistBuild(req: Request, build: BuildRecord): Promise<Record<st
   } catch {
     return null;
   }
-  return payload.persisted === true
+  const persistedHtml = typeof payload.html === "string" ? payload.html : "";
+  const expectedPromptSha256 = createHash("sha256").update(build.prompt, "utf8").digest("hex");
+  const readbackValid = payload.persisted === true
     && payload.audit_persisted === true
     && payload.id === build.id
-    && payload.html === build.html
+    && payload.project_id === build.project_id
+    && payload.prompt_sha256 === expectedPromptSha256
+    && payload.model === build.model
+    && payload.gateway_mode === build.gateway_mode
+    && payload.gateway_provider === build.gateway_provider
+    && completePersistableHtml(persistedHtml)
+    && !containsSecretMaterial(persistedHtml)
     && payload.direct_provider_calls === false
     && payload.live_mcp_writes === false
-    && payload.secret_output === false
-    ? payload
-    : null;
+    && payload.secret_output === false;
+  return readbackValid ? payload : null;
 }
 
 export async function POST(req: Request): Promise<Response> {
   const writeBlock = await authorizeBoundaryWrite(req);
   if (writeBlock) return writeBlock;
+  const identity = await requireWorkspaceIdentity(req);
+  if (identity instanceof Response) return identity;
 
   let body: Record<string, unknown> = {};
   try { body = (await req.json()) as Record<string, unknown>; } catch { /* empty */ }
@@ -287,7 +297,7 @@ export async function POST(req: Request): Promise<Response> {
       gateway_provider: String(provider ?? "unknown"),
       live_provider_calls: liveProviderCalls,
     };
-    const persistedBuild = await persistBuild(req, buildRecord);
+    const persistedBuild = await persistBuild(req, buildRecord, identity);
     const persisted = persistedBuild !== null;
     if (!persistedBuild) {
       return Response.json(

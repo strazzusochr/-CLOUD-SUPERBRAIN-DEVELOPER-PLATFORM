@@ -196,7 +196,7 @@ async function runProfile(browser, profile, surfaces, baseUrl, artifactDir) {
 
   const checks = [];
   try {
-    const bootstrap = await page.goto(`${baseUrl}/home`, { waitUntil: "networkidle", timeout: 120000 });
+    const bootstrap = await page.goto(`${baseUrl}/home`, { waitUntil: "domcontentloaded", timeout: 120000 });
     assert(bootstrap && bootstrap.ok(), `${profile.id} bootstrap did not return 200`);
     await page.waitForTimeout(1000);
     const homeSurface = surfaces.find((surface) => surface.route === "/home");

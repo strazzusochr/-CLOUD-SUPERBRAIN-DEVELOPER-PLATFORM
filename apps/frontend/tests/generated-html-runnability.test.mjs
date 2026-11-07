@@ -381,7 +381,7 @@ test("the production build route applies the runnability guard before persistenc
     "known runtime-order defects must be repaired before the fail-closed verdict",
   );
   assert.ok(
-    route.indexOf("findUnrunnableReferences(html)") < route.indexOf("persistBuild(req, buildRecord)"),
+    route.indexOf("findUnrunnableReferences(html)") < route.indexOf("persistBuild(req, buildRecord"),
     "runnability must be checked before the persistence call",
   );
 });

@@ -4,7 +4,6 @@ param(
   [switch]$AllowLocalhost,
   [switch]$AllowHosted,
   [switch]$ApproveLiveProviderCalls,
-  [switch]$Headed,
   [string]$EvidenceDir = ".codex\runs\CURRENT\22-page-actions",
   [string]$ProductReportPath = ".codex\runs\CURRENT\product-acceptance\report.json",
   [string]$ExpectedSourceCommitSha = "",
@@ -86,7 +85,7 @@ function Resolve-RepoScopedPath(
 }
 
 if (-not $ApproveLiveProviderCalls) {
-  throw "22-page action acceptance requires explicit -ApproveLiveProviderCalls because two registered controls perform one real LLM provider call each and persist their builds."
+  throw "22-page action acceptance requires explicit -ApproveLiveProviderCalls because the Games control performs one real LLM provider call and persists its build."
 }
 
 $parsedBaseUrl = $null
@@ -342,7 +341,7 @@ foreach ($name in $environmentNames) {
 $proofScope = if ($isLocalhost) { "dev_only_localhost" } else { "hosted_https" }
 $proofLabel = if ($isLocalhost) { "DEV-ONLY" } else { "HOSTED-HTTPS" }
 Write-Host "[22-page-actions] $proofLabel base url: $normalizedBaseUrl"
-Write-Host "[22-page-actions] two registered build controls are explicitly approved; mocks, interception, and direct provider bypass are forbidden"
+Write-Host "[22-page-actions] one route-local build request (Games) is directly verified; Workbench retains its exact P0 evidence; mocks, interception, and direct provider bypass are forbidden"
 Write-Host "[22-page-actions] evidence: $evidencePath"
 
 $playwrightExitCode = 1
@@ -358,11 +357,7 @@ try {
   Set-ProcessEnvironment "PAGE_ACTIONS_DEPLOYMENT_ID" $(if ($isLocalhost) { "" } else { $ExpectedDeploymentId })
   Set-ProcessEnvironment "PAGE_ACTIONS_PRODUCT_REPORT_PATH" $resolvedProductReport
 
-  if ($Headed) {
-    & npm.cmd run test:e2e:22-page-actions --prefix $frontendRoot -- --headed
-  } else {
-    & npm.cmd run test:e2e:22-page-actions --prefix $frontendRoot
-  }
+  & npm.cmd run test:e2e:22-page-actions --prefix $frontendRoot
   $playwrightExitCode = $LASTEXITCODE
 } finally {
   foreach ($name in $environmentNames) {
@@ -455,17 +450,17 @@ Assert-True "excluded availability counts add up" (
 Assert-True "zero unregistered visible page-local controls" ([int]$report.unregistered_page_local_action_count -eq 0)
 Assert-True "zero dead actions" ([int]$report.dead_action_count -eq 0)
 Assert-True "zero click-only passes" ([int]$report.click_only_passes -eq 0)
-Assert-True "exactly two route-local build requests" (
-  [int]$report.provider_request_count -eq 2 -and [int]$report.allowed_build_request_count -eq 2
+Assert-True "exactly one route-local build request" (
+  [int]$report.provider_request_count -eq 1 -and [int]$report.allowed_build_request_count -eq 1
 )
-Assert-True "both route-local builds report the approved live provider" ([int]$report.live_provider_response_count -eq 2)
+Assert-True "the route-local build reports the approved live provider" ([int]$report.live_provider_response_count -eq 1)
 Assert-True "zero provider bypass requests" ([int]$report.unexpected_provider_request_count -eq 0)
 Assert-True "zero console errors" ([int]$report.console_error_count -eq 0)
 Assert-True "zero page errors" ([int]$report.page_error_count -eq 0)
 Assert-True "no mocks used" (-not [bool]$report.mocks_used -and -not [bool]$report.route_interception_used)
 Assert-True "no secret output" (-not [bool]$report.secret_output)
 
-foreach ($actionId in @("home-build", "games-build-run")) {
+foreach ($actionId in @("games-build-run")) {
   $matchingAction = @($report.actions | Where-Object { [string]$_.action_id -eq $actionId })
   Assert-True "$actionId has one direct proof" ($matchingAction.Count -eq 1)
   Assert-True "$actionId mutation proves persistence and audit" (

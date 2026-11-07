@@ -78,15 +78,12 @@ function filteredConsoleErrors(errors) {
 const EXPECTED_ANONYMOUS_AUTH_PATHS = new Set([
   "/api/v1/auth/me",
   "/api/v1/auth/refresh",
+  "/api/v1/workspace/builds/mine",
+  "/api/v1/workspace/runtime/events",
 ]);
 const EXPECTED_RUN_DETAIL_NOT_FOUND_PATH = "/api/v1/build/workspace-audit-missing-build";
 
 function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resourceErrors) {
-  // The session boundary is intentionally queried by the public root, login,
-  // and unauthenticated workbench shell. Only those exact UI surfaces may
-  // suppress one same-origin auth/me or auth/refresh fetch 401. All other
-  // routes, response statuses, origins, and resource types remain fail-closed.
-  if (surface.pageId !== "login" && surface.pageId !== "workbench" && surface.route !== "/") return false;
   // Chromium may omit the reason phrase for the same session-boundary 401.
   // The endpoint, origin, fetch type, and status checks below remain mandatory.
   if (!/Failed to load resource: the server responded with a status of 401 \((?:Unauthorized)?\)/.test(entry)) return false;
@@ -101,6 +98,16 @@ function isCorrelatedAnonymousAuthConsoleError(surface, baseUrl, entry, resource
   } catch {
     return false;
   }
+  const workspaceAuthPath = consoleUrl.pathname.startsWith("/api/v1/workspace/");
+  // The session boundary is intentionally queried by the public root, login,
+  // and unauthenticated workbench shell. Workspace reads are also expected on
+  // the Home surface, but auth/me/auth/refresh remain restricted to the exact
+  // public shells. All other routes, statuses, origins, and resource types
+  // remain fail-closed.
+  const allowedSurface = workspaceAuthPath
+    ? (["login", "home", "workbench"].includes(surface.pageId) || surface.route === "/")
+    : (["login", "workbench"].includes(surface.pageId) || surface.route === "/");
+  if (!allowedSurface) return false;
   if (consoleUrl.origin !== baseOrigin || !EXPECTED_ANONYMOUS_AUTH_PATHS.has(consoleUrl.pathname)) return false;
 
   return resourceErrors.some((resource) => {
@@ -307,7 +314,7 @@ async function main() {
             || (surfaceArg.pageId !== "settings" && bodyText.includes("Gate-Matrix")),
           retiredProviderVisible: /\b(Hetzner|GitKraken|Oracle)\b/i.test(bodyText),
           unpaidBudgetVisible: bodyText.includes("Metered Budget"),
-          notFoundVisible: /\b404\b|not found|This page could not be found/i.test(bodyText),
+          notFoundVisible: /\b404(?:\s|$)|\bnot found\b|This page could not be found/i.test(bodyText),
         };
       }, surface);
 

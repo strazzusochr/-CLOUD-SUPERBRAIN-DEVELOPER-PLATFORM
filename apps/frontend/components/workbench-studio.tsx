@@ -104,7 +104,7 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
         const controller = new AbortController();
         const timeout = window.setTimeout(() => controller.abort(), 32_000);
         try {
-          const response = await fetch(`/api/v1/build/${encodeURIComponent(id)}`, {
+          const response = await fetch(`/api/v1/workspace/builds/${encodeURIComponent(id)}`, {
             cache: "no-store",
             signal: controller.signal,
           });
@@ -168,6 +168,12 @@ export function WorkbenchStudio({ examples = DEFAULT_EXAMPLES, placeholder }: { 
       else {
         const f = parseFiles(b.html);
         setBuild(b); setFiles(f); setActive(0);
+        // The server-owned build id is the continuation handle. Keeping it in
+        // the URL makes a route change, reload, or a return from Home rehydrate
+        // the same authorised workspace build instead of silently losing it.
+        if (b.persisted === true && b.id) {
+          window.history.replaceState(null, "", `/workbench?build=${encodeURIComponent(b.id)}`);
+        }
         addLog("ok", `✓ ${b.html.length.toLocaleString("de-DE")} Bytes in ${secs}s generiert`);
         addLog("ok", `✓ ${f.length} Datei(en) · GPU-Schutz injiziert`);
         addLog("ok", `✓ Build-ID ${b.id}`);
